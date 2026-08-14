@@ -11,7 +11,8 @@ export function buildClock() {
 
     const update = () => {
         const now = GLib.DateTime.new_now_local();
-        label.text = now.format('%H:%M') ?? '';
+        // e.g. "Fri, 14 Aug  18:47"
+        label.text = now.format('%a, %d %b  %H:%M') ?? '';
         return GLib.SOURCE_CONTINUE;
     };
     update();
@@ -21,3 +22,4 @@ export function buildClock() {
 
     return label;
 }
+
