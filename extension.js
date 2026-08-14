@@ -4,6 +4,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
+import {ThemeManager} from './lib/theme.js';
 
 export default class MaterialPanelExtension extends Extension {
     enable() {
@@ -16,30 +17,44 @@ export default class MaterialPanelExtension extends Extension {
         this._builder = new PanelBuilder(this._bridge);
         this._builder.render(this._config);
 
+        this._theme = new ThemeManager();
+        this._applyTheme();
+
         // NOTE: we hide the stock panel rather than destroy it. Main.panel
         // is a singleton other extensions reference directly (addToStatusArea,
         // sometimes Main.panel._rightBox etc). Destroying it breaks them.
-        // Hiding + zero-height keeps it alive as a backing object while our
-        // own panel actor is what's actually visible.
+        // hide() keeps it alive as a backing object (so addToStatusArea still
+        // works) while fully excluding it from layout, painting, and Clutter's
+        // event picking. Chrome/workarea tracking already skips invisible
+        // actors, so we get the screen space back for free.
         //
-        // KNOWN LIMITATION: setting height to 0 here can confuse
-        // Main.layoutManager's workarea calculations in some GNOME versions,
-        // since it partly derives strut size from the stock panel's box.
-        // If you see gaps/overlaps with maximized windows, this is the first
-        // place to look.
-        Main.panel.height = 0;
-        Main.panel.opacity = 0;
-        Main.panel.reactive = false;
+        // Do NOT switch this to height=0/opacity=0/reactive=false — that
+        // leaves the actor in the pick pipeline with a degenerate zero-size
+        // allocation, which throws "StWidget doesn't implement event" on
+        // every pointer event near the top of the screen and can leave
+        // GNOME's own DateMenu half-initialized.
+        Main.panel.hide();
 
         this._configStore.watch(newConfig => {
             this._config = newConfig;
             this._builder.render(this._config);
+            this._applyTheme();
         });
+    }
+
+    _applyTheme() {
+        if (!this._config.colorSource)
+            return;
+        this._theme.apply(this._config.colorSource);
+        this._theme.watch(this._config.colorSource, () => this._theme.apply(this._config.colorSource));
     }
 
     disable() {
         this._configStore.unwatch();
         this._configStore = null;
+
+        this._theme.destroy();
+        this._theme = null;
 
         this._builder.destroy();
         this._builder = null;
@@ -47,10 +62,9 @@ export default class MaterialPanelExtension extends Extension {
         this._bridge.disable();
         this._bridge = null;
 
-        Main.panel.height = -1;
-        Main.panel.opacity = 255;
-        Main.panel.reactive = true;
+        Main.panel.show();
 
         this._config = null;
     }
 }
+
