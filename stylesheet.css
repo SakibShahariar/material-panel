@@ -1,0 +1,57 @@
+/* Fixed palette for now. When matugen integration comes back, this file's
+   color values are what get regenerated/overridden — everything else about
+   the panel stays the same. */
+
+.material-panel-bar {
+    height: 36px;
+    background-color: transparent;
+    padding: 0 8px;
+}
+
+.material-panel-zone {
+    spacing: 6px;
+}
+
+.material-panel-zone-left,
+.material-panel-zone-right {
+    background-color: rgba(30, 30, 46, 0.75);
+    border-radius: 16px;
+    padding: 4px 10px;
+    margin: 4px;
+}
+
+.material-panel-zone-center {
+    background-color: rgba(30, 30, 46, 0.75);
+    border-radius: 16px;
+    padding: 4px 14px;
+    margin: 4px;
+}
+
+.material-panel-clock {
+    color: #cdd6f4;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.material-panel-workspace-btn {
+    color: #9399b2;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.material-panel-workspace-btn.active {
+    color: #1e1e2e;
+    background-color: #cba6f7;
+}
+
+.material-panel-activities-btn {
+    color: #cdd6f4;
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-size: 12px;
+}
+
+.material-panel-activities-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
