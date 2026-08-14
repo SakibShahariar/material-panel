@@ -43,10 +43,11 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     _applyTheme() {
-        if (!this._config.colorSource)
-            return;
-        this._theme.apply(this._config.colorSource);
-        this._theme.watch(this._config.colorSource, () => this._theme.apply(this._config.colorSource));
+        this._theme.apply(this._config.colorSource ?? null);
+        if (this._config.colorSource) {
+            this._theme.watch(this._config.colorSource,
+                () => this._theme.apply(this._config.colorSource));
+        }
     }
 
     disable() {
