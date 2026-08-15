@@ -2,6 +2,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -10,6 +11,16 @@ import {iconPath} from '../lib/iconTheme.js';
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
+
+function makeWrappingLabel(text, styleClass) {
+    const label = new St.Label({text, style_class: styleClass, y_align: Clutter.ActorAlign.CENTER});
+    // Longer labels ("Do not disturb") don't fit a compact tile on one
+    // line - wrap instead of the default single-line ellipsis truncation.
+    label.clutter_text.line_wrap = true;
+    label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+    label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+    return label;
+}
 
 function buildTile({iconKey, label, isOn, onToggle, watch}) {
     const tile = new St.Button({
@@ -28,11 +39,8 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKey))),
     });
-    const text = new St.Label({
-        text: label,
-        style_class: 'material-panel-qs-tile-label',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
+    const text = makeWrappingLabel(label, 'material-panel-qs-tile-label');
+    text.x_expand = true;
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
@@ -110,7 +118,8 @@ function bluetoothTile() {
         style_class: 'material-panel-qs-tile-icon', icon_size: 18, y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off'))),
     });
-    const text = new St.Label({text: 'Bluetooth', style_class: 'material-panel-qs-tile-label', y_align: Clutter.ActorAlign.CENTER});
+    const text = makeWrappingLabel('Bluetooth', 'material-panel-qs-tile-label');
+    text.x_expand = true;
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
