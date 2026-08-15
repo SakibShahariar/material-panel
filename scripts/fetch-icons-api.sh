@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Alternative to fetch-icons.sh: pulls the same icons via GitHub's contents
-# API instead of git clone. Run from the project root.
+# Pulls Material Symbols (Rounded) SVGs from Google's repo via GitHub's
+# contents API. Run from the project root: bash scripts/fetch-icons-api.sh
 set -euo pipefail
 
 SRC_ICONS=(
@@ -8,6 +8,10 @@ SRC_ICONS=(
   volume_up volume_down volume_mute volume_off
   wifi settings_ethernet wifi_off
   apps
+  dark_mode light_mode nightlight
+  do_not_disturb_on notifications
+  lock bedtime restart_alt power_settings_new
+  bluetooth bluetooth_disabled
 )
 
 declare -A MAP=(
@@ -24,6 +28,17 @@ declare -A MAP=(
   [settings_ethernet]=network-wired
   [wifi_off]=network-offline
   [apps]=apps
+  [dark_mode]=dark-mode
+  [light_mode]=light-mode
+  [nightlight]=night-light
+  [do_not_disturb_on]=dnd-active
+  [notifications]=dnd-inactive
+  [lock]=lock
+  [bedtime]=suspend
+  [restart_alt]=restart
+  [power_settings_new]=shutdown
+  [bluetooth]=bluetooth-on
+  [bluetooth_disabled]=bluetooth-off
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,8 +52,6 @@ for src in "${SRC_ICONS[@]}"; do
   key="${MAP[$src]}"
   api_url="https://api.github.com/repos/google/material-design-icons/contents/symbols/web/$src/materialsymbolsrounded"
 
-  # Write the API response to a file instead of a shell variable - avoids
-  # any risk of JSON content breaking bash's interpolation into python -c.
   curl -s "$api_url" > "$TMPJSON"
 
   download_url=$(python3 - "$TMPJSON" <<'PYEOF'

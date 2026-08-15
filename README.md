@@ -12,7 +12,7 @@ Early scaffold. Working:
 
 - Custom panel actor with `left` / `center` / `right` zones, rendered from
   `~/.config/material-panel/config.json`
-- Built-in modules: clock (with weekday/date), workspace switcher, activities toggle, battery (UPower), volume (Gvc, click to mute), network (NetworkManager)
+- Built-in modules: clock (with weekday/date), workspace switcher, activities toggle, battery (UPower), volume (Gvc, click to mute), network (NetworkManager, dropdown with Wi-Fi toggle + reconnect to known networks), dark mode toggle, night light toggle, do-not-disturb toggle, power menu (lock/suspend/restart/shutdown via loginctl/systemctl), bluetooth power toggle
 - Bundled Material Symbols icons, recolored at runtime to match the active
   palette (matugen or fixed) - see "Icons" below. Run `scripts/fetch-icons.sh`
   once before first use.
@@ -112,6 +112,17 @@ than failing outright - that module just renders without an icon until
 you fix the mapping in the script.
 
 ## Known limitations
+
+- Wifi module only reconnects to already-known networks (saved
+  connections). Connecting to a brand-new network with a password requires
+  implementing NetworkManager's secret-agent D-Bus flow - not done yet.
+- Bluetooth module only toggles the adapter on/off. Device pairing/
+  connection management (a device list, "Connect"/"Pair" actions) isn't
+  built - that needs more BlueZ D-Bus work (org.bluez.Device1 per paired
+  device) than the single adapter Powered property this uses.
+- Bluetooth's adapter discovery (finding the right D-Bus object path) is
+  the least-tested piece of this project - if the toggle doesn't work,
+  check the log for `material-panel: bluez` errors first.
 
 - Setting the stock panel's height to 0 can affect `Main.layoutManager`'s
   workarea calculation on some GNOME versions — watch for gaps/overlaps
