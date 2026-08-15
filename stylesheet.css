@@ -47,6 +47,7 @@
     font-size: 12px;
     font-weight: 600;
     text-align: center;
+    transition-duration: 150ms;
 }
 
 /* Shared "chip" look for icon(+label) modules - activities/battery/volume/
@@ -55,6 +56,11 @@
 .material-panel-chip {
     border-radius: 999px;
     padding: 6px 14px;
+    transition-duration: 150ms;
+}
+
+.material-panel-volume {
+    transition-duration: 150ms;
 }
 
 .material-panel-battery,
