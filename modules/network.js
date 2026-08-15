@@ -3,12 +3,17 @@ import Clutter from 'gi://Clutter';
 import NM from 'gi://NM';
 
 export function buildNetwork() {
+    const box = new St.BoxLayout({
+        style_class: 'material-panel-network material-panel-chip',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
     const icon = new St.Icon({
         style_class: 'material-panel-network-icon',
-        icon_size: 16,
+        icon_size: 15,
         y_align: Clutter.ActorAlign.CENTER,
         icon_name: 'network-offline-symbolic',
     });
+    box.add_child(icon);
 
     NM.Client.new_async(null, (_obj, res) => {
         let client;
@@ -45,8 +50,8 @@ export function buildNetwork() {
         update();
 
         const id = client.connect('notify::primary-connection', update);
-        icon.connect('destroy', () => client.disconnect(id));
+        box.connect('destroy', () => client.disconnect(id));
     });
 
-    return icon;
+    return box;
 }

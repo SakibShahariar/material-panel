@@ -19,10 +19,10 @@ export function buildBattery() {
         return null;
 
     const box = new St.BoxLayout({
-        style_class: 'material-panel-battery',
+        style_class: 'material-panel-battery material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 16});
+    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 15});
     const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);
@@ -40,8 +40,14 @@ export function buildBattery() {
     };
 
     const update = () => {
+        const pct = device.percentage;
+        const charging = device.state === UPowerGlib.DeviceState.CHARGING;
         icon.icon_name = iconNameFor();
-        label.text = `${Math.round(device.percentage)}%`;
+        label.text = `${Math.round(pct)}%`;
+
+        const isLow = pct < 15 && !charging;
+        icon.set_style_class_name(`material-panel-battery-icon${isLow ? ' warn' : ''}`);
+        label.set_style_class_name(`material-panel-battery-label${isLow ? ' warn' : ''}`);
     };
     update();
 
