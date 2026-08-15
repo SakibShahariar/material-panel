@@ -12,6 +12,7 @@ SRC_ICONS=(
   do_not_disturb_on notifications
   lock bedtime restart_alt power_settings_new
   bluetooth bluetooth_disabled
+  settings
 )
 
 declare -A MAP=(
@@ -39,6 +40,7 @@ declare -A MAP=(
   [power_settings_new]=shutdown
   [bluetooth]=bluetooth-on
   [bluetooth_disabled]=bluetooth-off
+  [settings]=settings
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
