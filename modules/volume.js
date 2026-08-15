@@ -22,7 +22,7 @@ export function buildVolume() {
         y_align: Clutter.ActorAlign.CENTER,
         reactive: true,
     });
-    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 18});
+    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 22});
     const label = new St.Label({style_class: 'material-panel-volume-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);

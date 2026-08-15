@@ -11,7 +11,7 @@ export function buildActivities() {
         child: new St.Icon({
             style_class: 'material-panel-activities-icon',
             gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('apps'))),
-            icon_size: 17,
+            icon_size: 20,
             y_align: Clutter.ActorAlign.CENTER,
         }),
     });

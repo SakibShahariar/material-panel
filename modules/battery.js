@@ -25,7 +25,7 @@ export function buildBattery() {
         style_class: 'material-panel-battery material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 18});
+    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 22});
     const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);

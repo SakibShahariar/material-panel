@@ -10,7 +10,7 @@ export function buildNetwork() {
         style_class: 'material-panel-network material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const icon = new St.Icon({style_class: 'material-panel-network-icon', icon_size: 18});
+    const icon = new St.Icon({style_class: 'material-panel-network-icon', icon_size: 22});
     box.add_child(icon);
 
     const setIcon = key => {
