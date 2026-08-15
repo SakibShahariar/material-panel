@@ -52,6 +52,12 @@ trap 'rm -f "$TMPJSON"' EXIT
 
 for src in "${SRC_ICONS[@]}"; do
   key="${MAP[$src]}"
+
+  if [ -f "$DEST/$key.svg" ]; then
+    echo "SKIP: $key.svg already exists"
+    continue
+  fi
+
   api_url="https://api.github.com/repos/google/material-design-icons/contents/symbols/web/$src/materialsymbolsrounded"
 
   curl -s "$api_url" > "$TMPJSON"
