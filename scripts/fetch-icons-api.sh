@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Alternative to fetch-icons.sh: pulls the same icons via GitHub's contents
-# API instead of git clone. Faster when a sparse clone is slow/hanging.
-# Requires python3 (for JSON parsing). Run from the project root.
+# API instead of git clone. Run from the project root.
 set -euo pipefail
 
 SRC_ICONS=(
@@ -31,33 +30,47 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$SCRIPT_DIR/../assets/icons-src"
 mkdir -p "$DEST"
 
+TMPJSON="$(mktemp)"
+trap 'rm -f "$TMPJSON"' EXIT
+
 for src in "${SRC_ICONS[@]}"; do
   key="${MAP[$src]}"
   api_url="https://api.github.com/repos/google/material-design-icons/contents/symbols/web/$src/materialsymbolsrounded"
 
-  listing=$(curl -s "$api_url")
+  # Write the API response to a file instead of a shell variable - avoids
+  # any risk of JSON content breaking bash's interpolation into python -c.
+  curl -s "$api_url" > "$TMPJSON"
 
-  # Pick a fill1 24px.svg if present, else any 24px.svg, else any .svg.
-  download_url=$(python3 -c "
+  download_url=$(python3 - "$TMPJSON" <<'PYEOF'
 import json, sys
-try:
-    items = json.loads('''$listing''')
-except Exception:
-    sys.exit(1)
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as f:
+    try:
+        items = json.load(f)
+    except Exception as e:
+        print(f"PARSE ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+
 if not isinstance(items, list):
+    print(f"API ERROR: {items}", file=sys.stderr)
     sys.exit(1)
+
 names = [(i['name'], i['download_url']) for i in items if i['name'].endswith('.svg')]
+
 def pick(pred):
     for n, u in names:
         if pred(n):
             return u
     return None
+
 url = pick(lambda n: 'fill1' in n and '24px' in n) or pick(lambda n: '24px' in n) or (names[0][1] if names else None)
 print(url or '')
-" 2>/dev/null || echo "")
+PYEOF
+) || true
 
   if [ -z "$download_url" ]; then
-    echo "WARN: could not resolve an svg for $src (skipping $key)" >&2
+    echo "WARN: could not resolve an svg for $src (skipping $key) - see error above" >&2
     continue
   fi
 
