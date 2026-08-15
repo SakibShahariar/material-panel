@@ -5,7 +5,7 @@
    loading of this bundled stylesheet and our own runtime-loaded one. */
 
 .material-panel-bar {
-    height: 44px;
+    height: 54px;
     background-color: transparent;
     padding: 0 10px;
 }
@@ -54,7 +54,7 @@
    presence, not just loose icons floating in the zone. */
 .material-panel-chip {
     border-radius: 999px;
-    padding: 7px 14px;
+    padding: 6px 14px;
 }
 
 .material-panel-battery,
