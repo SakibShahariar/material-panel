@@ -43,3 +43,14 @@
     padding: 2px 10px;
     font-size: 12px;
 }
+
+.material-panel-battery,
+.material-panel-volume {
+    spacing: 4px;
+}
+
+.material-panel-battery-label,
+.material-panel-volume-label {
+    font-size: 12px;
+}
+

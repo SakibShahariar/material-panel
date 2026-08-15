@@ -12,7 +12,7 @@ Early scaffold. Working:
 
 - Custom panel actor with `left` / `center` / `right` zones, rendered from
   `~/.config/material-panel/config.json`
-- Built-in modules: clock, workspace switcher, activities toggle
+- Built-in modules: clock (with weekday/date), workspace switcher, activities toggle, battery (UPower), volume (Gvc, click to mute), network (NetworkManager)
 - Bridge that intercepts `Main.panel.addToStatusArea` so other extensions'
   buttons can be claimed into any zone via `"extension:<uuid-or-role>"` in
   the config, without destroying their actors on panel rebuild
