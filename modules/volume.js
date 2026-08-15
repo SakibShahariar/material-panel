@@ -1,6 +1,9 @@
 import St from 'gi://St';
+import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Gvc from 'gi://Gvc';
+
+import {iconPath} from '../lib/iconTheme.js';
 
 // Gvc is the same library GNOME Shell's own quick settings volume slider
 // uses internally - it's a system typelib, not something we bundle.
@@ -19,30 +22,29 @@ export function buildVolume() {
         y_align: Clutter.ActorAlign.CENTER,
         reactive: true,
     });
-    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 15});
+    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 18});
     const label = new St.Label({style_class: 'material-panel-volume-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);
+
+    const setIcon = key => {
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
+    };
 
     let sink = null;
     let sinkVolumeId = 0;
     let sinkMuteId = 0;
 
-    const iconNameFor = pct => {
-        if (!sink || sink.is_muted || pct === 0)
-            return 'audio-volume-muted-symbolic';
-        if (pct >= 66)
-            return 'audio-volume-high-symbolic';
-        if (pct >= 33)
-            return 'audio-volume-medium-symbolic';
-        return 'audio-volume-low-symbolic';
-    };
-
     const update = () => {
         if (!sink)
             return;
         const pct = Math.round((sink.volume / control.get_vol_max_norm()) * 100);
-        icon.icon_name = iconNameFor(pct);
+        let key;
+        if (sink.is_muted || pct === 0) key = 'volume-muted';
+        else if (pct >= 66) key = 'volume-high';
+        else if (pct >= 33) key = 'volume-medium';
+        else key = 'volume-low';
+        setIcon(key);
         label.text = sink.is_muted ? 'mute' : `${pct}%`;
     };
 

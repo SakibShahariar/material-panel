@@ -14,10 +14,12 @@ export default class MaterialPanelExtension extends Extension {
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
 
-        this._builder = new PanelBuilder(this._bridge);
-        this._builder.render(this._config);
+        this._builder = new PanelBuilder(this._bridge, this.path);
+        this._theme = new ThemeManager(this.path);
 
-        this._theme = new ThemeManager();
+        // Theme (CSS + regenerated icon SVGs) must be applied before the
+        // panel is built, since modules load icons from the paths theme.js
+        // just wrote. _applyTheme() does both, in that order.
         this._applyTheme();
 
         // NOTE: we hide the stock panel rather than destroy it. Main.panel
@@ -37,16 +39,21 @@ export default class MaterialPanelExtension extends Extension {
 
         this._configStore.watch(newConfig => {
             this._config = newConfig;
-            this._builder.render(this._config);
             this._applyTheme();
         });
     }
 
+    // Applies CSS + regenerates icon SVGs, then rebuilds the panel so any
+    // icon actors pick up the freshly-written files. Called on enable(),
+    // on config.json changes, and on matugen output changes.
     _applyTheme() {
         this._theme.apply(this._config.colorSource ?? null);
+        this._builder.render(this._config);
         if (this._config.colorSource) {
-            this._theme.watch(this._config.colorSource,
-                () => this._theme.apply(this._config.colorSource));
+            this._theme.watch(this._config.colorSource, () => {
+                this._theme.apply(this._config.colorSource);
+                this._builder.render(this._config);
+            });
         }
     }
 

@@ -13,6 +13,9 @@ Early scaffold. Working:
 - Custom panel actor with `left` / `center` / `right` zones, rendered from
   `~/.config/material-panel/config.json`
 - Built-in modules: clock (with weekday/date), workspace switcher, activities toggle, battery (UPower), volume (Gvc, click to mute), network (NetworkManager)
+- Bundled Material Symbols icons, recolored at runtime to match the active
+  palette (matugen or fixed) - see "Icons" below. Run `scripts/fetch-icons.sh`
+  once before first use.
 - Bridge that intercepts `Main.panel.addToStatusArea` so other extensions'
   buttons can be claimed into any zone via `"extension:<uuid-or-role>"` in
   the config, without destroying their actors on panel rebuild
@@ -77,6 +80,36 @@ journalctl -f -o cat /usr/bin/gnome-shell
 Edit `~/.config/material-panel/config.json` directly, or use
 `gnome-extensions prefs material-panel@you` — both are watched live, no
 re-enable needed.
+
+## Icons
+
+Icon-bearing modules (activities, battery, volume, network) don't use
+system icon-theme lookups (`icon_name`) - that would mean icons look
+different depending on whatever icon theme happens to be installed, and
+plain system symbolic icons don't recolor against matugen output the way
+we'd want (GNOME's symbolic recoloring uses a specific encoding Google's
+Material Symbols source files don't use).
+
+Instead: `assets/icons-src/*.svg` holds single-fill-color Material Symbols
+source files (empty until you run the fetch script below), and `lib/iconTheme.js` regex-substitutes the fill color
+at theme-apply time, writing recolored copies to
+`~/.config/material-panel/icons/`. Modules load those via
+`Gio.FileIcon`/`gicon`, not `icon_name`. This runs every time `theme.js`
+applies - alongside CSS generation - so icons stay in sync with matugen
+automatically.
+
+Run once after cloning, before enabling the extension:
+
+```sh
+bash scripts/fetch-icons.sh
+```
+
+This sparse-clones just the needed folders from
+`google/material-design-icons` (Apache 2.0 licensed) and copies ~13 SVGs
+into `assets/icons-src/`. If Google's internal file-naming has changed
+since this was written, the script logs a `WARN` per missing icon rather
+than failing outright - that module just renders without an icon until
+you fix the mapping in the script.
 
 ## Known limitations
 
