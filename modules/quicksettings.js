@@ -87,6 +87,7 @@ function volumeSliderRow() {
     row.add_child(icon);
 
     let control, sink;
+    let lastIconKey = 'volume-high';
 
     const iconKeyFor = pct => {
         if (pct === 0) return 'volume-muted';
@@ -95,13 +96,24 @@ function volumeSliderRow() {
         return 'volume-low';
     };
 
+    // Only reassign gicon (allocates a new GFile/GIcon and triggers a
+    // texture reload) when the icon actually needs to change, not on
+    // every single motion-event during a drag - that churn was the main
+    // cause of visibly laggy dragging.
+    const updateIconIfChanged = pct => {
+        const key = iconKeyFor(pct);
+        if (key !== lastIconKey) {
+            lastIconKey = key;
+            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
+        }
+    };
+
     const slider = createSlider({
         initialValue: 0,
         onChange: value => {
             if (sink)
                 sink.volume = value * control.get_vol_max_norm();
-            icon.gicon = Gio.FileIcon.new(
-                Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(value * 100)))));
+            updateIconIfChanged(Math.round(value * 100));
         },
     });
     row.add_child(slider.actor);
@@ -120,7 +132,7 @@ function volumeSliderRow() {
             return;
         const pct = sink.volume / control.get_vol_max_norm();
         slider.setValue(pct);
-        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(pct * 100)))));
+        updateIconIfChanged(Math.round(pct * 100));
     };
 
     const attachSink = () => {
