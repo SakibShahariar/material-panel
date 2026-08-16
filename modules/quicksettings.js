@@ -180,6 +180,13 @@ function readIntFile(path) {
     }
 }
 
+// Uses brightnessctl for writes rather than talking to logind directly -
+// it handles device auto-detection and permissions itself (typically via
+// a udev rule installed with the package), which sidesteps the D-Bus
+// session-resolution issues the logind-direct approach ran into. Requires
+// brightnessctl to be installed; degrades to hiding the slider if it
+// isn't. Still reads sysfs directly for the live external-change sync,
+// since that's just reading and doesn't need elevated permissions.
 function brightnessSliderRow() {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
     const icon = new St.Icon({
@@ -196,7 +203,6 @@ function brightnessSliderRow() {
         row.visible = false;
         return row;
     }
-    log(`material-panel: brightness using backlight device "${deviceName}"`);
 
     const devicePath = `/sys/class/backlight/${deviceName}`;
     const maxBrightness = readIntFile(`${devicePath}/max_brightness`);
@@ -207,85 +213,33 @@ function brightnessSliderRow() {
         return row;
     }
 
-    let loginProxy = null;
+    // Confirm brightnessctl is actually installed before wiring up the
+    // slider - a quick synchronous version check, not on the drag hot path.
+    let hasBrightnessctl = false;
+    try {
+        const [ok] = GLib.spawn_command_line_sync('brightnessctl --version');
+        hasBrightnessctl = !!ok;
+    } catch (e) {
+        hasBrightnessctl = false;
+    }
+    if (!hasBrightnessctl) {
+        logError(new Error('material-panel: brightnessctl not installed, hiding brightness slider'));
+        row.visible = false;
+        return row;
+    }
 
     const slider = createSlider({
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         onChange: value => {
-            if (!loginProxy)
-                return;
-            const abs = Math.round(value * maxBrightness);
-            loginProxy.call('SetBrightness',
-                new GLib.Variant('(ssu)', ['backlight', deviceName, abs]),
-                Gio.DBusCallFlags.NONE, -1, null, (proxy, res) => {
-                    try {
-                        proxy.call_finish(res);
-                    } catch (e) {
-                        logError(e, `material-panel: SetBrightness failed (device="${deviceName}", value=${abs})`);
-                    }
-                });
+            const pct = Math.max(1, Math.round(value * 100));
+            try {
+                GLib.spawn_command_line_async(`brightnessctl set ${pct}%`);
+            } catch (e) {
+                logError(e, 'material-panel: brightnessctl set failed');
+            }
         },
     });
     row.add_child(slider.actor);
-
-    // logind is a system-bus service (not session-bus, unlike most of the
-    // other D-Bus work in this file) - it's the system-level service that
-    // grants unprivileged brightness writes to the active session.
-    //
-    // /org/freedesktop/login1/session/self is documented in some examples
-    // but doesn't exist on all systemd versions (confirmed: UnknownObject
-    // error on the system this was tested on) - resolving our own PID's
-    // session via the Manager interface is the more portable approach.
-    const ownPid = (() => {
-        try {
-            return parseInt(GLib.file_read_link('/proc/self'), 10);
-        } catch (e) {
-            return null;
-        }
-    })();
-
-    if (!ownPid) {
-        logError(new Error('material-panel: could not determine own PID, brightness slider disabled'));
-        slider.actor.reactive = false;
-    } else {
-        Gio.DBusProxy.new_for_bus(
-            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-            'org.freedesktop.login1', '/org/freedesktop/login1',
-            'org.freedesktop.login1.Manager', null,
-            (_s, res) => {
-                let manager;
-                try {
-                    manager = Gio.DBusProxy.new_for_bus_finish(res);
-                } catch (e) {
-                    logError(e, 'material-panel: logind manager unavailable, brightness slider disabled');
-                    slider.actor.reactive = false;
-                    return;
-                }
-                manager.call('GetSessionByPID', new GLib.Variant('(u)', [ownPid]),
-                    Gio.DBusCallFlags.NONE, -1, null, (m, r) => {
-                        let sessionPath;
-                        try {
-                            [sessionPath] = m.call_finish(r).deep_unpack();
-                        } catch (e) {
-                            logError(e, 'material-panel: GetSessionByPID failed, brightness slider disabled');
-                            slider.actor.reactive = false;
-                            return;
-                        }
-                        Gio.DBusProxy.new_for_bus(
-                            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-                            'org.freedesktop.login1', sessionPath,
-                            'org.freedesktop.login1.Session', null,
-                            (_s2, res2) => {
-                                try {
-                                    loginProxy = Gio.DBusProxy.new_for_bus_finish(res2);
-                                } catch (e) {
-                                    logError(e, 'material-panel: logind session proxy failed');
-                                    slider.actor.reactive = false;
-                                }
-                            });
-                    });
-            });
-    }
 
     // Best-effort live sync if brightness changes externally (hardware
     // keys, another app). sysfs doesn't always support inotify-style

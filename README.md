@@ -113,6 +113,12 @@ you fix the mapping in the script.
 
 ## Known limitations
 
+- Brightness slider requires `brightnessctl` to be installed (handles
+  device detection and write permissions itself). If it's missing, or if
+  there's no `/sys/class/backlight` device at all (common on desktop
+  monitors without DDC/CI support), the slider just doesn't appear rather
+  than showing broken.
+
 - Wifi module only reconnects to already-known networks (saved
   connections). Connecting to a brand-new network with a password requires
   implementing NetworkManager's secret-agent D-Bus flow - not done yet.
