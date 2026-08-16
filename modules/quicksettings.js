@@ -3,8 +3,10 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
+import Gvc from 'gi://Gvc';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 
 import {iconPath, iconPathOnAccent} from '../lib/iconTheme.js';
 
@@ -64,6 +66,153 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     }
 
     return tile;
+}
+
+function wrapAsMenuItem(actor) {
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    item.add_child(actor);
+    return item;
+}
+
+// Uses GNOME Shell's own Slider actor (same one the stock quick settings
+// menu uses) rather than building a custom drag widget from scratch.
+function volumeSliderRow() {
+    const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
+    const icon = new St.Icon({
+        style_class: 'material-panel-qs-slider-icon',
+        icon_size: 18,
+        y_align: Clutter.ActorAlign.CENTER,
+        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('volume-high'))),
+    });
+    const slider = new Slider(0);
+    slider.style_class = 'material-panel-qs-slider';
+    slider.x_expand = true;
+    row.add_child(icon);
+    row.add_child(slider);
+
+    let control, sink, settingSelf = false;
+    try {
+        control = new Gvc.MixerControl({name: 'material-panel'});
+        control.open();
+    } catch (e) {
+        logError(e, 'material-panel: Gvc unavailable, volume slider disabled');
+        slider.reactive = false;
+        return row;
+    }
+
+    const iconKeyFor = pct => {
+        if (pct === 0) return 'volume-muted';
+        if (pct >= 66) return 'volume-high';
+        if (pct >= 33) return 'volume-medium';
+        return 'volume-low';
+    };
+
+    const syncFromSink = () => {
+        if (!sink)
+            return;
+        const pct = sink.volume / control.get_vol_max_norm();
+        settingSelf = true;
+        slider.value = pct;
+        settingSelf = false;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(pct * 100)))));
+    };
+
+    const attachSink = () => {
+        sink = control.get_default_sink();
+        if (sink) {
+            sink.connect('notify::volume', syncFromSink);
+            syncFromSink();
+        }
+    };
+    control.connect('state-changed', (_c, state) => {
+        if (state === Gvc.MixerControlState.READY)
+            attachSink();
+    });
+    control.connect('default-sink-changed', attachSink);
+
+    slider.connect('notify::value', () => {
+        if (settingSelf)
+            return;
+        if (sink)
+            sink.volume = slider.value * control.get_vol_max_norm();
+        icon.gicon = Gio.FileIcon.new(
+            Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(slider.value * 100)))));
+    });
+
+    return row;
+}
+
+// Brightness via GNOME Settings Daemon's D-Bus property - same
+// Get/Set-over-Properties pattern used for the bluetooth adapter toggle.
+// This is the piece I have the least confidence in getting right first
+// try (interface/property names from memory, not verified against a
+// running system) - if it silently does nothing, that's the first place
+// to look.
+function brightnessSliderRow() {
+    const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
+    const icon = new St.Icon({
+        style_class: 'material-panel-qs-slider-icon',
+        icon_size: 18,
+        y_align: Clutter.ActorAlign.CENTER,
+        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('brightness'))),
+    });
+    const slider = new Slider(0.5);
+    slider.style_class = 'material-panel-qs-slider';
+    slider.x_expand = true;
+    row.add_child(icon);
+    row.add_child(slider);
+
+    const IFACE = 'org.gnome.SettingsDaemon.Power.Screen';
+    let proxy = null;
+    let settingSelf = false;
+
+    Gio.DBusProxy.new_for_bus(
+        Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
+        'org.gnome.SettingsDaemon.Power', '/org/gnome/SettingsDaemon/Power',
+        'org.freedesktop.DBus.Properties', null,
+        (_s, res) => {
+            try {
+                proxy = Gio.DBusProxy.new_for_bus_finish(res);
+            } catch (e) {
+                logError(e, 'material-panel: brightness D-Bus service unavailable, slider disabled');
+                slider.reactive = false;
+                return;
+            }
+
+            proxy.call('Get', new GLib.Variant('(ss)', [IFACE, 'Brightness']),
+                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                    try {
+                        const [variant] = p.call_finish(r).deep_unpack();
+                        settingSelf = true;
+                        slider.value = variant.deep_unpack() / 100;
+                        settingSelf = false;
+                    } catch (e) {
+                        logError(e, 'material-panel: brightness Get failed - property/interface name may be wrong');
+                        slider.reactive = false;
+                    }
+                });
+
+            proxy.connect('g-signal', (_p, _sender, signal, params) => {
+                if (signal !== 'PropertiesChanged')
+                    return;
+                const [iface, changed] = params.deep_unpack();
+                if (iface === IFACE && 'Brightness' in changed) {
+                    settingSelf = true;
+                    slider.value = changed['Brightness'].deep_unpack() / 100;
+                    settingSelf = false;
+                }
+            });
+        });
+
+    slider.connect('notify::value', () => {
+        if (settingSelf || !proxy)
+            return;
+        proxy.call('Set', new GLib.Variant('(ssv)',
+            [IFACE, 'Brightness', new GLib.Variant('i', Math.round(slider.value * 100))]),
+            Gio.DBusCallFlags.NONE, -1, null, () => {});
+    });
+
+    return row;
 }
 
 function darkModeTile() {
@@ -245,6 +394,10 @@ export function buildQuickSettings() {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
 
+    menu.addMenuItem(wrapAsMenuItem(volumeSliderRow()));
+    menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
     const grid = new St.Widget({
         style_class: 'material-panel-qs-grid',
         layout_manager: new Clutter.GridLayout({
@@ -259,15 +412,11 @@ export function buildQuickSettings() {
         layout.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
     });
 
-    const gridItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-    gridItem.add_child(grid);
-    menu.addMenuItem(gridItem);
+    menu.addMenuItem(wrapAsMenuItem(grid));
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    const powerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-    powerItem.add_child(powerRow());
-    menu.addMenuItem(powerItem);
+    menu.addMenuItem(wrapAsMenuItem(powerRow()));
 
     button.connect('clicked', () => menu.toggle());
     button.connect('destroy', () => menu.destroy());
