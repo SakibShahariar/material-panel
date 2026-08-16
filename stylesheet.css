@@ -19,6 +19,12 @@
    elevation model). Radius is large enough to read as a real stadium
    shape at this height, not just "rounded corners". */
 .material-panel-zone-left,
+.material-panel-zone-right,
+.material-panel-zone-center {
+    height: 26px;
+}
+
+.material-panel-zone-left,
 .material-panel-zone-right {
     border-radius: 16px;
     padding: 4px 8px;
