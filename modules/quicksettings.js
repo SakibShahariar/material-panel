@@ -196,6 +196,7 @@ function brightnessSliderRow() {
         row.visible = false;
         return row;
     }
+    log(`material-panel: brightness using backlight device "${deviceName}"`);
 
     const devicePath = `/sys/class/backlight/${deviceName}`;
     const maxBrightness = readIntFile(`${devicePath}/max_brightness`);
@@ -216,7 +217,13 @@ function brightnessSliderRow() {
             const abs = Math.round(value * maxBrightness);
             loginProxy.call('SetBrightness',
                 new GLib.Variant('(ssu)', ['backlight', deviceName, abs]),
-                Gio.DBusCallFlags.NONE, -1, null, () => {});
+                Gio.DBusCallFlags.NONE, -1, null, (proxy, res) => {
+                    try {
+                        proxy.call_finish(res);
+                    } catch (e) {
+                        logError(e, `material-panel: SetBrightness failed (device="${deviceName}", value=${abs})`);
+                    }
+                });
         },
     });
     row.add_child(slider.actor);
