@@ -152,11 +152,34 @@ function volumeSliderRow() {
 }
 
 // Brightness via GNOME Settings Daemon's D-Bus property - same
-// Get/Set-over-Properties pattern used for the bluetooth adapter toggle.
-// This is the piece I have the least confidence in getting right first
-// try (interface/property names from memory, not verified against a
-// running system) - if it silently does nothing, that's the first place
-// to look.
+// Reads current brightness directly from sysfs and writes changes via
+// systemd-logind's SetBrightness method - this is what modern GNOME Shell
+// itself actually uses (confirmed via systemd's own docs), not the older
+// gnome-settings-daemon Properties interface that a previous version of
+// this function tried and that doesn't exist on all systems.
+function findBacklightDevice() {
+    try {
+        const dir = Gio.File.new_for_path('/sys/class/backlight');
+        const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        const info = enumerator.next_file(null);
+        enumerator.close(null);
+        return info ? info.get_name() : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function readIntFile(path) {
+    try {
+        const [ok, contents] = Gio.File.new_for_path(path).load_contents(null);
+        if (!ok)
+            return null;
+        return parseInt(new TextDecoder('utf-8').decode(contents).trim(), 10);
+    } catch (e) {
+        return null;
+    }
+}
+
 function brightnessSliderRow() {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
     const icon = new St.Icon({
@@ -167,59 +190,70 @@ function brightnessSliderRow() {
     });
     row.add_child(icon);
 
-    const IFACE = 'org.gnome.SettingsDaemon.Power.Screen';
-    let proxy = null;
+    const deviceName = findBacklightDevice();
+    if (!deviceName) {
+        logError(new Error('material-panel: no /sys/class/backlight device found, hiding brightness slider'));
+        row.visible = false;
+        return row;
+    }
+
+    const devicePath = `/sys/class/backlight/${deviceName}`;
+    const maxBrightness = readIntFile(`${devicePath}/max_brightness`);
+    const currentBrightness = readIntFile(`${devicePath}/brightness`);
+    if (!maxBrightness) {
+        logError(new Error(`material-panel: could not read max_brightness for ${deviceName}, hiding slider`));
+        row.visible = false;
+        return row;
+    }
+
+    let loginProxy = null;
 
     const slider = createSlider({
-        initialValue: 0.5,
+        initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         onChange: value => {
-            if (!proxy)
+            if (!loginProxy)
                 return;
-            proxy.call('Set', new GLib.Variant('(ssv)',
-                [IFACE, 'Brightness', new GLib.Variant('i', Math.round(value * 100))]),
+            const abs = Math.round(value * maxBrightness);
+            loginProxy.call('SetBrightness',
+                new GLib.Variant('(ssu)', ['backlight', deviceName, abs]),
                 Gio.DBusCallFlags.NONE, -1, null, () => {});
         },
     });
     row.add_child(slider.actor);
 
+    // logind is a system-bus service (not session-bus, unlike most of the
+    // other D-Bus work in this file) - it's the system-level service that
+    // grants unprivileged brightness writes to the active session.
     Gio.DBusProxy.new_for_bus(
-        Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
-        'org.gnome.SettingsDaemon.Power', '/org/gnome/SettingsDaemon/Power',
-        'org.freedesktop.DBus.Properties', null,
+        Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+        'org.freedesktop.login1', '/org/freedesktop/login1/session/self',
+        'org.freedesktop.login1.Session', null,
         (_s, res) => {
             try {
-                proxy = Gio.DBusProxy.new_for_bus_finish(res);
+                loginProxy = Gio.DBusProxy.new_for_bus_finish(res);
             } catch (e) {
-                logError(e, 'material-panel: brightness D-Bus service unavailable, hiding slider');
-                row.visible = false;
-                return;
+                logError(e, 'material-panel: logind unavailable, brightness slider disabled');
+                slider.actor.reactive = false;
             }
-
-            proxy.call('Get', new GLib.Variant('(ss)', [IFACE, 'Brightness']),
-                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                    try {
-                        const [variant] = p.call_finish(r).deep_unpack();
-                        slider.setValue(variant.deep_unpack() / 100);
-                    } catch (e) {
-                        // Confirmed (via manual gdbus testing) that this
-                        // interface genuinely doesn't exist on some systems
-                        // - typically desktops/monitors without DDC/CI
-                        // brightness support that g-s-d can control. Not a
-                        // bug to "fix" - hide the row rather than show a
-                        // dead, unresponsive slider.
-                        logError(e, 'material-panel: brightness not supported on this system, hiding slider');
-                        row.visible = false;
-                    }
-                });
-
-            proxy.connect('g-signal', (_p, _sender, signal, params) => {
-                if (signal !== 'PropertiesChanged')
-                    return;
-                const [iface, changed] = params.deep_unpack();
-                if (iface === IFACE && 'Brightness' in changed)
-                    slider.setValue(changed['Brightness'].deep_unpack() / 100);
-            });
         });
+
+    // Best-effort live sync if brightness changes externally (hardware
+    // keys, another app). sysfs doesn't always support inotify-style
+    // change notification depending on the driver - if this never fires,
+    // the slider still works fine for reading the initial value and for
+    // writing changes, it just won't live-update from outside changes.
+    try {
+        const brightnessFile = Gio.File.new_for_path(`${devicePath}/brightness`);
+        const monitor = brightnessFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
+        monitor.connect('changed', () => {
+            const val = readIntFile(`${devicePath}/brightness`);
+            if (val !== null)
+                slider.setValue(val / maxBrightness);
+        });
+        row.connect('destroy', () => monitor.cancel());
+    } catch (e) {
+        // Non-fatal - just means no live external-change sync.
+    }
 
     return row;
 }
