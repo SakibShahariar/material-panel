@@ -231,18 +231,61 @@ function brightnessSliderRow() {
     // logind is a system-bus service (not session-bus, unlike most of the
     // other D-Bus work in this file) - it's the system-level service that
     // grants unprivileged brightness writes to the active session.
-    Gio.DBusProxy.new_for_bus(
-        Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-        'org.freedesktop.login1', '/org/freedesktop/login1/session/self',
-        'org.freedesktop.login1.Session', null,
-        (_s, res) => {
-            try {
-                loginProxy = Gio.DBusProxy.new_for_bus_finish(res);
-            } catch (e) {
-                logError(e, 'material-panel: logind unavailable, brightness slider disabled');
-                slider.actor.reactive = false;
-            }
-        });
+    //
+    // /org/freedesktop/login1/session/self is documented in some examples
+    // but doesn't exist on all systemd versions (confirmed: UnknownObject
+    // error on the system this was tested on) - resolving our own PID's
+    // session via the Manager interface is the more portable approach.
+    const ownPid = (() => {
+        try {
+            return parseInt(GLib.file_read_link('/proc/self'), 10);
+        } catch (e) {
+            return null;
+        }
+    })();
+
+    if (!ownPid) {
+        logError(new Error('material-panel: could not determine own PID, brightness slider disabled'));
+        slider.actor.reactive = false;
+    } else {
+        Gio.DBusProxy.new_for_bus(
+            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+            'org.freedesktop.login1', '/org/freedesktop/login1',
+            'org.freedesktop.login1.Manager', null,
+            (_s, res) => {
+                let manager;
+                try {
+                    manager = Gio.DBusProxy.new_for_bus_finish(res);
+                } catch (e) {
+                    logError(e, 'material-panel: logind manager unavailable, brightness slider disabled');
+                    slider.actor.reactive = false;
+                    return;
+                }
+                manager.call('GetSessionByPID', new GLib.Variant('(u)', [ownPid]),
+                    Gio.DBusCallFlags.NONE, -1, null, (m, r) => {
+                        let sessionPath;
+                        try {
+                            [sessionPath] = m.call_finish(r).deep_unpack();
+                        } catch (e) {
+                            logError(e, 'material-panel: GetSessionByPID failed, brightness slider disabled');
+                            slider.actor.reactive = false;
+                            return;
+                        }
+                        Gio.DBusProxy.new_for_bus(
+                            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+                            'org.freedesktop.login1', sessionPath,
+                            'org.freedesktop.login1.Session', null,
+                            (_s2, res2) => {
+                                try {
+                                    loginProxy = Gio.DBusProxy.new_for_bus_finish(res2);
+                                } catch (e) {
+                                    logError(e, 'material-panel: logind session proxy failed');
+                                    slider.actor.reactive = false;
+                                }
+                            });
+                    });
+            });
+    }
 
     // Best-effort live sync if brightness changes externally (hardware
     // keys, another app). sysfs doesn't always support inotify-style
