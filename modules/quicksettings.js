@@ -6,7 +6,7 @@ import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPath, iconPathOnAccent} from '../lib/iconTheme.js';
 
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
@@ -48,6 +48,8 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     const refresh = () => {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
+        icon.gicon = Gio.FileIcon.new(
+            Gio.File.new_for_path(on ? iconPathOnAccent(iconKey) : iconPath(iconKey)));
     };
     refresh();
 
@@ -131,7 +133,9 @@ function bluetoothTile() {
 
     const setPowered = powered => {
         currentlyPowered = powered;
-        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(powered ? 'bluetooth-on' : 'bluetooth-off')));
+        const key = powered ? 'bluetooth-on' : 'bluetooth-off';
+        icon.gicon = Gio.FileIcon.new(
+            Gio.File.new_for_path(powered ? iconPathOnAccent(key) : iconPath(key)));
         tile.set_style_class_name(`material-panel-qs-tile${powered ? ' active' : ''}`);
     };
 
