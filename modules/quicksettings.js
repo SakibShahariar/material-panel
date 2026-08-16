@@ -6,7 +6,7 @@ import Pango from 'gi://Pango';
 import Gvc from 'gi://Gvc';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
+import {createSlider} from '../lib/simpleSlider.js';
 
 import {iconPath, iconPathOnAccent} from '../lib/iconTheme.js';
 
@@ -84,21 +84,9 @@ function volumeSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('volume-high'))),
     });
-    const slider = new Slider(0);
-    slider.style_class = 'material-panel-qs-slider';
-    slider.x_expand = true;
     row.add_child(icon);
-    row.add_child(slider);
 
-    let control, sink, settingSelf = false;
-    try {
-        control = new Gvc.MixerControl({name: 'material-panel'});
-        control.open();
-    } catch (e) {
-        logError(e, 'material-panel: Gvc unavailable, volume slider disabled');
-        slider.reactive = false;
-        return row;
-    }
+    let control, sink;
 
     const iconKeyFor = pct => {
         if (pct === 0) return 'volume-muted';
@@ -107,13 +95,31 @@ function volumeSliderRow() {
         return 'volume-low';
     };
 
+    const slider = createSlider({
+        initialValue: 0,
+        onChange: value => {
+            if (sink)
+                sink.volume = value * control.get_vol_max_norm();
+            icon.gicon = Gio.FileIcon.new(
+                Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(value * 100)))));
+        },
+    });
+    row.add_child(slider.actor);
+
+    try {
+        control = new Gvc.MixerControl({name: 'material-panel'});
+        control.open();
+    } catch (e) {
+        logError(e, 'material-panel: Gvc unavailable, volume slider disabled');
+        slider.actor.reactive = false;
+        return row;
+    }
+
     const syncFromSink = () => {
         if (!sink)
             return;
         const pct = sink.volume / control.get_vol_max_norm();
-        settingSelf = true;
-        slider.value = pct;
-        settingSelf = false;
+        slider.setValue(pct);
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(pct * 100)))));
     };
 
@@ -129,15 +135,6 @@ function volumeSliderRow() {
             attachSink();
     });
     control.connect('default-sink-changed', attachSink);
-
-    slider.connect('notify::value', () => {
-        if (settingSelf)
-            return;
-        if (sink)
-            sink.volume = slider.value * control.get_vol_max_norm();
-        icon.gicon = Gio.FileIcon.new(
-            Gio.File.new_for_path(iconPath(iconKeyFor(Math.round(slider.value * 100)))));
-    });
 
     return row;
 }
@@ -156,15 +153,22 @@ function brightnessSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('brightness'))),
     });
-    const slider = new Slider(0.5);
-    slider.style_class = 'material-panel-qs-slider';
-    slider.x_expand = true;
     row.add_child(icon);
-    row.add_child(slider);
 
     const IFACE = 'org.gnome.SettingsDaemon.Power.Screen';
     let proxy = null;
-    let settingSelf = false;
+
+    const slider = createSlider({
+        initialValue: 0.5,
+        onChange: value => {
+            if (!proxy)
+                return;
+            proxy.call('Set', new GLib.Variant('(ssv)',
+                [IFACE, 'Brightness', new GLib.Variant('i', Math.round(value * 100))]),
+                Gio.DBusCallFlags.NONE, -1, null, () => {});
+        },
+    });
+    row.add_child(slider.actor);
 
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
@@ -175,7 +179,7 @@ function brightnessSliderRow() {
                 proxy = Gio.DBusProxy.new_for_bus_finish(res);
             } catch (e) {
                 logError(e, 'material-panel: brightness D-Bus service unavailable, slider disabled');
-                slider.reactive = false;
+                slider.actor.reactive = false;
                 return;
             }
 
@@ -183,12 +187,10 @@ function brightnessSliderRow() {
                 Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
                     try {
                         const [variant] = p.call_finish(r).deep_unpack();
-                        settingSelf = true;
-                        slider.value = variant.deep_unpack() / 100;
-                        settingSelf = false;
+                        slider.setValue(variant.deep_unpack() / 100);
                     } catch (e) {
                         logError(e, 'material-panel: brightness Get failed - property/interface name may be wrong');
-                        slider.reactive = false;
+                        slider.actor.reactive = false;
                     }
                 });
 
@@ -196,21 +198,10 @@ function brightnessSliderRow() {
                 if (signal !== 'PropertiesChanged')
                     return;
                 const [iface, changed] = params.deep_unpack();
-                if (iface === IFACE && 'Brightness' in changed) {
-                    settingSelf = true;
-                    slider.value = changed['Brightness'].deep_unpack() / 100;
-                    settingSelf = false;
-                }
+                if (iface === IFACE && 'Brightness' in changed)
+                    slider.setValue(changed['Brightness'].deep_unpack() / 100);
             });
         });
-
-    slider.connect('notify::value', () => {
-        if (settingSelf || !proxy)
-            return;
-        proxy.call('Set', new GLib.Variant('(ssv)',
-            [IFACE, 'Brightness', new GLib.Variant('i', Math.round(slider.value * 100))]),
-            Gio.DBusCallFlags.NONE, -1, null, () => {});
-    });
 
     return row;
 }

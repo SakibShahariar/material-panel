@@ -127,8 +127,14 @@
     padding: 6px 4px;
 }
 
-.material-panel-qs-slider {
-    height: 20px;
+.material-panel-simple-slider {
+    height: 16px;
+    border-radius: 999px;
+}
+
+.material-panel-simple-slider-fill {
+    height: 16px;
+    border-radius: 999px;
 }
 
 
