@@ -5,7 +5,7 @@ import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPathPrimary} from '../lib/iconTheme.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -19,9 +19,9 @@ export function buildNetwork() {
     const box = new St.BoxLayout({y_align: Clutter.ActorAlign.CENTER});
     const icon = new St.Icon({
         style_class: 'material-panel-network-icon',
-        icon_size: 22,
+        icon_size: 17,
         y_align: Clutter.ActorAlign.CENTER,
-        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('network-offline'))),
+        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('network-offline'))),
     });
     box.add_child(icon);
     button.set_child(box);
@@ -43,7 +43,7 @@ export function buildNetwork() {
         }
 
         const setIcon = key => {
-            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
+            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
         };
 
         const updateStatusIcon = () => {

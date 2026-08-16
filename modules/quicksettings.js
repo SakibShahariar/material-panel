@@ -8,7 +8,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {createSlider} from '../lib/simpleSlider.js';
 
-import {iconPath, iconPathOnAccent} from '../lib/iconTheme.js';
+import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
@@ -430,9 +430,9 @@ export function buildQuickSettings() {
         style_class: 'material-panel-quicksettings-btn material-panel-chip',
         reactive: true,
         child: new St.Icon({
-            icon_size: 20,
+            icon_size: 17,
             y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('settings'))),
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('settings'))),
         }),
     });
 

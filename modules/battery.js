@@ -3,7 +3,7 @@ import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import UPowerGlib from 'gi://UPowerGlib';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPathPrimary} from '../lib/iconTheme.js';
 
 // Returns null (renders nothing) on desktops with no battery, rather than
 // showing a meaningless module - see panelBuilder's hasBuiltin() check for
@@ -25,13 +25,13 @@ export function buildBattery() {
         style_class: 'material-panel-battery material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 22});
+    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 17});
     const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);
 
     const setIcon = key => {
-        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
     };
 
     const update = () => {

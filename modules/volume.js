@@ -3,7 +3,7 @@ import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Gvc from 'gi://Gvc';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPathPrimary} from '../lib/iconTheme.js';
 
 // Gvc is the same library GNOME Shell's own quick settings volume slider
 // uses internally - it's a system typelib, not something we bundle.
@@ -22,13 +22,13 @@ export function buildVolume() {
         y_align: Clutter.ActorAlign.CENTER,
         reactive: true,
     });
-    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 22});
+    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 17});
     const label = new St.Label({style_class: 'material-panel-volume-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);
 
     const setIcon = key => {
-        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
     };
 
     let sink = null;

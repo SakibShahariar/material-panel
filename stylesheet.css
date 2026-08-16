@@ -5,13 +5,13 @@
    loading of this bundled stylesheet and our own runtime-loaded one. */
 
 .material-panel-bar {
-    height: 54px;
+    height: 40px;
     background-color: transparent;
-    padding: 0 10px;
+    padding: 0 8px;
 }
 
 .material-panel-zone {
-    spacing: 10px;
+    spacing: 8px;
 }
 
 /* Floating pill look with true elevation via shadow (not a border, which
@@ -20,31 +20,31 @@
    shape at this height, not just "rounded corners". */
 .material-panel-zone-left,
 .material-panel-zone-right {
-    border-radius: 20px;
-    padding: 5px 10px;
-    margin: 8px 4px;
+    border-radius: 16px;
+    padding: 4px 8px;
+    margin: 5px 3px;
     box-shadow: 0px 3px 14px 0px rgba(0, 0, 0, 0.4);
 }
 
 .material-panel-zone-center {
-    border-radius: 20px;
-    padding: 5px 18px;
-    margin: 8px 4px;
+    border-radius: 16px;
+    padding: 4px 14px;
+    margin: 5px 3px;
     box-shadow: 0px 3px 14px 0px rgba(0, 0, 0, 0.4);
 }
 
 .material-panel-clock {
     font-weight: 600;
-    font-size: 13.5px;
+    font-size: 12.5px;
     letter-spacing: 0.2px;
 }
 
 /* Circular pill per workspace number, fixed size so 1/2/9/10 all match. */
 .material-panel-workspace-btn {
     border-radius: 999px;
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
     font-weight: 600;
     text-align: center;
     transition-duration: 150ms;
@@ -55,7 +55,7 @@
    presence, not just loose icons floating in the zone. */
 .material-panel-chip {
     border-radius: 999px;
-    padding: 6px 14px;
+    padding: 4px 10px;
     transition-duration: 150ms;
 }
 
@@ -66,12 +66,12 @@
 .material-panel-battery,
 .material-panel-volume,
 .material-panel-network {
-    spacing: 6px;
+    spacing: 5px;
 }
 
 .material-panel-battery-label,
 .material-panel-volume-label {
-    font-size: 13.5px;
+    font-size: 12.5px;
     font-weight: 500;
 }
 
