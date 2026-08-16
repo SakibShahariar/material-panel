@@ -190,8 +190,8 @@ function brightnessSliderRow() {
             try {
                 proxy = Gio.DBusProxy.new_for_bus_finish(res);
             } catch (e) {
-                logError(e, 'material-panel: brightness D-Bus service unavailable, slider disabled');
-                slider.actor.reactive = false;
+                logError(e, 'material-panel: brightness D-Bus service unavailable, hiding slider');
+                row.visible = false;
                 return;
             }
 
@@ -201,8 +201,14 @@ function brightnessSliderRow() {
                         const [variant] = p.call_finish(r).deep_unpack();
                         slider.setValue(variant.deep_unpack() / 100);
                     } catch (e) {
-                        logError(e, 'material-panel: brightness Get failed - property/interface name may be wrong');
-                        slider.actor.reactive = false;
+                        // Confirmed (via manual gdbus testing) that this
+                        // interface genuinely doesn't exist on some systems
+                        // - typically desktops/monitors without DDC/CI
+                        // brightness support that g-s-d can control. Not a
+                        // bug to "fix" - hide the row rather than show a
+                        // dead, unresponsive slider.
+                        logError(e, 'material-panel: brightness not supported on this system, hiding slider');
+                        row.visible = false;
                     }
                 });
 
