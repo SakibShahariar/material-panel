@@ -14,6 +14,7 @@ SRC_ICONS=(
   bluetooth bluetooth_disabled
   settings
   brightness_6
+  play_arrow pause skip_next skip_previous
 )
 
 declare -A MAP=(
@@ -43,6 +44,10 @@ declare -A MAP=(
   [bluetooth_disabled]=bluetooth-off
   [settings]=settings
   [brightness_6]=brightness
+  [play_arrow]=media-play
+  [pause]=media-pause
+  [skip_next]=media-next
+  [skip_previous]=media-prev
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

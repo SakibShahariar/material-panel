@@ -7,6 +7,8 @@ import Gvc from 'gi://Gvc';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {createSlider} from '../lib/simpleSlider.js';
+import {buildProfileCard} from './profileCard.js';
+import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 
@@ -441,6 +443,8 @@ export function buildQuickSettings() {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
 
+    menu.addMenuItem(wrapAsMenuItem(buildProfileCard()));
+    menu.addMenuItem(wrapAsMenuItem(buildMediaPlayerRow()));
     menu.addMenuItem(wrapAsMenuItem(volumeSliderRow()));
     menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
