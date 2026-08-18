@@ -19,7 +19,9 @@ Early scaffold. Working:
 - Bridge that intercepts `Main.panel.addToStatusArea` so other extensions'
   buttons can be claimed into any zone via `"extension:<uuid-or-role>"` in
   the config, without destroying their actors on panel rebuild
-- Basic prefs window (reorder/remove modules per zone)
+- Basic prefs window (reorder/remove modules per zone, panel size preset:
+  Compact/Normal/Large - scales the top bar's height/padding/icon sizes,
+  not the quick settings popup)
 - Fixed color palette in `stylesheet.css`
 
 Not yet built (see project notes / conversation history for the plan):

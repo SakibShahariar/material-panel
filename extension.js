@@ -47,11 +47,12 @@ export default class MaterialPanelExtension extends Extension {
     // icon actors pick up the freshly-written files. Called on enable(),
     // on config.json changes, and on matugen output changes.
     _applyTheme() {
-        this._theme.apply(this._config.colorSource ?? null);
+        const scale = this._config.panelScale ?? 1.0;
+        this._theme.apply(this._config.colorSource ?? null, scale);
         this._builder.render(this._config);
         if (this._config.colorSource) {
             this._theme.watch(this._config.colorSource, () => {
-                this._theme.apply(this._config.colorSource);
+                this._theme.apply(this._config.colorSource, scale);
                 this._builder.render(this._config);
             });
         }

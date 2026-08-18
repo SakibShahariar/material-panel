@@ -23,6 +23,34 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         page.add(infoGroup);
 
+        const SCALE_PRESETS = [
+            {label: 'Compact', value: 0.85},
+            {label: 'Normal', value: 1.0},
+            {label: 'Large', value: 1.2},
+        ];
+        const currentScale = config.panelScale ?? 1.0;
+        let selectedScaleIndex = SCALE_PRESETS.findIndex(p => Math.abs(p.value - currentScale) < 0.01);
+        if (selectedScaleIndex === -1)
+            selectedScaleIndex = 1;
+
+        const sizeGroup = new Adw.PreferencesGroup({title: 'Panel Size'});
+        page.add(sizeGroup);
+
+        const sizeRow = new Adw.ComboRow({
+            title: 'Size',
+            subtitle: 'Scales the top bar\'s height, padding, and icon sizes. Doesn\'t affect the quick settings popup.',
+            model: new Gtk.StringList({strings: SCALE_PRESETS.map(p => p.label)}),
+            selected: selectedScaleIndex,
+        });
+        sizeRow.connect('notify::selected', () => {
+            config.panelScale = SCALE_PRESETS[sizeRow.selected].value;
+            store.save(config);
+            // Applies live via the config file watcher - no window.close()
+            // needed here, unlike the zone-reorder rows below (which change
+            // the list structure itself, not just a stored value).
+        });
+        sizeGroup.add(sizeRow);
+
         for (const zoneName of ZONE_NAMES) {
             const group = new Adw.PreferencesGroup({
                 title: `${zoneName[0].toUpperCase()}${zoneName.slice(1)} zone`,

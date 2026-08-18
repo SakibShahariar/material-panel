@@ -2,66 +2,42 @@
    matugen output) come from theme.js, which generates and loads
    ~/.config/material-panel/generated-theme.css. Keeping colors out of
    this file entirely avoids a load-order race between GNOME's automatic
-   loading of this bundled stylesheet and our own runtime-loaded one. */
+   loading of this bundled stylesheet and our own runtime-loaded one.
 
-.material-panel-bar {
-    height: 40px;
-    background-color: transparent;
-    padding: 0 8px;
-}
+   NOTE: bar/panel dimension rules (height, padding, pill sizes, font
+   sizes) live in theme.js instead of here, since they need to scale with
+   the user's panelScale preference - same reason colors live there. This
+   file only holds dimensions that AREN'T scale-adjustable: the quick
+   settings popup's contents (a separate surface, out of scope for panel
+   scaling) and things like transition timing that don't need to scale. */
 
 .material-panel-zone {
     spacing: 8px;
 }
 
-/* Floating pill look with true elevation via shadow (not a border, which
-   reads as "boxed" rather than "floating" - see Material Design's
-   elevation model). Radius is large enough to read as a real stadium
-   shape at this height, not just "rounded corners". */
-.material-panel-zone-left,
-.material-panel-zone-right,
-.material-panel-zone-center {
-    height: 26px;
-}
-
 .material-panel-zone-left,
 .material-panel-zone-right {
-    border-radius: 16px;
-    padding: 4px 8px;
-    margin: 5px 3px;
     box-shadow: 0px 3px 14px 0px rgba(0, 0, 0, 0.4);
 }
 
 .material-panel-zone-center {
-    border-radius: 16px;
-    padding: 4px 14px;
-    margin: 5px 3px;
     box-shadow: 0px 3px 14px 0px rgba(0, 0, 0, 0.4);
 }
 
 .material-panel-clock {
     font-weight: 600;
-    font-size: 12.5px;
     letter-spacing: 0.2px;
 }
 
-/* Circular pill per workspace number, fixed size so 1/2/9/10 all match. */
 .material-panel-workspace-btn {
     border-radius: 999px;
-    width: 20px;
-    height: 20px;
-    font-size: 11px;
     font-weight: 600;
     text-align: center;
     transition-duration: 150ms;
 }
 
-/* Shared "chip" look for icon(+label) modules - activities/battery/volume/
-   network - so they read as a consistent family of controls with real
-   presence, not just loose icons floating in the zone. */
 .material-panel-chip {
     border-radius: 999px;
-    padding: 4px 10px;
     transition-duration: 150ms;
 }
 
@@ -77,7 +53,6 @@
 
 .material-panel-battery-label,
 .material-panel-volume-label {
-    font-size: 12.5px;
     font-weight: 500;
 }
 
@@ -205,6 +180,3 @@
     border-radius: 999px;
     padding: 6px;
 }
-
-
-

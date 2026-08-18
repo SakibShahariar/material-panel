@@ -8,7 +8,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 // Returns null (renders nothing) on desktops with no battery, rather than
 // showing a meaningless module - see panelBuilder's hasBuiltin() check for
 // how a null return is distinguished from an unknown module id.
-export function buildBattery() {
+export function buildBattery(_extensionPath, scale = 1.0) {
     let client, device;
     try {
         client = UPowerGlib.Client.new();
@@ -25,7 +25,7 @@ export function buildBattery() {
         style_class: 'material-panel-battery material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: 17});
+    const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: Math.round(17 * scale)});
     const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);

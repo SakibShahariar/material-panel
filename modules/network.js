@@ -11,7 +11,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 // for. Connecting to a brand-new network (entering a password) needs NM's
 // "secret agent" D-Bus flow, which is a separate, more involved feature -
 // not attempted here.
-export function buildNetwork() {
+export function buildNetwork(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-network material-panel-chip',
         reactive: true,
@@ -19,7 +19,7 @@ export function buildNetwork() {
     const box = new St.BoxLayout({y_align: Clutter.ActorAlign.CENTER});
     const icon = new St.Icon({
         style_class: 'material-panel-network-icon',
-        icon_size: 17,
+        icon_size: Math.round(17 * scale),
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('network-offline'))),
     });

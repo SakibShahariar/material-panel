@@ -427,12 +427,12 @@ function powerRow() {
     return row;
 }
 
-export function buildQuickSettings() {
+export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-quicksettings-btn material-panel-chip',
         reactive: true,
         child: new St.Icon({
-            icon_size: 17,
+            icon_size: Math.round(17 * scale),
             y_align: Clutter.ActorAlign.CENTER,
             gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('settings'))),
         }),

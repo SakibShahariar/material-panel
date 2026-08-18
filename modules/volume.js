@@ -7,7 +7,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 
 // Gvc is the same library GNOME Shell's own quick settings volume slider
 // uses internally - it's a system typelib, not something we bundle.
-export function buildVolume() {
+export function buildVolume(_extensionPath, scale = 1.0) {
     let control;
     try {
         control = new Gvc.MixerControl({name: 'material-panel'});
@@ -22,7 +22,7 @@ export function buildVolume() {
         y_align: Clutter.ActorAlign.CENTER,
         reactive: true,
     });
-    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: 17});
+    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: Math.round(17 * scale)});
     const label = new St.Label({style_class: 'material-panel-volume-label', y_align: Clutter.ActorAlign.CENTER});
     box.add_child(icon);
     box.add_child(label);
