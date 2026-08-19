@@ -23,7 +23,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         page.add(infoGroup);
 
-        const panelSize = {iconScale: 1.0, pillHeight: 26, gap: 5, ...config.panelSize};
+        const panelSize = {scale: 1.0, gap: 5, ...config.panelSize};
         config.panelSize = panelSize;
 
         const sizeGroup = new Adw.PreferencesGroup({
@@ -59,14 +59,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         };
 
         makeSliderRow({
-            title: 'Icon size',
-            subtitle: 'Bar-level icons (activities, battery, volume, network, quick settings)',
-            key: 'iconScale', min: 0.7, max: 1.6, step: 0.05,
-        });
-        makeSliderRow({
-            title: 'Pill height',
-            subtitle: 'Thickness of each pill; padding and font scale with it',
-            key: 'pillHeight', min: 18, max: 40, step: 1,
+            title: 'Size',
+            subtitle: 'Icon size and pill height together, so they always stay in proportion',
+            key: 'scale', min: 0.7, max: 1.5, step: 0.05,
         });
         makeSliderRow({
             title: 'Gap',
