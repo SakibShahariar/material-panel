@@ -23,33 +23,56 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         page.add(infoGroup);
 
-        const SCALE_PRESETS = [
-            {label: 'Compact', value: 0.85},
-            {label: 'Normal', value: 1.0},
-            {label: 'Large', value: 1.2},
-        ];
-        const currentScale = config.panelScale ?? 1.0;
-        let selectedScaleIndex = SCALE_PRESETS.findIndex(p => Math.abs(p.value - currentScale) < 0.01);
-        if (selectedScaleIndex === -1)
-            selectedScaleIndex = 1;
+        const panelSize = {iconScale: 1.0, pillHeight: 26, gap: 5, ...config.panelSize};
+        config.panelSize = panelSize;
 
-        const sizeGroup = new Adw.PreferencesGroup({title: 'Panel Size'});
+        const sizeGroup = new Adw.PreferencesGroup({
+            title: 'Panel Size',
+            description: 'Doesn\'t affect the quick settings popup, which is a separate surface.',
+        });
         page.add(sizeGroup);
 
-        const sizeRow = new Adw.ComboRow({
-            title: 'Size',
-            subtitle: 'Scales the top bar\'s height, padding, and icon sizes. Doesn\'t affect the quick settings popup.',
-            model: new Gtk.StringList({strings: SCALE_PRESETS.map(p => p.label)}),
-            selected: selectedScaleIndex,
+        const makeSliderRow = ({title, subtitle, key, min, max, step}) => {
+            const adjustment = new Gtk.Adjustment({
+                value: panelSize[key],
+                lower: min,
+                upper: max,
+                step_increment: step,
+            });
+            const row = new Adw.ActionRow({title, subtitle});
+            const scale = new Gtk.Scale({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                adjustment,
+                digits: step < 1 ? 2 : 0,
+                width_request: 160,
+                valign: Gtk.Align.CENTER,
+            });
+            scale.connect('value-changed', () => {
+                panelSize[key] = adjustment.value;
+                store.save(config);
+                // Applies live via the config file watcher - no window.close()
+                // needed here, unlike the zone-reorder rows below (which
+                // change the list structure itself, not just a stored value).
+            });
+            row.add_suffix(scale);
+            sizeGroup.add(row);
+        };
+
+        makeSliderRow({
+            title: 'Icon size',
+            subtitle: 'Bar-level icons (activities, battery, volume, network, quick settings)',
+            key: 'iconScale', min: 0.7, max: 1.6, step: 0.05,
         });
-        sizeRow.connect('notify::selected', () => {
-            config.panelScale = SCALE_PRESETS[sizeRow.selected].value;
-            store.save(config);
-            // Applies live via the config file watcher - no window.close()
-            // needed here, unlike the zone-reorder rows below (which change
-            // the list structure itself, not just a stored value).
+        makeSliderRow({
+            title: 'Pill height',
+            subtitle: 'Thickness of each pill; padding and font scale with it',
+            key: 'pillHeight', min: 18, max: 40, step: 1,
         });
-        sizeGroup.add(sizeRow);
+        makeSliderRow({
+            title: 'Gap',
+            subtitle: 'Space between the pills and the screen edge',
+            key: 'gap', min: 0, max: 14, step: 1,
+        });
 
         for (const zoneName of ZONE_NAMES) {
             const group = new Adw.PreferencesGroup({
