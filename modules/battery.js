@@ -26,7 +26,7 @@ export function buildBattery(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     const icon = new St.Icon({style_class: 'material-panel-battery-icon', icon_size: Math.round(17 * scale)});
-    const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER});
+    const label = new St.Label({style_class: 'material-panel-battery-label', y_align: Clutter.ActorAlign.CENTER, translation_y: -1});
     box.add_child(icon);
     box.add_child(label);
 
