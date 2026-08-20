@@ -1,5 +1,6 @@
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
+import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
@@ -32,6 +33,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         page.add(sizeGroup);
 
+        let saveDebounceId = null;
         const makeSliderRow = ({title, subtitle, key, min, max, step}) => {
             const adjustment = new Gtk.Adjustment({
                 value: panelSize[key],
@@ -49,7 +51,18 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             });
             scale.connect('value-changed', () => {
                 panelSize[key] = adjustment.value;
-                store.save(config);
+                // Debounced - a Gtk.Scale fires value-changed continuously
+                // during drag (many times per second), and writing
+                // config.json that often flooded the shell-side file
+                // watcher, which appeared to cause icons to intermittently
+                // fail to regenerate correctly during rapid drags.
+                if (saveDebounceId)
+                    GLib.source_remove(saveDebounceId);
+                saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+                    saveDebounceId = null;
+                    store.save(config);
+                    return GLib.SOURCE_REMOVE;
+                });
                 // Applies live via the config file watcher - no window.close()
                 // needed here, unlike the zone-reorder rows below (which
                 // change the list structure itself, not just a stored value).
