@@ -82,6 +82,15 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             key: 'gap', min: 0, max: 14, step: 1,
         });
 
+        window.connect('close-request', () => {
+            if (saveDebounceId) {
+                GLib.source_remove(saveDebounceId);
+                saveDebounceId = null;
+                store.save(config);
+            }
+            return false;
+        });
+
         for (const zoneName of ZONE_NAMES) {
             const group = new Adw.PreferencesGroup({
                 title: `${zoneName[0].toUpperCase()}${zoneName.slice(1)} zone`,
