@@ -51,10 +51,14 @@ export default class MaterialPanelExtension extends Extension {
         this._theme.apply(this._config.colorSource ?? null, panelSize);
         this._builder.render(this._config);
         if (this._config.colorSource) {
+            log(`material-panel: setting up matugen watch on "${this._config.colorSource}"`);
             this._theme.watch(this._config.colorSource, () => {
+                log('material-panel: matugen watch callback fired, reapplying theme');
                 this._theme.apply(this._config.colorSource, panelSize);
                 this._builder.render(this._config);
             });
+        } else {
+            log('material-panel: no colorSource configured, skipping matugen watch setup');
         }
     }
 
