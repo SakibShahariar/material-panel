@@ -395,6 +395,123 @@ function bluetoothTile() {
     return tile;
 }
 
+// Lists already-paired devices and lets you connect/disconnect. Doesn't
+// support discovering/pairing NEW devices - that needs BlueZ's pairing
+// agent flow (PIN/passkey prompts), a bigger separate feature. Same
+// scoping decision as the wifi module (reconnect to known networks only).
+function buildBluetoothDeviceList() {
+    const container = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-qs-bt-devices',
+        x_expand: true,
+    });
+    container.visible = false; // shown only once we know there are paired devices
+
+    const BLUEZ_SERVICE = 'org.bluez';
+    const DEVICE_IFACE = 'org.bluez.Device1';
+
+    const buildDeviceRow = (path, props) => {
+        const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
+        const name = props['Name'] ? props['Name'].deep_unpack() : null;
+        const displayName = alias ?? name ?? 'Unknown device';
+        const connected = props['Connected'] ? props['Connected'].deep_unpack() : false;
+
+        const row = new St.Button({
+            style_class: `material-panel-qs-bt-device${connected ? ' connected' : ''}`,
+            reactive: true,
+            x_expand: true,
+        });
+        const rowBox = new St.BoxLayout({x_expand: true});
+        const icon = new St.Icon({
+            style_class: 'material-panel-qs-bt-device-icon',
+            icon_size: 15,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(
+                connected ? iconPathOnAccent('bluetooth-on') : iconPathPrimary('bluetooth-off'))),
+        });
+        const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name');
+        nameLabel.x_expand = true;
+        const statusLabel = new St.Label({
+            text: connected ? 'Connected' : 'Tap to connect',
+            style_class: 'material-panel-qs-bt-device-status',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        rowBox.add_child(icon);
+        rowBox.add_child(nameLabel);
+        rowBox.add_child(statusLabel);
+        row.set_child(rowBox);
+
+        row.connect('clicked', () => {
+            Gio.DBusProxy.new_for_bus(
+                Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+                BLUEZ_SERVICE, path, DEVICE_IFACE, null,
+                (_s, res) => {
+                    let deviceProxy;
+                    try {
+                        deviceProxy = Gio.DBusProxy.new_for_bus_finish(res);
+                    } catch (e) {
+                        logError(e, `material-panel: bluez device proxy failed for "${displayName}"`);
+                        return;
+                    }
+                    const method = connected ? 'Disconnect' : 'Connect';
+                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                        try {
+                            p.call_finish(r);
+                        } catch (e) {
+                            logError(e, `material-panel: bluez ${method} failed for "${displayName}"`);
+                        }
+                    });
+                });
+        });
+
+        return row;
+    };
+
+    Gio.DBusProxy.new_for_bus(
+        Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+        BLUEZ_SERVICE, '/', 'org.freedesktop.DBus.ObjectManager', null,
+        (_s, res) => {
+            let objMgr;
+            try {
+                objMgr = Gio.DBusProxy.new_for_bus_finish(res);
+            } catch (e) {
+                logError(e, 'material-panel: bluez unavailable, device list stays empty');
+                return;
+            }
+
+            const refresh = () => {
+                objMgr.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
+                    try {
+                        const [objects] = proxy.call_finish(callRes).deep_unpack();
+                        container.destroy_all_children();
+                        const pairedDevices = Object.entries(objects)
+                            .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
+                            .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                            .filter(({props}) => props['Paired']?.deep_unpack());
+
+                        container.visible = pairedDevices.length > 0;
+                        for (const {path, props} of pairedDevices)
+                            container.add_child(buildDeviceRow(path, props));
+                    } catch (e) {
+                        logError(e, 'material-panel: bluez GetManagedObjects failed for device list');
+                    }
+                });
+            };
+            refresh();
+
+            // Re-list on devices being paired/removed. Doesn't subscribe to
+            // per-device PropertiesChanged (Connected state flipping) - a
+            // reasonable v2 addition, not done here to keep this scoped.
+            const changedId = objMgr.connect('g-signal', (_p, _sender, signal) => {
+                if (signal === 'InterfacesAdded' || signal === 'InterfacesRemoved')
+                    refresh();
+            });
+            container.connect('destroy', () => objMgr.disconnect(changedId));
+        });
+
+    return container;
+}
+
 const POWER_ACTIONS = [
     {iconKey: 'lock', command: 'loginctl lock-session'},
     {iconKey: 'suspend', command: 'systemctl suspend'},
@@ -464,6 +581,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     });
 
     menu.addMenuItem(wrapAsMenuItem(grid));
+    menu.addMenuItem(wrapAsMenuItem(buildBluetoothDeviceList()));
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 

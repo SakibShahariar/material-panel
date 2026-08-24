@@ -103,6 +103,25 @@
     padding: 8px;
 }
 
+.material-panel-qs-bt-devices {
+    spacing: 4px;
+    padding: 2px 0 6px 0;
+}
+
+.material-panel-qs-bt-device {
+    border-radius: 10px;
+    padding: 6px 10px;
+}
+
+.material-panel-qs-bt-device-name {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.material-panel-qs-bt-device-status {
+    font-size: 10.5px;
+}
+
 .material-panel-qs-slider-row {
     spacing: 10px;
     padding: 6px 4px;
