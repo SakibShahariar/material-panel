@@ -337,6 +337,27 @@ function bluetoothTile() {
         tile.set_style_class_name(`material-panel-qs-tile${powered ? ' active' : ''}`);
     };
 
+    // Attached immediately, not nested inside the async setup chain below -
+    // otherwise a failure anywhere in that chain (adapter not found, proxy
+    // creation failing) means this handler never gets connected at all,
+    // and the tile just silently does nothing when clicked, forever, with
+    // no way to tell why.
+    tile.connect('clicked', () => {
+        if (!propsProxy) {
+            logError(new Error('material-panel: bluetooth toggle clicked before adapter proxy was ready (or setup failed - check for earlier "bluez" errors in the log)'));
+            return;
+        }
+        propsProxy.call('Set', new GLib.Variant('(ssv)',
+            [ADAPTER_IFACE, 'Powered', new GLib.Variant('b', !currentlyPowered)]),
+            Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                try {
+                    p.call_finish(r);
+                } catch (e) {
+                    logError(e, 'material-panel: bluez Set Powered failed');
+                }
+            });
+    });
+
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
         BLUEZ_SERVICE, '/', 'org.freedesktop.DBus.ObjectManager', null,
@@ -352,8 +373,10 @@ function bluetoothTile() {
                 try {
                     const [objects] = proxy.call_finish(callRes).deep_unpack();
                     const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
-                    if (!path)
+                    if (!path) {
+                        logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
                         return;
+                    }
                     Gio.DBusProxy.new_for_bus(
                         Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
                         BLUEZ_SERVICE, path, 'org.freedesktop.DBus.Properties', null,
@@ -379,11 +402,6 @@ function bluetoothTile() {
                                 const [iface, changed] = params.deep_unpack();
                                 if (iface === ADAPTER_IFACE && 'Powered' in changed)
                                     setPowered(changed['Powered'].deep_unpack());
-                            });
-                            tile.connect('clicked', () => {
-                                propsProxy.call('Set', new GLib.Variant('(ssv)',
-                                    [ADAPTER_IFACE, 'Powered', new GLib.Variant('b', !currentlyPowered)]),
-                                    Gio.DBusCallFlags.NONE, -1, null, () => {});
                             });
                         });
                 } catch (e) {
