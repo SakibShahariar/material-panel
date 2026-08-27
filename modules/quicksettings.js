@@ -110,15 +110,24 @@ function volumeSliderRow() {
         }
     };
 
+    const pctLabel = new St.Label({
+        text: '0%',
+        style_class: 'material-panel-qs-slider-value',
+        y_align: Clutter.ActorAlign.CENTER,
+        style: 'min-width: 36px; text-align: right; font-size: 12px;',
+    });
     const slider = createSlider({
         initialValue: 0,
         onChange: value => {
+            const pct = Math.round(value * 100);
             if (sink)
                 sink.volume = value * control.get_vol_max_norm();
-            updateIconIfChanged(Math.round(value * 100));
+            updateIconIfChanged(pct);
+            pctLabel.text = `${pct}%`;
         },
     });
     row.add_child(slider.actor);
+    row.add_child(pctLabel);
 
     try {
         control = new Gvc.MixerControl({name: 'material-panel'});
@@ -134,13 +143,17 @@ function volumeSliderRow() {
             return;
         const pct = sink.volume / control.get_vol_max_norm();
         slider.setValue(pct);
-        updateIconIfChanged(Math.round(pct * 100));
+        const pctInt = Math.round(pct * 100);
+        updateIconIfChanged(pctInt);
+        pctLabel.text = sink.is_muted ? 'mute' : `${pctInt}%`;
     };
 
     const attachSink = () => {
         sink = control.get_default_sink();
         if (sink) {
             sink.connect('notify::volume', syncFromSink);
+            // Also watch for mute changes so icon reflects muted state
+            try { sink.connect('notify::is-muted', syncFromSink); } catch (e) {}
             syncFromSink();
         }
     };
@@ -149,6 +162,11 @@ function volumeSliderRow() {
             attachSink();
     });
     control.connect('default-sink-changed', attachSink);
+    // If control is already READY (cached), state-changed won't fire again
+    try {
+        if (control.get_state() === Gvc.MixerControlState.READY)
+            attachSink();
+    } catch (e) {}
 
     return row;
 }
@@ -311,6 +329,17 @@ function dndTile() {
 
 // Bluetooth tile is async (D-Bus discovery) so it can't use the synchronous
 // buildTile() helper directly - built inline, same visual shape.
+function isBluetoothSoftBlocked() {
+    try {
+        const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+        if (!ok || !out) return false;
+        const text = new TextDecoder('utf-8').decode(out);
+        return text.includes('Soft blocked: yes');
+    } catch (e) {
+        return false;
+    }
+}
+
 function bluetoothTile() {
     const tile = new St.Button({style_class: 'material-panel-qs-tile', reactive: true, x_expand: true});
     const box = new St.BoxLayout({vertical: false, style_class: 'material-panel-qs-tile-content', y_align: Clutter.ActorAlign.CENTER});
@@ -328,23 +357,138 @@ function bluetoothTile() {
     const ADAPTER_IFACE = 'org.bluez.Adapter1';
     let propsProxy = null;
     let currentlyPowered = false;
+    let isBlocked = false;
+    let objMgrProxy = null;
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        isBlocked = false;
         const key = powered ? 'bluetooth-on' : 'bluetooth-off';
         icon.gicon = Gio.FileIcon.new(
             Gio.File.new_for_path(powered ? iconPathOnAccent(key) : iconPath(key)));
         tile.set_style_class_name(`material-panel-qs-tile${powered ? ' active' : ''}`);
+        text.text = 'Bluetooth';
+    };
+
+    const setBlockedState = () => {
+        isBlocked = true;
+        currentlyPowered = false;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        tile.set_style_class_name('material-panel-qs-tile');
+        text.text = 'Blocked — tap to unblock';
+    };
+
+    const setNoAdapterState = () => {
+        isBlocked = false;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        tile.set_style_class_name('material-panel-qs-tile');
+        text.text = 'No adapter';
+    };
+
+    let discoverAttempts = 0;
+    const discoverAndBind = () => {
+        if (discoverAttempts > 3) return;
+        discoverAttempts++;
+        Gio.DBusProxy.new_for_bus(
+            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+            BLUEZ_SERVICE, '/', 'org.freedesktop.DBus.ObjectManager', null,
+            (_s, res) => {
+                let objMgr;
+                try {
+                    objMgr = Gio.DBusProxy.new_for_bus_finish(res);
+                } catch (e) {
+                    logError(e, 'material-panel: bluez unavailable');
+                    if (isBluetoothSoftBlocked()) setBlockedState();
+                    else setNoAdapterState();
+                    return;
+                }
+                objMgrProxy = objMgr;
+                objMgr.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
+                    try {
+                        const [objects] = proxy.call_finish(callRes).deep_unpack();
+                        const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
+                        if (!path) {
+                            if (isBluetoothSoftBlocked()) {
+                                log('material-panel: bluez no adapter — rfkill soft blocked, showing unblock UI');
+                                setBlockedState();
+                            } else {
+                                logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
+                                setNoAdapterState();
+                            }
+                            return;
+                        }
+                        Gio.DBusProxy.new_for_bus(
+                            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+                            BLUEZ_SERVICE, path, 'org.freedesktop.DBus.Properties', null,
+                            (_s2, res2) => {
+                                try {
+                                    propsProxy = Gio.DBusProxy.new_for_bus_finish(res2);
+                                } catch (e) {
+                                    logError(e, 'material-panel: bluez properties proxy failed');
+                                    setNoAdapterState();
+                                    return;
+                                }
+                                propsProxy.call('Get', new GLib.Variant('(ss)', [ADAPTER_IFACE, 'Powered']),
+                                    Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                                        try {
+                                            const [variant] = p.call_finish(r).deep_unpack();
+                                            setPowered(variant.deep_unpack());
+                                        } catch (e) {
+                                            logError(e, 'material-panel: bluez Get Powered failed');
+                                        }
+                                    });
+                                propsProxy.connect('g-signal', (_p, _sender, signal, params) => {
+                                    if (signal !== 'PropertiesChanged')
+                                        return;
+                                    const [iface, changed] = params.deep_unpack();
+                                    if (iface === ADAPTER_IFACE && 'Powered' in changed)
+                                        setPowered(changed['Powered'].deep_unpack());
+                                });
+                                // If adapter appears later (unblocked), BlueZ emits InterfacesAdded — refresh
+                                objMgr.connect('g-signal', (_p, _s, sig) => {
+                                    if (sig === 'InterfacesAdded' && !propsProxy) {
+                                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
+                                            discoverAttempts = 0;
+                                            discoverAndBind();
+                                            return GLib.SOURCE_REMOVE;
+                                        });
+                                    }
+                                });
+                            });
+                    } catch (e) {
+                        logError(e, 'material-panel: bluez GetManagedObjects failed');
+                        if (isBluetoothSoftBlocked()) setBlockedState();
+                        else setNoAdapterState();
+                    }
+                });
+            });
     };
 
     // Attached immediately, not nested inside the async setup chain below -
     // otherwise a failure anywhere in that chain (adapter not found, proxy
     // creation failing) means this handler never gets connected at all,
-    // and the tile just silently does nothing when clicked, forever, with
-    // no way to tell why.
+    // and the tile just silently does nothing when clicked, forever.
     tile.connect('clicked', () => {
+        if (isBlocked) {
+            try {
+                GLib.spawn_command_line_async('rfkill unblock bluetooth');
+                log('material-panel: rfkill unblock bluetooth requested');
+                text.text = 'Unblocking…';
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+                    discoverAttempts = 0;
+                    discoverAndBind();
+                    return GLib.SOURCE_REMOVE;
+                });
+            } catch (e) {
+                logError(e, 'material-panel: rfkill unblock failed');
+            }
+            return;
+        }
         if (!propsProxy) {
-            logError(new Error('material-panel: bluetooth toggle clicked before adapter proxy was ready (or setup failed - check for earlier "bluez" errors in the log)'));
+            // Retry discovery once on click if we previously had no adapter
+            discoverAttempts = 0;
+            discoverAndBind();
+            logError(new Error('material-panel: bluetooth toggle clicked before adapter proxy was ready — retrying discovery'));
             return;
         }
         propsProxy.call('Set', new GLib.Variant('(ssv)',
@@ -358,57 +502,7 @@ function bluetoothTile() {
             });
     });
 
-    Gio.DBusProxy.new_for_bus(
-        Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-        BLUEZ_SERVICE, '/', 'org.freedesktop.DBus.ObjectManager', null,
-        (_s, res) => {
-            let objMgr;
-            try {
-                objMgr = Gio.DBusProxy.new_for_bus_finish(res);
-            } catch (e) {
-                logError(e, 'material-panel: bluez unavailable');
-                return;
-            }
-            objMgr.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
-                try {
-                    const [objects] = proxy.call_finish(callRes).deep_unpack();
-                    const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
-                    if (!path) {
-                        logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
-                        return;
-                    }
-                    Gio.DBusProxy.new_for_bus(
-                        Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-                        BLUEZ_SERVICE, path, 'org.freedesktop.DBus.Properties', null,
-                        (_s2, res2) => {
-                            try {
-                                propsProxy = Gio.DBusProxy.new_for_bus_finish(res2);
-                            } catch (e) {
-                                logError(e, 'material-panel: bluez properties proxy failed');
-                                return;
-                            }
-                            propsProxy.call('Get', new GLib.Variant('(ss)', [ADAPTER_IFACE, 'Powered']),
-                                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                                    try {
-                                        const [variant] = p.call_finish(r).deep_unpack();
-                                        setPowered(variant.deep_unpack());
-                                    } catch (e) {
-                                        logError(e, 'material-panel: bluez Get Powered failed');
-                                    }
-                                });
-                            propsProxy.connect('g-signal', (_p, _sender, signal, params) => {
-                                if (signal !== 'PropertiesChanged')
-                                    return;
-                                const [iface, changed] = params.deep_unpack();
-                                if (iface === ADAPTER_IFACE && 'Powered' in changed)
-                                    setPowered(changed['Powered'].deep_unpack());
-                            });
-                        });
-                } catch (e) {
-                    logError(e, 'material-panel: bluez GetManagedObjects failed');
-                }
-            });
-        });
+    discoverAndBind();
 
     return tile;
 }
@@ -417,13 +511,61 @@ function bluetoothTile() {
 // support discovering/pairing NEW devices - that needs BlueZ's pairing
 // agent flow (PIN/passkey prompts), a bigger separate feature. Same
 // scoping decision as the wifi module (reconnect to known networks only).
+// Now wrapped in a collapsible dropdown — header always visible, devices
+// hidden until user taps the header (so the QS doesn't always show the
+// list, as requested).
 function buildBluetoothDeviceList() {
+    const outer = new St.BoxLayout({
+        vertical: true,
+        x_expand: true,
+        style_class: 'material-panel-qs-bt-dropdown',
+    });
+    const header = new St.Button({
+        style_class: 'material-panel-qs-bt-header',
+        reactive: true,
+        x_expand: true,
+    });
+    const headerBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+    const headerLabel = new St.Label({
+        text: 'Paired devices',
+        style_class: 'material-panel-qs-bt-header-label',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const headerArrow = new St.Icon({
+        icon_name: 'pan-down-symbolic',
+        icon_size: 14,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    headerBox.add_child(headerLabel);
+    headerBox.add_child(headerArrow);
+    header.set_child(headerBox);
+    outer.add_child(header);
+
+    let expanded = false;
+    const updateArrow = () => {
+        headerArrow.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
+    };
     const container = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-qs-bt-devices',
         x_expand: true,
     });
-    container.visible = false; // shown only once we know there are paired devices
+    container.visible = false; // collapsed by default
+    outer.add_child(container);
+    header.connect('clicked', () => {
+        expanded = !expanded;
+        container.visible = expanded;
+        updateArrow();
+        // If expanding and we haven't yet populated (first open after rfkill
+        // unblock), trigger a refresh via the closure below — handled by
+        // calling the outer refresh if available.
+        if (expanded && container.get_n_children() === 0) {
+            // hint will be added on next refresh; force a re-query
+            if (outer._triggerRefresh) outer._triggerRefresh();
+        }
+        return Clutter.EVENT_STOP;
+    });
 
     const BLUEZ_SERVICE = 'org.bluez';
     const DEVICE_IFACE = 'org.bluez.Device1';
@@ -502,12 +644,41 @@ function buildBluetoothDeviceList() {
                     try {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         container.destroy_all_children();
+                        const ADAPTER_IFACE_LOCAL = 'org.bluez.Adapter1';
+                        const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE_LOCAL in ifaces);
+                        if (!hasAdapter) {
+                            // No adapter at all — likely rfkill blocked; show hint instead of empty
+                            try {
+                                const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+                                const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
+                                if (blocked) {
+                                    const hint = new St.Label({text: 'Bluetooth blocked — tap tile above to unblock', style_class: 'material-panel-qs-bt-device-status'});
+                                    hint.style = 'font-style: italic; padding: 4px 8px;';
+                                    container.add_child(hint);
+                                    headerLabel.text = 'Paired devices — blocked';
+                                    // keep collapsed state; only show if already expanded
+                                    container.visible = expanded;
+                                    return;
+                                }
+                            } catch (e) {}
+                            headerLabel.text = 'Paired devices — no adapter';
+                            container.visible = false;
+                            return;
+                        }
                         const pairedDevices = Object.entries(objects)
                             .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
                             .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
                             .filter(({props}) => props['Paired']?.deep_unpack());
 
-                        container.visible = pairedDevices.length > 0;
+                        headerLabel.text = `Paired devices (${pairedDevices.length})`;
+                        if (pairedDevices.length === 0) {
+                            const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-device-status'});
+                            hint.style = 'font-style: italic; padding: 4px 8px;';
+                            container.add_child(hint);
+                            container.visible = expanded;
+                            return;
+                        }
+                        container.visible = expanded;
                         for (const {path, props} of pairedDevices)
                             container.add_child(buildDeviceRow(path, props));
                     } catch (e) {
@@ -515,6 +686,7 @@ function buildBluetoothDeviceList() {
                     }
                 });
             };
+            outer._triggerRefresh = refresh;
             refresh();
 
             // Re-list on devices being paired/removed. Doesn't subscribe to
@@ -525,9 +697,12 @@ function buildBluetoothDeviceList() {
                     refresh();
             });
             container.connect('destroy', () => objMgr.disconnect(changedId));
+            outer.connect('destroy', () => {
+                try { objMgr.disconnect(changedId); } catch (e) {}
+            });
         });
 
-    return container;
+    return outer;
 }
 
 const POWER_ACTIONS = [
@@ -562,6 +737,45 @@ function powerRow() {
     return row;
 }
 
+function addPopupDismiss(menu, button) {
+    // Click outside + Esc to close — previously you had to click the same
+    // button again. Uses stage captured-event so clicks anywhere outside
+    // the popup or trigger button dismiss it.
+    const stage = global.stage;
+    const clickId = stage.connect('captured-event', (actor, event) => {
+        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+        if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
+        const target = event.get_source();
+        // Walk up parents to see if click was inside menu or button
+        let cur = target;
+        while (cur) {
+            if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
+            cur = cur.get_parent();
+        }
+        // Also check contains for St actors
+        try {
+            if (menu.actor.contains(target) || button.contains(target))
+                return Clutter.EVENT_PROPAGATE;
+        } catch (e) {}
+        menu.close();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const keyId = stage.connect('key-press-event', (actor, event) => {
+        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+        if (event.get_key_symbol() === Clutter.KEY_Escape) {
+            menu.close();
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const cleanup = () => {
+        try { stage.disconnect(clickId); } catch (e) {}
+        try { stage.disconnect(keyId); } catch (e) {}
+    };
+    menu.actor.connect('destroy', cleanup);
+    button.connect('destroy', cleanup);
+}
+
 export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-quicksettings-btn material-panel-chip',
@@ -577,6 +791,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.actor.add_style_class_name('material-panel-popup material-panel-qs-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
+    addPopupDismiss(menu, button);
 
     menu.addMenuItem(wrapAsMenuItem(buildProfileCard()));
     menu.addMenuItem(wrapAsMenuItem(buildMediaPlayerRow()));

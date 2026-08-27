@@ -30,6 +30,38 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     menu.actor.add_style_class_name('material-panel-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
+    // Dismiss on outside click / Esc — same as quicksettings
+    const stage = global.stage;
+    const clickId = stage.connect('captured-event', (actor, event) => {
+        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+        if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
+        const target = event.get_source();
+        let cur = target;
+        while (cur) {
+            if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
+            cur = cur.get_parent();
+        }
+        try {
+            if (menu.actor.contains(target) || button.contains(target))
+                return Clutter.EVENT_PROPAGATE;
+        } catch (e) {}
+        menu.close();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const keyId = stage.connect('key-press-event', (actor, event) => {
+        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+        if (event.get_key_symbol() === Clutter.KEY_Escape) {
+            menu.close();
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const cleanup = () => {
+        try { stage.disconnect(clickId); } catch (e) {}
+        try { stage.disconnect(keyId); } catch (e) {}
+    };
+    menu.actor.connect('destroy', cleanup);
+    button.connect('destroy', cleanup);
     button.connect('clicked', () => menu.toggle());
     button.connect('destroy', () => menu.destroy());
 

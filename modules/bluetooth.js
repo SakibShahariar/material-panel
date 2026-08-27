@@ -42,6 +42,16 @@ function findAdapterPath(callback) {
         });
 }
 
+function isSoftBlocked() {
+    try {
+        const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+        if (!ok || !out) return false;
+        return new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
+    } catch (e) {
+        return false;
+    }
+}
+
 export function buildBluetooth() {
     const button = new St.Button({
         style_class: 'material-panel-bluetooth-btn material-panel-chip',
@@ -58,21 +68,36 @@ export function buildBluetooth() {
     let propsProxy = null;
     let signalId = 0;
     let currentlyPowered = false;
+    let isBlocked = false;
+    let clickId = 0;
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        isBlocked = false;
         icon.gicon = Gio.FileIcon.new(
             Gio.File.new_for_path(iconPath(powered ? 'bluetooth-on' : 'bluetooth-off')));
         button.set_style_class_name(
             `material-panel-bluetooth-btn material-panel-chip${powered ? ' active' : ''}`);
+        button.reactive = true;
     };
 
-    findAdapterPath(path => {
-        if (!path) {
-            button.reactive = false;
-            return;
-        }
+    const setBlockedState = () => {
+        isBlocked = true;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
+        button.reactive = true;
+        log('material-panel: bluetooth chip — rfkill soft blocked, tap to unblock');
+    };
 
+    const setNoAdapterState = () => {
+        isBlocked = false;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
+        // keep reactive to allow retry on click
+        button.reactive = true;
+    };
+
+    const bindAdapter = path => {
         Gio.DBusProxy.new_for_bus(
             Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
             BLUEZ_SERVICE, path, PROPERTIES_IFACE, null,
@@ -81,7 +106,7 @@ export function buildBluetooth() {
                     propsProxy = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
                     logError(e, 'material-panel: bluez properties proxy failed');
-                    button.reactive = false;
+                    setNoAdapterState();
                     return;
                 }
 
@@ -108,15 +133,47 @@ export function buildBluetooth() {
                     if (iface === ADAPTER_IFACE && 'Powered' in changed)
                         setPowered(changed['Powered'].deep_unpack());
                 });
+            });
+    };
 
-                button.connect('clicked', () => {
-                    propsProxy.call(
-                        'Set', new GLib.Variant('(ssv)',
-                            [ADAPTER_IFACE, 'Powered', new GLib.Variant('b', !currentlyPowered)]),
-                        Gio.DBusCallFlags.NONE, -1, null, () => {});
+    const discover = () => {
+        findAdapterPath(path => {
+            if (!path) {
+                if (isSoftBlocked()) setBlockedState();
+                else setNoAdapterState();
+                return;
+            }
+            bindAdapter(path);
+        });
+    };
+
+    clickId = button.connect('clicked', () => {
+        if (isBlocked) {
+            try {
+                GLib.spawn_command_line_async('rfkill unblock bluetooth');
+                log('material-panel: rfkill unblock bluetooth requested (chip)');
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+                    discover();
+                    return GLib.SOURCE_REMOVE;
                 });
+            } catch (e) {
+                logError(e, 'material-panel: rfkill unblock failed');
+            }
+            return;
+        }
+        if (!propsProxy) {
+            discover();
+            return;
+        }
+        propsProxy.call(
+            'Set', new GLib.Variant('(ssv)',
+                [ADAPTER_IFACE, 'Powered', new GLib.Variant('b', !currentlyPowered)]),
+            Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                try { p.call_finish(r); } catch (e) { logError(e, 'material-panel: bluez Set Powered failed'); }
             });
     });
+
+    discover();
 
     button.connect('destroy', () => {
         if (propsProxy && signalId)

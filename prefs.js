@@ -24,7 +24,19 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         page.add(infoGroup);
 
-        const panelSize = {scale: 1.0, gap: 5, ...config.panelSize};
+        // Whitelist only the current keys - old configs may still carry
+        // iconScale/pillHeight/gap until configStore's next load rewrites them.
+        // Migrate legacy single `gap` if present.
+        if (config.panelSize?.gap != null && config.panelSize?.gapTop == null) {
+            config.panelSize.gapTop = config.panelSize.gap;
+            config.panelSize.gapBottom = Math.max(0, config.panelSize.gap - 1);
+            delete config.panelSize.gap;
+        }
+        const panelSize = {
+            scale: config.panelSize?.scale ?? 1.0,
+            gapTop: config.panelSize?.gapTop ?? 5,
+            gapBottom: config.panelSize?.gapBottom ?? 4,
+        };
         config.panelSize = panelSize;
 
         const sizeGroup = new Adw.PreferencesGroup({
@@ -46,11 +58,20 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 orientation: Gtk.Orientation.HORIZONTAL,
                 adjustment,
                 digits: step < 1 ? 2 : 0,
-                width_request: 160,
+                width_request: 180,
                 valign: Gtk.Align.CENTER,
+                draw_value: true,
+                value_pos: Gtk.PositionType.RIGHT,
+                hexpand: true,
             });
+            // Show current value in subtitle as fallback if draw_value clipped
+            const updateSubtitle = () => {
+                row.subtitle = `${subtitle} — current: ${adjustment.value.toFixed(step < 1 ? 1 : 0)}`;
+            };
+            updateSubtitle();
             scale.connect('value-changed', () => {
                 panelSize[key] = adjustment.value;
+                updateSubtitle();
                 // Debounced - a Gtk.Scale fires value-changed continuously
                 // during drag (many times per second), and writing
                 // config.json that often flooded the shell-side file
@@ -77,9 +98,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             key: 'scale', min: 0.7, max: 1.5, step: 0.05,
         });
         makeSliderRow({
-            title: 'Gap',
-            subtitle: 'Space between the pills and the screen edge',
-            key: 'gap', min: 0, max: 14, step: 1,
+            title: 'Top gap',
+            subtitle: 'Space above the pills (px)',
+            key: 'gapTop', min: 0, max: 14, step: 1,
+        });
+        makeSliderRow({
+            title: 'Bottom gap',
+            subtitle: 'Space below the pills — slightly less than top by default (px)',
+            key: 'gapBottom', min: 0, max: 14, step: 1,
         });
 
         window.connect('close-request', () => {
