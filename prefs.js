@@ -47,6 +47,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         let saveDebounceId = null;
         const makeSliderRow = ({title, subtitle, key, min, max, step}) => {
+            const formatValue = v => {
+                if (key === 'scale') return `${v.toFixed(2)}×`;
+                return `${Math.round(v)} px`;
+            };
             const adjustment = new Gtk.Adjustment({
                 value: panelSize[key],
                 lower: min,
@@ -60,18 +64,22 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 digits: step < 1 ? 2 : 0,
                 width_request: 180,
                 valign: Gtk.Align.CENTER,
-                draw_value: true,
-                value_pos: Gtk.PositionType.RIGHT,
+                draw_value: false,
                 hexpand: true,
             });
-            // Show current value in subtitle as fallback if draw_value clipped
-            const updateSubtitle = () => {
-                row.subtitle = `${subtitle} — current: ${adjustment.value.toFixed(step < 1 ? 1 : 0)}`;
+            const valueLabel = new Gtk.Label({
+                label: formatValue(adjustment.value),
+                width_request: 52,
+                xalign: 1,
+                valign: Gtk.Align.CENTER,
+                css_classes: ['dim-label', 'monospace'],
+            });
+            const updateValueLabel = () => {
+                valueLabel.label = formatValue(adjustment.value);
             };
-            updateSubtitle();
             scale.connect('value-changed', () => {
                 panelSize[key] = adjustment.value;
-                updateSubtitle();
+                updateValueLabel();
                 // Debounced - a Gtk.Scale fires value-changed continuously
                 // during drag (many times per second), and writing
                 // config.json that often flooded the shell-side file
@@ -89,6 +97,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 // change the list structure itself, not just a stored value).
             });
             row.add_suffix(scale);
+            row.add_suffix(valueLabel);
             sizeGroup.add(row);
         };
 

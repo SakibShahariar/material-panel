@@ -111,23 +111,36 @@ function addPopupDismiss(menu, button) {
 // connect/disconnect, battery where exposed, live refresh via
 // ObjectManager InterfacesAdded/Removed and per-device PropertiesChanged.
 export function buildBluetooth(_extensionPath, scale = 1.0) {
+    const buttonBox = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-chip-box'});
+    const icon = new St.Icon({
+        style_class: 'material-panel-bluetooth-icon',
+        icon_size: Math.round(17 * (scale || 1.0)),
+        y_align: Clutter.ActorAlign.CENTER,
+        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off'))),
+    });
+    const dropArrow = new St.Icon({
+        style_class: 'material-panel-bt-chip-arrow',
+        icon_name: 'pan-down-symbolic',
+        icon_size: 10,
+        y_align: Clutter.ActorAlign.CENTER,
+        style: 'opacity: 0.7; margin-left: 3px; padding-left: 4px; border-left: 1px solid rgba(255,255,255,0.15);',
+    });
+    buttonBox.add_child(icon);
+    buttonBox.add_child(dropArrow);
     const button = new St.Button({
         style_class: 'material-panel-bluetooth-btn material-panel-chip',
         reactive: true,
-        child: new St.Icon({
-            style_class: 'material-panel-bluetooth-icon',
-            icon_size: Math.round(17 * (scale || 1.0)),
-            y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off'))),
-        }),
+        child: buttonBox,
     });
-    const icon = button.get_child();
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-bluetooth-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     addPopupDismiss(menu, button);
+    menu.connect('open-state-changed', (_m, open) => {
+        dropArrow.icon_name = open ? 'pan-up-symbolic' : 'pan-down-symbolic';
+    });
 
     let propsProxy = null;
     let adapterPath = null;

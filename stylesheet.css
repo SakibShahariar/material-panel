@@ -220,3 +220,23 @@
 .material-panel-bt-header-label { font-size: 12.5px; font-weight: 600; }
 .material-panel-bt-header-count { font-size: 11px; opacity: 0.7; }
 .material-panel-bt-footer-btn { border-radius: 10px; padding: 6px 10px; }
+
+/* QS Bluetooth split tile — left 90% power, right ~10% dropdown arrow inside same tile */
+.material-panel-qs-bt-tile-outer { spacing: 0; }
+.material-panel-qs-bt-tile-row { padding: 0; }
+.material-panel-qs-bt-tile-row .material-panel-qs-bt-main {
+    border-radius: 12px 0 0 12px;
+    padding: 10px 12px;
+}
+.material-panel-qs-bt-drop {
+    border-radius: 0 12px 12px 0;
+    background-color: transparent;
+}
+.material-panel-qs-bt-devices-inline {
+    spacing: 4px;
+    padding: 6px 0 2px 0;
+    margin-top: 6px;
+}
+/* Standalone BT chip arrow (10% right part) */
+.material-panel-bt-chip-box { spacing: 2px; }
+.material-panel-bt-chip-arrow { opacity: 0.7; }
