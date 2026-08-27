@@ -30,17 +30,26 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     menu.actor.add_style_class_name('material-panel-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
-    // Dismiss on outside click / Esc — same as quicksettings
+    // Dismiss on outside click / Esc — use coordinate hit-test via
+    // get_actor_at_pos() rather than event.get_source(), because
+    // captured-event's source is the stage itself at capture time, so
+    // parent-chain walking on get_source() always missed and closed on
+    // inside clicks. Also use captured-event for Esc so it fires even
+    // when PopupMenu has a grab.
     const stage = global.stage;
-    const clickId = stage.connect('captured-event', (actor, event) => {
-        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+    const isMenuOpen = () => menu.isOpen ?? menu.actor.visible;
+    const netClickId = stage.connect('captured-event', (actor, event) => {
+        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
         if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
-        const target = event.get_source();
+        const [x, y] = event.get_coords();
+        const target = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+        if (!target) return Clutter.EVENT_PROPAGATE;
         let cur = target;
         while (cur) {
             if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
             cur = cur.get_parent();
         }
+        // Fallback for non-reactive containers inside the popup
         try {
             if (menu.actor.contains(target) || button.contains(target))
                 return Clutter.EVENT_PROPAGATE;
@@ -48,20 +57,21 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         menu.close();
         return Clutter.EVENT_PROPAGATE;
     });
-    const keyId = stage.connect('key-press-event', (actor, event) => {
-        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+    const netKeyId = stage.connect('captured-event', (actor, event) => {
+        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
+        if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
         if (event.get_key_symbol() === Clutter.KEY_Escape) {
             menu.close();
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
     });
-    const cleanup = () => {
-        try { stage.disconnect(clickId); } catch (e) {}
-        try { stage.disconnect(keyId); } catch (e) {}
+    const netCleanup = () => {
+        try { stage.disconnect(netClickId); } catch (e) {}
+        try { stage.disconnect(netKeyId); } catch (e) {}
     };
-    menu.actor.connect('destroy', cleanup);
-    button.connect('destroy', cleanup);
+    menu.actor.connect('destroy', netCleanup);
+    button.connect('destroy', netCleanup);
     button.connect('clicked', () => menu.toggle());
     button.connect('destroy', () => menu.destroy());
 

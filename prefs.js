@@ -108,14 +108,22 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             key: 'gapBottom', min: 0, max: 14, step: 1,
         });
 
-        window.connect('close-request', () => {
+        const flushPendingSave = () => {
             if (saveDebounceId) {
                 GLib.source_remove(saveDebounceId);
                 saveDebounceId = null;
                 store.save(config);
             }
+        };
+        window.connect('close-request', () => {
+            flushPendingSave();
             return false;
         });
+        // Some Shell versions destroy the prefs window without emitting
+        // close-request (e.g. when Extension Manager is closed externally).
+        // Also handle destroy/unrealize as a fallback.
+        window.connect('destroy', flushPendingSave);
+        window.connect('unrealize', flushPendingSave);
 
         for (const zoneName of ZONE_NAMES) {
             const group = new Adw.PreferencesGroup({

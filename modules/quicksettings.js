@@ -737,21 +737,25 @@ function powerRow() {
 }
 
 function addPopupDismiss(menu, button) {
-    // Click outside + Esc to close — previously you had to click the same
-    // button again. Uses stage captured-event so clicks anywhere outside
-    // the popup or trigger button dismiss it.
+    // Click outside + Esc to close — uses coordinate hit-test via
+    // get_actor_at_pos() rather than event.get_source(), because
+    // captured-event's source is the stage itself at capture time, so
+    // parent-chain walking on get_source() always missed and closed on
+    // inside clicks. Also uses captured-event for Esc so it fires even
+    // when PopupMenu has a grab.
     const stage = global.stage;
+    const isMenuOpen = () => menu.isOpen ?? menu.actor.visible;
     const clickId = stage.connect('captured-event', (actor, event) => {
-        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
         if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
-        const target = event.get_source();
-        // Walk up parents to see if click was inside menu or button
+        const [x, y] = event.get_coords();
+        const target = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+        if (!target) return Clutter.EVENT_PROPAGATE;
         let cur = target;
         while (cur) {
             if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
             cur = cur.get_parent();
         }
-        // Also check contains for St actors
         try {
             if (menu.actor.contains(target) || button.contains(target))
                 return Clutter.EVENT_PROPAGATE;
@@ -759,8 +763,9 @@ function addPopupDismiss(menu, button) {
         menu.close();
         return Clutter.EVENT_PROPAGATE;
     });
-    const keyId = stage.connect('key-press-event', (actor, event) => {
-        if (!menu.isOpen) return Clutter.EVENT_PROPAGATE;
+    const keyId = stage.connect('captured-event', (actor, event) => {
+        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
+        if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
         if (event.get_key_symbol() === Clutter.KEY_Escape) {
             menu.close();
             return Clutter.EVENT_STOP;
