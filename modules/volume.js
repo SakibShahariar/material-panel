@@ -4,16 +4,15 @@ import Clutter from 'gi://Clutter';
 import Gvc from 'gi://Gvc';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
+import {getMixerControl} from '../lib/audio.js';
 
-// Gvc is the same library GNOME Shell's own quick settings volume slider
-// uses internally - it's a system typelib, not something we bundle.
+// Shared control so the chip and QS slider share one sink object —
+// volume changes from the slider emit notify::volume on the same
+// GObject the chip listens to (fixes chip stuck at old %).
 export function buildVolume(_extensionPath, scale = 1.0) {
-    let control;
-    try {
-        control = new Gvc.MixerControl({name: 'material-panel'});
-        control.open();
-    } catch (e) {
-        logError(e, 'material-panel: Gvc unavailable, skipping volume module');
+    const control = getMixerControl();
+    if (!control) {
+        logError(new Error('material-panel: Gvc unavailable, skipping volume module'));
         return null;
     }
 
@@ -66,6 +65,11 @@ export function buildVolume(_extensionPath, scale = 1.0) {
             attachSink();
     });
     const defaultSinkId = control.connect('default-sink-changed', attachSink);
+    // If already READY (e.g. QS opened first), attach immediately
+    try {
+        if (control.get_state() === Gvc.MixerControlState.READY)
+            attachSink();
+    } catch (e) {}
 
     box.connect('button-press-event', () => {
         if (sink)
@@ -74,13 +78,13 @@ export function buildVolume(_extensionPath, scale = 1.0) {
     });
 
     box.connect('destroy', () => {
-        control.disconnect(stateId);
-        control.disconnect(defaultSinkId);
+        try { control.disconnect(stateId); } catch (e) {}
+        try { control.disconnect(defaultSinkId); } catch (e) {}
         if (sink) {
-            if (sinkVolumeId) sink.disconnect(sinkVolumeId);
-            if (sinkMuteId) sink.disconnect(sinkMuteId);
+            if (sinkVolumeId) try { sink.disconnect(sinkVolumeId); } catch (e) {}
+            if (sinkMuteId) try { sink.disconnect(sinkMuteId); } catch (e) {}
         }
-        control.close();
+        // Do NOT close shared control here — QS/other chip may still need it
     });
 
     return box;

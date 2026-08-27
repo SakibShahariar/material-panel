@@ -7,6 +7,7 @@ import Gvc from 'gi://Gvc';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {createSlider} from '../lib/simpleSlider.js';
+import {getMixerControl} from '../lib/audio.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -129,11 +130,9 @@ function volumeSliderRow() {
     row.add_child(slider.actor);
     row.add_child(pctLabel);
 
-    try {
-        control = new Gvc.MixerControl({name: 'material-panel'});
-        control.open();
-    } catch (e) {
-        logError(e, 'material-panel: Gvc unavailable, volume slider disabled');
+    control = getMixerControl();
+    if (!control) {
+        logError(new Error('material-panel: Gvc unavailable, volume slider disabled'));
         slider.actor.reactive = false;
         return row;
     }
