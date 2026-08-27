@@ -199,3 +199,24 @@
     border-radius: 999px;
     padding: 6px;
 }
+
+/* Bluetooth popup (new) — shares QS device-list styling but scoped to its
+   own popup so Noctalia/End4-like cards work even when QS is not open.
+   Structure mirrors qs-bt-* so theme.js color generation applies via the
+   same selectors (device list is the same component reused). */
+.material-panel-bt-devices,
+.material-panel-bluetooth-popup .material-panel-qs-bt-devices {
+    spacing: 4px;
+    padding: 2px 0 6px 0;
+}
+.material-panel-bt-device,
+.material-panel-bluetooth-popup .material-panel-qs-bt-device {
+    border-radius: 10px;
+    padding: 6px 10px;
+}
+.material-panel-bt-device-name { font-size: 12px; font-weight: 500; }
+.material-panel-bt-device-status { font-size: 10.5px; }
+.material-panel-bt-scroll { max-height: 260px; }
+.material-panel-bt-header-label { font-size: 12.5px; font-weight: 600; }
+.material-panel-bt-header-count { font-size: 11px; opacity: 0.7; }
+.material-panel-bt-footer-btn { border-radius: 10px; padding: 6px 10px; }
