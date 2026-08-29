@@ -20,21 +20,67 @@ function readUptimeSeconds() {
     }
 }
 
+function getAvatarFile() {
+    const user = GLib.get_user_name() || '';
+    const candidates = [
+        GLib.build_filenamev(['/var/lib/AccountsService/icons', user]),
+        GLib.build_filenamev([GLib.get_home_dir(), '.face']),
+        GLib.build_filenamev([GLib.get_home_dir(), '.face.icon']),
+        // AccountsService D-Bus IconFile via Act (if available) - try import lazily
+    ];
+    // Try Act.UserManager if GIR available
+    try {
+        // Dynamic import via gi://Act is optional; if not installed this throws
+        const Act = imports.gi.Act;
+        if (Act) {
+            const mgr = Act.UserManager.get_default_sync(null);
+            const u = mgr?.get_user(user);
+            const f = u?.get_icon_file?.();
+            if (f) candidates.unshift(f);
+        }
+    } catch (e) {}
+    for (const p of candidates) {
+        if (!p) continue;
+        try {
+            const f = Gio.File.new_for_path(p);
+            if (f.query_exists(null)) return p;
+        } catch (e) {}
+    }
+    return null;
+}
+
+function buildAvatar(initial) {
+    const file = getAvatarFile();
+    if (file) {
+        // Use background-image so border-radius 999px clips to circle
+        const avatar = new St.Bin({
+            style_class: 'material-panel-qs-avatar',
+            style: `background-image: url("file://${file}"); background-size: cover; background-position: center;`,
+        });
+        // Ensure size is explicit (stylesheet gives 36px via CSS, but background needs bin size)
+        avatar.set_size(36, 36);
+        return avatar;
+    }
+    return new St.Bin({
+        style_class: 'material-panel-qs-avatar',
+        child: new St.Label({text: initial, style_class: 'material-panel-qs-avatar-label'}),
+    });
+}
+
 export function buildProfileCard() {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-profile', x_expand: true});
 
     const username = GLib.get_user_name() || 'user';
     const hostname = GLib.get_host_name() || 'localhost';
-    const initial = username.charAt(0).toUpperCase();
+    const realName = (() => { try { const rn = GLib.get_real_name(); if (rn && rn !== username && rn.trim()) return rn; } catch (e) {} return username; })();
+    const initial = (realName || username).charAt(0).toUpperCase();
 
-    const avatar = new St.Bin({
-        style_class: 'material-panel-qs-avatar',
-        child: new St.Label({text: initial, style_class: 'material-panel-qs-avatar-label'}),
-    });
+    const avatar = buildAvatar(initial);
 
     const textBox = new St.BoxLayout({vertical: true, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    const displayName = realName !== username ? realName : username;
     const nameLabel = new St.Label({
-        text: `${username}@${hostname}`,
+        text: `${displayName}@${hostname}`,
         style_class: 'material-panel-qs-profile-name',
     });
     const uptimeLabel = new St.Label({style_class: 'material-panel-qs-profile-sub'});

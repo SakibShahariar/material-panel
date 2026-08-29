@@ -47,13 +47,52 @@
 
 .material-panel-battery,
 .material-panel-volume,
-.material-panel-network {
+.material-panel-network,
+.material-panel-network-speed,
+.material-panel-cpu {
     spacing: 5px;
 }
 
 .material-panel-battery-label,
-.material-panel-volume-label {
+.material-panel-volume-label,
+.material-panel-cpu-label,
+.material-panel-network-speed-label {
     font-weight: 500;
+}
+
+.material-panel-network-speed-icon {
+    margin-right: 4px;
+}
+.material-panel-network-speed-down-icon {
+    margin-left: 2px;
+}
+.material-panel-network-speed-up-icon {
+    margin-left: 8px;
+}
+.material-panel-network-speed-label {
+    min-width: 50px;
+}
+
+.material-panel-weather {
+    spacing: 5px;
+}
+
+.material-panel-weather-label {
+    font-weight: 500;
+}
+
+.material-panel-notifications {
+    spacing: 5px;
+}
+
+.material-panel-notifications-label {
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+.material-panel-notifications-btn {
+    transition-duration: 150ms;
 }
 
 /* Dropdown menus (power menu, network list) - structural only, colors

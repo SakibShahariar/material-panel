@@ -603,37 +603,67 @@ function bluetoothTile() {
         return Clutter.EVENT_STOP;
     });
 
-    // Device list logic — inline, toggled by dropBtn (10% area)
-    const buildDeviceRow = (path, props) => {
+// Device list logic — inline, toggled by dropBtn (10% area)
+    const buildDeviceRow = (path, props, isPaired = true) => {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
         const name = props['Name'] ? props['Name'].deep_unpack() : null;
         const displayName = alias ?? name ?? 'Unknown device';
         const connected = props['Connected'] ? props['Connected'].deep_unpack() : false;
+        const paired = props['Paired'] ? props['Paired'].deep_unpack() : false;
+        const batteryPct = (() => {
+            // Try to get battery percentage from device
+            try {
+                if ('Battery' in props && props['Battery']) return props['Battery'].deep_unpack();
+            } catch (e) {}
+            return null;
+        })();
+        const deviceClass = (() => {
+            try {
+                if ('Class' in props && props['Class']) return props['Class'].deep_unpack();
+            } catch (e) {}
+            return null;
+        })();
+        const iconName = getDeviceIcon(deviceClass, connected);
+        const iconPathStr = connected ? iconPathOnAccent(iconName) : iconPathPrimary(iconName);
+
         const row = new St.Button({
-            style_class: `material-panel-qs-bt-device${connected ? ' connected' : ''}`,
+            style_class: `material-panel-qs-bt-device${connected ? ' connected' : ''}${!paired ? ' unpaired' : ''}`,
             reactive: true,
             x_expand: true,
         });
-        const rowBox = new St.BoxLayout({x_expand: true});
+        const rowBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-qs-bt-device-box'});
         const devIcon = new St.Icon({
             style_class: 'material-panel-qs-bt-device-icon',
-            icon_size: 15,
+            icon_size: 16,
             y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(
-                connected ? iconPathOnAccent('bluetooth-on') : iconPathPrimary('bluetooth-off'))),
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathStr)),
         });
+        const textBox = new St.BoxLayout({vertical: true, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name');
         nameLabel.x_expand = true;
+        const statusText = batteryPct !== null
+            ? `${connected ? 'Connected' : (paired ? 'Paired' : 'Available')} · ${batteryPct}%`
+            : (connected ? 'Connected' : (paired ? 'Paired — tap to connect' : 'Tap to pair'));
         const statusLabel = new St.Label({
-            text: connected ? 'Connected' : 'Tap to connect',
+            text: statusText,
             style_class: 'material-panel-qs-bt-device-status',
             y_align: Clutter.ActorAlign.CENTER,
         });
+        statusLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        textBox.add_child(nameLabel);
+        textBox.add_child(statusLabel);
+        const actionIcon = new St.Icon({
+            style_class: 'material-panel-qs-bt-device-action',
+            icon_name: connected ? 'media-playback-stop-symbolic' : 'system-run-symbolic',
+            icon_size: 14,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         rowBox.add_child(devIcon);
-        rowBox.add_child(nameLabel);
-        rowBox.add_child(statusLabel);
+        rowBox.add_child(textBox);
+        rowBox.add_child(actionIcon);
         row.set_child(rowBox);
         row.connect('clicked', () => {
+            const method = connected ? 'Disconnect' : 'Connect';
             Gio.DBusProxy.new_for_bus(
                 Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
                 BLUEZ_SERVICE, path, DEVICE_IFACE, null,
@@ -645,19 +675,41 @@ function bluetoothTile() {
                         logError(e, `material-panel: bluez device proxy failed for "${displayName}"`);
                         return;
                     }
-                    const method = connected ? 'Disconnect' : 'Connect';
+                    // If not paired yet, Pair first then Connect
+                    if (!paired && method === 'Connect') {
+                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                            try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); return; }
+                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, -1, null, (p2, r2) => {
+                                try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); }
+                            });
+                        });
+                        return;
+                    }
                     deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                        try {
-                            p.call_finish(r);
-                        } catch (e) {
-                            logError(e, `material-panel: bluez ${method} failed for "${displayName}"`);
-                        }
+                        try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); }
                     });
                 });
             return Clutter.EVENT_STOP;
         });
         return row;
     };
+
+    function getDeviceIcon(deviceClass, connected) {
+        if (!deviceClass) return 'bluetooth-on';
+        // Bluetooth device class major service classes
+        // Audio/Video: 0x200400
+        // Headset: 0x200404
+        // Keyboard: 0x002540
+        // Mouse: 0x002580
+        // Phone: 0x100000
+        // Computer: 0x000100
+        const cls = deviceClass;
+        if ((cls & 0x200000) !== 0) return 'headphones'; // Audio
+        if ((cls & 0x000500) !== 0) return 'keyboard'; // Keyboard/Mouse
+        if ((cls & 0x100000) !== 0) return 'phone'; // Phone
+        if ((cls & 0x000100) !== 0) return 'computer'; // Computer
+        return 'bluetooth-on';
+    }
 
     const setupDeviceList = () => {
         Gio.DBusProxy.new_for_bus(
@@ -706,7 +758,12 @@ function bluetoothTile() {
                                 .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
                                 .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
                                 .filter(({props}) => props['Paired']?.deep_unpack());
-                            if (pairedDevices.length === 0) {
+                            // Also show unpaired nearby devices
+                            const nearbyDevices = Object.entries(objects)
+                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
+                                .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                                .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
+                            if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
                                 const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-device-status'});
                                 hint.style = 'font-style: italic; padding: 4px 8px;';
                                 deviceContainer.add_child(hint);
@@ -715,7 +772,14 @@ function bluetoothTile() {
                             }
                             deviceContainer.visible = expanded;
                             for (const {path, props} of pairedDevices)
-                                deviceContainer.add_child(buildDeviceRow(path, props));
+                                deviceContainer.add_child(buildDeviceRow(path, props, true));
+                            if (nearbyDevices.length > 0) {
+                                const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-qs-bt-nearby-header'});
+                                sep.style = 'font-size: 10px; opacity: 0.6; padding: 6px 8px 2px 8px;';
+                                deviceContainer.add_child(sep);
+                                for (const {path, props} of nearbyDevices.slice(0, 6))
+                                    deviceContainer.add_child(buildDeviceRow(path, props, false));
+                            }
                         } catch (e) {
                             logError(e, 'material-panel: bluez GetManagedObjects failed for device list');
                         }
@@ -1039,7 +1103,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         child: new St.Icon({
             icon_size: Math.round(17 * scale),
             y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('settings'))),
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
         }),
     });
 
@@ -1058,7 +1122,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const grid = new St.Widget({
         style_class: 'material-panel-qs-grid',
         layout_manager: new Clutter.GridLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
+            orientation: Clutter.Orientation.VERTICAL,
             column_spacing: 8,
             row_spacing: 8,
         }),
@@ -1066,7 +1130,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const layout = grid.layout_manager;
     const tiles = [darkModeTile(), nightLightTile(), dndTile(), bluetoothTile()];
     tiles.forEach((tile, i) => {
-        layout.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
+        layout.attach(tile, Math.floor(i / 2), i % 2, 1, 1);
     });
 
     menu.addMenuItem(wrapAsMenuItem(grid));

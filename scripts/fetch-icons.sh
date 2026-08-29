@@ -35,6 +35,25 @@ declare -A MAP=(
   [pause]=media-pause
   [skip_next]=media-next
   [skip_previous]=media-prev
+  [memory]=cpu
+  [device_thermostat]=cpu-temp
+  [upload]=network-up
+  [download]=network-down
+  [cloud]=weather
+  [wb_sunny]=weather-sunny
+  [cloud_queue]=weather-partly-cloudy
+  [cloud]=weather-cloudy
+  [rainy]=weather-rain
+  [ac_unit]=weather-snow
+  [thunderstorm]=weather-thunder
+  [foggy]=weather-fog
+  [mode_night]=weather-clear-night
+  [notifications_active]=notifications
+  [tune]=quicksettings
+  [headphones]=headphones
+  [keyboard]=keyboard
+  [smartphone]=phone
+  [desktop_windows]=computer
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
