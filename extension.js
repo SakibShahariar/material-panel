@@ -54,7 +54,8 @@ export default class MaterialPanelExtension extends Extension {
             log(`material-panel: setting up matugen watch on "${this._config.colorSource}"`);
             this._theme.watch(this._config.colorSource, () => {
                 log('material-panel: matugen watch callback fired, reapplying theme');
-                this._theme.apply(this._config.colorSource, panelSize);
+                const freshSize = this._config.panelSize ?? {};
+                this._theme.apply(this._config.colorSource, freshSize);
                 this._builder.render(this._config);
             });
         } else {
