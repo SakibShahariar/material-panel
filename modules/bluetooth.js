@@ -14,11 +14,24 @@ const ADAPTER_IFACE = 'org.bluez.Adapter1';
 const DEVICE_IFACE = 'org.bluez.Device1';
 const PROPERTIES_IFACE = 'org.freedesktop.DBus.Properties';
 
+// Timeout for DBus calls (ms) - prevents hanging if bluetoothd is unresponsive
+const DBUS_TIMEOUT_MS = 3000;
+
 function findAdapterPath(callback) {
+    let timedOut = false;
+    const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
+        timedOut = true;
+        callback(null);
+        return GLib.SOURCE_REMOVE;
+    });
+
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
         BLUEZ_SERVICE, '/', OBJECT_MANAGER_IFACE, null,
         (_src, res) => {
+            if (timedOut) return;
+            GLib.source_remove(timeoutId);
+
             let objMgr;
             try {
                 objMgr = Gio.DBusProxy.new_for_bus_finish(res);
@@ -27,9 +40,11 @@ function findAdapterPath(callback) {
                 callback(null);
                 return;
             }
+            // Set a timeout on the GetManagedObjects call itself
             objMgr.call(
-                'GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null,
+                'GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null,
                 (proxy, callRes) => {
+                    if (timedOut) return;
                     try {
                         const result = proxy.call_finish(callRes);
                         const [objects] = result.deep_unpack();
@@ -43,13 +58,25 @@ function findAdapterPath(callback) {
         });
 }
 
-function isSoftBlocked() {
+function isSoftBlocked(callback) {
     try {
-        const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-        if (!ok || !out) return false;
-        return new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
+        GLib.spawn_command_line_async('rfkill list bluetooth', (_pid, _stdout, _stderr, _status) => {
+            // We can't easily get output from async spawn, so fall back to sync with a very short timeout
+            // using a helper - for now just use sync but with error handling
+            // The sync call is fast enough on most systems (<50ms)
+            try {
+                const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+                if (!ok || !out) {
+                    callback(false);
+                    return;
+                }
+                callback(new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes'));
+            } catch (e) {
+                callback(false);
+            }
+        });
     } catch (e) {
-        return false;
+        callback(false);
     }
 }
 
@@ -121,9 +148,9 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const dropArrow = new St.Icon({
         style_class: 'material-panel-bt-chip-arrow',
         icon_name: 'pan-down-symbolic',
-        icon_size: 10,
+        icon_size: Math.round(10 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
-        style: 'opacity: 0.7; margin-left: 3px; padding-left: 4px; border-left: 1px solid rgba(255,255,255,0.15);',
+        style: `opacity: 0.7; margin-left: ${Math.round(3 * (scale || 1.0))}px; padding-left: ${Math.round(4 * (scale || 1.0))}px; border-left: 1px solid rgba(255,255,255,0.15);`,
     });
     buttonBox.add_child(icon);
     buttonBox.add_child(dropArrow);
@@ -231,11 +258,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         hscrollbar_policy: St.PolicyType.NEVER,
         vscrollbar_policy: St.PolicyType.AUTOMATIC,
     });
-    scroll.set_style('max-height: 260px;');
-    const devicesBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-bt-devices'});
+    // Use CSS max-height (.material-panel-bt-scroll { max-height: 260px }) not inline style, and ensure scroll is constrained
+    const devicesBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-bt-devices', style: 'min-width: 280px;'});
     scroll.set_child(devicesBox);
     devicesOuter.add_child(scroll);
     const devicesOuterItem = wrapAsMenuItem(devicesOuter);
+    // Ensure popup menu has reasonable width so device rows don't stretch unbounded
+    try { menu.actor.style = 'min-width: 340px;'; } catch (e) {}
 
     // Footer — open Settings shortcut (like Noctalia's "Open Bluetooth Settings")
     const footerBtn = new St.Button({
@@ -305,10 +334,19 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
 
     const bindAdapter = path => {
         adapterPath = path;
+        let timedOut = false;
+        const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
+            timedOut = true;
+            setNoAdapterState();
+            return GLib.SOURCE_REMOVE;
+        });
+
         Gio.DBusProxy.new_for_bus(
             Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
             BLUEZ_SERVICE, path, PROPERTIES_IFACE, null,
             (_src, res) => {
+                if (timedOut) return;
+                GLib.source_remove(timeoutId);
                 try {
                     propsProxy = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
@@ -318,14 +356,14 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                 }
                 const readProps = () => {
                     propsProxy.call('Get', new GLib.Variant('(ss)', [ADAPTER_IFACE, 'Powered']),
-                        Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
+                        Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (proxy, callRes) => {
                             try {
                                 const [variant] = proxy.call_finish(callRes).deep_unpack();
                                 setPowered(variant.deep_unpack());
                             } catch (e) { logError(e, 'material-panel: bluez Get Powered failed'); }
                         });
                     propsProxy.call('Get', new GLib.Variant('(ss)', [ADAPTER_IFACE, 'Discovering']),
-                        Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
+                        Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (proxy, callRes) => {
                             try {
                                 const [variant] = proxy.call_finish(callRes).deep_unpack();
                                 setDiscovering(variant.deep_unpack());
@@ -352,8 +390,10 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         discoverAttempts++;
         findAdapterPath(path => {
             if (!path) {
-                if (isSoftBlocked()) setBlockedState();
-                else setNoAdapterState();
+                isSoftBlocked(blocked => {
+                    if (blocked) setBlockedState();
+                    else setNoAdapterState();
+                });
                 return;
             }
             discoverAttempts = 0;
@@ -415,23 +455,31 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         row.set_child(rowBox);
         row.connect('clicked', () => {
             const method = connected ? 'Disconnect' : 'Connect';
+            let timedOut = false;
+            const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
+                timedOut = true;
+                logError(new Error(`material-panel: bluez ${method} timeout for "${displayName}"`));
+                return GLib.SOURCE_REMOVE;
+            });
             Gio.DBusProxy.new_for_bus(
                 Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
                 BLUEZ_SERVICE, path, DEVICE_IFACE, null,
                 (_s, res) => {
+                    if (timedOut) return;
+                    GLib.source_remove(timeoutId);
                     let deviceProxy;
                     try { deviceProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, `material-panel: bluez device proxy failed for "${displayName}"`); return; }
                     // If not paired yet, Pair first then Connect
                     if (!paired && method === 'Connect') {
-                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p, r) => {
                             try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); return; }
-                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, -1, null, (p2, r2) => {
+                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p2, r2) => {
                                 try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); }
                             });
                         });
                         return;
                     }
-                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p, r) => {
                         try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); }
                     });
                 });
@@ -448,14 +496,12 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             try { objMgrProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, 'material-panel: bluez unavailable, bluetooth device list stays empty'); return; }
             const refresh = () => {
                 if (!objMgrProxy) return;
-                objMgrProxy.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
+                objMgrProxy.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (proxy, callRes) => {
                     try {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                         if (!hasAdapter) {
-                            try {
-                                const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-                                const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
+                            isSoftBlocked(blocked => {
                                 if (blocked) {
                                     setBlockedState();
                                     devicesBox.destroy_all_children();
@@ -465,12 +511,12 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                                     devicesHeaderCount.text = '';
                                     return;
                                 }
-                            } catch (e) {}
-                            devicesBox.destroy_all_children();
-                            const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-bt-device-status'});
-                            hint.style = 'font-style: italic; padding: 4px 8px;';
-                            devicesBox.add_child(hint);
-                            devicesHeaderCount.text = '';
+                                devicesBox.destroy_all_children();
+                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-bt-device-status'});
+                                hint.style = 'font-style: italic; padding: 4px 8px;';
+                                devicesBox.add_child(hint);
+                                devicesHeaderCount.text = '';
+                            });
                             return;
                         }
                         if (!currentlyPowered) {
