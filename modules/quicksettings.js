@@ -90,6 +90,10 @@ function volumeSliderRow() {
     row.add_child(icon);
 
     let control, sink;
+    let sinkVolumeId = 0;
+    let sinkMuteId = 0;
+    let controlStateId = 0;
+    let controlDefaultSinkId = 0;
     let lastIconKey = 'volume-high';
 
     const iconKeyFor = pct => {
@@ -148,24 +152,59 @@ function volumeSliderRow() {
     };
 
     const attachSink = () => {
+        if (sink) {
+            if (sinkVolumeId) {
+                sink.disconnect(sinkVolumeId);
+                sinkVolumeId = 0;
+            }
+            if (sinkMuteId) {
+                sink.disconnect(sinkMuteId);
+                sinkMuteId = 0;
+            }
+        }
         sink = control.get_default_sink();
         if (sink) {
-            sink.connect('notify::volume', syncFromSink);
+            sinkVolumeId = sink.connect('notify::volume', syncFromSink);
             // Also watch for mute changes so icon reflects muted state
-            try { sink.connect('notify::is-muted', syncFromSink); } catch (e) {}
+            try { sinkMuteId = sink.connect('notify::is-muted', syncFromSink); } catch (e) {}
             syncFromSink();
         }
     };
-    control.connect('state-changed', (_c, state) => {
+    controlStateId = control.connect('state-changed', (_c, state) => {
         if (state === Gvc.MixerControlState.READY)
             attachSink();
     });
-    control.connect('default-sink-changed', attachSink);
+    controlDefaultSinkId = control.connect('default-sink-changed', attachSink);
     // If control is already READY (cached), state-changed won't fire again
     try {
         if (control.get_state() === Gvc.MixerControlState.READY)
             attachSink();
     } catch (e) {}
+
+    row._materialPanelDestroy = () => {
+        if (sink) {
+            if (sinkVolumeId) {
+                sink.disconnect(sinkVolumeId);
+                sinkVolumeId = 0;
+            }
+            if (sinkMuteId) {
+                sink.disconnect(sinkMuteId);
+                sinkMuteId = 0;
+            }
+        }
+        if (control) {
+            if (controlStateId) {
+                control.disconnect(controlStateId);
+                controlStateId = 0;
+            }
+            if (controlDefaultSinkId) {
+                control.disconnect(controlDefaultSinkId);
+                controlDefaultSinkId = 0;
+            }
+        }
+    };
+
+    row.connect('destroy', () => row._materialPanelDestroy?.());
 
     return row;
 }
