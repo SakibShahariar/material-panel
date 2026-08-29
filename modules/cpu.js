@@ -384,6 +384,8 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         menu.addMenuItem(refreshItem);
     };
 
+    buildMenu();
+
     const onOpenStateChanged = (menu, open) => {
         if (open) {
             buildMenu();

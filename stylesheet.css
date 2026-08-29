@@ -53,9 +53,14 @@
     spacing: 5px;
 }
 
+.material-panel-cpu-temp-icon {
+    margin-left: 8px;
+}
+
 .material-panel-battery-label,
 .material-panel-volume-label,
 .material-panel-cpu-label,
+.material-panel-cpu-temp-label,
 .material-panel-network-speed-label {
     font-weight: 500;
 }

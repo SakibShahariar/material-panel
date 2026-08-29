@@ -1119,19 +1119,19 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    const grid = new St.Widget({
+    const grid = new St.BoxLayout({
         style_class: 'material-panel-qs-grid',
-        layout_manager: new Clutter.GridLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            column_spacing: 8,
-            row_spacing: 8,
-        }),
+        vertical: false,
+        spacing: 16,
     });
-    const layout = grid.layout_manager;
-    const tiles = [darkModeTile(), nightLightTile(), dndTile(), bluetoothTile()];
-    tiles.forEach((tile, i) => {
-        layout.attach(tile, Math.floor(i / 2), i % 2, 1, 1);
-    });
+    const col1 = new St.BoxLayout({vertical: true, x_expand: true, spacing: 8});
+    const col2 = new St.BoxLayout({vertical: true, x_expand: true, spacing: 8});
+    col1.add_child(darkModeTile());
+    col1.add_child(nightLightTile());
+    col2.add_child(dndTile());
+    col2.add_child(bluetoothTile());
+    grid.add_child(col1);
+    grid.add_child(col2);
 
     menu.addMenuItem(wrapAsMenuItem(grid));
 

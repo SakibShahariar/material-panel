@@ -59,7 +59,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     } catch (e) {
         weatherGicon = Gio.ThemedIcon.new('weather-clear-symbolic');
     }
-    const weatherIcon = new St.Icon({
+    let weatherIcon = new St.Icon({
         style_class: 'material-panel-weather-icon',
         icon_size: Math.round(17 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
@@ -111,6 +111,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                             weatherCode: current.weatherCode,
                         };
                         lastFetch = Date.now();
+                        // Update the icon based on weather condition
+                        const isDaytime = true; // Could be enhanced with sunrise/sunset data
+                        const iconKey = getWeatherIcon(currentWeather.weatherCode, isDaytime);
+                        try {
+                            const p = iconPath(iconKey);
+                            if (Gio.File.new_for_path(p).query_exists(null)) {
+                                weatherIcon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
+                            }
+                        } catch (e) {
+                            logError(e, 'material-panel: failed to update weather icon');
+                        }
                         updateLabel();
                     }
                 } catch (e) {
