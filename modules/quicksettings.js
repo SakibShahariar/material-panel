@@ -28,13 +28,14 @@ function makeWrappingLabel(text, styleClass) {
 }
 
 function buildTile({iconKey, label, isOn, onToggle, watch}) {
-    // Fixed footprint so both grid columns stay aligned (active/inactive).
+    // Equal share of the row width; fixed height so active/inactive match.
     const tile = new St.Button({
         style_class: 'material-panel-qs-tile',
         reactive: true,
         x_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
+        height: 48,
     });
     const box = new St.BoxLayout({
         vertical: false,
@@ -407,12 +408,17 @@ function bluetoothTile() {
     const outer = new St.BoxLayout({
         vertical: false,
         x_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
+        y_align: Clutter.ActorAlign.FILL,
+        height: 48,
         style_class: 'material-panel-qs-bt-tile-outer',
     });
     const tileRow = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-bt-tile-row',
         x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        y_align: Clutter.ActorAlign.FILL,
+        height: 48,
     });
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-bt-main',
@@ -1151,20 +1157,29 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+    // Two rows × two equal x_expand cells (more reliable than fixed CSS column widths in St)
     const grid = new St.BoxLayout({
         style_class: 'material-panel-qs-grid',
+        vertical: true,
+        x_expand: true,
+    });
+    const row1 = new St.BoxLayout({
+        style_class: 'material-panel-qs-grid-row',
         vertical: false,
         x_expand: true,
     });
-    const col1 = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-qs-grid-col'});
-    const col2 = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-qs-grid-col'});
-    col1.add_child(darkModeTile());
-    col1.add_child(nightLightTile());
-    col2.add_child(dndTile());
+    const row2 = new St.BoxLayout({
+        style_class: 'material-panel-qs-grid-row',
+        vertical: false,
+        x_expand: true,
+    });
     const btTile = bluetoothTile();
-    col2.add_child(btTile);
-    grid.add_child(col1);
-    grid.add_child(col2);
+    row1.add_child(darkModeTile());
+    row1.add_child(dndTile());
+    row2.add_child(nightLightTile());
+    row2.add_child(btTile);
+    grid.add_child(row1);
+    grid.add_child(row2);
 
     menu.addMenuItem(wrapAsMenuItem(grid));
 

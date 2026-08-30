@@ -118,26 +118,32 @@
 }
 
 .material-panel-qs-popup {
-    border-radius: 22px;
-    padding: 12px;
+    border-radius: 20px;
+    padding: 10px 12px;
+}
+.material-panel-qs-popup .popup-menu-item {
+    padding: 4px 0;
+    margin: 0;
+}
+.material-panel-qs-popup .popup-separator-menu-item {
+    padding: 2px 0;
 }
 
 .material-panel-qs-grid {
-    width: 316px;
+    spacing: 8px;
+    /* Fill popup width; rows share space evenly */
+}
+
+.material-panel-qs-grid-row {
     spacing: 8px;
 }
 
-.material-panel-qs-grid-col {
-    spacing: 8px;
-    width: 154px;
-}
-
-/* Equal 2×2 tiles — inactive surface set in generated-theme; fallback here */
+/* Equal cells via x_expand in JS; fixed height only */
 .material-panel-qs-tile {
     border-radius: 16px;
-    padding: 12px 10px;
+    padding: 0 12px;
+    height: 48px;
     min-height: 48px;
-    width: 154px;
     background-color: rgba(255, 255, 255, 0.10);
 }
 
@@ -281,12 +287,11 @@
 /* QS Bluetooth split tile — power + chevron; devices are full-width below grid */
 .material-panel-qs-bt-tile-outer {
     spacing: 0;
-    width: 154px;
 }
 .material-panel-qs-bt-tile-row {
     padding: 0;
     spacing: 0;
-    width: 154px;
+    height: 48px;
     min-height: 48px;
     border-radius: 16px;
     background-color: rgba(255, 255, 255, 0.10);
@@ -312,7 +317,6 @@
     padding: 8px;
     margin-top: 4px;
     border-radius: 16px;
-    width: 316px;
     background-color: rgba(255, 255, 255, 0.05);
 }
 .material-panel-qs-bt-devices-panel .material-panel-qs-bt-device {
