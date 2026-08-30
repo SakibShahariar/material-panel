@@ -33,9 +33,12 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         style_class: 'material-panel-qs-tile',
         reactive: true,
         x_expand: true,
+        y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
         height: 48,
+        // Natural width ignored when grid is column-homogeneous
+        width: 148,
     });
     const box = new St.BoxLayout({
         vertical: false,
@@ -378,7 +381,7 @@ function dndTile() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
     return buildTile({
         iconKey: 'dnd-active',
-        label: 'Do not disturb',
+        label: 'Do not disturb',  // full label; cell width is grid-homogeneous
         isOn: () => !settings.get_boolean('show-banners'),
         onToggle: () => settings.set_boolean('show-banners', !settings.get_boolean('show-banners')),
         watch: refresh => {
@@ -408,15 +411,18 @@ function bluetoothTile() {
     const outer = new St.BoxLayout({
         vertical: false,
         x_expand: true,
+        y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
         height: 48,
+        width: 148,
         style_class: 'material-panel-qs-bt-tile-outer',
     });
     const tileRow = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-bt-tile-row',
         x_expand: true,
         y_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
         height: 48,
     });
@@ -1157,29 +1163,26 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    // Two rows × two equal x_expand cells (more reliable than fixed CSS column widths in St)
-    const grid = new St.BoxLayout({
+    // Homogeneous 2×2 grid — equal cell size regardless of label/chevron natural width
+    const grid = new St.Widget({
         style_class: 'material-panel-qs-grid',
-        vertical: true,
         x_expand: true,
+        layout_manager: new Clutter.GridLayout({
+            column_homogeneous: true,
+            row_homogeneous: true,
+            column_spacing: 8,
+            row_spacing: 8,
+        }),
     });
-    const row1 = new St.BoxLayout({
-        style_class: 'material-panel-qs-grid-row',
-        vertical: false,
-        x_expand: true,
-    });
-    const row2 = new St.BoxLayout({
-        style_class: 'material-panel-qs-grid-row',
-        vertical: false,
-        x_expand: true,
-    });
+    const gl = grid.layout_manager;
     const btTile = bluetoothTile();
-    row1.add_child(darkModeTile());
-    row1.add_child(dndTile());
-    row2.add_child(nightLightTile());
-    row2.add_child(btTile);
-    grid.add_child(row1);
-    grid.add_child(row2);
+    const tDark = darkModeTile();
+    const tDnd = dndTile();
+    const tNight = nightLightTile();
+    gl.attach(tDark, 0, 0, 1, 1);
+    gl.attach(tDnd, 1, 0, 1, 1);
+    gl.attach(tNight, 0, 1, 1, 1);
+    gl.attach(btTile, 1, 1, 1, 1);
 
     menu.addMenuItem(wrapAsMenuItem(grid));
 

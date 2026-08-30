@@ -130,20 +130,17 @@
 }
 
 .material-panel-qs-grid {
-    spacing: 8px;
-    /* Fill popup width; rows share space evenly */
+    /* width set by two homogeneous columns × ~148px + spacing */
+    min-width: 304px;
 }
 
-.material-panel-qs-grid-row {
-    spacing: 8px;
-}
-
-/* Equal cells via x_expand in JS; fixed height only */
+/* Equal cells via Clutter.GridLayout column/row_homogeneous */
 .material-panel-qs-tile {
     border-radius: 16px;
     padding: 0 12px;
     height: 48px;
     min-height: 48px;
+    min-width: 148px;
     background-color: rgba(255, 255, 255, 0.10);
 }
 
