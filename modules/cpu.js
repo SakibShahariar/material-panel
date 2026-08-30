@@ -337,7 +337,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         }
 
         headerBox.add_child(summary);
-        header.addActor(headerBox);
+        header.actor.add_child(headerBox);
         menu.addMenuItem(header);
 
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -345,7 +345,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         if (cores && cores.length > 0) {
             const coresSection = new PopupMenu.PopupMenuSection();
             const coresTitle = new St.Label({text: 'Per Core', style_class: 'material-panel-cpu-popup-section-title'});
-            coresSection.addActor(coresTitle);
+            coresSection.actor.add_child(coresTitle);
 
             const grid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-cores'});
             for (const core of cores) {
@@ -356,7 +356,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
                 row.add_child(new St.Label({text: `${core.pct !== null ? core.pct + '%' : '—'}${freqText}`, style_class: 'material-panel-cpu-popup-core-value', x_align: Clutter.ActorAlign.END, x_expand: true}));
                 grid.add_child(row);
             }
-            coresSection.addActor(grid);
+            coresSection.actor.add_child(grid);
             menu.addMenuItem(coresSection);
             menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         }
@@ -364,13 +364,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         if (zoneName) {
             const thermalSection = new PopupMenu.PopupMenuSection();
             const thermalTitle = new St.Label({text: `Thermal (${zoneName})`, style_class: 'material-panel-cpu-popup-section-title'});
-            thermalSection.addActor(thermalTitle);
+            thermalSection.actor.add_child(thermalTitle);
 
             const thermalGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
             thermalGrid.add_child(new St.Label({text: `Current: ${temp !== null ? temp + '°C' : '—'}`, style_class: 'material-panel-cpu-popup-thermal-row'}));
             if (tripPoints.high) thermalGrid.add_child(new St.Label({text: `High: ${tripPoints.high}°C`, style_class: 'material-panel-cpu-popup-thermal-row'}));
             if (tripPoints.critical) thermalGrid.add_child(new St.Label({text: `Critical: ${tripPoints.critical}°C`, style_class: 'material-panel-cpu-popup-thermal-row'}));
-            thermalSection.addActor(thermalGrid);
+            thermalSection.actor.add_child(thermalGrid);
             menu.addMenuItem(thermalSection);
         }
 

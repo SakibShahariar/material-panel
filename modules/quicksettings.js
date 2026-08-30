@@ -28,15 +28,19 @@ function makeWrappingLabel(text, styleClass) {
 }
 
 function buildTile({iconKey, label, isOn, onToggle, watch}) {
+    // Fixed footprint so both grid columns stay aligned (active/inactive).
     const tile = new St.Button({
         style_class: 'material-panel-qs-tile',
         reactive: true,
         x_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
+        y_align: Clutter.ActorAlign.FILL,
     });
     const box = new St.BoxLayout({
         vertical: false,
         style_class: 'material-panel-qs-tile-content',
         y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
     });
     const icon = new St.Icon({
         style_class: 'material-panel-qs-tile-icon',
@@ -44,8 +48,15 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKey))),
     });
-    const text = makeWrappingLabel(label, 'material-panel-qs-tile-label');
-    text.x_expand = true;
+    // Single line + ellipsis — wrapping made "Do not disturb" taller/wider
+    const text = new St.Label({
+        text: label,
+        style_class: 'material-panel-qs-tile-label',
+        y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
+    });
+    text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    text.clutter_text.line_wrap = false;
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
@@ -390,39 +401,54 @@ function isBluetoothSoftBlocked() {
 }
 
 function bluetoothTile() {
-    // Split tile: left 90% toggles power, right ~10% dropdown arrow toggles
-    // inline paired-device list. Replaces the previous separate
-    // buildBluetoothDeviceList() row below the grid.
-    const outer = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-qs-bt-tile-outer'});
+    // Grid cell only: power toggle + chevron. Device list is a SEPARATE
+    // full-width panel below the 2-col grid (attached as outer.devicePanel)
+    // so expanding devices never stretches the right column wider than left.
+    const outer = new St.BoxLayout({
+        vertical: false,
+        x_expand: true,
+        style_class: 'material-panel-qs-bt-tile-outer',
+    });
     const tileRow = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-bt-tile-row',
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    // Main power area — ~90%
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-bt-main',
         reactive: true,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const mainBox = new St.BoxLayout({vertical: false, style_class: 'material-panel-qs-tile-content', y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    const mainBox = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-qs-tile-content',
+        y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
+    });
     const icon = new St.Icon({
-        style_class: 'material-panel-qs-tile-icon', icon_size: 18, y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-qs-tile-icon',
+        icon_size: 18,
+        y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off'))),
     });
-    const text = makeWrappingLabel('Bluetooth', 'material-panel-qs-tile-label');
-    text.x_expand = true;
+    // Single-line label (no wrap) so long status text cannot widen the column
+    const text = new St.Label({
+        text: 'Bluetooth',
+        style_class: 'material-panel-qs-tile-label',
+        y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
+    });
+    text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    text.clutter_text.line_wrap = false;
     mainBox.add_child(icon);
     mainBox.add_child(text);
     mainBtn.set_child(mainBox);
 
-    // Dropdown arrow — ~10% fixed width on right, inside the same tile
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-bt-drop',
         reactive: true,
         y_align: Clutter.ActorAlign.CENTER,
-        style: 'min-width: 28px; width: 28px; padding: 6px 0 6px 6px; margin-left: 4px; border-left: 1px solid rgba(255,255,255,0.12);',
     });
     const dropIcon = new St.Icon({
         icon_name: 'pan-down-symbolic',
@@ -436,14 +462,15 @@ function bluetoothTile() {
     tileRow.add_child(dropBtn);
     outer.add_child(tileRow);
 
-    // Inline dropdown — hidden until arrow tapped
+    // Full-width device panel — parented under the QS menu, not this column
     const deviceContainer = new St.BoxLayout({
         vertical: true,
         x_expand: true,
-        style_class: 'material-panel-qs-bt-devices material-panel-qs-bt-devices-inline',
+        style_class: 'material-panel-qs-bt-devices material-panel-qs-bt-devices-panel',
     });
     deviceContainer.visible = false;
-    outer.add_child(deviceContainer);
+    outer.devicePanel = deviceContainer;
+
     let expanded = false;
     const updateArrow = () => {
         dropIcon.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
@@ -643,7 +670,7 @@ function bluetoothTile() {
         nameLabel.x_expand = true;
         const statusText = batteryPct !== null
             ? `${connected ? 'Connected' : (paired ? 'Paired' : 'Available')} · ${batteryPct}%`
-            : (connected ? 'Connected' : (paired ? 'Paired — tap to connect' : 'Tap to pair'));
+            : (connected ? 'Connected' : (paired ? 'Tap to connect' : 'Tap to pair'));
         const statusLabel = new St.Label({
             text: statusText,
             style_class: 'material-panel-qs-bt-device-status',
@@ -654,7 +681,7 @@ function bluetoothTile() {
         textBox.add_child(statusLabel);
         const actionIcon = new St.Icon({
             style_class: 'material-panel-qs-bt-device-action',
-            icon_name: connected ? 'media-playback-stop-symbolic' : 'system-run-symbolic',
+            icon_name: connected ? 'object-select-symbolic' : 'list-add-symbolic',
             icon_size: 14,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -734,21 +761,21 @@ function bluetoothTile() {
                                     const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
                                     const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
                                     if (blocked) {
-                                        const hint = new St.Label({text: 'Blocked — tap main area to unblock', style_class: 'material-panel-qs-bt-device-status'});
+                                        const hint = new St.Label({text: 'Blocked — tap main area to unblock', style_class: 'material-panel-qs-bt-empty'});
                                         hint.style = 'font-style: italic; padding: 4px 8px;';
                                         deviceContainer.add_child(hint);
                                         deviceContainer.visible = expanded;
                                         return;
                                     }
                                 } catch (e) {}
-                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-device-status'});
+                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-empty'});
                                 hint.style = 'font-style: italic; padding: 4px 8px;';
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded ? true : false;
                                 return;
                             }
                             if (!currentlyPowered) {
-                                const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-qs-bt-device-status'});
+                                const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-qs-bt-empty'});
                                 hint.style = 'font-style: italic; padding: 4px 8px;';
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
@@ -764,7 +791,7 @@ function bluetoothTile() {
                                 .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
                                 .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
                             if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
-                                const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-device-status'});
+                                const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty'});
                                 hint.style = 'font-style: italic; padding: 4px 8px;';
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
@@ -803,8 +830,13 @@ function bluetoothTile() {
     dropBtn.connect('clicked', () => {
         expanded = !expanded;
         deviceContainer.visible = expanded;
+        // Collapse the wrapping PopupBaseMenuItem so the QS height shrinks
+        const menuItem = deviceContainer.get_parent();
+        if (menuItem)
+            menuItem.visible = expanded;
         updateArrow();
-        if (expanded && _refreshDevices) _refreshDevices();
+        if (expanded && _refreshDevices)
+            _refreshDevices();
         return Clutter.EVENT_STOP;
     });
 
@@ -967,7 +999,7 @@ function buildBluetoothDeviceList() {
                                 const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
                                 const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
                                 if (blocked) {
-                                    const hint = new St.Label({text: 'Bluetooth blocked — tap tile above to unblock', style_class: 'material-panel-qs-bt-device-status'});
+                                    const hint = new St.Label({text: 'Bluetooth blocked — tap tile above to unblock', style_class: 'material-panel-qs-bt-empty'});
                                     hint.style = 'font-style: italic; padding: 4px 8px;';
                                     container.add_child(hint);
                                     headerLabel.text = 'Paired devices — blocked';
@@ -987,7 +1019,7 @@ function buildBluetoothDeviceList() {
 
                         headerLabel.text = `Paired devices (${pairedDevices.length})`;
                         if (pairedDevices.length === 0) {
-                            const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-device-status'});
+                            const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty'});
                             hint.style = 'font-style: italic; padding: 4px 8px;';
                             container.add_child(hint);
                             container.visible = expanded;
@@ -1122,18 +1154,26 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const grid = new St.BoxLayout({
         style_class: 'material-panel-qs-grid',
         vertical: false,
-        spacing: 16,
+        x_expand: true,
     });
-    const col1 = new St.BoxLayout({vertical: true, x_expand: true, spacing: 8});
-    const col2 = new St.BoxLayout({vertical: true, x_expand: true, spacing: 8});
+    const col1 = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-qs-grid-col'});
+    const col2 = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-qs-grid-col'});
     col1.add_child(darkModeTile());
     col1.add_child(nightLightTile());
     col2.add_child(dndTile());
-    col2.add_child(bluetoothTile());
+    const btTile = bluetoothTile();
+    col2.add_child(btTile);
     grid.add_child(col1);
     grid.add_child(col2);
 
     menu.addMenuItem(wrapAsMenuItem(grid));
+
+    // Bluetooth devices: full popup width under the grid (not inside col2)
+    if (btTile.devicePanel) {
+        const devicesItem = wrapAsMenuItem(btTile.devicePanel);
+        devicesItem.visible = false;
+        menu.addMenuItem(devicesItem);
+    }
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 

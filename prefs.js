@@ -4,7 +4,10 @@ import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
-import {hasBuiltin} from './lib/moduleRegistry.js';
+// Prefer moduleIds over moduleRegistry: the registry imports every panel
+// module (St, Clutter, Main, …) which only exist inside gnome-shell.
+// Preferences run in a separate GTK process and cannot load those typelibs.
+import {hasBuiltin} from './lib/moduleIds.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const ALL_MODULES = [
@@ -48,16 +51,15 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         // Initialize hidden modules list if not present
         if (!config.hiddenModules) config.hiddenModules = [];
 
-        const notebook = new Adw.TabView();
-        const tabBar = new Adw.TabBar({view: notebook});
-        window.set_title_widget(tabBar);
+        // Adw.PreferencesWindow only supports Adw.PreferencesPage via window.add().
+        // TabView / set_title_widget are for Adw.ApplicationWindow — not available here.
 
         // --- PAGE 1: General / Panel Size ---
         const generalPage = new Adw.PreferencesPage({
             title: 'General',
             icon_name: 'preferences-system-symbolic',
         });
-        notebook.add_page(generalPage);
+        window.add(generalPage);
 
         const sizeGroup = new Adw.PreferencesGroup({
             title: 'Panel Size',
@@ -136,12 +138,37 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             key: 'gapBottom', min: 0, max: 14, step: 1,
         });
 
+        const clockGroup = new Adw.PreferencesGroup({
+            title: 'Clock',
+            description: 'Time format on the panel clock module.',
+        });
+        generalPage.add(clockGroup);
+
+        if (config.clockFormat !== '12h' && config.clockFormat !== '24h')
+            config.clockFormat = '24h';
+
+        const clockRow = new Adw.ActionRow({
+            title: '12-hour clock (AM/PM)',
+        });
+        const clockSwitch = new Gtk.Switch({
+            active: config.clockFormat === '12h',
+            valign: Gtk.Align.CENTER,
+        });
+        clockSwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.clockFormat = clockSwitch.active ? '12h' : '24h';
+            store.save(config);
+        });
+        clockRow.add_suffix(clockSwitch);
+        clockRow.activatable_widget = clockSwitch;
+        clockGroup.add(clockRow);
+
         // --- PAGE 2: Modules ---
         const modulesPage = new Adw.PreferencesPage({
             title: 'Modules',
             icon_name: 'view-grid-symbolic',
         });
-        notebook.add_page(modulesPage);
+        window.add(modulesPage);
 
         const infoGroup = new Adw.PreferencesGroup({
             description: `Editing preset "${config.activePreset}". Changes apply live — no need to restart the shell.\nConfig file: ${store.path}`,
@@ -257,17 +284,17 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'Appearance',
             icon_name: 'preferences-desktop-theme-symbolic',
         });
-        notebook.add_page(appearancePage);
+        window.add(appearancePage);
 
         const themeGroup = new Adw.PreferencesGroup({
             title: 'Color Source',
-            description: 'Choose how the panel gets its colors. Matugen generates colors from your wallpaper.',
+            description: 'Path to matugen’s generated CSS. Leave empty for the built-in fixed palette. Matugen generates colors from your wallpaper.',
         });
         appearancePage.add(themeGroup);
 
+        // EntryRow has no "subtitle" on older libadwaita — hint lives in the group description.
         const colorSourceRow = new Adw.EntryRow({
             title: 'Matugen CSS Path',
-            subtitle: 'Leave empty to use built-in fixed palette',
             text: config.colorSource ?? '',
             show_apply_button: true,
         });
