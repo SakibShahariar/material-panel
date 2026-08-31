@@ -140,8 +140,16 @@ function volumeSliderRow() {
         initialValue: 0,
         onChange: value => {
             const pct = Math.round(value * 100);
-            if (sink)
+            if (sink) {
                 sink.volume = value * control.get_vol_max_norm();
+                // Gvc requires explicit push after set_volume — setter
+                // alone only changes the GObject property locally (GIR:
+                // Gvc-1.0.gir:3002 volume setter=set_volume, push at 2736)
+                // and never talks to Pulse/WirePlumber. This is why the
+                // slider moved visually but `wpctl get-volume` never changed.
+                if (typeof sink.push_volume === 'function')
+                    sink.push_volume();
+            }
             updateIconIfChanged(pct);
             pctLabel.text = `${pct}%`;
         },
