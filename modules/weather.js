@@ -32,6 +32,45 @@ function getWeatherIcon(weatherCode, isDaytime = true) {
     return 'weather';
 }
 
+
+/** Parse wttr "06:30 AM" / "18:45" style times to minutes since midnight. */
+function parseClockToMinutes(str) {
+    if (!str || typeof str !== 'string')
+        return null;
+    const s = str.trim();
+    let m = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!m)
+        return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3] ? m[3].toUpperCase() : null;
+    if (ap === 'PM' && h < 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+}
+
+function isDaytimeFromPayload(json) {
+    try {
+        const astro = json?.weather?.[0]?.astronomy?.[0];
+        if (astro) {
+            const rise = parseClockToMinutes(astro.sunrise);
+            const set = parseClockToMinutes(astro.sunset);
+            const now = GLib.DateTime.new_now_local();
+            const nowM = now.get_hour() * 60 + now.get_minute();
+            if (rise != null && set != null) {
+                // Normal day: rise < set
+                if (rise < set)
+                    return nowM >= rise && nowM < set;
+                // Polar edge case
+                return nowM >= rise || nowM < set;
+            }
+        }
+    } catch (e) {}
+    // Fallback: local civil day roughly 06:00–18:00
+    const hour = GLib.DateTime.new_now_local().get_hour();
+    return hour >= 6 && hour < 18;
+}
+
 function formatTemp(tempC) {
     return `${Math.round(tempC)}°C`;
 }
@@ -111,8 +150,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                             weatherCode: current.weatherCode,
                         };
                         lastFetch = Date.now();
-                        // Update the icon based on weather condition
-                        const isDaytime = true; // Could be enhanced with sunrise/sunset data
+                        const isDaytime = isDaytimeFromPayload(json);
                         const iconKey = getWeatherIcon(currentWeather.weatherCode, isDaytime);
                         try {
                             const p = iconPath(iconKey);

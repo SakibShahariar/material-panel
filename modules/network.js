@@ -1,6 +1,7 @@
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -152,6 +153,23 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
         };
         rebuildNetworkList();
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        const settingsItem = new PopupMenu.PopupMenuItem('Wi-Fi settings…');
+        settingsItem.connect('activate', () => {
+            // Unknown networks / passwords need the system UI (secret agent)
+            const tryCmds = [
+                'gnome-control-center wifi',
+                'gnome-control-center network',
+            ];
+            for (const cmd of tryCmds) {
+                try {
+                    GLib.spawn_command_line_async(cmd);
+                    break;
+                } catch (e) {}
+            }
+        });
+        menu.addMenuItem(settingsItem);
+
         const connsChangedId = client.connect('connection-added', rebuildNetworkList);
         const connsRemovedId = client.connect('connection-removed', rebuildNetworkList);
         const activeChangedId = client.connect('notify::primary-connection', rebuildNetworkList);
