@@ -89,16 +89,18 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             };
             let initial = Number(panelSize[key]);
             if (!Number.isFinite(initial))
-                initial = min;
+                initial = key === 'scale' ? 1.0 : (key === 'gapTop' ? 5 : 4);
             initial = Math.max(min, Math.min(max, initial));
             panelSize[key] = initial;
-            const adjustment = new Gtk.Adjustment({
-                value: initial,
-                lower: min,
-                upper: max,
-                step_increment: step,
-                page_increment: step * 2,
-            });
+
+            // GJS/Gtk: set bounds before value — constructor `value: x` often stays 0
+            const adjustment = new Gtk.Adjustment();
+            adjustment.set_lower(min);
+            adjustment.set_upper(max);
+            adjustment.set_step_increment(step);
+            adjustment.set_page_increment(Math.max(step, step * 2));
+            adjustment.set_value(initial);
+
             const row = new Adw.ActionRow({title});
             const scale = new Gtk.Scale({
                 orientation: Gtk.Orientation.HORIZONTAL,
@@ -109,28 +111,37 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 draw_value: false,
                 hexpand: true,
             });
-            scale.set_tooltip_text(formatValue(adjustment.value));
+            // Re-assert after Scale attaches (some GTK versions reset to lower)
+            adjustment.set_value(initial);
+
             const valueLabel = new Gtk.Label({
-                label: formatValue(adjustment.value),
+                label: formatValue(initial),
                 width_request: 52,
                 xalign: 1,
                 valign: Gtk.Align.CENTER,
                 css_classes: ['dim-label', 'monospace'],
             });
             const updateValueLabel = () => {
-                valueLabel.label = formatValue(adjustment.value);
-                scale.set_tooltip_text(formatValue(adjustment.value));
+                const shown = Number(adjustment.get_value());
+                valueLabel.label = formatValue(shown);
+                scale.set_tooltip_text(formatValue(shown));
             };
+            updateValueLabel();
+
             scale.connect('value-changed', () => {
                 if (syncingExternal) return;
-                let v = Number(adjustment.value);
+                let v = Number(adjustment.get_value());
                 if (!Number.isFinite(v))
                     return;
                 v = Math.max(min, Math.min(max, v));
                 if (key !== 'scale')
                     v = Math.round(v);
                 panelSize[key] = v;
-                config.panelSize = panelSize;
+                config.panelSize = {
+                    scale: Number(panelSize.scale),
+                    gapTop: Math.round(Number(panelSize.gapTop)),
+                    gapBottom: Math.round(Number(panelSize.gapBottom)),
+                };
                 updateValueLabel();
                 if (saveDebounceId)
                     GLib.source_remove(saveDebounceId);
@@ -435,9 +446,15 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 for (const k of ['scale', 'gapTop', 'gapBottom']) {
                     const entry = sliderMap[k];
                     if (!entry) continue;
-                    const v = newSize[k];
-                    if (v != null && Math.abs(entry.adjustment.value - v) > 0.001) {
-                        entry.adjustment.value = v;
+                    let v = Number(newSize[k]);
+                    if (!Number.isFinite(v))
+                        continue;
+                    if (k === 'scale')
+                        v = Math.max(0.7, Math.min(1.5, v));
+                    else
+                        v = Math.max(0, Math.min(14, Math.round(v)));
+                    if (Math.abs(entry.adjustment.get_value() - v) > 0.001) {
+                        entry.adjustment.set_value(v);
                         panelSize[k] = v;
                         entry.updateValueLabel();
                     }
