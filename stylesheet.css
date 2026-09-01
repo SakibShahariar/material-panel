@@ -363,3 +363,25 @@
 /* Standalone BT chip arrow */
 .material-panel-bt-chip-box { spacing: 2px; }
 .material-panel-bt-chip-arrow { opacity: 0.7; }
+
+/* QS Wi-Fi full-width strip (under toggle grid) */
+.material-panel-qs-wifi-outer { spacing: 0; }
+.material-panel-qs-wifi-row {
+    padding: 0;
+    spacing: 0;
+    height: 48px;
+    min-height: 48px;
+    border-radius: 16px;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+.material-panel-qs-wifi-row .material-panel-qs-wifi-main {
+    border-radius: 16px 0 0 16px;
+    padding: 0 12px;
+}
+.material-panel-qs-wifi-panel {
+    spacing: 6px;
+    padding: 8px;
+    margin-top: 4px;
+    border-radius: 16px;
+    background-color: rgba(255, 255, 255, 0.05);
+}
