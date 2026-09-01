@@ -392,3 +392,48 @@
     border-radius: 14px;
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* Clock calendar popup */
+.material-panel-clock-popup-time {
+    font-size: 28px;
+    font-weight: 600;
+    padding: 4px 8px 0 8px;
+}
+.material-panel-clock-popup-date {
+    font-size: 12px;
+    padding: 0 8px 8px 8px;
+    opacity: 0.85;
+}
+.material-panel-clock-cal {
+    spacing: 4px;
+    padding: 4px 8px 8px 8px;
+}
+.material-panel-clock-cal-title {
+    font-size: 13px;
+    font-weight: 600;
+    padding-bottom: 4px;
+}
+.material-panel-clock-cal-dow-label,
+.material-panel-clock-cal-day {
+    font-size: 11px;
+    text-align: center;
+    min-width: 28px;
+}
+.material-panel-clock-cal-day.today {
+    font-weight: 700;
+}
+.material-panel-battery-popup-body,
+.material-panel-weather-popup-body {
+    spacing: 4px;
+    padding: 8px 12px;
+}
+.material-panel-battery-popup-title,
+.material-panel-weather-popup-temp {
+    font-size: 18px;
+    font-weight: 600;
+}
+.material-panel-weather-popup-source {
+    font-size: 10px;
+    opacity: 0.55;
+    padding-top: 6px;
+}

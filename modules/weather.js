@@ -2,8 +2,11 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {iconPath} from '../lib/iconTheme.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 // Weather via Open-Meteo (no API key). Location from config later; for now
 // use IP-less world default then refine with Open-Meteo's geolocation-free
@@ -82,7 +85,6 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-weather material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
-        reactive: true,
     });
 
     let gicon;
@@ -111,6 +113,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     let lastFetch = 0;
     let inFlight = false;
+    let detail = {temp: null, condition: "", extra: ""};
     let lat = null;
     let lon = null;
 
@@ -122,8 +125,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         } catch (e) {}
     };
 
-    const apply = (tempC, condition, iconKey) => {
+    const apply = (tempC, condition, iconKey, extra = '') => {
         label.text = `${Math.round(tempC)}°`;
+        detail = {temp: tempC, condition: condition || '', extra: extra || ''};
         try {
             box.set_tooltip_text(condition ? `${condition}, ${Math.round(tempC)}°C` : `${Math.round(tempC)}°C`);
         } catch (e) {}
@@ -145,7 +149,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         const temp = cur.temperature_2m;
         const code = cur.weather_code;
         const isDay = cur.is_day === 1;
-        apply(temp, `WMO ${code}`, wmoToIcon(code, isDay));
+        apply(temp, `Code ${code}`, wmoToIcon(code, isDay), isDay ? 'Daytime' : 'Night');
     };
 
     const fetchWttr = async () => {
@@ -169,7 +173,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 // best-effort; ignore parse errors
             }
         } catch (e) {}
-        apply(temp, condition, wttrCodeToIcon(code, isDay));
+        const hum = current.humidity ? `Humidity ${current.humidity}%` : '';
+        const wind = current.windspeedKmph ? `Wind ${current.windspeedKmph} km/h` : '';
+        apply(temp, condition, wttrCodeToIcon(code, isDay), [hum, wind].filter(Boolean).join(' · '));
     };
 
     const resolveLocation = async () => {
@@ -220,11 +226,55 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     // Visible immediately; data fills in async
-    fetchWeather();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 120, tick);
-    box.connect('destroy', () => {
-        try { GLib.source_remove(id); } catch (e) {}
+    const popupTemp = new St.Label({text: '—', style_class: 'material-panel-weather-popup-temp'});
+    const popupCond = new St.Label({text: '', style_class: 'material-panel-weather-popup-cond'});
+    const popupExtra = new St.Label({text: '', style_class: 'material-panel-weather-popup-extra'});
+
+    const refreshPopup = () => {
+        if (detail.temp != null)
+            popupTemp.text = `${Math.round(detail.temp)}°C`;
+        popupCond.text = detail.condition || 'Weather';
+        popupExtra.text = detail.extra || '';
+    };
+
+    const button = new St.Button({
+        style_class: 'material-panel-weather-btn',
+        reactive: true,
+        child: box,
+    });
+    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name('material-panel-popup material-panel-weather-popup');
+    Main.uiGroup.add_child(menu.actor);
+    menu.actor.hide();
+    attachPopupDismiss(menu, button);
+    const section = new PopupMenu.PopupMenuSection();
+    const body = new St.BoxLayout({vertical: true, style_class: 'material-panel-weather-popup-body'});
+    body.add_child(popupTemp);
+    body.add_child(popupCond);
+    body.add_child(popupExtra);
+    body.add_child(new St.Label({
+        text: 'Source: Open-Meteo / wttr.in',
+        style_class: 'material-panel-weather-popup-source',
+    }));
+    section.actor.add_child(body);
+    menu.addMenuItem(section);
+    menu.connect('open-state-changed', (_m, open) => {
+        if (open) {
+            refreshPopup();
+            fetchWeather();
+        }
+    });
+    button.connect('clicked', () => {
+        if (menu.isOpen) menu.close();
+        else menu.open();
     });
 
-    return box;
+    fetchWeather();
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 120, tick);
+    button.connect('destroy', () => {
+        try { GLib.source_remove(id); } catch (e) {}
+        menu.destroy();
+    });
+
+    return button;
 }

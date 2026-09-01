@@ -77,6 +77,42 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
 
+    // Two-finger / wheel scroll on the chip adjusts volume
+    box.reactive = true;
+    box.connect('scroll-event', (_a, event) => {
+        if (!sink || !control)
+            return Clutter.EVENT_PROPAGATE;
+        let dir = 0;
+        try {
+            const d = event.get_scroll_direction();
+            if (d === Clutter.ScrollDirection.UP)
+                dir = 1;
+            else if (d === Clutter.ScrollDirection.DOWN)
+                dir = -1;
+            else if (d === Clutter.ScrollDirection.SMOOTH) {
+                const [, dy] = event.get_scroll_delta();
+                if (dy < 0) dir = 1;
+                else if (dy > 0) dir = -1;
+            }
+        } catch (e) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        if (!dir)
+            return Clutter.EVENT_PROPAGATE;
+        const max = control.get_vol_max_norm();
+        const step = max * 0.04; // 4% per notch
+        let next = sink.volume + dir * step;
+        next = Math.max(0, Math.min(max, next));
+        try {
+            if (sink.is_muted && next > 0)
+                sink.change_is_muted(false);
+        } catch (e) {}
+        sink.volume = Math.round(next);
+        try { sink.push_volume(); } catch (e) {}
+        update();
+        return Clutter.EVENT_STOP;
+    });
+
     box.connect('destroy', () => {
         try { control.disconnect(stateId); } catch (e) {}
         try { control.disconnect(defaultSinkId); } catch (e) {}
