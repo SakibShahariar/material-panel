@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 import {iconPath} from '../lib/iconTheme.js';
 
@@ -302,6 +303,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     menu.actor.add_style_class_name('material-panel-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
+    attachPopupDismiss(menu, button);
 
     const buildMenu = () => {
         menu.removeAll();
@@ -393,43 +395,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     };
     menu.connect('open-state-changed', onOpenStateChanged);
 
-    {
-        const stage = global.stage;
-        const isMenuOpen = () => menu.isOpen ?? menu.actor.visible;
-        const clickId = stage.connect('captured-event', (actor, event) => {
-            if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
-            if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
-            const [x, y] = event.get_coords();
-            const target = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-            if (!target) return Clutter.EVENT_PROPAGATE;
-            let cur = target;
-            while (cur) {
-                if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
-                cur = cur.get_parent();
-            }
-            try {
-                if (menu.actor.contains(target) || button.contains(target))
-                    return Clutter.EVENT_PROPAGATE;
-            } catch (e) {}
-            menu.close();
-            return Clutter.EVENT_PROPAGATE;
-        });
-        const keyId = stage.connect('captured-event', (actor, event) => {
-            if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
-            if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
-            if (event.get_key_symbol() === Clutter.KEY_Escape) {
-                menu.close();
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-        const cleanup = () => {
-            try { stage.disconnect(clickId); } catch (e) {}
-            try { stage.disconnect(keyId); } catch (e) {}
-        };
-        menu.actor.connect('destroy', cleanup);
-        button.connect('destroy', cleanup);
-    }
 
     button.connect('clicked', () => menu.toggle());
     button.connect('destroy', () => {

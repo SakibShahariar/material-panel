@@ -6,6 +6,7 @@ import Pango from 'gi://Pango';
 import Gvc from 'gi://Gvc';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 import {createSlider} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildProfileCard} from './profileCard.js';
@@ -1135,7 +1136,7 @@ const POWER_ACTIONS = [
     {iconKey: 'shutdown', command: 'systemctl poweroff'},
 ];
 
-function powerRow() {
+function powerRow(menu = null) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-power-row', x_expand: true});
     for (const {iconKey, command} of POWER_ACTIONS) {
         const btn = new St.Button({
@@ -1154,55 +1155,15 @@ function powerRow() {
             } catch (e) {
                 logError(e, `material-panel: failed to run "${command}"`);
             }
+            if (menu) {
+                try { menu.close(); } catch (e) {}
+            }
         });
         row.add_child(btn);
     }
     return row;
 }
 
-function addPopupDismiss(menu, button) {
-    // Click outside + Esc to close — uses coordinate hit-test via
-    // get_actor_at_pos() rather than event.get_source(), because
-    // captured-event's source is the stage itself at capture time, so
-    // parent-chain walking on get_source() always missed and closed on
-    // inside clicks. Also uses captured-event for Esc so it fires even
-    // when PopupMenu has a grab.
-    const stage = global.stage;
-    const isMenuOpen = () => menu.isOpen ?? menu.actor.visible;
-    const clickId = stage.connect('captured-event', (actor, event) => {
-        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
-        if (event.type() !== Clutter.EventType.BUTTON_PRESS) return Clutter.EVENT_PROPAGATE;
-        const [x, y] = event.get_coords();
-        const target = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-        if (!target) return Clutter.EVENT_PROPAGATE;
-        let cur = target;
-        while (cur) {
-            if (cur === menu.actor || cur === button) return Clutter.EVENT_PROPAGATE;
-            cur = cur.get_parent();
-        }
-        try {
-            if (menu.actor.contains(target) || button.contains(target))
-                return Clutter.EVENT_PROPAGATE;
-        } catch (e) {}
-        menu.close();
-        return Clutter.EVENT_PROPAGATE;
-    });
-    const keyId = stage.connect('captured-event', (actor, event) => {
-        if (!isMenuOpen()) return Clutter.EVENT_PROPAGATE;
-        if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
-        if (event.get_key_symbol() === Clutter.KEY_Escape) {
-            menu.close();
-            return Clutter.EVENT_STOP;
-        }
-        return Clutter.EVENT_PROPAGATE;
-    });
-    const cleanup = () => {
-        try { stage.disconnect(clickId); } catch (e) {}
-        try { stage.disconnect(keyId); } catch (e) {}
-    };
-    menu.actor.connect('destroy', cleanup);
-    button.connect('destroy', cleanup);
-}
 
 export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const button = new St.Button({
@@ -1219,7 +1180,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.actor.add_style_class_name('material-panel-popup material-panel-qs-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
-    addPopupDismiss(menu, button);
+    attachPopupDismiss(menu, button);
 
     // Soft open/close opacity (St/Clutter; no blur on GNOME)
     menu.actor.opacity = 0;
@@ -1287,7 +1248,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     menu.addMenuItem(wrapAsMenuItem(qsSection(
         'material-panel-qs-section-power',
-        powerRow(),
+        powerRow(menu),
     )));
 
     button.connect('clicked', () => menu.toggle());
