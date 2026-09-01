@@ -15,6 +15,8 @@ import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 
+const EXTENSION_UUID = 'material-panel@SakibShahariar';
+
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
@@ -1137,8 +1139,49 @@ const POWER_ACTIONS = [
     {iconKey: 'shutdown', command: 'systemctl poweroff'},
 ];
 
+function openExtensionPrefs() {
+    try {
+        Main.extensionManager.openExtensionPrefs(EXTENSION_UUID, '', {});
+        return;
+    } catch (e) {}
+    try {
+        // Shell 45+ alternate
+        const ext = Main.extensionManager.lookup(EXTENSION_UUID);
+        if (ext && typeof ext.openPreferences === 'function') {
+            ext.openPreferences();
+            return;
+        }
+    } catch (e) {}
+    try {
+        GLib.spawn_command_line_async(
+            `gnome-extensions prefs ${EXTENSION_UUID}`);
+    } catch (e) {
+        logError(e, 'material-panel: open prefs failed');
+    }
+}
+
 function powerRow(menu = null) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-power-row', x_expand: true});
+
+    // Extension settings (opens prefs dialog)
+    const prefsBtn = new St.Button({
+        style_class: 'material-panel-qs-power-btn',
+        reactive: true,
+        x_expand: true,
+        child: new St.Icon({
+            icon_size: 18,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('settings'))),
+        }),
+    });
+    prefsBtn.connect('clicked', () => {
+        openExtensionPrefs();
+        if (menu) {
+            try { menu.close(); } catch (e) {}
+        }
+    });
+    row.add_child(prefsBtn);
+
     for (const {iconKey, command} of POWER_ACTIONS) {
         const btn = new St.Button({
             style_class: 'material-panel-qs-power-btn',
