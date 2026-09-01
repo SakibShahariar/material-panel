@@ -1182,25 +1182,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    // Soft open/close opacity (St/Clutter; no blur on GNOME)
-    menu.actor.opacity = 0;
-    menu.connect('open-state-changed', (_m, open) => {
-        if (open) {
-            menu.actor.opacity = 0;
-            try {
-                menu.actor.ease({
-                    opacity: 255,
-                    duration: 160,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
-            } catch (e) {
-                menu.actor.opacity = 255;
-            }
-        } else {
-            menu.actor.opacity = 255;
-        }
-    });
-
     // Section: identity + media
     menu.addMenuItem(wrapAsMenuItem(qsSection(
         null,
@@ -1251,7 +1232,14 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         powerRow(menu),
     )));
 
-    button.connect('clicked', () => menu.toggle());
+    button.connect('clicked', () => {
+        // Dismiss handler already closes on chip press while open (EVENT_STOP).
+        // This path mainly opens; if still open, force close.
+        if (menu.isOpen)
+            menu.close();
+        else
+            menu.open();
+    });
     button.connect('destroy', () => menu.destroy());
 
     return button;
