@@ -1210,18 +1210,14 @@ function powerRow(menu = null) {
 
 
 
-/** QS Wi‑Fi block: power row + expandable list of saved NetworkManager profiles. */
+/** QS Wi-Fi: compact full-width strip + optional saved-network list (sibling menu item). */
 function wifiQsBlock() {
-    const outer = new St.BoxLayout({
-        vertical: true,
-        x_expand: true,
-        style_class: 'material-panel-qs-wifi-outer',
-    });
     const row = new St.BoxLayout({
-        style_class: 'material-panel-qs-tile material-panel-qs-wifi-row',
+        style_class: 'material-panel-qs-wifi-row',
         x_expand: true,
-        height: 48,
+        y_align: Clutter.ActorAlign.CENTER,
     });
+
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-main',
         reactive: true,
@@ -1230,9 +1226,9 @@ function wifiQsBlock() {
     });
     const mainBox = new St.BoxLayout({
         vertical: false,
-        style_class: 'material-panel-qs-tile-content',
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
+        style_class: 'material-panel-qs-wifi-main-box',
     });
     const icon = new St.Icon({
         style_class: 'material-panel-qs-tile-icon',
@@ -1252,7 +1248,7 @@ function wifiQsBlock() {
     mainBtn.set_child(mainBox);
 
     const dropBtn = new St.Button({
-        style_class: 'material-panel-qs-bt-drop',
+        style_class: 'material-panel-qs-wifi-drop',
         reactive: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
@@ -1260,28 +1256,26 @@ function wifiQsBlock() {
         icon_name: 'pan-down-symbolic',
         icon_size: 14,
         y_align: Clutter.ActorAlign.CENTER,
-        style_class: 'material-panel-qs-bt-drop-icon',
     });
     dropBtn.set_child(dropIcon);
     row.add_child(mainBtn);
     row.add_child(dropBtn);
-    outer.add_child(row);
 
     const listPanel = new St.BoxLayout({
         vertical: true,
         x_expand: true,
-        style_class: 'material-panel-qs-bt-devices material-panel-qs-wifi-panel',
+        style_class: 'material-panel-qs-wifi-panel',
     });
     listPanel.visible = false;
-    outer.listPanel = listPanel;
 
     let expanded = false;
     let client = null;
-    let wirelessEnabled = false;
 
-    const setRowActive = on => {
-        row.set_style_class_name(
-            `material-panel-qs-tile material-panel-qs-wifi-row${on ? ' active' : ''}`);
+    const setActive = on => {
+        if (on)
+            row.add_style_class_name('active');
+        else
+            row.remove_style_class_name('active');
         const key = on ? 'network-wifi' : 'network-offline';
         try {
             icon.gicon = Gio.FileIcon.new(
@@ -1310,58 +1304,50 @@ function wifiQsBlock() {
             .filter(c => c.get_connection_type() === NM.SETTING_WIRELESS_SETTING_NAME);
         if (wifiConnections.length === 0) {
             listPanel.add_child(new St.Label({
-                text: 'No saved networks — use Wi-Fi settings to add one',
+                text: 'No saved networks',
                 style_class: 'material-panel-qs-bt-empty',
             }));
-            return;
-        }
-        for (const conn of wifiConnections) {
-            const id = conn.get_id();
-            const uuid = conn.get_uuid();
-            const isActive = uuid === activeId;
-            const btn = new St.Button({
-                style_class: `material-panel-qs-bt-device${isActive ? ' connected' : ''}`,
-                reactive: true,
-                x_expand: true,
-            });
-            const box = new St.BoxLayout({
-                vertical: false,
-                x_expand: true,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            const name = new St.Label({
-                text: id,
-                style_class: 'material-panel-qs-bt-device-name',
-                x_expand: true,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            const status = new St.Label({
-                text: isActive ? 'Connected' : 'Saved',
-                style_class: 'material-panel-qs-bt-device-status',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            box.add_child(name);
-            box.add_child(status);
-            btn.set_child(box);
-            btn.connect('clicked', () => {
-                if (isActive)
-                    return Clutter.EVENT_STOP;
-                const device = client.get_devices()
-                    .find(d => d.get_device_type() === NM.DeviceType.WIFI);
-                if (!device)
-                    return Clutter.EVENT_STOP;
-                client.activate_connection_async(conn, device, null, null, (c, res) => {
-                    try {
-                        client.activate_connection_finish(res);
-                    } catch (e) {
-                        logError(e, 'material-panel: QS Wi-Fi activate failed');
-                    }
-                    rebuildList();
+        } else {
+            for (const conn of wifiConnections) {
+                const isActive = conn.get_uuid() === activeId;
+                const btn = new St.Button({
+                    style_class: `material-panel-qs-bt-device${isActive ? ' connected' : ''}`,
+                    reactive: true,
+                    x_expand: true,
                 });
-                return Clutter.EVENT_STOP;
-            });
-            listPanel.add_child(btn);
+                const box = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+                const name = new St.Label({
+                    text: conn.get_id(),
+                    style_class: 'material-panel-qs-bt-device-name',
+                    x_expand: true,
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+                name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+                const status = new St.Label({
+                    text: isActive ? 'Connected' : 'Saved',
+                    style_class: 'material-panel-qs-bt-device-status',
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+                box.add_child(name);
+                box.add_child(status);
+                btn.set_child(box);
+                btn.connect('clicked', () => {
+                    if (isActive)
+                        return Clutter.EVENT_STOP;
+                    const device = client.get_devices()
+                        .find(d => d.get_device_type() === NM.DeviceType.WIFI);
+                    if (!device)
+                        return Clutter.EVENT_STOP;
+                    client.activate_connection_async(conn, device, null, null, (c, res) => {
+                        try { client.activate_connection_finish(res); } catch (e) {
+                            logError(e, 'material-panel: QS Wi-Fi activate failed');
+                        }
+                        rebuildList();
+                    });
+                    return Clutter.EVENT_STOP;
+                });
+                listPanel.add_child(btn);
+            }
         }
         const settingsBtn = new St.Button({
             style_class: 'material-panel-qs-bt-device',
@@ -1374,12 +1360,9 @@ function wifiQsBlock() {
             y_align: Clutter.ActorAlign.CENTER,
         }));
         settingsBtn.connect('clicked', () => {
-            try {
-                GLib.spawn_command_line_async('gnome-control-center wifi');
-            } catch (e) {
-                try {
-                    GLib.spawn_command_line_async('gnome-control-center network');
-                } catch (e2) {}
+            try { GLib.spawn_command_line_async('gnome-control-center wifi'); }
+            catch (e) {
+                try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e2) {}
             }
             return Clutter.EVENT_STOP;
         });
@@ -1387,7 +1370,7 @@ function wifiQsBlock() {
     };
 
     const setExpanded = v => {
-        expanded = v;
+        expanded = !!v;
         listPanel.visible = expanded;
         dropIcon.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
         const parent = listPanel.get_parent();
@@ -1401,13 +1384,10 @@ function wifiQsBlock() {
         setExpanded(!expanded);
         return Clutter.EVENT_STOP;
     });
-
     mainBtn.connect('clicked', () => {
         if (!client)
             return Clutter.EVENT_STOP;
-        try {
-            client.wireless_enabled = !client.wireless_enabled;
-        } catch (e) {
+        try { client.wireless_enabled = !client.wireless_enabled; } catch (e) {
             logError(e, 'material-panel: QS Wi-Fi toggle failed');
         }
         return Clutter.EVENT_STOP;
@@ -1422,13 +1402,13 @@ function wifiQsBlock() {
             return;
         }
         const sync = () => {
-            wirelessEnabled = !!client.wireless_enabled;
-            setRowActive(wirelessEnabled);
+            const on = !!client.wireless_enabled;
+            setActive(on);
             const conn = client.get_primary_connection();
-            if (wirelessEnabled && conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME)
+            if (on && conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME)
                 text.text = conn.get_id?.() || 'Wi-Fi';
             else
-                text.text = wirelessEnabled ? 'Wi-Fi' : 'Wi-Fi';
+                text.text = 'Wi-Fi';
             if (expanded)
                 rebuildList();
         };
@@ -1439,11 +1419,8 @@ function wifiQsBlock() {
         client.connect('connection-removed', () => { if (expanded) rebuildList(); });
     });
 
-    outer.connect('destroy', () => {
-        client = null;
-    });
-
-    return outer;
+    row.listPanel = listPanel;
+    return row;
 }
 
 export function buildQuickSettings(_extensionPath, scale = 1.0) {
@@ -1506,11 +1483,11 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         menu.addMenuItem(devicesItem);
     }
 
-    // Wi-Fi strip + expandable saved networks
-    const wifiBlock = wifiQsBlock();
-    menu.addMenuItem(wrapAsMenuItem(wifiBlock));
-    if (wifiBlock.listPanel) {
-        const wifiListItem = wrapAsMenuItem(wifiBlock.listPanel);
+    // Wi-Fi strip (full width) + list as separate collapsible menu item
+    const wifiRow = wifiQsBlock();
+    menu.addMenuItem(wrapAsMenuItem(wifiRow));
+    if (wifiRow.listPanel) {
+        const wifiListItem = wrapAsMenuItem(wifiRow.listPanel);
         wifiListItem.visible = false;
         menu.addMenuItem(wifiListItem);
     }

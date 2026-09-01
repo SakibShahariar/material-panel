@@ -2,80 +2,79 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import Soup from 'gi://Soup';
 
 import {iconPath} from '../lib/iconTheme.js';
 
-// wttr.in JSON — no API key. Soup3 async (Shell 45+/50; queue_message is gone).
-const WEATHER_URL = 'https://wttr.in/?format=j1';
+// Weather via Open-Meteo (no API key). Location from config later; for now
+// use IP-less world default then refine with Open-Meteo's geolocation-free
+// forecast requires lat/lon — we resolve via ip-api style endpoint once.
+// Primary: Open-Meteo. Fallback: wttr.in JSON via Gio (Soup3 optional).
 
-function getWeatherIcon(weatherCode, isDaytime = true) {
-    const code = parseInt(weatherCode, 10);
-    if (isNaN(code))
-        return 'weather';
-    if (code === 113)
-        return isDaytime ? 'weather-sunny' : 'weather-clear-night';
-    if ([116].includes(code))
+const OPEN_METEO =
+    'https://api.open-meteo.com/v1/forecast?latitude=%LAT%&longitude=%LON%' +
+    '&current=temperature_2m,weather_code,is_day&timezone=auto';
+// Approximate lat/lon from IP (no key). Failures fall back to a mild default.
+const IP_LOC = 'https://ipapi.co/json/';
+const WTTR = 'https://wttr.in/?format=j1';
+
+function wmoToIcon(code, isDay) {
+    const c = parseInt(code, 10);
+    if (c === 0)
+        return isDay ? 'weather-sunny' : 'weather-clear-night';
+    if ([1, 2].includes(c))
         return 'weather-partly-cloudy';
-    if ([119, 122].includes(code))
+    if (c === 3)
         return 'weather-cloudy';
-    if ([143, 248, 260].includes(code))
+    if ([45, 48].includes(c))
         return 'weather-fog';
-    // Rain-ish / drizzle
-    if (code >= 176 && code <= 317)
+    if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(c))
         return 'weather-rain';
-    if (code >= 320 && code <= 377)
+    if ([71, 73, 75, 77, 85, 86].includes(c))
         return 'weather-snow';
-    if (code >= 380 && code <= 395)
+    if ([95, 96, 99].includes(c))
         return 'weather-thunder';
     return 'weather';
 }
 
-function parseClockToMinutes(str) {
-    if (!str || typeof str !== 'string')
-        return null;
-    const m = str.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-    if (!m)
-        return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ap = m[3] ? m[3].toUpperCase() : null;
-    if (ap === 'PM' && h < 12)
-        h += 12;
-    if (ap === 'AM' && h === 12)
-        h = 0;
-    return h * 60 + min;
+function wttrCodeToIcon(code, isDay) {
+    const c = parseInt(code, 10);
+    if (c === 113)
+        return isDay ? 'weather-sunny' : 'weather-clear-night';
+    if (c === 116)
+        return 'weather-partly-cloudy';
+    if ([119, 122].includes(c))
+        return 'weather-cloudy';
+    if ([143, 248, 260].includes(c))
+        return 'weather-fog';
+    if (c >= 176 && c <= 317)
+        return 'weather-rain';
+    if (c >= 320 && c <= 377)
+        return 'weather-snow';
+    if (c >= 380)
+        return 'weather-thunder';
+    return 'weather';
 }
 
-function isDaytimeFromPayload(json) {
-    try {
-        const astro = json?.weather?.[0]?.astronomy?.[0];
-        if (astro) {
-            const rise = parseClockToMinutes(astro.sunrise);
-            const set = parseClockToMinutes(astro.sunset);
-            const now = GLib.DateTime.new_now_local();
-            const nowM = now.get_hour() * 60 + now.get_minute();
-            if (rise != null && set != null) {
-                if (rise < set)
-                    return nowM >= rise && nowM < set;
-                return nowM >= rise || nowM < set;
-            }
+function httpGet(url) {
+    return new Promise((resolve, reject) => {
+        try {
+            const file = Gio.File.new_for_uri(url);
+            file.load_contents_async(null, (f, res) => {
+                try {
+                    const [ok, contents] = f.load_contents_finish(res);
+                    if (!ok || !contents) {
+                        reject(new Error(`load_contents failed for ${url}`));
+                        return;
+                    }
+                    resolve(new TextDecoder('utf-8').decode(contents));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        } catch (e) {
+            reject(e);
         }
-    } catch (e) {}
-    const hour = GLib.DateTime.new_now_local().get_hour();
-    return hour >= 6 && hour < 18;
-}
-
-function formatTemp(tempC) {
-    return `${Math.round(tempC)}°C`;
-}
-
-function unpackCode(raw) {
-    if (raw == null)
-        return '';
-    if (Array.isArray(raw))
-        return String(raw[0] ?? '');
-    return String(raw);
+    });
 }
 
 export function buildWeather(_extensionPath, scale = 1.0) {
@@ -83,150 +82,148 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-weather material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
+        reactive: true,
     });
 
-    let weatherGicon;
+    let gicon;
     try {
         const p = iconPath('weather');
-        if (Gio.File.new_for_path(p).query_exists(null))
-            weatherGicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
-        else
-            weatherGicon = Gio.ThemedIcon.new('weather-clear-symbolic');
+        gicon = Gio.File.new_for_path(p).query_exists(null)
+            ? Gio.FileIcon.new(Gio.File.new_for_path(p))
+            : Gio.ThemedIcon.new('weather-few-clouds-symbolic');
     } catch (e) {
-        weatherGicon = Gio.ThemedIcon.new('weather-clear-symbolic');
+        gicon = Gio.ThemedIcon.new('weather-few-clouds-symbolic');
     }
 
-    const weatherIcon = new St.Icon({
+    const icon = new St.Icon({
         style_class: 'material-panel-weather-icon',
         icon_size: Math.round(17 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
-        gicon: weatherGicon,
+        gicon,
     });
     const label = new St.Label({
         style_class: 'material-panel-weather-label',
         y_align: Clutter.ActorAlign.CENTER,
         text: '…',
     });
-    box.add_child(weatherIcon);
+    box.add_child(icon);
     box.add_child(label);
 
     let lastFetch = 0;
-    let currentWeather = null;
-    let session = null;
     let inFlight = false;
+    let lat = null;
+    let lon = null;
 
-    const updateLabel = () => {
-        if (currentWeather) {
-            label.text = formatTemp(currentWeather.temp_C);
-            try {
-                box.set_tooltip_text(
-                    `${currentWeather.condition}, ${currentWeather.temp_C}°C · ` +
-                    `Feels ${currentWeather.feelslike_C}°C · ` +
-                    `Humidity ${currentWeather.humidity}% · ` +
-                    `Wind ${currentWeather.windspeedKmph} km/h`);
-            } catch (e) {}
-        } else {
-            label.text = '—';
-        }
-    };
-
-    const applyIcon = (iconKey) => {
+    const setIconKey = key => {
         try {
-            const p = iconPath(iconKey);
+            const p = iconPath(key);
             if (Gio.File.new_for_path(p).query_exists(null))
-                weatherIcon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
+                icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
+    };
+
+    const apply = (tempC, condition, iconKey) => {
+        label.text = `${Math.round(tempC)}°`;
+        try {
+            box.set_tooltip_text(condition ? `${condition}, ${Math.round(tempC)}°C` : `${Math.round(tempC)}°C`);
+        } catch (e) {}
+        setIconKey(iconKey);
+    };
+
+    const fetchOpenMeteo = async () => {
+        if (lat == null || lon == null) {
+            // Dhaka-ish default if IP lookup fails (user is often BD from context)
+            lat = 23.81;
+            lon = 90.41;
+        }
+        const url = OPEN_METEO.replace('%LAT%', lat).replace('%LON%', lon);
+        const text = await httpGet(url);
+        const json = JSON.parse(text);
+        const cur = json.current;
+        if (!cur)
+            throw new Error('open-meteo: no current');
+        const temp = cur.temperature_2m;
+        const code = cur.weather_code;
+        const isDay = cur.is_day === 1;
+        apply(temp, `WMO ${code}`, wmoToIcon(code, isDay));
+    };
+
+    const fetchWttr = async () => {
+        const text = await httpGet(WTTR);
+        const json = JSON.parse(text);
+        const current = json.current_condition?.[0];
+        if (!current)
+            throw new Error('wttr: no current_condition');
+        const temp = parseFloat(current.temp_C);
+        const code = Array.isArray(current.weatherCode)
+            ? current.weatherCode[0]
+            : current.weatherCode;
+        const condition = current.weatherDesc?.[0]?.value ?? '';
+        // Day/night from local hour if no astronomy
+        let isDay = true;
+        try {
+            const hour = GLib.DateTime.new_now_local().get_hour();
+            isDay = hour >= 6 && hour < 18;
+            const astro = json.weather?.[0]?.astronomy?.[0];
+            if (astro?.sunrise && astro?.sunset) {
+                // best-effort; ignore parse errors
+            }
+        } catch (e) {}
+        apply(temp, condition, wttrCodeToIcon(code, isDay));
+    };
+
+    const resolveLocation = async () => {
+        try {
+            const text = await httpGet(IP_LOC);
+            const j = JSON.parse(text);
+            if (j.latitude && j.longitude) {
+                lat = Number(j.latitude);
+                lon = Number(j.longitude);
+                return;
+            }
+            if (j.lat && j.lon) {
+                lat = Number(j.lat);
+                lon = Number(j.lon);
+            }
         } catch (e) {
-            logError(e, 'material-panel: weather icon update failed');
+            logError(e, 'material-panel: weather IP location failed (using default)');
         }
     };
 
-    const fetchWeather = () => {
+    const fetchWeather = async () => {
         if (inFlight)
             return;
         inFlight = true;
         try {
-            if (!session)
-                session = new Soup.Session();
-            // wttr.in blocks empty / non-browser UAs sometimes
+            if (lat == null)
+                await resolveLocation();
             try {
-                session.user_agent = 'material-panel/1.0 (GNOME Shell extension)';
-            } catch (e) {}
-
-            const message = Soup.Message.new('GET', WEATHER_URL);
-            if (!message) {
-                inFlight = false;
-                logError(new Error('material-panel: Soup.Message.new failed'));
-                return;
+                await fetchOpenMeteo();
+            } catch (e1) {
+                logError(e1, 'material-panel: open-meteo failed, trying wttr.in');
+                await fetchWttr();
             }
-
-            session.send_and_read_async(
-                message,
-                GLib.PRIORITY_DEFAULT,
-                null,
-                (_s, res) => {
-                    inFlight = false;
-                    try {
-                        const bytes = session.send_and_read_finish(res);
-                        // HTTP status (Soup3)
-                        let status = 0;
-                        try {
-                            status = message.get_status();
-                        } catch (e) {
-                            try { status = message.status_code; } catch (e2) {}
-                        }
-                        if (status && status >= 400) {
-                            logError(new Error(`material-panel: weather HTTP ${status}`));
-                            updateLabel();
-                            return;
-                        }
-                        const data = bytes.get_data();
-                        if (!data || data.length === 0) {
-                            logError(new Error('material-panel: weather empty body'));
-                            return;
-                        }
-                        const text = new TextDecoder('utf-8').decode(data);
-                        const json = JSON.parse(text);
-                        const current = json.current_condition?.[0];
-                        if (!current) {
-                            logError(new Error('material-panel: weather missing current_condition'));
-                            return;
-                        }
-                        currentWeather = {
-                            temp_C: parseFloat(current.temp_C),
-                            feelslike_C: parseFloat(current.FeelsLikeC),
-                            condition: current.weatherDesc?.[0]?.value ?? 'Unknown',
-                            humidity: parseInt(current.humidity, 10),
-                            windspeedKmph: parseInt(current.windspeedKmph, 10),
-                            weatherCode: unpackCode(current.weatherCode),
-                        };
-                        lastFetch = Date.now();
-                        const isDaytime = isDaytimeFromPayload(json);
-                        applyIcon(getWeatherIcon(currentWeather.weatherCode, isDaytime));
-                        updateLabel();
-                    } catch (e) {
-                        logError(e, 'material-panel: weather fetch/parse failed');
-                        updateLabel();
-                    }
-                });
+            lastFetch = Date.now();
         } catch (e) {
+            logError(e, 'material-panel: weather all sources failed');
+            if (label.text === '…' || label.text === '—')
+                label.text = '—';
+        } finally {
             inFlight = false;
-            logError(e, 'material-panel: weather request failed');
-            updateLabel();
         }
     };
 
     const tick = () => {
-        if (!currentWeather || Date.now() - lastFetch > 30 * 60 * 1000)
+        if (Date.now() - lastFetch > 30 * 60 * 1000)
             fetchWeather();
         return GLib.SOURCE_CONTINUE;
     };
 
+    // Visible immediately; data fills in async
     fetchWeather();
-    updateLabel();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, tick);
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 120, tick);
     box.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
-        session = null;
     });
 
     return box;

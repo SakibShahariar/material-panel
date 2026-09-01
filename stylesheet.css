@@ -364,24 +364,31 @@
 .material-panel-bt-chip-box { spacing: 2px; }
 .material-panel-bt-chip-arrow { opacity: 0.7; }
 
-/* QS Wi-Fi full-width strip (under toggle grid) */
-.material-panel-qs-wifi-outer { spacing: 0; }
+
+/* QS Wi-Fi strip — full width, does not share tile min-width with 2×2 grid */
 .material-panel-qs-wifi-row {
-    padding: 0;
     spacing: 0;
-    height: 48px;
-    min-height: 48px;
-    border-radius: 16px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 14px;
     background-color: rgba(255, 255, 255, 0.10);
 }
-.material-panel-qs-wifi-row .material-panel-qs-wifi-main {
-    border-radius: 16px 0 0 16px;
+.material-panel-qs-wifi-main {
     padding: 0 12px;
+    border-radius: 14px 0 0 14px;
+}
+.material-panel-qs-wifi-main-box {
+    spacing: 8px;
+}
+.material-panel-qs-wifi-drop {
+    min-width: 36px;
+    width: 36px;
+    padding: 0;
+    border-radius: 0 14px 14px 0;
 }
 .material-panel-qs-wifi-panel {
     spacing: 6px;
     padding: 8px;
-    margin-top: 4px;
-    border-radius: 16px;
+    border-radius: 14px;
     background-color: rgba(255, 255, 255, 0.05);
 }
