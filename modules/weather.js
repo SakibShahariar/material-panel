@@ -8,17 +8,33 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
-// Weather via Open-Meteo (no API key). Location from config later; for now
-// use IP-less world default then refine with Open-Meteo's geolocation-free
-// forecast requires lat/lon — we resolve via ip-api style endpoint once.
-// Primary: Open-Meteo. Fallback: wttr.in JSON via Gio (Soup3 optional).
+// Prefer GNOME Weather location + libgweather conditions.
+// Fallback: Open-Meteo at those coords → IP → default.
 
 const OPEN_METEO =
     'https://api.open-meteo.com/v1/forecast?latitude=%LAT%&longitude=%LON%' +
     '&current=temperature_2m,weather_code,is_day&timezone=auto';
-// Approximate lat/lon from IP (no key). Failures fall back to a mild default.
 const IP_LOC = 'https://ipapi.co/json/';
-const WTTR = 'https://wttr.in/?format=j1';
+
+let _GWeather = undefined; // undefined = not tried, null = unavailable
+
+async function ensureGWeather() {
+    if (_GWeather !== undefined)
+        return _GWeather;
+    try {
+        _GWeather = (await import('gi://GWeather')).default;
+        return _GWeather;
+    } catch (e1) {
+        try {
+            _GWeather = (await import('gi://GWeather?version=4.0')).default;
+            return _GWeather;
+        } catch (e2) {
+            log('material-panel: GWeather GIR missing — Open-Meteo fallback only');
+            _GWeather = null;
+            return null;
+        }
+    }
+}
 
 function wmoToIcon(code, isDay) {
     const c = parseInt(code, 10);
@@ -39,21 +55,24 @@ function wmoToIcon(code, isDay) {
     return 'weather';
 }
 
-function wttrCodeToIcon(code, isDay) {
-    const c = parseInt(code, 10);
-    if (c === 113)
+function gweatherIconKey(info) {
+    let isDay = true;
+    try { isDay = info.is_daytime(); } catch (e) {}
+    let name = '';
+    try { name = info.get_icon_name() || ''; } catch (e) {}
+    if (/clear|sunny/.test(name))
         return isDay ? 'weather-sunny' : 'weather-clear-night';
-    if (c === 116)
+    if (/few-clouds|partly/.test(name))
         return 'weather-partly-cloudy';
-    if ([119, 122].includes(c))
+    if (/overcast|clouds/.test(name))
         return 'weather-cloudy';
-    if ([143, 248, 260].includes(c))
+    if (/fog|mist/.test(name))
         return 'weather-fog';
-    if (c >= 176 && c <= 317)
+    if (/showers|rain|drizzle/.test(name))
         return 'weather-rain';
-    if (c >= 320 && c <= 377)
+    if (/snow|sleet/.test(name))
         return 'weather-snow';
-    if (c >= 380)
+    if (/storm|thunder|severe/.test(name))
         return 'weather-thunder';
     return 'weather';
 }
@@ -66,7 +85,7 @@ function httpGet(url) {
                 try {
                     const [ok, contents] = f.load_contents_finish(res);
                     if (!ok || !contents) {
-                        reject(new Error(`load_contents failed for ${url}`));
+                        reject(new Error(`load failed ${url}`));
                         return;
                     }
                     resolve(new TextDecoder('utf-8').decode(contents));
@@ -78,6 +97,178 @@ function httpGet(url) {
             reject(e);
         }
     });
+}
+
+/** @returns {Promise<{location, name, lat, lon}|null>} */
+async function loadGnomeWeatherLocation() {
+    const GWeather = await ensureGWeather();
+    if (!GWeather)
+        return null;
+    try {
+        const schema = 'org.gnome.Weather';
+        const source = Gio.SettingsSchemaSource.get_default();
+        if (!source.lookup(schema, true)) {
+            log('material-panel: org.gnome.Weather schema not found (install gnome-weather?)');
+            return null;
+        }
+        const settings = new Gio.Settings({schema_id: schema});
+        const value = settings.get_value('locations');
+        if (!value || value.n_children() < 1) {
+            log('material-panel: GNOME Weather has no saved cities — add one in Weather app');
+            return null;
+        }
+
+        const world = GWeather.Location.get_world();
+        if (!world)
+            return null;
+
+        const child = value.get_child_value(0);
+        const loc = world.deserialize(child);
+        if (!loc)
+            return null;
+
+        let lat = null, lon = null;
+        try {
+            if (typeof loc.has_coords === 'function' && loc.has_coords()) {
+                const coords = loc.get_coords();
+                if (Array.isArray(coords)) {
+                    lat = coords[0];
+                    lon = coords[1];
+                } else if (coords && typeof coords === 'object') {
+                    lat = coords[0] ?? coords.lat;
+                    lon = coords[1] ?? coords.lon;
+                }
+            } else {
+                const coords = loc.get_coords();
+                lat = coords[0];
+                lon = coords[1];
+            }
+        } catch (e) {
+            logError(e, 'material-panel: GWeather location coords');
+        }
+
+        let name = '';
+        try {
+            name = (loc.get_city_name && loc.get_city_name()) || loc.get_name() || '';
+        } catch (e) {
+            try { name = loc.get_name() || ''; } catch (e2) {}
+        }
+
+        if (lat == null || lon == null || !Number.isFinite(Number(lat)))
+            return null;
+
+        return {location: loc, name, lat: Number(lat), lon: Number(lon)};
+    } catch (e) {
+        logError(e, 'material-panel: loadGnomeWeatherLocation');
+        return null;
+    }
+}
+
+function fetchViaGWeatherInfo(GWeather, gwLoc, placeName) {
+    return new Promise((resolve, reject) => {
+        try {
+            const info = new GWeather.Info({
+                application_id: 'material-panel@SakibShahariar',
+            });
+            info.set_location(gwLoc);
+            try {
+                if (GWeather.Provider)
+                    info.set_enabled_providers(GWeather.Provider.ALL);
+            } catch (e) {}
+
+            let settled = false;
+            const finish = fn => {
+                if (settled) return;
+                settled = true;
+                fn();
+            };
+
+            const timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 25, () => {
+                finish(() => reject(new Error('GWeather.Info timeout')));
+                return GLib.SOURCE_REMOVE;
+            });
+
+            const updatedId = info.connect('updated', () => {
+                try { GLib.source_remove(timeoutId); } catch (e) {}
+                try { info.disconnect(updatedId); } catch (e) {}
+
+                let temp = null;
+                try {
+                    const ret = info.get_value_temp(GWeather.TemperatureUnit.CENTIGRADE);
+                    if (Array.isArray(ret) && ret[0])
+                        temp = ret[1];
+                    else if (typeof ret === 'number')
+                        temp = ret;
+                } catch (e) {
+                    try {
+                        const m = String(info.get_temp()).match(/-?\d+(\.\d+)?/);
+                        if (m) temp = parseFloat(m[0]);
+                    } catch (e2) {}
+                }
+
+                let condition = '';
+                try {
+                    condition = info.get_conditions() || info.get_sky() || '';
+                } catch (e) {}
+
+                let extra = '';
+                try {
+                    const parts = [];
+                    try { if (info.get_humidity()) parts.push(info.get_humidity()); } catch (e) {}
+                    try { if (info.get_wind()) parts.push(info.get_wind()); } catch (e) {}
+                    extra = parts.join(' · ');
+                } catch (e) {}
+
+                if (temp == null) {
+                    finish(() => reject(new Error('GWeather.Info no temperature')));
+                    return;
+                }
+
+                finish(() => resolve({
+                    temp,
+                    condition: condition || 'Weather',
+                    iconKey: gweatherIconKey(info),
+                    extra,
+                    place: placeName || 'GNOME Weather',
+                    source: 'GNOME Weather (libgweather)',
+                }));
+            });
+
+            info.update();
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+async function fetchOpenMeteo(lat, lon, place, sourceTag) {
+    const url = OPEN_METEO.replace('%LAT%', lat).replace('%LON%', lon);
+    const text = await httpGet(url);
+    const json = JSON.parse(text);
+    const cur = json.current;
+    if (!cur)
+        throw new Error('open-meteo: no current');
+    const isDay = cur.is_day === 1;
+    return {
+        temp: cur.temperature_2m,
+        condition: `Code ${cur.weather_code}`,
+        iconKey: wmoToIcon(cur.weather_code, isDay),
+        extra: isDay ? 'Daytime' : 'Night',
+        place: place || `${Number(lat).toFixed(2)}, ${Number(lon).toFixed(2)}`,
+        source: sourceTag || 'Open-Meteo',
+    };
+}
+
+async function resolveIpLocation() {
+    const text = await httpGet(IP_LOC);
+    const j = JSON.parse(text);
+    const lat = Number(j.latitude ?? j.lat);
+    const lon = Number(j.longitude ?? j.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon))
+        throw new Error('ipapi: no coords');
+    const place = [j.city || j.town, j.region || j.country_name || j.country]
+        .filter(Boolean).join(', ');
+    return {lat, lon, place};
 }
 
 export function buildWeather(_extensionPath, scale = 1.0) {
@@ -115,13 +306,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     let lastFetch = 0;
     let inFlight = false;
-    let detail = {temp: null, condition: "", extra: ""};
-    let lat = null;
-    let lon = null;
+    let detail = {temp: null, condition: '', extra: '', place: '', source: ''};
 
     const setIconKey = key => {
         try {
-            // Prefer primary (accent) tint for the panel chip
             let pth = iconPathPrimary(key);
             if (!Gio.File.new_for_path(pth).query_exists(null))
                 pth = iconPath(key);
@@ -130,75 +318,22 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         } catch (e) {}
     };
 
-    const apply = (tempC, condition, iconKey, extra = '') => {
-        label.text = `${Math.round(tempC)}°`;
-        detail = {temp: tempC, condition: condition || '', extra: extra || ''};
+    const apply = result => {
+        detail = {
+            temp: result.temp,
+            condition: result.condition || '',
+            extra: result.extra || '',
+            place: result.place || '',
+            source: result.source || '',
+        };
+        label.text = `${Math.round(result.temp)}°`;
+        setIconKey(result.iconKey || 'weather');
         try {
-            box.set_tooltip_text(condition ? `${condition}, ${Math.round(tempC)}°C` : `${Math.round(tempC)}°C`);
+            box.set_tooltip_text(
+                [result.condition, result.place, `${Math.round(result.temp)}°C`]
+                    .filter(Boolean).join(' · '));
         } catch (e) {}
-        setIconKey(iconKey);
-    };
-
-    const fetchOpenMeteo = async () => {
-        if (lat == null || lon == null) {
-            // Dhaka-ish default if IP lookup fails (user is often BD from context)
-            lat = 23.81;
-            lon = 90.41;
-        }
-        const url = OPEN_METEO.replace('%LAT%', lat).replace('%LON%', lon);
-        const text = await httpGet(url);
-        const json = JSON.parse(text);
-        const cur = json.current;
-        if (!cur)
-            throw new Error('open-meteo: no current');
-        const temp = cur.temperature_2m;
-        const code = cur.weather_code;
-        const isDay = cur.is_day === 1;
-        apply(temp, `Code ${code}`, wmoToIcon(code, isDay), isDay ? 'Daytime' : 'Night');
-    };
-
-    const fetchWttr = async () => {
-        const text = await httpGet(WTTR);
-        const json = JSON.parse(text);
-        const current = json.current_condition?.[0];
-        if (!current)
-            throw new Error('wttr: no current_condition');
-        const temp = parseFloat(current.temp_C);
-        const code = Array.isArray(current.weatherCode)
-            ? current.weatherCode[0]
-            : current.weatherCode;
-        const condition = current.weatherDesc?.[0]?.value ?? '';
-        // Day/night from local hour if no astronomy
-        let isDay = true;
-        try {
-            const hour = GLib.DateTime.new_now_local().get_hour();
-            isDay = hour >= 6 && hour < 18;
-            const astro = json.weather?.[0]?.astronomy?.[0];
-            if (astro?.sunrise && astro?.sunset) {
-                // best-effort; ignore parse errors
-            }
-        } catch (e) {}
-        const hum = current.humidity ? `Humidity ${current.humidity}%` : '';
-        const wind = current.windspeedKmph ? `Wind ${current.windspeedKmph} km/h` : '';
-        apply(temp, condition, wttrCodeToIcon(code, isDay), [hum, wind].filter(Boolean).join(' · '));
-    };
-
-    const resolveLocation = async () => {
-        try {
-            const text = await httpGet(IP_LOC);
-            const j = JSON.parse(text);
-            if (j.latitude && j.longitude) {
-                lat = Number(j.latitude);
-                lon = Number(j.longitude);
-                return;
-            }
-            if (j.lat && j.lon) {
-                lat = Number(j.lat);
-                lon = Number(j.lon);
-            }
-        } catch (e) {
-            logError(e, 'material-panel: weather IP location failed (using default)');
-        }
+        try { refreshPopup(); } catch (e) {}
     };
 
     const fetchWeather = async () => {
@@ -206,17 +341,41 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             return;
         inFlight = true;
         try {
-            if (lat == null)
-                await resolveLocation();
-            try {
-                await fetchOpenMeteo();
-            } catch (e1) {
-                logError(e1, 'material-panel: open-meteo failed, trying wttr.in');
-                await fetchWttr();
+            const GWeather = await ensureGWeather();
+            const gw = await loadGnomeWeatherLocation();
+
+            if (gw && GWeather) {
+                try {
+                    apply(await fetchViaGWeatherInfo(GWeather, gw.location, gw.name));
+                    lastFetch = Date.now();
+                    return;
+                } catch (e) {
+                    logError(e, 'material-panel: GWeather.Info failed');
+                    try {
+                        apply(await fetchOpenMeteo(
+                            gw.lat, gw.lon, gw.name,
+                            'Open-Meteo · GNOME Weather location'));
+                        lastFetch = Date.now();
+                        return;
+                    } catch (e2) {
+                        logError(e2, 'material-panel: Open-Meteo @ GW location failed');
+                    }
+                }
             }
+
+            try {
+                const ip = await resolveIpLocation();
+                apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP'));
+                lastFetch = Date.now();
+                return;
+            } catch (e) {
+                logError(e, 'material-panel: IP weather failed');
+            }
+
+            apply(await fetchOpenMeteo(23.81, 90.41, 'Default', 'Open-Meteo · default'));
             lastFetch = Date.now();
         } catch (e) {
-            logError(e, 'material-panel: weather all sources failed');
+            logError(e, 'material-panel: weather failed');
             if (label.text === '…' || label.text === '—')
                 label.text = '—';
         } finally {
@@ -230,16 +389,19 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         return GLib.SOURCE_CONTINUE;
     };
 
-    // Visible immediately; data fills in async
     const popupTemp = new St.Label({text: '—', style_class: 'material-panel-weather-popup-temp'});
     const popupCond = new St.Label({text: '', style_class: 'material-panel-weather-popup-cond'});
     const popupExtra = new St.Label({text: '', style_class: 'material-panel-weather-popup-extra'});
+    const popupPlace = new St.Label({text: '', style_class: 'material-panel-weather-popup-place'});
+    const popupSource = new St.Label({text: '', style_class: 'material-panel-weather-popup-source'});
 
     const refreshPopup = () => {
         if (detail.temp != null)
             popupTemp.text = `${Math.round(detail.temp)}°C`;
         popupCond.text = detail.condition || 'Weather';
         popupExtra.text = detail.extra || '';
+        popupPlace.text = detail.place || '';
+        popupSource.text = detail.source || '';
     };
 
     const button = new St.Button({
@@ -252,17 +414,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
+
     const section = new PopupMenu.PopupMenuSection();
     const body = new St.BoxLayout({vertical: true, style_class: 'material-panel-weather-popup-body'});
     body.add_child(popupTemp);
     body.add_child(popupCond);
     body.add_child(popupExtra);
-    body.add_child(new St.Label({
-        text: 'Source: Open-Meteo / wttr.in',
-        style_class: 'material-panel-weather-popup-source',
-    }));
+    body.add_child(popupPlace);
+    body.add_child(popupSource);
     section.actor.add_child(body);
     menu.addMenuItem(section);
+
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {
             refreshPopup();
