@@ -163,6 +163,94 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockRow.activatable_widget = clockSwitch;
         clockGroup.add(clockRow);
 
+        // --- Presets ---
+        if (!config.presets || typeof config.presets !== 'object')
+            config.presets = {};
+        if (!config.presets.default) {
+            config.presets.default = {
+                zones: {
+                    left: ['activities', 'workspaces', 'cpu'],
+                    center: ['clock'],
+                    right: ['networkSpeed', 'volume', 'battery', 'quicksettings'],
+                },
+            };
+        }
+        if (!config.activePreset || !config.presets[config.activePreset])
+            config.activePreset = 'default';
+
+        const presetsGroup = new Adw.PreferencesGroup({
+            title: 'Presets',
+            description: 'Switch zone layouts live. The Modules page edits the active preset. Re-open prefs after switching to refresh zone lists.',
+        });
+        generalPage.add(presetsGroup);
+
+        const presetNames = () => Object.keys(config.presets).sort();
+
+        const presetRow = new Adw.ComboRow({
+            title: 'Active preset',
+        });
+        const fillPresetModel = () => {
+            const model = new Gtk.StringList();
+            for (const name of presetNames())
+                model.append(name);
+            presetRow.model = model;
+            const names = presetNames();
+            presetRow.selected = Math.max(0, names.indexOf(config.activePreset));
+        };
+        fillPresetModel();
+        presetRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            const names = presetNames();
+            const i = presetRow.selected;
+            if (i < 0 || i >= names.length) return;
+            const name = names[i];
+            if (name === config.activePreset) return;
+            config.activePreset = name;
+            store.save(config);
+        });
+        presetsGroup.add(presetRow);
+
+        const duplicateRow = new Adw.EntryRow({
+            title: 'Save copy as…',
+            text: '',
+            show_apply_button: true,
+        });
+        duplicateRow.connect('apply', () => {
+            if (syncingExternal) return;
+            let name = (duplicateRow.get_text() || '').trim();
+            if (!name) return;
+            name = name.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'preset';
+            const current = config.presets[config.activePreset];
+            if (!current) return;
+            config.presets[name] = JSON.parse(JSON.stringify(current));
+            config.activePreset = name;
+            store.save(config);
+            fillPresetModel();
+            duplicateRow.text = '';
+        });
+        presetsGroup.add(duplicateRow);
+
+        const deleteRow = new Adw.ActionRow({
+            title: 'Delete active preset',
+            subtitle: 'Cannot delete "default"',
+        });
+        const deleteBtn = new Gtk.Button({
+            label: 'Delete',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['destructive-action'],
+        });
+        deleteBtn.connect('clicked', () => {
+            if (syncingExternal) return;
+            const name = config.activePreset;
+            if (name === 'default' || !config.presets[name]) return;
+            delete config.presets[name];
+            config.activePreset = 'default';
+            store.save(config);
+            fillPresetModel();
+        });
+        deleteRow.add_suffix(deleteBtn);
+        presetsGroup.add(deleteRow);
+
         // --- PAGE 2: Modules ---
         const modulesPage = new Adw.PreferencesPage({
             title: 'Modules',
