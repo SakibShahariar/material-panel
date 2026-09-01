@@ -1213,9 +1213,13 @@ function powerRow(menu = null) {
 /** QS Wi-Fi: compact full-width strip + optional saved-network list (sibling menu item). */
 function wifiQsBlock() {
     const row = new St.BoxLayout({
-        style_class: 'material-panel-qs-wifi-row',
+        style_class: 'material-panel-qs-tile material-panel-qs-wifi-row',
         x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
+        y_align: Clutter.ActorAlign.FILL,
+        height: 48,
+        width: 148,
     });
 
     const mainBtn = new St.Button({
@@ -1456,7 +1460,10 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    // Homogeneous 2×2 toggle grid
+    // 2-column grid: every tile is 1×1 (same size). Order left→right, top→bottom.
+    //   [ Dark ] [ DND  ]
+    //   [ Night] [ BT   ]
+    //   [ Wi-Fi] [      ]  ← empty cell ok; Wi-Fi same footprint as others
     const grid = new St.Widget({
         style_class: 'material-panel-qs-grid',
         x_expand: true,
@@ -1468,24 +1475,27 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }),
     });
     const gl = grid.layout_manager;
-    const btTile = bluetoothTile();
-    gl.attach(darkModeTile(), 0, 0, 1, 1);
-    gl.attach(dndTile(), 1, 0, 1, 1);
-    gl.attach(nightLightTile(), 0, 1, 1, 1);
-    gl.attach(btTile, 1, 1, 1, 1);
+    const tiles = [
+        darkModeTile(),
+        dndTile(),
+        nightLightTile(),
+        bluetoothTile(),
+        wifiQsBlock(),
+    ];
+    const btTile = tiles[3];
+    const wifiRow = tiles[4];
+    tiles.forEach((tile, i) => {
+        gl.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
+    });
 
     menu.addMenuItem(wrapAsMenuItem(qsSection(null, grid)));
 
-    // Bluetooth devices: full width under grid
+    // Expand panels under grid (not part of cell size)
     if (btTile.devicePanel) {
         const devicesItem = wrapAsMenuItem(btTile.devicePanel);
         devicesItem.visible = false;
         menu.addMenuItem(devicesItem);
     }
-
-    // Wi-Fi strip (full width) + list as separate collapsible menu item
-    const wifiRow = wifiQsBlock();
-    menu.addMenuItem(wrapAsMenuItem(wifiRow));
     if (wifiRow.listPanel) {
         const wifiListItem = wrapAsMenuItem(wifiRow.listPanel);
         wifiListItem.visible = false;
