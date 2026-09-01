@@ -418,3 +418,15 @@
 }
 .material-panel-cpu-popup-thermal { spacing: 2px; padding: 0 10px 8px 10px; }
 .material-panel-cpu-popup-thermal-row { font-size: 12px; }
+
+.material-panel-clock-cal-grid { width: 240px; }
+.material-panel-clock-cal-day { font-size: 12px; border-radius: 16px; width: 32px; height: 32px; }
+.material-panel-qs-profile-prefs { padding: 6px; border-radius: 999px; }
+
+/* Foreign status indicators adopted into the panel */
+.material-panel-foreign {
+    spacing: 2px;
+}
+.material-panel-foreign-inner {
+    background-color: transparent;
+}
