@@ -92,6 +92,20 @@ function wrapAsMenuItem(actor) {
     return item;
 }
 
+/** Vertical stack used as a QS section (consistent 8px spacing). */
+function qsSection(styleExtra, ...children) {
+    const box = new St.BoxLayout({
+        vertical: true,
+        x_expand: true,
+        style_class: `material-panel-qs-section${styleExtra ? ' ' + styleExtra : ''}`,
+    });
+    for (const child of children) {
+        if (child)
+            box.add_child(child);
+    }
+    return box;
+}
+
 // Uses GNOME Shell's own Slider actor (same one the stock quick settings
 // menu uses) rather than building a custom drag widget from scratch.
 function volumeSliderRow() {
@@ -140,16 +154,8 @@ function volumeSliderRow() {
         initialValue: 0,
         onChange: value => {
             const pct = Math.round(value * 100);
-            if (sink) {
+            if (sink)
                 sink.volume = value * control.get_vol_max_norm();
-                // Gvc requires explicit push after set_volume — setter
-                // alone only changes the GObject property locally (GIR:
-                // Gvc-1.0.gir:3002 volume setter=set_volume, push at 2736)
-                // and never talks to Pulse/WirePlumber. This is why the
-                // slider moved visually but `wpctl get-volume` never changed.
-                if (typeof sink.push_volume === 'function')
-                    sink.push_volume();
-            }
             updateIconIfChanged(pct);
             pctLabel.text = `${pct}%`;
         },
@@ -1165,13 +1171,23 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     addPopupDismiss(menu, button);
 
-    menu.addMenuItem(wrapAsMenuItem(buildProfileCard()));
-    menu.addMenuItem(wrapAsMenuItem(buildMediaPlayerRow()));
-    menu.addMenuItem(wrapAsMenuItem(volumeSliderRow()));
-    menu.addMenuItem(wrapAsMenuItem(brightnessSliderRow()));
+    // Section: identity + media
+    menu.addMenuItem(wrapAsMenuItem(qsSection(
+        null,
+        buildProfileCard(),
+        buildMediaPlayerRow(),
+    )));
+
+    // Section: volume + brightness
+    menu.addMenuItem(wrapAsMenuItem(qsSection(
+        'material-panel-qs-section-sliders',
+        volumeSliderRow(),
+        brightnessSliderRow(),
+    )));
+
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    // Homogeneous 2×2 grid — equal cell size regardless of label/chevron natural width
+    // Homogeneous 2×2 toggle grid
     const grid = new St.Widget({
         style_class: 'material-panel-qs-grid',
         x_expand: true,
@@ -1184,17 +1200,14 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     });
     const gl = grid.layout_manager;
     const btTile = bluetoothTile();
-    const tDark = darkModeTile();
-    const tDnd = dndTile();
-    const tNight = nightLightTile();
-    gl.attach(tDark, 0, 0, 1, 1);
-    gl.attach(tDnd, 1, 0, 1, 1);
-    gl.attach(tNight, 0, 1, 1, 1);
+    gl.attach(darkModeTile(), 0, 0, 1, 1);
+    gl.attach(dndTile(), 1, 0, 1, 1);
+    gl.attach(nightLightTile(), 0, 1, 1, 1);
     gl.attach(btTile, 1, 1, 1, 1);
 
-    menu.addMenuItem(wrapAsMenuItem(grid));
+    menu.addMenuItem(wrapAsMenuItem(qsSection(null, grid)));
 
-    // Bluetooth devices: full popup width under the grid (not inside col2)
+    // Bluetooth devices: full width under grid
     if (btTile.devicePanel) {
         const devicesItem = wrapAsMenuItem(btTile.devicePanel);
         devicesItem.visible = false;
@@ -1203,7 +1216,10 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    menu.addMenuItem(wrapAsMenuItem(powerRow()));
+    menu.addMenuItem(wrapAsMenuItem(qsSection(
+        'material-panel-qs-section-power',
+        powerRow(),
+    )));
 
     button.connect('clicked', () => menu.toggle());
     button.connect('destroy', () => menu.destroy());

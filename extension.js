@@ -1,7 +1,7 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {ConfigStore} from './lib/configStore.js';
+import {ConfigStore, resolveColorSource} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {ThemeManager} from './lib/theme.js';
@@ -48,18 +48,21 @@ export default class MaterialPanelExtension extends Extension {
     // on config.json changes, and on matugen output changes.
     _applyTheme() {
         const panelSize = this._config.panelSize ?? {};
-        this._theme.apply(this._config.colorSource ?? null, panelSize);
+        // Auto-detect matugen when colorSource is null; empty string forces fixed palette
+        const colorSource = resolveColorSource(this._config.colorSource);
+        this._theme.apply(colorSource, panelSize);
         this._builder.render(this._config);
-        if (this._config.colorSource) {
-            log(`material-panel: setting up matugen watch on "${this._config.colorSource}"`);
-            this._theme.watch(this._config.colorSource, () => {
+        if (colorSource) {
+            log(`material-panel: setting up matugen watch on "${colorSource}"`);
+            this._theme.watch(colorSource, () => {
                 log('material-panel: matugen watch callback fired, reapplying theme');
                 const freshSize = this._config.panelSize ?? {};
-                this._theme.apply(this._config.colorSource, freshSize);
+                const freshSource = resolveColorSource(this._config.colorSource);
+                this._theme.apply(freshSource, freshSize);
                 this._builder.render(this._config);
             });
         } else {
-            log('material-panel: no colorSource configured, skipping matugen watch setup');
+            log('material-panel: no colorSource (fixed palette), skipping matugen watch');
         }
     }
 

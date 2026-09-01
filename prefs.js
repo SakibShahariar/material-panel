@@ -288,7 +288,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const themeGroup = new Adw.PreferencesGroup({
             title: 'Color Source',
-            description: 'Path to matugen’s generated CSS. Leave empty for the built-in fixed palette. Matugen generates colors from your wallpaper.',
+            description: 'Leave empty to auto-use ~/.config/matugen/matugen-colors.css when that file exists, otherwise the fixed palette. Set a path to force matugen, or clear and save to prefer fixed when no matugen file is present.',
         });
         appearancePage.add(themeGroup);
 
