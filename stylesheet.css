@@ -117,13 +117,25 @@
     padding: 4px 0;
 }
 
+/* Single surface: content box only (actor transparent = no double bg) */
 .material-panel-qs-popup {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+.material-panel-qs-popup .popup-menu-content {
     border-radius: 24px;
     padding: 12px;
 }
 .material-panel-qs-popup .popup-menu-item {
     padding: 0;
     margin: 0;
+    background-color: transparent;
+}
+.material-panel-qs-popup .popup-menu-item:hover,
+.material-panel-qs-popup .popup-menu-item:focus {
+    background-color: transparent;
 }
 .material-panel-qs-popup .popup-separator-menu-item {
     padding: 4px 0;
