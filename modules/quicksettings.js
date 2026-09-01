@@ -1285,6 +1285,16 @@ function wifiQsBlock() {
             icon.gicon = Gio.FileIcon.new(
                 Gio.File.new_for_path(on ? iconPathOnAccent(key) : iconPath(key)));
         } catch (e) {}
+        // Chevron uses on-primary (onAccent) when tile is active
+        try {
+            if (on) {
+                dropBtn.add_style_class_name('active-drop');
+                dropIcon.add_style_class_name('on-accent');
+            } else {
+                dropBtn.remove_style_class_name('active-drop');
+                dropIcon.remove_style_class_name('on-accent');
+            }
+        } catch (e) {}
     };
 
     const rebuildList = () => {

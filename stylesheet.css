@@ -393,3 +393,28 @@
     border-radius: 14px;
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* CPU popup */
+.material-panel-cpu-popup-header { spacing: 8px; padding: 6px 10px 4px 10px; min-width: 220px; }
+.material-panel-cpu-popup-title { font-size: 14px; font-weight: 700; }
+.material-panel-cpu-popup-summary { spacing: 12px; }
+.material-panel-cpu-popup-stat { spacing: 2px; }
+.material-panel-cpu-popup-label { font-size: 10px; opacity: 0.7; }
+.material-panel-cpu-popup-value { font-size: 18px; font-weight: 600; }
+.material-panel-cpu-popup-section-title { font-size: 11px; font-weight: 600; padding: 4px 10px; opacity: 0.75; }
+.material-panel-cpu-popup-cores { spacing: 4px; padding: 0 10px 6px 10px; }
+.material-panel-cpu-popup-core-row { spacing: 8px; }
+.material-panel-cpu-popup-core-name { font-size: 11px; min-width: 16px; opacity: 0.7; }
+.material-panel-cpu-popup-core-value { font-size: 11px; font-weight: 600; min-width: 36px; }
+.material-panel-cpu-popup-bar-bg {
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+.material-panel-cpu-popup-bar-fill {
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.55);
+}
+.material-panel-cpu-popup-thermal { spacing: 2px; padding: 0 10px 8px 10px; }
+.material-panel-cpu-popup-thermal-row { font-size: 12px; }

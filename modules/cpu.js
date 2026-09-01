@@ -284,130 +284,160 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     readAll();
 
+    let refreshPopup = (_data) => {}; // assigned after popup widgets exist
+
     let updateLabels = () => {
-        const {totalPct} = readAll();
+        // Single sample per tick — calling readAll twice ate the delta (popup stuck ~0%)
+        const data = readAll();
+        const totalPct = data.totalPct;
         let temp = readTemp(tempPath);
         if (temp === null) temp = readTempHwmon();
         if (totalPct !== null) cpuLabel.text = `${totalPct}%`;
         else cpuLabel.text = '—';
         if (temp !== null) tempLabel.text = `${temp}°C`;
         else tempLabel.text = '';
-        try { button.set_tooltip_text(`CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : '—'}`); } catch (e) {}
+        try {
+            button.set_tooltip_text(
+                `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : '—'}`);
+        } catch (e) {}
+        try {
+            if (menu && menu.isOpen)
+                refreshPopup({...data, temp});
+        } catch (e) {}
         return GLib.SOURCE_CONTINUE;
     };
 
-    updateLabels();
-    const timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
+    // menu created below; timer uses updateLabels which calls refreshPopup when open
 
-    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    // Live-updating popup content (no full rebuild / no Refresh button)
+    // Live-updating popup — one sample path, no second readAll()
     const usageValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const tempValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const loadValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const coreLabels = [];
     const thermalCurrent = new St.Label({text: 'Current: —', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalHigh = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalCrit = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
+    const coresGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-cores'});
+    const coreLabels = [];
 
-    {
-        const header = new PopupMenu.PopupMenuSection();
-        const headerBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-header'});
-        headerBox.add_child(new St.Label({text: 'CPU', style_class: 'material-panel-cpu-popup-title'}));
-        const summary = new St.BoxLayout({vertical: false, style_class: 'material-panel-cpu-popup-summary'});
-        const usageBox = new St.BoxLayout({vertical: true});
-        usageBox.add_child(new St.Label({text: 'Usage', style_class: 'material-panel-cpu-popup-label'}));
-        usageBox.add_child(usageValue);
-        summary.add_child(usageBox);
-        const tempBox = new St.BoxLayout({vertical: true});
-        tempBox.add_child(new St.Label({text: 'Temp', style_class: 'material-panel-cpu-popup-label'}));
-        tempBox.add_child(tempValue);
-        summary.add_child(tempBox);
-        const loadBox = new St.BoxLayout({vertical: true});
-        loadBox.add_child(new St.Label({text: 'Load', style_class: 'material-panel-cpu-popup-label'}));
-        loadBox.add_child(loadValue);
-        summary.add_child(loadBox);
-        headerBox.add_child(summary);
-        header.actor.add_child(headerBox);
-        menu.addMenuItem(header);
-        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    const header = new PopupMenu.PopupMenuSection();
+    const headerBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-header', x_expand: true});
+    headerBox.add_child(new St.Label({text: 'CPU', style_class: 'material-panel-cpu-popup-title'}));
+    const summary = new St.BoxLayout({vertical: false, style_class: 'material-panel-cpu-popup-summary', x_expand: true});
+    for (const [title, widget] of [['Usage', usageValue], ['Temp', tempValue], ['Load', loadValue]]) {
+        const col = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-stat', x_expand: true});
+        col.add_child(new St.Label({text: title, style_class: 'material-panel-cpu-popup-label'}));
+        col.add_child(widget);
+        summary.add_child(col);
     }
+    headerBox.add_child(summary);
+    header.actor.add_child(headerBox);
+    menu.addMenuItem(header);
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-    // Core rows built once; values updated live
-    {
-        const {cores} = readAll();
-        const coresSection = new PopupMenu.PopupMenuSection();
-        coresSection.actor.add_child(new St.Label({text: 'Per Core', style_class: 'material-panel-cpu-popup-section-title'}));
-        const grid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-cores'});
-        const n = Math.max(cores?.length || 0, 1);
-        for (let i = 0; i < n; i++) {
+    const coresSection = new PopupMenu.PopupMenuSection();
+    const coresTitle = new St.Label({text: 'Per core', style_class: 'material-panel-cpu-popup-section-title'});
+    coresSection.actor.add_child(coresTitle);
+    coresSection.actor.add_child(coresGrid);
+    menu.addMenuItem(coresSection);
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+    const thermalSection = new PopupMenu.PopupMenuSection();
+    thermalSection.actor.add_child(new St.Label({
+        text: zoneName ? `Thermal · ${zoneName}` : 'Thermal',
+        style_class: 'material-panel-cpu-popup-section-title',
+    }));
+    const thermalGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
+    thermalGrid.add_child(thermalCurrent);
+    thermalGrid.add_child(thermalHigh);
+    thermalGrid.add_child(thermalCrit);
+    thermalSection.actor.add_child(thermalGrid);
+    menu.addMenuItem(thermalSection);
+
+    const ensureCoreRows = (n) => {
+        while (coreLabels.length < n) {
+            const i = coreLabels.length;
             const row = new St.BoxLayout({style_class: 'material-panel-cpu-popup-core-row', x_expand: true});
-            row.add_child(new St.Label({text: `CPU${i}`, style_class: 'material-panel-cpu-popup-core-name'}));
-            const val = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-core-value', x_expand: true});
-            coreLabels.push(val);
+            row.add_child(new St.Label({text: `${i}`, style_class: 'material-panel-cpu-popup-core-name'}));
+            // simple bar + pct
+            const barBg = new St.Widget({
+                style_class: 'material-panel-cpu-popup-bar-bg',
+                x_expand: true,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            const barFill = new St.Widget({
+                style_class: 'material-panel-cpu-popup-bar-fill',
+                height: 6,
+            });
+            barBg.add_child(barFill);
+            const val = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-core-value'});
+            row.add_child(barBg);
             row.add_child(val);
-            grid.add_child(row);
+            coresGrid.add_child(row);
+            coreLabels.push({val, barFill, barBg});
         }
-        coresSection.actor.add_child(grid);
-        menu.addMenuItem(coresSection);
-        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-    }
+        coresTitle.visible = n > 0;
+        coresGrid.visible = n > 0;
+    };
 
-    {
-        const thermalSection = new PopupMenu.PopupMenuSection();
-        thermalSection.actor.add_child(new St.Label({
-            text: zoneName ? `Thermal (${zoneName})` : 'Thermal',
-            style_class: 'material-panel-cpu-popup-section-title',
-        }));
-        const thermalGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
-        thermalGrid.add_child(thermalCurrent);
-        thermalGrid.add_child(thermalHigh);
-        thermalGrid.add_child(thermalCrit);
-        thermalSection.actor.add_child(thermalGrid);
-        menu.addMenuItem(thermalSection);
-    }
-
-    const refreshPopup = () => {
-        const {totalPct, cores} = readAll();
-        let temp = readTemp(tempPath);
-        if (temp === null) temp = readTempHwmon();
+    refreshPopup = (data = null) => {
+        // Prefer data from the same tick; only sample if opened mid-cycle
+        let totalPct, cores, temp;
+        if (data && data.totalPct !== undefined) {
+            totalPct = data.totalPct;
+            cores = data.cores;
+            temp = data.temp;
+        } else {
+            ({totalPct, cores} = readAll());
+            temp = readTemp(tempPath);
+            if (temp === null) temp = readTempHwmon();
+        }
         const load = readLoadAvg();
         const trips = zoneName ? readTripPoints(zoneName) : {high: null, critical: null};
-        usageValue.text = totalPct !== null ? `${totalPct}%` : '—';
+
+        usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
         tempValue.text = temp !== null ? `${temp}°C` : '—';
-        if (load)
-            loadValue.text = `${load.load1} ${load.load5} ${load.load15}`;
-        else
-            loadValue.text = '—';
-        if (cores) {
-            for (let i = 0; i < coreLabels.length; i++) {
-                const c = cores[i];
-                // cores may be numbers or objects
-                const pct = typeof c === 'object' ? c?.pct : c;
-                coreLabels[i].text = pct != null ? `${pct}%` : '—';
+        loadValue.text = load ? `${load.load1}` : '—';
+        try {
+            loadValue.set_tooltip_text(load ? `1 / 5 / 15 min: ${load.load1} ${load.load5} ${load.load15}` : '');
+        } catch (e) {}
+
+        const list = Array.isArray(cores) ? cores : [];
+        ensureCoreRows(list.length);
+        for (let i = 0; i < coreLabels.length; i++) {
+            const c = list[i];
+            const pct = c && typeof c === 'object' ? c.pct : c;
+            const {val, barFill, barBg} = coreLabels[i];
+            if (pct != null) {
+                val.text = `${pct}%`;
+                const w = Math.max(0, Math.min(100, pct));
+                try {
+                    const bw = barBg.width > 1 ? barBg.width : 80;
+                    barFill.width = Math.round((bw * w) / 100);
+                } catch (e) {
+                    barFill.width = Math.round(w * 0.8);
+                }
+            } else {
+                val.text = '…';
+                barFill.width = 0;
             }
         }
-        thermalCurrent.text = `Current: ${temp !== null ? temp + '°C' : '—'}`;
-        thermalHigh.text = trips.high != null ? `High: ${trips.high}°C` : '';
-        thermalCrit.text = trips.critical != null ? `Critical: ${trips.critical}°C` : '';
+
+        thermalCurrent.text = `Now  ${temp !== null ? temp + '°C' : '—'}`;
+        thermalHigh.text = trips.high != null ? `High  ${trips.high}°C` : '';
+        thermalCrit.text = trips.critical != null ? `Crit  ${trips.critical}°C` : '';
     };
 
-    // Drive popup from same 2s timer when open
-    const prevUpdateLabels = updateLabels;
-    updateLabels = () => {
-        const r = prevUpdateLabels();
-        if (menu.isOpen)
-            refreshPopup();
-        return r;
-    };
-    refreshPopup();
+    updateLabels();
+    const timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
     menu.connect('open-state-changed', (_m, open) => {
         if (open)
-            refreshPopup();
+            refreshPopup(); // may show … for one tick until next sample
     });
 
     button.connect('clicked', () => menu.toggle());

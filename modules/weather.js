@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 // Weather via Open-Meteo (no API key). Location from config later; for now
@@ -89,9 +89,11 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     let gicon;
     try {
-        const p = iconPath('weather');
-        gicon = Gio.File.new_for_path(p).query_exists(null)
-            ? Gio.FileIcon.new(Gio.File.new_for_path(p))
+        let pth = iconPathPrimary('weather');
+        if (!Gio.File.new_for_path(pth).query_exists(null))
+            pth = iconPath('weather');
+        gicon = Gio.File.new_for_path(pth).query_exists(null)
+            ? Gio.FileIcon.new(Gio.File.new_for_path(pth))
             : Gio.ThemedIcon.new('weather-few-clouds-symbolic');
     } catch (e) {
         gicon = Gio.ThemedIcon.new('weather-few-clouds-symbolic');
@@ -119,9 +121,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     const setIconKey = key => {
         try {
-            const p = iconPath(key);
-            if (Gio.File.new_for_path(p).query_exists(null))
-                icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
+            // Prefer primary (accent) tint for the panel chip
+            let pth = iconPathPrimary(key);
+            if (!Gio.File.new_for_path(pth).query_exists(null))
+                pth = iconPath(key);
+            if (Gio.File.new_for_path(pth).query_exists(null))
+                icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(pth));
         } catch (e) {}
     };
 
