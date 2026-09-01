@@ -8,6 +8,7 @@ import {ConfigStore} from './lib/configStore.js';
 // module (St, Clutter, Main, …) which only exist inside gnome-shell.
 // Preferences run in a separate GTK process and cannot load those typelibs.
 import {hasBuiltin} from './lib/moduleIds.js';
+import {readStatusRolesFile} from './lib/statusRolesFile.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const ALL_MODULES = [
@@ -396,6 +397,58 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     row.add_suffix(removeBtn);
                     group.add(row);
                 });
+            }
+        }
+
+
+        // --- PAGE: Tray / foreign indicators ---
+        if (!Array.isArray(config.hiddenForeignRoles))
+            config.hiddenForeignRoles = [];
+
+        const trayPage = new Adw.PreferencesPage({
+            title: 'Tray',
+            icon_name: 'view-list-symbolic',
+        });
+        window.add(trayPage);
+
+        const trayGroup = new Adw.PreferencesGroup({
+            title: 'Status icons',
+            description: 'Toggle off to hide from the panel. Reopen after shell reload if the list is empty.',
+        });
+        trayPage.add(trayGroup);
+
+        const discovered = readStatusRolesFile();
+        const known = new Set([
+            ...discovered,
+            ...(config.hiddenForeignRoles ?? []),
+        ]);
+        const roleList = [...known].sort();
+
+        if (roleList.length === 0) {
+            trayGroup.add(new Adw.ActionRow({
+                title: 'No icons discovered yet',
+                subtitle: 'Reload the shell, wait a moment, then reopen settings',
+            }));
+        } else {
+            for (const role of roleList) {
+                const row = new Adw.ActionRow({title: role});
+                const sw = new Gtk.Switch({
+                    active: !(config.hiddenForeignRoles ?? []).includes(role),
+                    valign: Gtk.Align.CENTER,
+                });
+                sw.connect('notify::active', () => {
+                    if (syncingExternal) return;
+                    const hidden = new Set(config.hiddenForeignRoles ?? []);
+                    if (sw.active)
+                        hidden.delete(role);
+                    else
+                        hidden.add(role);
+                    config.hiddenForeignRoles = [...hidden].sort();
+                    store.save(config);
+                });
+                row.add_suffix(sw);
+                row.activatable_widget = sw;
+                trayGroup.add(row);
             }
         }
 

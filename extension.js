@@ -13,6 +13,9 @@ export default class MaterialPanelExtension extends Extension {
 
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
+        try {
+            this._bridge.setUserHiddenRoles(this._config.hiddenForeignRoles ?? []);
+        } catch (e) {}
 
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
@@ -51,6 +54,9 @@ export default class MaterialPanelExtension extends Extension {
         // Auto-detect matugen when colorSource is null; empty string forces fixed palette
         const colorSource = resolveColorSource(this._config.colorSource);
         this._theme.apply(colorSource, panelSize);
+        try {
+            this._bridge.setUserHiddenRoles(this._config.hiddenForeignRoles ?? []);
+        } catch (e) {}
         this._builder.render(this._config);
         if (colorSource) {
             log(`material-panel: setting up matugen watch on "${colorSource}"`);

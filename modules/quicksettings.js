@@ -1163,25 +1163,6 @@ function openExtensionPrefs() {
 function powerRow(menu = null) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-power-row', x_expand: true});
 
-    // Extension settings (opens prefs dialog)
-    const prefsBtn = new St.Button({
-        style_class: 'material-panel-qs-power-btn',
-        reactive: true,
-        x_expand: true,
-        child: new St.Icon({
-            icon_size: 18,
-            y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('settings'))),
-        }),
-    });
-    prefsBtn.connect('clicked', () => {
-        openExtensionPrefs();
-        if (menu) {
-            try { menu.close(); } catch (e) {}
-        }
-    });
-    row.add_child(prefsBtn);
-
     for (const {iconKey, command} of POWER_ACTIONS) {
         const btn = new St.Button({
             style_class: 'material-panel-qs-power-btn',
@@ -1457,7 +1438,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     // Section: identity + media
     menu.addMenuItem(wrapAsMenuItem(qsSection(
         null,
-        buildProfileCard(),
+        buildProfileCard({
+            onPrefs: () => {
+                openExtensionPrefs();
+                try { menu.close(); } catch (e) {}
+            },
+        }),
         buildMediaPlayerRow(),
     )));
 

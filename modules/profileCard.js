@@ -2,6 +2,9 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import {iconPath} from '../lib/iconTheme.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -67,7 +70,7 @@ function buildAvatar(initial) {
     });
 }
 
-export function buildProfileCard() {
+export function buildProfileCard({onPrefs = null} = {}) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-profile', x_expand: true});
 
     const username = GLib.get_user_name() || 'user';
@@ -89,6 +92,24 @@ export function buildProfileCard() {
 
     row.add_child(avatar);
     row.add_child(textBox);
+
+    // Settings gear — top of QS, inside user info card
+    if (onPrefs) {
+        const prefsBtn = new St.Button({
+            style_class: 'material-panel-qs-profile-prefs',
+            reactive: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: new St.Icon({
+                icon_size: 18,
+                y_align: Clutter.ActorAlign.CENTER,
+                gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('settings'))),
+            }),
+        });
+        prefsBtn.connect('clicked', () => {
+            try { onPrefs(); } catch (e) { logError(e, 'material-panel: profile prefs click'); }
+        });
+        row.add_child(prefsBtn);
+    }
 
     const updateUptime = () => {
         const secs = readUptimeSeconds();

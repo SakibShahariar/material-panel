@@ -7,6 +7,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
+const CELL = 32; // fixed day cell size — avoids x_expand collapse in popup menus
+
 function formatNow(use12h) {
     const now = GLib.DateTime.new_now_local();
     const fmt = use12h ? '%a, %d %b  %l:%M %p' : '%a, %d %b  %H:%M';
@@ -25,7 +27,6 @@ function buildCalendarActor(year, month) {
     const outer = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-clock-cal',
-        x_expand: true,
     });
     const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
     outer.add_child(new St.Label({
@@ -33,16 +34,29 @@ function buildCalendarActor(year, month) {
         style_class: 'material-panel-clock-cal-title',
     }));
 
-    const dow = new St.BoxLayout({style_class: 'material-panel-clock-cal-dow', x_expand: true});
-    for (const d of ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']) {
-        dow.add_child(new St.Label({
-            text: d,
+    const grid = new St.Widget({
+        style_class: 'material-panel-clock-cal-grid',
+        layout_manager: new Clutter.GridLayout({
+            column_homogeneous: true,
+            row_homogeneous: true,
+            column_spacing: 2,
+            row_spacing: 2,
+        }),
+    });
+    const gl = grid.layout_manager;
+
+    const days = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    for (let c = 0; c < 7; c++) {
+        const lab = new St.Label({
+            text: days[c],
             style_class: 'material-panel-clock-cal-dow-label',
-            x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
-        }));
+            y_align: Clutter.ActorAlign.CENTER,
+            width: CELL,
+            height: 20,
+        });
+        gl.attach(lab, c, 0, 1, 1);
     }
-    outer.add_child(dow);
 
     const startDow = first.get_day_of_week(); // 1=Mon..7=Sun
     const dim = daysInMonth(year, month);
@@ -51,26 +65,30 @@ function buildCalendarActor(year, month) {
     const todayDay = today.get_day_of_month();
 
     let day = 1;
-    for (let row = 0; row < 6 && day <= dim; row++) {
-        const line = new St.BoxLayout({style_class: 'material-panel-clock-cal-row', x_expand: true});
+    for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 7; col++) {
             const cellIndex = row * 7 + col;
-            const cell = new St.Label({
-                text: ' ',
+            const cell = new St.Button({
                 style_class: 'material-panel-clock-cal-day',
-                x_expand: true,
+                reactive: false,
+                width: CELL,
+                height: CELL,
                 x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
             });
             if (cellIndex >= startDow - 1 && day <= dim) {
-                cell.text = String(day);
+                cell.set_label(String(day));
                 if (isThisMonth && day === todayDay)
                     cell.add_style_class_name('today');
                 day++;
             }
-            line.add_child(cell);
+            gl.attach(cell, col, row + 1, 1, 1);
         }
-        outer.add_child(line);
+        if (day > dim)
+            break;
     }
+
+    outer.add_child(grid);
     return outer;
 }
 
@@ -107,15 +125,13 @@ export function buildClock() {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    // Build content once; refresh labels/calendar on open
     const body = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-clock-popup-body',
-        x_expand: true,
     });
     const timeLabel = new St.Label({text: '—', style_class: 'material-panel-clock-popup-time'});
     const dateLabel = new St.Label({text: '—', style_class: 'material-panel-clock-popup-date'});
-    const calHost = new St.BoxLayout({vertical: true, style_class: 'material-panel-clock-cal-host', x_expand: true});
+    const calHost = new St.BoxLayout({vertical: true, style_class: 'material-panel-clock-cal-host'});
     body.add_child(timeLabel);
     body.add_child(dateLabel);
     body.add_child(calHost);
