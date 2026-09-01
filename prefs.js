@@ -41,12 +41,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             config.panelSize.gapBottom = Math.max(0, config.panelSize.gap - 1);
             delete config.panelSize.gap;
         }
-        const panelSize = {
-            scale: config.panelSize?.scale ?? 1.0,
-            gapTop: config.panelSize?.gapTop ?? 5,
-            gapBottom: config.panelSize?.gapBottom ?? 4,
-        };
-        config.panelSize = panelSize;
+        // Clamp like ConfigStore — `0 ?? 1.0` is still 0 (?? only skips nullish)
+        {
+            const raw = config.panelSize ?? {};
+            let scale = Number(raw.scale);
+            if (!Number.isFinite(scale) || scale < 0.7 || scale > 1.5)
+                scale = 1.0;
+            let gapTop = Number(raw.gapTop);
+            if (!Number.isFinite(gapTop))
+                gapTop = 5;
+            gapTop = Math.max(0, Math.min(14, Math.round(gapTop)));
+            let gapBottom = Number(raw.gapBottom);
+            if (!Number.isFinite(gapBottom))
+                gapBottom = 4;
+            gapBottom = Math.max(0, Math.min(14, Math.round(gapBottom)));
+            config.panelSize = {scale, gapTop, gapBottom};
+        }
+        const panelSize = config.panelSize;
 
         // Initialize hidden modules list if not present
         if (!config.hiddenModules) config.hiddenModules = [];
@@ -63,7 +74,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const sizeGroup = new Adw.PreferencesGroup({
             title: 'Panel Size',
-            description: 'Doesn\'t affect the quick settings popup, which is a separate surface.',
+            description: '',
         });
         generalPage.add(sizeGroup);
 
@@ -71,18 +82,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         const sliderMap = {};
         let syncingExternal = false;
 
-        const makeSliderRow = ({title, subtitle, key, min, max, step}) => {
+        const makeSliderRow = ({title, subtitle = null, key, min, max, step}) => {
             const formatValue = v => {
                 if (key === 'scale') return `${v.toFixed(2)}×`;
                 return `${Math.round(v)} px`;
             };
+            let initial = Number(panelSize[key]);
+            if (!Number.isFinite(initial))
+                initial = min;
+            initial = Math.max(min, Math.min(max, initial));
+            panelSize[key] = initial;
             const adjustment = new Gtk.Adjustment({
-                value: panelSize[key],
+                value: initial,
                 lower: min,
                 upper: max,
                 step_increment: step,
+                page_increment: step * 2,
             });
-            const row = new Adw.ActionRow({title, subtitle});
+            const row = new Adw.ActionRow({title});
             const scale = new Gtk.Scale({
                 orientation: Gtk.Orientation.HORIZONTAL,
                 adjustment,
@@ -106,7 +123,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             };
             scale.connect('value-changed', () => {
                 if (syncingExternal) return;
-                panelSize[key] = adjustment.value;
+                let v = Number(adjustment.value);
+                if (!Number.isFinite(v))
+                    return;
+                v = Math.max(min, Math.min(max, v));
+                if (key !== 'scale')
+                    v = Math.round(v);
+                panelSize[key] = v;
+                config.panelSize = panelSize;
                 updateValueLabel();
                 if (saveDebounceId)
                     GLib.source_remove(saveDebounceId);
@@ -124,23 +148,20 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         makeSliderRow({
             title: 'Size',
-            subtitle: 'Icon size and pill height together, so they always stay in proportion',
             key: 'scale', min: 0.7, max: 1.5, step: 0.05,
         });
         makeSliderRow({
             title: 'Top gap',
-            subtitle: 'Space above the pills (px)',
             key: 'gapTop', min: 0, max: 14, step: 1,
         });
         makeSliderRow({
             title: 'Bottom gap',
-            subtitle: 'Space below the pills — slightly less than top by default (px)',
             key: 'gapBottom', min: 0, max: 14, step: 1,
         });
 
         const clockGroup = new Adw.PreferencesGroup({
             title: 'Clock',
-            description: 'Time format on the panel clock module.',
+            description: '',
         });
         generalPage.add(clockGroup);
 
@@ -180,7 +201,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const presetsGroup = new Adw.PreferencesGroup({
             title: 'Presets',
-            description: 'Switch zone layouts live. The Modules page edits the active preset. Re-open prefs after switching to refresh zone lists.',
+            description: '',
         });
         generalPage.add(presetsGroup);
 
@@ -259,14 +280,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         window.add(modulesPage);
 
         const infoGroup = new Adw.PreferencesGroup({
-            description: `Editing preset "${config.activePreset}". Changes apply live — no need to restart the shell.\nConfig file: ${store.path}`,
+            description: `Preset: ${config.activePreset}`,
         });
         modulesPage.add(infoGroup);
 
         // Module visibility toggles
         const visibilityGroup = new Adw.PreferencesGroup({
             title: 'Module Visibility',
-            description: 'Toggle modules on/off. Disabled modules are hidden from the panel but can be re-enabled.',
+            description: '',
         });
         modulesPage.add(visibilityGroup);
 
@@ -370,13 +391,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         // --- PAGE 3: Appearance ---
         const appearancePage = new Adw.PreferencesPage({
             title: 'Appearance',
-            icon_name: 'preferences-desktop-theme-symbolic',
+            icon_name: 'applications-graphics-symbolic',
         });
         window.add(appearancePage);
 
         const themeGroup = new Adw.PreferencesGroup({
             title: 'Color Source',
-            description: 'Leave empty to auto-use ~/.config/matugen/matugen-colors.css when that file exists, otherwise the fixed palette. Set a path to force matugen, or clear and save to prefer fixed when no matugen file is present.',
+            description: 'Empty = auto matugen file if present, else fixed palette.',
         });
         appearancePage.add(themeGroup);
 
