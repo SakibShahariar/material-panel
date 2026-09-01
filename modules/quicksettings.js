@@ -73,6 +73,44 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     };
     refresh();
 
+    // Light press feedback (scale) — end-4/Caelestia-style, cheap in St
+    tile.connect('button-press-event', () => {
+        tile.set_pivot_point(0.5, 0.5);
+        tile.ease?.({
+            scale_x: 0.96,
+            scale_y: 0.96,
+            duration: 80,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+        try {
+            tile.scale_x = 0.96;
+            tile.scale_y = 0.96;
+        } catch (e) {}
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const restoreScale = () => {
+        try {
+            tile.scale_x = 1;
+            tile.scale_y = 1;
+        } catch (e) {}
+        try {
+            tile.ease?.({
+                scale_x: 1,
+                scale_y: 1,
+                duration: 120,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        } catch (e) {}
+    };
+    tile.connect('button-release-event', () => {
+        restoreScale();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    tile.connect('leave-event', () => {
+        restoreScale();
+        return Clutter.EVENT_PROPAGATE;
+    });
+
     tile.connect('clicked', () => {
         onToggle();
         refresh();
@@ -1182,6 +1220,25 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     addPopupDismiss(menu, button);
+
+    // Soft open/close opacity (St/Clutter; no blur on GNOME)
+    menu.actor.opacity = 0;
+    menu.connect('open-state-changed', (_m, open) => {
+        if (open) {
+            menu.actor.opacity = 0;
+            try {
+                menu.actor.ease({
+                    opacity: 255,
+                    duration: 160,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            } catch (e) {
+                menu.actor.opacity = 255;
+            }
+        } else {
+            menu.actor.opacity = 255;
+        }
+    });
 
     // Section: identity + media
     menu.addMenuItem(wrapAsMenuItem(qsSection(
