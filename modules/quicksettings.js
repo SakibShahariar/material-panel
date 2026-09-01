@@ -154,8 +154,20 @@ function volumeSliderRow() {
         initialValue: 0,
         onChange: value => {
             const pct = Math.round(value * 100);
-            if (sink)
-                sink.volume = value * control.get_vol_max_norm();
+            if (sink && control) {
+                // Gvc: assigning volume alone is a no-op until push_volume()
+                // ships it to Pulse/PipeWire (same as stock GNOME QS).
+                try {
+                    if (sink.is_muted && value > 0)
+                        sink.change_is_muted(false);
+                } catch (e) {}
+                sink.volume = Math.round(value * control.get_vol_max_norm());
+                try {
+                    sink.push_volume();
+                } catch (e) {
+                    logError(e, 'material-panel: sink.push_volume failed');
+                }
+            }
             updateIconIfChanged(pct);
             pctLabel.text = `${pct}%`;
         },
