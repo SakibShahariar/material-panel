@@ -419,26 +419,21 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const trayActions = new Adw.PreferencesGroup({title: 'Actions'});
         trayPage.add(trayActions);
-        const hideAllRow = new Adw.ActionRow({title: 'Hide all tray icons'});
-        const hideAllBtn = new Gtk.Button({
-            label: 'Hide all',
+        if (config.trayAllHidden == null)
+            config.trayAllHidden = false;
+        if (!config.foreignRoleZonesBackup || typeof config.foreignRoleZonesBackup !== 'object')
+            config.foreignRoleZonesBackup = {};
+
+        const hideAllRow = new Adw.ActionRow({
+            title: 'Hide all tray icons',
+            subtitle: 'Remembers each icon’s Left/Right setting when turned back on',
+        });
+        const hideAllSwitch = new Gtk.Switch({
+            active: !!config.trayAllHidden,
             valign: Gtk.Align.CENTER,
-            css_classes: ['destructive-action'],
         });
-        hideAllBtn.connect('clicked', () => {
-            if (syncingExternal) return;
-            const discovered = readStatusRolesFile();
-            const all = new Set([...discovered, ...Object.keys(config.foreignRoleZones)]);
-            for (const role of all)
-                config.foreignRoleZones[role] = 'hidden';
-            config.hiddenForeignRoles = [...all].sort();
-            store.save(config);
-            // Rebuild switches if possible — reopen prefs for full refresh
-            for (const {combo, role} of trayCombos) {
-                combo.selected = 2; // Hidden
-            }
-        });
-        hideAllRow.add_suffix(hideAllBtn);
+        hideAllRow.add_suffix(hideAllSwitch);
+        hideAllRow.activatable_widget = hideAllSwitch;
         trayActions.add(hideAllRow);
 
         const trayGroup = new Adw.PreferencesGroup({
@@ -484,12 +479,72 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     else
                         hidden.delete(role);
                     config.hiddenForeignRoles = [...hidden].sort();
+                    // Individual edit clears master "hide all"
+                    if (config.trayAllHidden && z !== 'hidden') {
+                        config.trayAllHidden = false;
+                        hideAllSwitch.active = false;
+                    }
+                    // Keep backup in sync for this role
+                    if (!config.foreignRoleZonesBackup)
+                        config.foreignRoleZonesBackup = {};
+                    if (z !== 'hidden')
+                        config.foreignRoleZonesBackup[role] = z;
                     store.save(config);
                 });
                 trayCombos.push({combo: row, role});
                 trayGroup.add(row);
             }
         }
+
+
+        hideAllSwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            if (hideAllSwitch.active) {
+                // Backup current non-hidden placements, then hide all
+                const backup = {};
+                const discovered = readStatusRolesFile();
+                const all = new Set([
+                    ...discovered,
+                    ...Object.keys(config.foreignRoleZones ?? {}),
+                ]);
+                for (const role of all) {
+                    const z = config.foreignRoleZones[role]
+                        ?? (config.hiddenForeignRoles?.includes(role) ? 'hidden' : 'right');
+                    backup[role] = z === 'hidden'
+                        ? (config.foreignRoleZonesBackup?.[role] ?? 'right')
+                        : z;
+                    config.foreignRoleZones[role] = 'hidden';
+                }
+                config.foreignRoleZonesBackup = backup;
+                config.trayAllHidden = true;
+                config.hiddenForeignRoles = [...all].sort();
+                for (const {combo} of trayCombos)
+                    combo.selected = 2;
+            } else {
+                // Restore from backup
+                const backup = config.foreignRoleZonesBackup ?? {};
+                const discovered = readStatusRolesFile();
+                const all = new Set([
+                    ...discovered,
+                    ...Object.keys(backup),
+                    ...Object.keys(config.foreignRoleZones ?? {}),
+                ]);
+                const hidden = [];
+                for (const role of all) {
+                    const z = backup[role] ?? 'right';
+                    config.foreignRoleZones[role] = z;
+                    if (z === 'hidden')
+                        hidden.push(role);
+                }
+                config.hiddenForeignRoles = hidden.sort();
+                config.trayAllHidden = false;
+                for (const {combo, role} of trayCombos) {
+                    const z = config.foreignRoleZones[role] ?? 'right';
+                    combo.selected = zoneToIndex(z);
+                }
+            }
+            store.save(config);
+        });
 
         // --- PAGE 3: Appearance ---
         const appearancePage = new Adw.PreferencesPage({
