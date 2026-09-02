@@ -57,13 +57,14 @@ export default class MaterialPanelExtension extends Extension {
         // Auto-detect matugen when colorSource is null; empty string forces fixed palette
         const colorSource = resolveColorSource(this._config.colorSource);
         this._theme.apply(colorSource, panelSize);
+        this._builder.render(this._config);
+        // After render: zones/claims exist — apply tray show/hide
         try {
             this._bridge.setForeignPlacements(
                 this._config.foreignRoleZones ?? {},
                 this._config.hiddenForeignRoles ?? [],
                 {allHidden: !!this._config.trayAllHidden});
         } catch (e) {}
-        this._builder.render(this._config);
         if (colorSource) {
             log(`material-panel: setting up matugen watch on "${colorSource}"`);
             this._theme.watch(colorSource, () => {
