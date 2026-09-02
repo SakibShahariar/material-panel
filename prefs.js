@@ -441,14 +441,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         if (config.trayAllHidden == null)
             config.trayAllHidden = false;
 
-        // One-time repair of old hide-all that wrote "hidden" on every role
+        // Old hide-all stamped every role "hidden" — clear so model B stays opt-in
         if (!config.trayAllHidden && config.foreignRoleZones) {
             const vals = Object.values(config.foreignRoleZones);
             if (vals.length && vals.every(v => v === 'hidden')) {
-                for (const r of Object.keys(config.foreignRoleZones)) {
-                    config.foreignRoleZones[r] = 'right';
-                    syncExtensionZone(config, r, 'right');
-                }
+                config.foreignRoleZones = {};
                 config.hiddenForeignRoles = [];
                 store.save(config);
             }
@@ -498,24 +495,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         } catch (e) {}
 
         const roleList = [...known].sort();
-        const ZONE_OPTIONS = ['Right', 'Left', 'Center', 'Hidden'];
-        const zoneToIndex = z => {
-            if (z === 'left') return 1;
-            if (z === 'center') return 2;
-            if (z === 'hidden') return 3;
-            return 0;
-        };
-        const indexToZone = i => {
-            if (i === 1) return 'left';
-            if (i === 2) return 'center';
-            if (i === 3) return 'hidden';
-            return 'right';
-        };
 
-        const setCombosSensitive = sensitive => {
-            for (const {combo} of trayCombos) {
-                try { combo.sensitive = sensitive; } catch (e) {}
-            }
+        const PLACE_OPTS = [
+            {id: 'right', label: 'R'},
+            {id: 'left', label: 'L'},
+            {id: 'center', label: 'C'},
+            {id: 'hidden', label: 'Off'},
+        ];
+
+        const setRolePlacement = (role, z) => {
+            config.foreignRoleZones = Object.assign(
+                {}, config.foreignRoleZones || {}, {[role]: z});
+            const hidden = new Set(config.hiddenForeignRoles ?? []);
+            if (z === 'hidden')
+                hidden.add(role);
+            else
+                hidden.delete(role);
+            config.hiddenForeignRoles = [...hidden].sort();
+            store.save(config);
         };
 
         if (roleList.length === 0) {
@@ -524,7 +521,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 subtitle: 'Reload the shell, then reopen settings',
             }));
         } else {
-            syncingExternal = true;
             for (const role of roleList) {
                 let current = config.foreignRoleZones[role];
                 if (!current) {
@@ -536,48 +532,60 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     else current = 'hidden';
                 }
 
-                const row = new Adw.ComboRow({
+                const row = new Adw.ActionRow({
                     title: friendlyRoleName(role),
                     subtitle: role,
                     sensitive: !config.trayAllHidden,
                 });
-                const model = new Gtk.StringList();
-                for (const o of ZONE_OPTIONS)
-                    model.append(o);
-                row.model = model;
-                row.selected = zoneToIndex(current === 'hidden' ? 'hidden' : current);
-                row.connect('notify::selected', () => {
-                    if (syncingExternal || config.trayAllHidden) return;
-                    const z = indexToZone(row.selected);
-                    // Plain object copy so JSON save always persists
-                    config.foreignRoleZones = Object.assign(
-                        {}, config.foreignRoleZones || {}, {[role]: z});
-                    const hidden = new Set(
-                        (config.hiddenForeignRoles ?? []).filter(r => r !== role));
-                    if (z === 'hidden')
-                        hidden.add(role);
-                    else
-                        hidden.delete(role);
-                    config.hiddenForeignRoles = [...hidden].sort();
-                    store.save(config);
+
+                const btnBox = new Gtk.Box({
+                    orientation: Gtk.Orientation.HORIZONTAL,
+                    spacing: 4,
+                    valign: Gtk.Align.CENTER,
+                    css_classes: ['linked'],
                 });
-                trayCombos.push({combo: row, role});
+
+                const buttons = {};
+                for (const opt of PLACE_OPTS) {
+                    const btn = new Gtk.ToggleButton({
+                        label: opt.label,
+                        valign: Gtk.Align.CENTER,
+                    });
+                    btn.active = current === opt.id;
+                    buttons[opt.id] = btn;
+                    btn.connect('toggled', () => {
+                        if (syncingExternal || config.trayAllHidden) return;
+                        if (!btn.active) return; // only handle the one turning on
+                        syncingExternal = true;
+                        for (const [id, b] of Object.entries(buttons))
+                            b.active = id === opt.id;
+                        syncingExternal = false;
+                        setRolePlacement(role, opt.id);
+                    });
+                    btnBox.append(btn);
+                }
+
+                row.add_suffix(btnBox);
+                trayCombos.push({buttons, role, row});
                 trayGroup.add(row);
             }
-            syncingExternal = false;
         }
 
+        const setCombosSensitive = sensitive => {
+            for (const {row} of trayCombos) {
+                try { row.sensitive = sensitive; } catch (e) {}
+            }
+        };
         setCombosSensitive(!config.trayAllHidden);
 
         hideAllSwitch.connect('notify::active', () => {
             if (syncingExternal) return;
-            // ONLY flip the master flag — do not rewrite foreignRoleZones
             config.trayAllHidden = !!hideAllSwitch.active;
-            // Drop stale mass-hide list from older versions
-            if (!config.trayAllHidden)
+            if (!config.trayAllHidden) {
                 config.hiddenForeignRoles = Object.entries(config.foreignRoleZones || {})
                     .filter(([, z]) => z === 'hidden')
                     .map(([r]) => r);
+            }
             setCombosSensitive(!config.trayAllHidden);
             store.save(config);
         });
@@ -595,7 +603,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         appearancePage.add(themeGroup);
 
-        // EntryRow has no "subtitle" on older libadwaita — hint lives in the group description.
         const colorSourceRow = new Adw.EntryRow({
             title: 'Matugen CSS Path',
             text: config.colorSource ?? '',
@@ -621,7 +628,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         window.connect('destroy', flushPendingSave);
         window.connect('unrealize', flushPendingSave);
 
-        // Live watch: sync sliders and visibility from external changes
         try {
             store.watch(newConfig => {
                 const newSize = newConfig.panelSize ?? {};
@@ -642,20 +648,17 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         entry.updateValueLabel();
                     }
                 }
-                // Sync hidden modules
-                if (newConfig.hiddenModules) {
+                if (newConfig.hiddenModules)
                     config.hiddenModules = newConfig.hiddenModules;
-                    // Note: zone lists need window reload to reflect changes
-                }
+                if (newConfig.foreignRoleZones)
+                    config.foreignRoleZones = newConfig.foreignRoleZones;
+                if (newConfig.trayAllHidden != null)
+                    config.trayAllHidden = newConfig.trayAllHidden;
                 config.panelSize = {...panelSize};
-                config.presets = newConfig.presets;
-                config.activePreset = newConfig.activePreset;
-                config.colorSource = newConfig.colorSource;
                 syncingExternal = false;
             });
-            window.connect('destroy', () => store.unwatch());
-            window.connect('unrealize', () => store.unwatch());
-            window.connect('close-request', () => { store.unwatch(); return false; });
-        } catch (e) { logError(e, 'material-panel prefs watch failed'); }
+        } catch (e) {
+            console.error(e);
+        }
     }
 }

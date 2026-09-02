@@ -81,12 +81,21 @@ export default class MaterialPanelExtension extends Extension {
             const prev = this._config;
             this._config = newConfig;
 
+            // Apply tray BEFORE classify so L/R/C never depends on classification
+            const trayChanged = !prev ||
+                prev.trayAllHidden !== newConfig.trayAllHidden ||
+                JSON.stringify(prev.foreignRoleZones ?? {}) !== JSON.stringify(newConfig.foreignRoleZones ?? {}) ||
+                JSON.stringify(prev.hiddenForeignRoles ?? []) !== JSON.stringify(newConfig.hiddenForeignRoles ?? []);
+            if (trayChanged) {
+                log(`material-panel: tray keys changed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
+                this._applyTrayOnly();
+            }
+
             const kind = classifyConfigChange(prev, newConfig);
             log(`material-panel: config change classified as "${kind}"`);
 
             switch (kind) {
             case 'tray':
-                this._applyTrayOnly();
                 return;
             case 'panelSize':
                 this._schedulePanelSizeUpdate(
