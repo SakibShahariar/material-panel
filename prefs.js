@@ -11,6 +11,37 @@ import {hasBuiltin} from './lib/moduleIds.js';
 import {readStatusRolesFile} from './lib/statusRolesFile.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
+const EXT_PREFIX = 'extension:';
+function extId(role) { return `${EXT_PREFIX}${role}`; }
+function roleFromExt(id) {
+    return id.startsWith(EXT_PREFIX) ? id.slice(EXT_PREFIX.length) : null;
+}
+/** Keep preset.zones in sync with tray placement (option C). */
+function syncExtensionZone(config, role, placement) {
+    const id = extId(role);
+    const preset = config.presets?.[config.activePreset];
+    if (!preset?.zones) return;
+    for (const z of ZONE_NAMES) {
+        const arr = preset.zones[z] ?? [];
+        preset.zones[z] = arr.filter(x => x !== id);
+    }
+    if (placement === 'left' || placement === 'right' || placement === 'center') {
+        if (!preset.zones[placement])
+            preset.zones[placement] = [];
+        if (!preset.zones[placement].includes(id))
+            preset.zones[placement].push(id);
+    }
+}
+function friendlyRoleName(role) {
+    // appindicatorsupport-chrome-status-icon-5 → chrome…
+    let s = String(role);
+    s = s.replace(/^appindicatorsupport-/, '');
+    s = s.replace(/^appIndicator[:\-]?/i, '');
+    s = s.replace(/-status-icon-\d+$/, '');
+    s = s.replace(/[_-]+/g, ' ').trim();
+    return s || role;
+}
+
 const ALL_MODULES = [
     {id: 'activities', name: 'Activities', zone: 'left'},
     {id: 'workspaces', name: 'Workspaces', zone: 'left'},
@@ -406,6 +437,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             config.hiddenForeignRoles = [];
         if (!config.foreignRoleZones || typeof config.foreignRoleZones !== 'object')
             config.foreignRoleZones = {};
+        if (!config.foreignRoleZonesBackup || typeof config.foreignRoleZonesBackup !== 'object')
+            config.foreignRoleZonesBackup = {};
+        if (config.trayAllHidden == null)
+            config.trayAllHidden = false;
         for (const r of config.hiddenForeignRoles) {
             if (!config.foreignRoleZones[r])
                 config.foreignRoleZones[r] = 'hidden';
@@ -419,14 +454,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const trayActions = new Adw.PreferencesGroup({title: 'Actions'});
         trayPage.add(trayActions);
-        if (config.trayAllHidden == null)
-            config.trayAllHidden = false;
-        if (!config.foreignRoleZonesBackup || typeof config.foreignRoleZonesBackup !== 'object')
-            config.foreignRoleZonesBackup = {};
 
         const hideAllRow = new Adw.ActionRow({
             title: 'Hide all tray icons',
-            subtitle: 'Remembers each icon’s Left/Right setting when turned back on',
+            subtitle: 'On = hide all (keeps each icon’s place). Off = restore.',
         });
         const hideAllSwitch = new Gtk.Switch({
             active: !!config.trayAllHidden,
@@ -438,7 +469,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const trayGroup = new Adw.PreferencesGroup({
             title: 'Status icons',
-            description: 'Per icon: Right (default, left edge of right zone), Left (right edge of left zone), or Hidden.',
+            description: 'Also listed under Modules as extension:… — Left / Right / Center / Hidden.',
         });
         trayPage.add(trayGroup);
 
@@ -449,10 +480,53 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             ...Object.keys(config.foreignRoleZones),
             ...(config.hiddenForeignRoles ?? []),
         ]);
+        // Also roles already in preset zones
+        try {
+            const pz = config.presets?.[config.activePreset]?.zones ?? {};
+            for (const z of ZONE_NAMES) {
+                for (const id of pz[z] ?? []) {
+                    const r = roleFromExt(id);
+                    if (r) known.add(r);
+                }
+            }
+        } catch (e) {}
+
         const roleList = [...known].sort();
-        const ZONE_OPTIONS = ['Right', 'Left', 'Hidden'];
-        const zoneToIndex = z => (z === 'left' ? 1 : z === 'hidden' ? 2 : 0);
-        const indexToZone = i => (i === 1 ? 'left' : i === 2 ? 'hidden' : 'right');
+        const ZONE_OPTIONS = ['Right', 'Left', 'Center', 'Hidden'];
+        const zoneToIndex = z => {
+            if (z === 'left') return 1;
+            if (z === 'center') return 2;
+            if (z === 'hidden') return 3;
+            return 0; // right
+        };
+        const indexToZone = i => {
+            if (i === 1) return 'left';
+            if (i === 2) return 'center';
+            if (i === 3) return 'hidden';
+            return 'right';
+        };
+
+        const applyPlacement = (role, z, {updateCombo = false} = {}) => {
+            config.foreignRoleZones[role] = z;
+            const hidden = new Set(config.hiddenForeignRoles ?? []);
+            if (z === 'hidden')
+                hidden.add(role);
+            else
+                hidden.delete(role);
+            config.hiddenForeignRoles = [...hidden].sort();
+            syncExtensionZone(config, role, z);
+            if (z !== 'hidden') {
+                if (!config.foreignRoleZonesBackup)
+                    config.foreignRoleZonesBackup = {};
+                config.foreignRoleZonesBackup[role] = z;
+            }
+            if (updateCombo) {
+                for (const {combo, role: r} of trayCombos) {
+                    if (r === role)
+                        combo.selected = zoneToIndex(z);
+                }
+            }
+        };
 
         if (roleList.length === 0) {
             trayGroup.add(new Adw.ActionRow({
@@ -461,9 +535,20 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             }));
         } else {
             for (const role of roleList) {
-                const current = config.foreignRoleZones[role]
-                    ?? (config.hiddenForeignRoles.includes(role) ? 'hidden' : 'right');
-                const row = new Adw.ComboRow({title: role});
+                // Prefer preset zone membership, then foreignRoleZones
+                let current = config.foreignRoleZones[role];
+                if (!current) {
+                    const id = extId(role);
+                    const pz = config.presets?.[config.activePreset]?.zones ?? {};
+                    if ((pz.left ?? []).includes(id)) current = 'left';
+                    else if ((pz.center ?? []).includes(id)) current = 'center';
+                    else if ((pz.right ?? []).includes(id)) current = 'right';
+                    else current = 'hidden';
+                }
+                const row = new Adw.ComboRow({
+                    title: friendlyRoleName(role),
+                    subtitle: role,
+                });
                 const model = new Gtk.StringList();
                 for (const o of ZONE_OPTIONS)
                     model.append(o);
@@ -472,23 +557,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 row.connect('notify::selected', () => {
                     if (syncingExternal) return;
                     const z = indexToZone(row.selected);
-                    config.foreignRoleZones[role] = z;
-                    const hidden = new Set(config.hiddenForeignRoles ?? []);
-                    if (z === 'hidden')
-                        hidden.add(role);
-                    else
-                        hidden.delete(role);
-                    config.hiddenForeignRoles = [...hidden].sort();
-                    // Individual edit clears master "hide all"
                     if (config.trayAllHidden && z !== 'hidden') {
                         config.trayAllHidden = false;
+                        syncingExternal = true;
                         hideAllSwitch.active = false;
+                        syncingExternal = false;
                     }
-                    // Keep backup in sync for this role
-                    if (!config.foreignRoleZonesBackup)
-                        config.foreignRoleZonesBackup = {};
-                    if (z !== 'hidden')
-                        config.foreignRoleZonesBackup[role] = z;
+                    applyPlacement(role, z);
                     store.save(config);
                 });
                 trayCombos.push({combo: row, role});
@@ -496,52 +571,56 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             }
         }
 
-
         hideAllSwitch.connect('notify::active', () => {
             if (syncingExternal) return;
+            const all = new Set([
+                ...readStatusRolesFile(),
+                ...Object.keys(config.foreignRoleZones ?? {}),
+                ...roleList,
+            ]);
+
             if (hideAllSwitch.active) {
-                // Backup current non-hidden placements, then hide all
-                const backup = {};
-                const discovered = readStatusRolesFile();
-                const all = new Set([
-                    ...discovered,
-                    ...Object.keys(config.foreignRoleZones ?? {}),
-                ]);
-                for (const role of all) {
-                    const z = config.foreignRoleZones[role]
-                        ?? (config.hiddenForeignRoles?.includes(role) ? 'hidden' : 'right');
-                    backup[role] = z === 'hidden'
-                        ? (config.foreignRoleZonesBackup?.[role] ?? 'right')
-                        : z;
-                    config.foreignRoleZones[role] = 'hidden';
+                // Snapshot current placements (never store "hidden" as the restore target
+                // unless that was already their individual choice before master-hide).
+                const backup = {...(config.foreignRoleZonesBackup ?? {})};
+                if (!config.trayAllHidden) {
+                    for (const role of all) {
+                        const cur = config.foreignRoleZones[role] ?? 'hidden';
+                        if (cur !== 'hidden')
+                            backup[role] = cur;
+                        else if (backup[role] == null)
+                            backup[role] = 'right';
+                    }
                 }
                 config.foreignRoleZonesBackup = backup;
                 config.trayAllHidden = true;
+                syncingExternal = true;
+                for (const role of all) {
+                    config.foreignRoleZones[role] = 'hidden';
+                    syncExtensionZone(config, role, 'hidden');
+                }
                 config.hiddenForeignRoles = [...all].sort();
                 for (const {combo} of trayCombos)
-                    combo.selected = 2;
+                    combo.selected = zoneToIndex('hidden');
+                syncingExternal = false;
             } else {
-                // Restore from backup
                 const backup = config.foreignRoleZonesBackup ?? {};
-                const discovered = readStatusRolesFile();
-                const all = new Set([
-                    ...discovered,
-                    ...Object.keys(backup),
-                    ...Object.keys(config.foreignRoleZones ?? {}),
-                ]);
+                config.trayAllHidden = false;
+                syncingExternal = true;
                 const hidden = [];
                 for (const role of all) {
                     const z = backup[role] ?? 'right';
                     config.foreignRoleZones[role] = z;
+                    syncExtensionZone(config, role, z);
                     if (z === 'hidden')
                         hidden.push(role);
                 }
                 config.hiddenForeignRoles = hidden.sort();
-                config.trayAllHidden = false;
                 for (const {combo, role} of trayCombos) {
-                    const z = config.foreignRoleZones[role] ?? 'right';
+                    const z = config.foreignRoleZones[role] ?? backup[role] ?? 'right';
                     combo.selected = zoneToIndex(z);
                 }
+                syncingExternal = false;
             }
             store.save(config);
         });
