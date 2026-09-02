@@ -464,8 +464,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         trayPage.add(trayActions);
 
         const hideAllRow = new Adw.ActionRow({
-            title: 'Hide all tray icons',
-            subtitle: 'Does not change each icon’s Left/Right setting — only hides them until turned off',
+            title: 'Hide all on Material Panel',
+            subtitle: 'Temporarily hide opted-in tray icons on our bar only — does not change GNOME',
         });
         const hideAllSwitch = new Gtk.Switch({
             active: !!config.trayAllHidden,
@@ -477,7 +477,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const trayGroup = new Adw.PreferencesGroup({
             title: 'Status icons',
-            description: 'Placement is kept while Hide all is on (controls grayed out).',
+            description: 'Opt-in only: Hidden = not on Material Panel (stays on GNOME bar). Left/Right/Center = show on our panel.',
         });
         trayPage.add(trayGroup);
 
@@ -532,11 +532,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     if ((pz.left ?? []).includes(id)) current = 'left';
                     else if ((pz.center ?? []).includes(id)) current = 'center';
                     else if ((pz.right ?? []).includes(id)) current = 'right';
-                    else current = 'right';
+                    else current = 'hidden';
                 }
-                // Never treat master-hide as per-icon hidden in the UI
-                if (current === 'hidden' && config.trayAllHidden)
-                    current = 'right';
 
                 const row = new Adw.ComboRow({
                     title: friendlyRoleName(role),
