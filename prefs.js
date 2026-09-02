@@ -441,10 +441,44 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             config.foreignRoleZonesBackup = {};
         if (config.trayAllHidden == null)
             config.trayAllHidden = false;
-        for (const r of config.hiddenForeignRoles) {
-            if (!config.foreignRoleZones[r])
+        // Only apply hiddenForeignRoles when master hide-all is on, or as soft default
+        if (config.trayAllHidden) {
+            for (const r of config.hiddenForeignRoles) {
                 config.foreignRoleZones[r] = 'hidden';
+            }
+        } else {
+            // Clear stale "all hidden" from a broken hide-all session
+            for (const r of Object.keys(config.foreignRoleZones)) {
+                if (config.foreignRoleZones[r] === 'hidden' &&
+                    !(config.hiddenForeignRoles ?? []).includes(r) &&
+                    !config.foreignRoleZonesBackup?.[r]) {
+                    // leave individual hidden choices alone if they're intentional
+                }
+            }
         }
+        // Recovery: hide-all off but every role stuck "hidden" → show on right
+        if (!config.trayAllHidden) {
+            const disc = readStatusRolesFile();
+            let anyVisible = false;
+            for (const r of disc) {
+                const z = config.foreignRoleZones[r];
+                if (z && z !== 'hidden') {
+                    anyVisible = true;
+                    break;
+                }
+            }
+            if (disc.length && !anyVisible) {
+                for (const r of disc) {
+                    const b = config.foreignRoleZonesBackup?.[r];
+                    const z = (b && b !== 'hidden') ? b : 'right';
+                    config.foreignRoleZones[r] = z;
+                    syncExtensionZone(config, r, z);
+                }
+                config.hiddenForeignRoles = [];
+                store.save(config);
+            }
+        }
+
 
         const trayPage = new Adw.PreferencesPage({
             title: 'Tray',
@@ -609,15 +643,17 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 syncingExternal = true;
                 const hidden = [];
                 for (const role of all) {
-                    const z = backup[role] ?? 'right';
+                    let z = backup[role];
+                    if (!z || z === 'hidden')
+                        z = 'right';
                     config.foreignRoleZones[role] = z;
                     syncExtensionZone(config, role, z);
                     if (z === 'hidden')
                         hidden.push(role);
                 }
-                config.hiddenForeignRoles = hidden.sort();
+                config.hiddenForeignRoles = hidden;
                 for (const {combo, role} of trayCombos) {
-                    const z = config.foreignRoleZones[role] ?? backup[role] ?? 'right';
+                    const z = config.foreignRoleZones[role] ?? 'right';
                     combo.selected = zoneToIndex(z);
                 }
                 syncingExternal = false;

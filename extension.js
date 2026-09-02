@@ -16,7 +16,8 @@ export default class MaterialPanelExtension extends Extension {
         try {
             this._bridge.setForeignPlacements(
                 this._config.foreignRoleZones ?? {},
-                this._config.hiddenForeignRoles ?? []);
+                this._config.hiddenForeignRoles ?? [],
+                {allHidden: !!this._config.trayAllHidden});
         } catch (e) {}
 
         this._builder = new PanelBuilder(this._bridge, this.path);
@@ -59,7 +60,8 @@ export default class MaterialPanelExtension extends Extension {
         try {
             this._bridge.setForeignPlacements(
                 this._config.foreignRoleZones ?? {},
-                this._config.hiddenForeignRoles ?? []);
+                this._config.hiddenForeignRoles ?? [],
+                {allHidden: !!this._config.trayAllHidden});
         } catch (e) {}
         this._builder.render(this._config);
         if (colorSource) {
