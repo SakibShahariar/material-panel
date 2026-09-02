@@ -175,11 +175,21 @@ export default class MaterialPanelExtension extends Extension {
         this._theme.destroy();
         this._theme = null;
 
-        this._builder.destroy();
-        this._builder = null;
-
-        this._bridge.disable();
+        // Restore tray icons to stock panel BEFORE destroying our chrome
+        // (destroy used to run first and left indicators orphaned / missing).
+        try {
+            this._bridge.disable();
+        } catch (e) {
+            logError(e, 'material-panel: bridge.disable');
+        }
         this._bridge = null;
+
+        try {
+            this._builder.destroy();
+        } catch (e) {
+            logError(e, 'material-panel: builder.destroy');
+        }
+        this._builder = null;
 
         Main.panel.show();
 
