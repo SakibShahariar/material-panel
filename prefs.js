@@ -373,7 +373,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             });
             modulesPage.add(group);
 
-            const moduleIds = (preset.zones[zoneName] ?? []).filter(id => !config.hiddenModules.includes(id));
+            // Foreign tray icons (extension:) are managed on the Tray page only for now
+            const moduleIds = (preset.zones[zoneName] ?? []).filter(id =>
+                !config.hiddenModules.includes(id) &&
+                !String(id).startsWith(EXT_PREFIX));
 
             if (moduleIds.length === 0) {
                 const row = new Adw.ActionRow({
@@ -383,6 +386,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 });
                 group.add(row);
             } else {
+                const zoneList = preset.zones[zoneName];
                 moduleIds.forEach((id, index) => {
                     const row = new Adw.ActionRow({title: id});
 
@@ -393,9 +397,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         sensitive: index > 0,
                     });
                     upBtn.connect('clicked', () => {
-                        [moduleIds[index - 1], moduleIds[index]] =
-                            [moduleIds[index], moduleIds[index - 1]];
-                        store.save(config);
+                        const i = zoneList.indexOf(id);
+                        const prevId = moduleIds[index - 1];
+                        const j = zoneList.indexOf(prevId);
+                        if (i >= 0 && j >= 0) {
+                            [zoneList[j], zoneList[i]] = [zoneList[i], zoneList[j]];
+                            store.save(config);
+                        }
                         window.close();
                     });
 
@@ -406,9 +414,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         sensitive: index < moduleIds.length - 1,
                     });
                     downBtn.connect('clicked', () => {
-                        [moduleIds[index], moduleIds[index + 1]] =
-                            [moduleIds[index + 1], moduleIds[index]];
-                        store.save(config);
+                        const i = zoneList.indexOf(id);
+                        const nextId = moduleIds[index + 1];
+                        const j = zoneList.indexOf(nextId);
+                        if (i >= 0 && j >= 0) {
+                            [zoneList[i], zoneList[j]] = [zoneList[j], zoneList[i]];
+                            store.save(config);
+                        }
                         window.close();
                     });
 
@@ -418,7 +430,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         css_classes: ['flat'],
                     });
                     removeBtn.connect('clicked', () => {
-                        moduleIds.splice(index, 1);
+                        const i = zoneList.indexOf(id);
+                        if (i >= 0)
+                            zoneList.splice(i, 1);
                         store.save(config);
                         window.close();
                     });
