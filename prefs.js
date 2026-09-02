@@ -524,6 +524,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 subtitle: 'Reload the shell, then reopen settings',
             }));
         } else {
+            syncingExternal = true;
             for (const role of roleList) {
                 let current = config.foreignRoleZones[role];
                 if (!current) {
@@ -548,21 +549,22 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 row.connect('notify::selected', () => {
                     if (syncingExternal || config.trayAllHidden) return;
                     const z = indexToZone(row.selected);
-                    config.foreignRoleZones[role] = z;
-                    // Only track intentional per-icon hide in hiddenForeignRoles
+                    // Plain object copy so JSON save always persists
+                    config.foreignRoleZones = Object.assign(
+                        {}, config.foreignRoleZones || {}, {[role]: z});
                     const hidden = new Set(
                         (config.hiddenForeignRoles ?? []).filter(r => r !== role));
                     if (z === 'hidden')
                         hidden.add(role);
+                    else
+                        hidden.delete(role);
                     config.hiddenForeignRoles = [...hidden].sort();
-                    // Do NOT syncExtensionZone here — that rewrites presets.zones and
-                    // triggers a full panel rebuild (and can drop builtins/QS).
-                    // Placement is applied live via bridge from foreignRoleZones only.
                     store.save(config);
                 });
                 trayCombos.push({combo: row, role});
                 trayGroup.add(row);
             }
+            syncingExternal = false;
         }
 
         setCombosSensitive(!config.trayAllHidden);
