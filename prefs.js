@@ -558,7 +558,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     if (z === 'hidden')
                         hidden.add(role);
                     config.hiddenForeignRoles = [...hidden].sort();
-                    syncExtensionZone(config, role, z);
+                    // Do NOT syncExtensionZone here — that rewrites presets.zones and
+                    // triggers a full panel rebuild (and can drop builtins/QS).
+                    // Placement is applied live via bridge from foreignRoleZones only.
                     store.save(config);
                 });
                 trayCombos.push({combo: row, role});

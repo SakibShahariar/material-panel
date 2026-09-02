@@ -6,6 +6,25 @@ import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {ThemeManager} from './lib/theme.js';
 
+/** True if only tray-related keys changed (no panel rebuild needed). */
+function isTrayOnlyChange(prev, next) {
+    if (!prev || !next)
+        return false;
+    const strip = c => {
+        const o = JSON.parse(JSON.stringify(c));
+        delete o.trayAllHidden;
+        delete o.foreignRoleZones;
+        delete o.hiddenForeignRoles;
+        delete o.foreignRoleZonesBackup;
+        return JSON.stringify(o);
+    };
+    try {
+        return strip(prev) === strip(next);
+    } catch (e) {
+        return false;
+    }
+}
+
 export default class MaterialPanelExtension extends Extension {
     enable() {
         this._configStore = new ConfigStore();
@@ -13,58 +32,51 @@ export default class MaterialPanelExtension extends Extension {
 
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
-        try {
-            this._bridge.setForeignPlacements(
-                this._config.foreignRoleZones ?? {},
-                this._config.hiddenForeignRoles ?? [],
-                {allHidden: !!this._config.trayAllHidden});
-        } catch (e) {}
 
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
 
-        // Theme (CSS + regenerated icon SVGs) must be applied before the
-        // panel is built, since modules load icons from the paths theme.js
-        // just wrote. _applyTheme() does both, in that order.
+        // Full build once
         this._applyTheme();
 
-        // NOTE: we hide the stock panel rather than destroy it. Main.panel
-        // is a singleton other extensions reference directly (addToStatusArea,
-        // sometimes Main.panel._rightBox etc). Destroying it breaks them.
-        // hide() keeps it alive as a backing object (so addToStatusArea still
-        // works) while fully excluding it from layout, painting, and Clutter's
-        // event picking. Chrome/workarea tracking already skips invisible
-        // actors, so we get the screen space back for free.
-        //
-        // Do NOT switch this to height=0/opacity=0/reactive=false — that
-        // leaves the actor in the pick pipeline with a degenerate zero-size
-        // allocation, which throws "StWidget doesn't implement event" on
-        // every pointer event near the top of the screen and can leave
-        // GNOME's own DateMenu half-initialized.
         Main.panel.hide();
 
         this._configStore.watch(newConfig => {
+            const prev = this._config;
             this._config = newConfig;
+
+            // CRITICAL: hide-all / Left-Right must NOT rebuild the whole panel.
+            // Full render was destroying builtins + QS after a few toggles.
+            if (isTrayOnlyChange(prev, newConfig)) {
+                log('material-panel: tray-only config change — bridge update, no rebuild');
+                this._applyTrayOnly();
+                return;
+            }
+
+            log('material-panel: layout/theme config change — full rebuild');
             this._applyTheme();
         });
     }
 
-    // Applies CSS + regenerates icon SVGs, then rebuilds the panel so any
-    // icon actors pick up the freshly-written files. Called on enable(),
-    // on config.json changes, and on matugen output changes.
-    _applyTheme() {
-        const panelSize = this._config.panelSize ?? {};
-        // Auto-detect matugen when colorSource is null; empty string forces fixed palette
-        const colorSource = resolveColorSource(this._config.colorSource);
-        this._theme.apply(colorSource, panelSize);
-        this._builder.render(this._config);
-        // After render: zones/claims exist — apply tray show/hide
+    _applyTrayOnly() {
         try {
             this._bridge.setForeignPlacements(
                 this._config.foreignRoleZones ?? {},
                 this._config.hiddenForeignRoles ?? [],
                 {allHidden: !!this._config.trayAllHidden});
-        } catch (e) {}
+        } catch (e) {
+            logError(e, 'material-panel: tray-only update failed');
+        }
+    }
+
+    // Full theme + panel rebuild (enable, module layout, size, colors)
+    _applyTheme() {
+        const panelSize = this._config.panelSize ?? {};
+        const colorSource = resolveColorSource(this._config.colorSource);
+        this._theme.apply(colorSource, panelSize);
+        this._builder.render(this._config);
+        this._applyTrayOnly();
+
         if (colorSource) {
             log(`material-panel: setting up matugen watch on "${colorSource}"`);
             this._theme.watch(colorSource, () => {
@@ -73,6 +85,7 @@ export default class MaterialPanelExtension extends Extension {
                 const freshSource = resolveColorSource(this._config.colorSource);
                 this._theme.apply(freshSource, freshSize);
                 this._builder.render(this._config);
+                this._applyTrayOnly();
             });
         } else {
             log('material-panel: no colorSource (fixed palette), skipping matugen watch');
@@ -97,4 +110,3 @@ export default class MaterialPanelExtension extends Extension {
         this._config = null;
     }
 }
-
