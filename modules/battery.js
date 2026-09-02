@@ -6,11 +6,20 @@ import UPowerGlib from 'gi://UPowerGlib';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPathPrimary} from '../lib/iconTheme.js';
+import {iconPath, iconPathPrimary} from '../lib/icons.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
+function formatSeconds(sec) {
+    if (!sec || sec <= 0 || sec > 60 * 60 * 48)
+        return '';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0)
+        return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
 function stateLabel(state) {
-    // UPower DeviceState
     const map = {
         [UPowerGlib.DeviceState.CHARGING]: 'Charging',
         [UPowerGlib.DeviceState.DISCHARGING]: 'Discharging',
@@ -19,113 +28,156 @@ function stateLabel(state) {
         [UPowerGlib.DeviceState.PENDING_CHARGE]: 'Pending charge',
         [UPowerGlib.DeviceState.PENDING_DISCHARGE]: 'Pending discharge',
     };
-    try {
-        return map[state] ?? 'Unknown';
-    } catch (e) {
-        return 'Unknown';
-    }
+    return map[state] || 'Unknown';
 }
 
-function formatSeconds(sec) {
-    if (!sec || sec <= 0 || sec > 60 * 60 * 48)
-        return null;
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    if (h > 0)
-        return `${h}h ${m}m`;
-    return `${m}m`;
-}
-
-export function buildBattery(_extensionPath, scale = 1.0) {
-    let client, device;
-    try {
-        client = UPowerGlib.Client.new();
-        device = client.get_display_device();
-    } catch (e) {
-        logError(e, 'material-panel: UPower unavailable');
-        return null;
-    }
-    if (!device || device.is_present === false)
-        return null;
-    // Skip pure desktops (no battery percentage)
-    try {
-        if (device.kind === UPowerGlib.DeviceKind.LINE_POWER)
-            return null;
-    } catch (e) {}
-
-    const button = new St.Button({
-        style_class: 'material-panel-battery material-panel-chip',
-        reactive: true,
+function makeStat(title) {
+    const col = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-stat',
+        x_expand: true,
     });
-    const box = new St.BoxLayout({y_align: Clutter.ActorAlign.CENTER});
+    const t = new St.Label({text: title, style_class: 'material-panel-popup-stat-label'});
+    const v = new St.Label({text: '—', style_class: 'material-panel-popup-stat-value'});
+    col.add_child(t);
+    col.add_child(v);
+    return {col, value: v};
+}
+
+export function buildBattery(extensionPath, scale = 1.0) {
+    const client = UPowerGlib.Client.new();
+    let device = null;
+    try {
+        device = client.get_display_device();
+    } catch (e) {}
+    if (!device)
+        return null;
+
+    const box = new St.BoxLayout({
+        style_class: 'material-panel-battery material-panel-chip',
+        y_align: Clutter.ActorAlign.CENTER,
+        vertical: false,
+    });
+
+    const setIconKey = key => {
+        try {
+            let pth = iconPathPrimary(key);
+            if (!Gio.File.new_for_path(pth).query_exists(null))
+                pth = iconPath(key);
+            if (Gio.File.new_for_path(pth).query_exists(null))
+                icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(pth));
+        } catch (e) {}
+    };
+
     const icon = new St.Icon({
         style_class: 'material-panel-battery-icon',
-        icon_size: Math.round(17 * scale),
+        icon_size: Math.round(17 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
     });
     const label = new St.Label({
         style_class: 'material-panel-battery-label',
         y_align: Clutter.ActorAlign.CENTER,
+        text: '—',
     });
     box.add_child(icon);
     box.add_child(label);
-    button.set_child(box);
 
-    const setIconKey = key => {
-        try {
-            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
-        } catch (e) {}
-    };
+    const button = new St.Button({
+        style_class: 'material-panel-battery-btn',
+        reactive: true,
+        child: box,
+    });
 
-    const pctLabel = new St.Label({text: '—', style_class: 'material-panel-battery-popup-value'});
-    const stateL = new St.Label({text: '—', style_class: 'material-panel-battery-popup-row'});
-    const timeL = new St.Label({text: '', style_class: 'material-panel-battery-popup-row'});
-    const energyL = new St.Label({text: '', style_class: 'material-panel-battery-popup-row'});
+    // Popup widgets
+    const pctHero = new St.Label({text: '—', style_class: 'material-panel-battery-popup-value'});
+    const stateHero = new St.Label({text: '—', style_class: 'material-panel-battery-popup-state'});
+    const barTrack = new St.Widget({
+        style_class: 'material-panel-battery-popup-bar',
+        x_expand: true,
+        height: 8,
+    });
+    const barFill = new St.Widget({
+        style_class: 'material-panel-battery-popup-bar-fill',
+        height: 8,
+        width: 4,
+        x_align: Clutter.ActorAlign.START,
+        y_expand: true,
+    });
+    barTrack.add_child(barFill);
+
+    const sTime = makeStat('Time');
+    const sEnergy = makeStat('Energy');
+    const sRate = makeStat('Power');
+    const sHealth = makeStat('Health');
 
     const refresh = () => {
         let pct = 0;
         try {
             pct = Math.round(device.percentage);
         } catch (e) {}
-        let charging = false;
-        try {
-            charging = device.state === UPowerGlib.DeviceState.CHARGING ||
-                device.state === UPowerGlib.DeviceState.PENDING_CHARGE;
-        } catch (e) {}
+        if (!Number.isFinite(pct))
+            pct = 0;
+
         let key = 'battery-full';
-        if (charging)
-            key = 'battery-charging';
-        else if (pct <= 15)
-            key = 'battery-critical';
-        else if (pct <= 30)
-            key = 'battery-low';
-        else if (pct <= 70)
-            key = 'battery-high';
-        else
-            key = 'battery-full';
+        try {
+            if (device.state === UPowerGlib.DeviceState.CHARGING)
+                key = 'battery-charging';
+            else if (pct <= 15)
+                key = 'battery-critical';
+            else if (pct <= 30)
+                key = 'battery-low';
+            else if (pct <= 70)
+                key = 'battery-high';
+            else
+                key = 'battery-full';
+        } catch (e) {}
         setIconKey(key);
         label.text = `${pct}%`;
 
-        pctLabel.text = `${pct}%`;
-        stateL.text = stateLabel(device.state);
-        let timeText = '';
+        pctHero.text = `${pct}%`;
+        stateHero.text = stateLabel(device.state);
+        const barW = Math.max(4, Math.round(2.4 * pct));
+        try { barFill.width = barW; } catch (e) {}
+
         try {
             if (device.state === UPowerGlib.DeviceState.CHARGING) {
                 const t = formatSeconds(device.time_to_full);
-                if (t) timeText = `Full in ${t}`;
+                sTime.value.text = t ? `Full in ${t}` : '—';
             } else if (device.state === UPowerGlib.DeviceState.DISCHARGING) {
                 const t = formatSeconds(device.time_to_empty);
-                if (t) timeText = `${t} remaining`;
+                sTime.value.text = t ? `${t} left` : '—';
+            } else {
+                sTime.value.text = '—';
             }
-        } catch (e) {}
-        timeL.text = timeText;
+        } catch (e) {
+            sTime.value.text = '—';
+        }
+
         try {
             if (device.energy_full > 0)
-                energyL.text = `${device.energy.toFixed?.(1) ?? device.energy} / ${device.energy_full.toFixed?.(1) ?? device.energy_full} Wh`;
+                sEnergy.value.text = `${(device.energy ?? 0).toFixed?.(1) ?? device.energy} / ${(device.energy_full).toFixed?.(1)} Wh`;
             else
-                energyL.text = '';
+                sEnergy.value.text = '—';
         } catch (e) {
-            energyL.text = '';
+            sEnergy.value.text = '—';
+        }
+
+        try {
+            const rate = Math.abs(device.energy_rate || 0);
+            sRate.value.text = rate > 0.05 ? `${rate.toFixed(1)} W` : '—';
+        } catch (e) {
+            sRate.value.text = '—';
+        }
+
+        try {
+            if (device.energy_full_design > 0 && device.energy_full > 0) {
+                const h = Math.round(100 * device.energy_full / device.energy_full_design);
+                sHealth.value.text = `${Math.min(100, h)}%`;
+            } else {
+                sHealth.value.text = '—';
+            }
+        } catch (e) {
+            sHealth.value.text = '—';
         }
     };
 
@@ -147,11 +199,31 @@ export function buildBattery(_extensionPath, scale = 1.0) {
 
     const section = new PopupMenu.PopupMenuSection();
     const wrap = new St.BoxLayout({vertical: true, style_class: 'material-panel-battery-popup-body'});
-    wrap.add_child(new St.Label({text: 'Battery', style_class: 'material-panel-battery-popup-title'}));
-    wrap.add_child(pctLabel);
-    wrap.add_child(stateL);
-    wrap.add_child(timeL);
-    wrap.add_child(energyL);
+
+    const hero = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-card material-panel-battery-popup-hero',
+    });
+    hero.add_child(pctHero);
+    hero.add_child(stateHero);
+    hero.add_child(barTrack);
+    wrap.add_child(hero);
+
+    const grid = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-popup-card material-panel-popup-stats',
+        x_expand: true,
+    });
+    const colA = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-stats-col', x_expand: true});
+    const colB = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-stats-col', x_expand: true});
+    colA.add_child(sTime.col);
+    colA.add_child(sEnergy.col);
+    colB.add_child(sRate.col);
+    colB.add_child(sHealth.col);
+    grid.add_child(colA);
+    grid.add_child(colB);
+    wrap.add_child(grid);
+
     section.actor.add_child(wrap);
     menu.addMenuItem(section);
 

@@ -249,11 +249,19 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
     if (!cur)
         throw new Error('open-meteo: no current');
     const isDay = cur.is_day === 1;
+    const parts = [];
+    if (cur.relative_humidity_2m != null)
+        parts.push(`${Math.round(cur.relative_humidity_2m)}% humidity`);
+    if (cur.wind_speed_10m != null)
+        parts.push(`${Math.round(cur.wind_speed_10m)} km/h wind`);
+    parts.push(isDay ? 'Daytime' : 'Night');
     return {
         temp: cur.temperature_2m,
         condition: `Code ${cur.weather_code}`,
         iconKey: wmoToIcon(cur.weather_code, isDay),
-        extra: isDay ? 'Daytime' : 'Night',
+        extra: parts.join(' · '),
+        humidity: cur.relative_humidity_2m,
+        wind: cur.wind_speed_10m,
         place: place || `${Number(lat).toFixed(2)}, ${Number(lon).toFixed(2)}`,
         source: sourceTag || 'Open-Meteo',
     };
@@ -394,14 +402,26 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     const popupExtra = new St.Label({text: '', style_class: 'material-panel-weather-popup-extra'});
     const popupPlace = new St.Label({text: '', style_class: 'material-panel-weather-popup-place'});
     const popupSource = new St.Label({text: '', style_class: 'material-panel-weather-popup-source'});
+    const popupHumidity = new St.Label({text: '—', style_class: 'material-panel-popup-stat-value'});
+    const popupWind = new St.Label({text: '—', style_class: 'material-panel-popup-stat-value'});
 
     const refreshPopup = () => {
         if (detail.temp != null)
             popupTemp.text = `${Math.round(detail.temp)}°C`;
+        else
+            popupTemp.text = '—';
         popupCond.text = detail.condition || 'Weather';
         popupExtra.text = detail.extra || '';
         popupPlace.text = detail.place || '';
         popupSource.text = detail.source || '';
+        if (detail.humidity != null)
+            popupHumidity.text = `${Math.round(detail.humidity)}%`;
+        else
+            popupHumidity.text = '—';
+        if (detail.wind != null)
+            popupWind.text = `${Math.round(detail.wind)} km/h`;
+        else
+            popupWind.text = '—';
     };
 
     const button = new St.Button({
@@ -417,11 +437,36 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     const section = new PopupMenu.PopupMenuSection();
     const body = new St.BoxLayout({vertical: true, style_class: 'material-panel-weather-popup-body'});
-    body.add_child(popupTemp);
-    body.add_child(popupCond);
-    body.add_child(popupExtra);
-    body.add_child(popupPlace);
-    body.add_child(popupSource);
+
+    const hero = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-card material-panel-weather-popup-hero',
+    });
+    hero.add_child(popupTemp);
+    hero.add_child(popupCond);
+    hero.add_child(popupPlace);
+    body.add_child(hero);
+
+    const stats = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-popup-card material-panel-popup-stats',
+        x_expand: true,
+    });
+    const mk = (title, val) => {
+        const c = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-stat', x_expand: true});
+        c.add_child(new St.Label({text: title, style_class: 'material-panel-popup-stat-label'}));
+        c.add_child(val);
+        return c;
+    };
+    stats.add_child(mk('Humidity', popupHumidity));
+    stats.add_child(mk('Wind', popupWind));
+    body.add_child(stats);
+
+    const foot = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-card'});
+    foot.add_child(popupExtra);
+    foot.add_child(popupSource);
+    body.add_child(foot);
+
     section.actor.add_child(body);
     menu.addMenuItem(section);
 

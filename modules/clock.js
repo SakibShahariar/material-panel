@@ -7,7 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
-const CELL = 32; // fixed day cell size — avoids x_expand collapse in popup menus
+const CELL = 34;
 
 function formatNow(use12h) {
     const now = GLib.DateTime.new_now_local();
@@ -23,16 +23,41 @@ function daysInMonth(year, month) {
     }
 }
 
-function buildCalendarActor(year, month) {
+function buildCalendarActor(year, month, onPrev, onNext) {
     const outer = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-clock-cal',
     });
+
+    const nav = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-clock-cal-nav',
+        x_expand: true,
+    });
+    const prevBtn = new St.Button({
+        style_class: 'material-panel-clock-cal-nav-btn',
+        label: '‹',
+        reactive: true,
+    });
+    const nextBtn = new St.Button({
+        style_class: 'material-panel-clock-cal-nav-btn',
+        label: '›',
+        reactive: true,
+    });
     const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
-    outer.add_child(new St.Label({
+    const title = new St.Label({
         text: first.format('%B %Y') ?? `${month}/${year}`,
         style_class: 'material-panel-clock-cal-title',
-    }));
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    prevBtn.connect('clicked', () => onPrev?.());
+    nextBtn.connect('clicked', () => onNext?.());
+    nav.add_child(prevBtn);
+    nav.add_child(title);
+    nav.add_child(nextBtn);
+    outer.add_child(nav);
 
     const grid = new St.Widget({
         style_class: 'material-panel-clock-cal-grid',
@@ -73,30 +98,30 @@ function buildCalendarActor(year, month) {
                 reactive: false,
                 width: CELL,
                 height: CELL,
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: false,
+                y_expand: false,
             });
             if (cellIndex >= startDow - 1 && day <= dim) {
-                cell.set_label(String(day));
+                cell.label = String(day);
                 if (isThisMonth && day === todayDay)
                     cell.add_style_class_name('today');
                 day++;
+            } else {
+                cell.label = '';
+                cell.add_style_class_name('empty');
             }
             gl.attach(cell, col, row + 1, 1, 1);
         }
-        if (day > dim)
-            break;
     }
-
     outer.add_child(grid);
     return outer;
 }
 
-export function buildClock() {
+export function buildClock(_extensionPath, scale = 1.0) {
     const label = new St.Label({
         style_class: 'material-panel-clock',
         y_align: Clutter.ActorAlign.CENTER,
-        text: '',
+        text: '—',
     });
 
     const store = new ConfigStore();
@@ -129,28 +154,96 @@ export function buildClock() {
         vertical: true,
         style_class: 'material-panel-clock-popup-body',
     });
-    const timeLabel = new St.Label({text: '—', style_class: 'material-panel-clock-popup-time'});
-    const dateLabel = new St.Label({text: '—', style_class: 'material-panel-clock-popup-date'});
-    const calHost = new St.BoxLayout({vertical: true, style_class: 'material-panel-clock-cal-host'});
-    body.add_child(timeLabel);
-    body.add_child(dateLabel);
-    body.add_child(calHost);
+
+    // Hero card
+    const hero = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-card material-panel-clock-popup-hero',
+    });
+    const timeLabel = new St.Label({
+        text: '—',
+        style_class: 'material-panel-clock-popup-time',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    const dateLabel = new St.Label({
+        text: '—',
+        style_class: 'material-panel-clock-popup-date',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    const metaLabel = new St.Label({
+        text: '',
+        style_class: 'material-panel-clock-popup-meta',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    hero.add_child(timeLabel);
+    hero.add_child(dateLabel);
+    hero.add_child(metaLabel);
+    body.add_child(hero);
+
+    const calCard = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-card material-panel-clock-cal-host',
+    });
+    body.add_child(calCard);
 
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
     menu.addMenuItem(item);
 
+    let viewYear = GLib.DateTime.new_now_local().get_year();
+    let viewMonth = GLib.DateTime.new_now_local().get_month();
+
     const rebuildCal = () => {
         const now = GLib.DateTime.new_now_local();
-        timeLabel.text = (now.format(use12h ? '%l:%M %p' : '%H:%M') ?? '').trim();
+        timeLabel.text = (now.format(use12h ? '%l:%M:%S %p' : '%H:%M:%S') ?? '').trim();
         dateLabel.text = now.format('%A, %d %B %Y') ?? '';
-        calHost.destroy_all_children();
-        calHost.add_child(buildCalendarActor(now.get_year(), now.get_month()));
+        const week = now.get_week_of_year?.() ?? '';
+        const tz = now.get_timezone_abbreviation?.() || '';
+        metaLabel.text = [week ? `Week ${week}` : '', tz].filter(Boolean).join(' · ');
+
+        calCard.destroy_all_children();
+        calCard.add_child(buildCalendarActor(
+            viewYear,
+            viewMonth,
+            () => {
+                viewMonth -= 1;
+                if (viewMonth < 1) {
+                    viewMonth = 12;
+                    viewYear -= 1;
+                }
+                rebuildCal();
+            },
+            () => {
+                viewMonth += 1;
+                if (viewMonth > 12) {
+                    viewMonth = 1;
+                    viewYear += 1;
+                }
+                rebuildCal();
+            },
+        ));
     };
 
+    let liveId = 0;
     menu.connect('open-state-changed', (_m, open) => {
-        if (open)
+        if (open) {
+            const now = GLib.DateTime.new_now_local();
+            viewYear = now.get_year();
+            viewMonth = now.get_month();
             rebuildCal();
+            if (liveId)
+                GLib.source_remove(liveId);
+            liveId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                if (!menu.isOpen)
+                    return GLib.SOURCE_REMOVE;
+                const n = GLib.DateTime.new_now_local();
+                timeLabel.text = (n.format(use12h ? '%l:%M:%S %p' : '%H:%M:%S') ?? '').trim();
+                return GLib.SOURCE_CONTINUE;
+            });
+        } else if (liveId) {
+            try { GLib.source_remove(liveId); } catch (e) {}
+            liveId = 0;
+        }
     });
 
     button.connect('clicked', () => {
@@ -161,6 +254,7 @@ export function buildClock() {
     });
     button.connect('destroy', () => {
         try { GLib.source_remove(sourceId); } catch (e) {}
+        if (liveId) try { GLib.source_remove(liveId); } catch (e) {}
         try { store.unwatch(); } catch (e) {}
         menu.destroy();
     });

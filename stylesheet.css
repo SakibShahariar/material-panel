@@ -430,3 +430,84 @@
 .material-panel-foreign-inner {
     background-color: transparent;
 }
+
+
+/* Shared popup cards (clock / battery / weather) */
+.material-panel-popup-card {
+    spacing: 6px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    margin-bottom: 6px;
+}
+.material-panel-clock-popup-body,
+.material-panel-battery-popup-body,
+.material-panel-weather-popup-body {
+    spacing: 8px;
+    padding: 4px;
+    min-width: 260px;
+}
+.material-panel-clock-popup-time,
+.material-panel-battery-popup-value,
+.material-panel-weather-popup-temp {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+}
+.material-panel-clock-popup-date,
+.material-panel-battery-popup-state,
+.material-panel-weather-popup-cond {
+    font-size: 13px;
+    text-align: center;
+}
+.material-panel-clock-popup-meta,
+.material-panel-weather-popup-place,
+.material-panel-weather-popup-source,
+.material-panel-weather-popup-extra {
+    font-size: 11px;
+    text-align: center;
+    opacity: 0.85;
+}
+.material-panel-clock-cal-nav {
+    spacing: 8px;
+    padding: 2px 0 8px 0;
+}
+.material-panel-clock-cal-nav-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    font-size: 16px;
+    text-align: center;
+}
+.material-panel-clock-cal-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+.material-panel-clock-cal-day.today {
+    font-weight: 700;
+}
+.material-panel-battery-popup-bar {
+    border-radius: 4px;
+    height: 8px;
+    margin-top: 8px;
+}
+.material-panel-battery-popup-bar-fill {
+    border-radius: 4px;
+    height: 8px;
+}
+.material-panel-popup-stats {
+    spacing: 10px;
+}
+.material-panel-popup-stats-col {
+    spacing: 10px;
+}
+.material-panel-popup-stat {
+    spacing: 2px;
+}
+.material-panel-popup-stat-label {
+    font-size: 10px;
+    opacity: 0.75;
+}
+.material-panel-popup-stat-value {
+    font-size: 13px;
+    font-weight: 600;
+}
