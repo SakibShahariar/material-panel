@@ -14,24 +14,12 @@ function cloneStrip(c, extraKeys = []) {
     return o;
 }
 
-function isTrayOnlyChange(prev, next) {
+function sameExcept(prev, next, keys) {
     if (!prev || !next)
         return false;
     try {
-        const keys = ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles', 'foreignRoleZonesBackup'];
-        return JSON.stringify(cloneStrip(prev, keys)) === JSON.stringify(cloneStrip(next, keys));
-    } catch (e) {
-        return false;
-    }
-}
-
-/** Only panelSize differs (scale / gaps). */
-function isPanelSizeOnlyChange(prev, next) {
-    if (!prev || !next)
-        return false;
-    try {
-        return JSON.stringify(cloneStrip(prev, ['panelSize'])) ===
-            JSON.stringify(cloneStrip(next, ['panelSize']));
+        return JSON.stringify(cloneStrip(prev, keys)) ===
+            JSON.stringify(cloneStrip(next, keys));
     } catch (e) {
         return false;
     }
@@ -40,6 +28,37 @@ function isPanelSizeOnlyChange(prev, next) {
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
     return Number.isFinite(s) ? s : 1.0;
+}
+
+/**
+ * Classify config delta so we avoid full panel rebuilds when possible.
+ *
+ * Prefs saves that used to rebuild everything:
+ * - tray / hide-all / placement
+ * - panelSize (gaps + scale)
+ * - clockFormat (clock module watches config itself)
+ * - colorSource (theme + optional rebuild for icons)
+ * - modules / presets / hiddenModules → full rebuild (required)
+ */
+function classifyConfigChange(prev, next) {
+    if (!prev || !next)
+        return 'full';
+
+    if (sameExcept(prev, next, [
+        'trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles', 'foreignRoleZonesBackup',
+    ]))
+        return 'tray';
+
+    if (sameExcept(prev, next, ['panelSize']))
+        return 'panelSize';
+
+    if (sameExcept(prev, next, ['clockFormat']))
+        return 'clock';
+
+    if (sameExcept(prev, next, ['colorSource']))
+        return 'color';
+
+    return 'full';
 }
 
 export default class MaterialPanelExtension extends Extension {
@@ -62,21 +81,26 @@ export default class MaterialPanelExtension extends Extension {
             const prev = this._config;
             this._config = newConfig;
 
-            if (isTrayOnlyChange(prev, newConfig)) {
-                log('material-panel: tray-only change — no rebuild');
+            const kind = classifyConfigChange(prev, newConfig);
+            log(`material-panel: config change classified as "${kind}"`);
+
+            switch (kind) {
+            case 'tray':
                 this._applyTrayOnly();
                 return;
-            }
-
-            if (isPanelSizeOnlyChange(prev, newConfig)) {
-                const scaleChanged = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
-                log(`material-panel: panelSize-only change (scaleChanged=${scaleChanged})`);
-                this._schedulePanelSizeUpdate(scaleChanged);
+            case 'panelSize':
+                this._schedulePanelSizeUpdate(
+                    Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001);
                 return;
+            case 'clock':
+                // modules/clock.js has its own ConfigStore.watch — no rebuild
+                return;
+            case 'color':
+                this._applyTheme({rebuildPanel: true});
+                return;
+            default:
+                this._applyTheme({rebuildPanel: true});
             }
-
-            log('material-panel: layout/theme change — full rebuild');
-            this._applyTheme({rebuildPanel: true});
         });
     }
 
@@ -91,15 +115,11 @@ export default class MaterialPanelExtension extends Extension {
         }
     }
 
-    /**
-     * Gaps → CSS only. Scale → debounced rebuild (slider fires many saves).
-     */
     _schedulePanelSizeUpdate(scaleChanged) {
         if (this._sizeDebounceId) {
             GLib.source_remove(this._sizeDebounceId);
             this._sizeDebounceId = 0;
         }
-        // Apply CSS immediately so gaps feel live
         try {
             const panelSize = this._config.panelSize ?? {};
             const colorSource = resolveColorSource(this._config.colorSource);
@@ -132,17 +152,14 @@ export default class MaterialPanelExtension extends Extension {
         this._applyTrayOnly();
 
         if (colorSource) {
-            log(`material-panel: setting up matugen watch on "${colorSource}"`);
             this._theme.watch(colorSource, () => {
-                log('material-panel: matugen watch callback fired, reapplying theme');
+                log('material-panel: matugen watch — theme + rebuild');
                 const freshSize = this._config.panelSize ?? {};
                 const freshSource = resolveColorSource(this._config.colorSource);
                 this._theme.apply(freshSource, freshSize);
                 this._builder.render(this._config);
                 this._applyTrayOnly();
             });
-        } else {
-            log('material-panel: no colorSource (fixed palette), skipping matugen watch');
         }
     }
 
