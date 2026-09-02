@@ -404,6 +404,12 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         // --- PAGE: Tray / foreign indicators ---
         if (!Array.isArray(config.hiddenForeignRoles))
             config.hiddenForeignRoles = [];
+        if (!config.foreignRoleZones || typeof config.foreignRoleZones !== 'object')
+            config.foreignRoleZones = {};
+        for (const r of config.hiddenForeignRoles) {
+            if (!config.foreignRoleZones[r])
+                config.foreignRoleZones[r] = 'hidden';
+        }
 
         const trayPage = new Adw.PreferencesPage({
             title: 'Tray',
@@ -411,43 +417,76 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         window.add(trayPage);
 
+        const trayActions = new Adw.PreferencesGroup({title: 'Actions'});
+        trayPage.add(trayActions);
+        const hideAllRow = new Adw.ActionRow({title: 'Hide all tray icons'});
+        const hideAllBtn = new Gtk.Button({
+            label: 'Hide all',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['destructive-action'],
+        });
+        hideAllBtn.connect('clicked', () => {
+            if (syncingExternal) return;
+            const discovered = readStatusRolesFile();
+            const all = new Set([...discovered, ...Object.keys(config.foreignRoleZones)]);
+            for (const role of all)
+                config.foreignRoleZones[role] = 'hidden';
+            config.hiddenForeignRoles = [...all].sort();
+            store.save(config);
+            // Rebuild switches if possible — reopen prefs for full refresh
+            for (const {combo, role} of trayCombos) {
+                combo.selected = 2; // Hidden
+            }
+        });
+        hideAllRow.add_suffix(hideAllBtn);
+        trayActions.add(hideAllRow);
+
         const trayGroup = new Adw.PreferencesGroup({
             title: 'Status icons',
-            description: 'Toggle off to hide from the panel. Reopen after shell reload if the list is empty.',
+            description: 'Per icon: Right (default, left edge of right zone), Left (right edge of left zone), or Hidden.',
         });
         trayPage.add(trayGroup);
 
+        const trayCombos = [];
         const discovered = readStatusRolesFile();
         const known = new Set([
             ...discovered,
+            ...Object.keys(config.foreignRoleZones),
             ...(config.hiddenForeignRoles ?? []),
         ]);
         const roleList = [...known].sort();
+        const ZONE_OPTIONS = ['Right', 'Left', 'Hidden'];
+        const zoneToIndex = z => (z === 'left' ? 1 : z === 'hidden' ? 2 : 0);
+        const indexToZone = i => (i === 1 ? 'left' : i === 2 ? 'hidden' : 'right');
 
         if (roleList.length === 0) {
             trayGroup.add(new Adw.ActionRow({
                 title: 'No icons discovered yet',
-                subtitle: 'Reload the shell, wait a moment, then reopen settings',
+                subtitle: 'Reload the shell, then reopen settings',
             }));
         } else {
             for (const role of roleList) {
-                const row = new Adw.ActionRow({title: role});
-                const sw = new Gtk.Switch({
-                    active: !(config.hiddenForeignRoles ?? []).includes(role),
-                    valign: Gtk.Align.CENTER,
-                });
-                sw.connect('notify::active', () => {
+                const current = config.foreignRoleZones[role]
+                    ?? (config.hiddenForeignRoles.includes(role) ? 'hidden' : 'right');
+                const row = new Adw.ComboRow({title: role});
+                const model = new Gtk.StringList();
+                for (const o of ZONE_OPTIONS)
+                    model.append(o);
+                row.model = model;
+                row.selected = zoneToIndex(current);
+                row.connect('notify::selected', () => {
                     if (syncingExternal) return;
+                    const z = indexToZone(row.selected);
+                    config.foreignRoleZones[role] = z;
                     const hidden = new Set(config.hiddenForeignRoles ?? []);
-                    if (sw.active)
-                        hidden.delete(role);
-                    else
+                    if (z === 'hidden')
                         hidden.add(role);
+                    else
+                        hidden.delete(role);
                     config.hiddenForeignRoles = [...hidden].sort();
                     store.save(config);
                 });
-                row.add_suffix(sw);
-                row.activatable_widget = sw;
+                trayCombos.push({combo: row, role});
                 trayGroup.add(row);
             }
         }
