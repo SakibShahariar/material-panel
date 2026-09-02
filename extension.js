@@ -106,9 +106,10 @@ export default class MaterialPanelExtension extends Extension {
 
     _applyTrayOnly() {
         try {
+            // Only foreignRoleZones + trayAllHidden — never bulk hiddenForeignRoles
             this._bridge.setForeignPlacements(
                 this._config.foreignRoleZones ?? {},
-                this._config.hiddenForeignRoles ?? [],
+                [],
                 {allHidden: !!this._config.trayAllHidden});
         } catch (e) {
             logError(e, 'material-panel: tray-only update failed');

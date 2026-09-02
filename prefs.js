@@ -574,6 +574,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (syncingExternal) return;
             // ONLY flip the master flag — do not rewrite foreignRoleZones
             config.trayAllHidden = !!hideAllSwitch.active;
+            // Drop stale mass-hide list from older versions
+            if (!config.trayAllHidden)
+                config.hiddenForeignRoles = Object.entries(config.foreignRoleZones || {})
+                    .filter(([, z]) => z === 'hidden')
+                    .map(([r]) => r);
             setCombosSensitive(!config.trayAllHidden);
             store.save(config);
         });
