@@ -496,11 +496,12 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const roleList = [...known].sort();
 
+        // Off first = exclusive-group leader. If GTK falls back to leader, stays Off not Right.
         const PLACE_OPTS = [
-            {id: 'right', label: 'R'},
+            {id: 'hidden', label: 'Off'},
             {id: 'left', label: 'L'},
             {id: 'center', label: 'C'},
-            {id: 'hidden', label: 'Off'},
+            {id: 'right', label: 'R'},
         ];
 
         const setRolePlacement = (role, z) => {
@@ -512,6 +513,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             else
                 hidden.delete(role);
             config.hiddenForeignRoles = [...hidden].sort();
+            // Drop preset extension: claims so a later rebuild cannot put it back on Right
+            try {
+                syncExtensionZone(config, role, z === 'hidden' ? 'hidden' : z);
+            } catch (e) {}
             store.save(config);
         };
 
@@ -522,15 +527,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             }));
         } else {
             for (const role of roleList) {
-                let current = config.foreignRoleZones[role];
-                if (!current) {
-                    const id = extId(role);
-                    const pz = config.presets?.[config.activePreset]?.zones ?? {};
-                    if ((pz.left ?? []).includes(id)) current = 'left';
-                    else if ((pz.center ?? []).includes(id)) current = 'center';
-                    else if ((pz.right ?? []).includes(id)) current = 'right';
-                    else current = 'hidden';
-                }
+                // Single source: foreignRoleZones only (model B). Missing → Off.
+                let current = config.foreignRoleZones?.[role];
+                if (current !== 'left' && current !== 'right' &&
+                    current !== 'center' && current !== 'hidden')
+                    current = 'hidden';
 
                 const row = new Adw.ActionRow({
                     title: friendlyRoleName(role),
@@ -547,6 +548,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
                 const buttons = {};
                 let groupLeader = null;
+                // Block toggled handlers while setting initial active state
+                syncingExternal = true;
                 for (const opt of PLACE_OPTS) {
                     const btn = new Gtk.ToggleButton({
                         label: opt.label,
@@ -556,7 +559,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         btn.group = groupLeader;
                     else
                         groupLeader = btn;
-                    btn.active = current === opt.id;
                     buttons[opt.id] = btn;
                     btn.connect('toggled', () => {
                         if (syncingExternal || config.trayAllHidden)
@@ -567,6 +569,12 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     });
                     btnBox.append(btn);
                 }
+                // Default / missing → Off (never imply Right)
+                if (!['left', 'right', 'center', 'hidden'].includes(current))
+                    current = 'hidden';
+                for (const opt of PLACE_OPTS)
+                    buttons[opt.id].active = (opt.id === current);
+                syncingExternal = false;
 
                 row.add_suffix(btnBox);
                 trayCombos.push({buttons, role, row});
