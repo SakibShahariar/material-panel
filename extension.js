@@ -1,3 +1,4 @@
+import GLib from 'gi://GLib';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -6,29 +7,46 @@ import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {ThemeManager} from './lib/theme.js';
 
-/** True if only tray-related keys changed (no panel rebuild needed). */
+function cloneStrip(c, extraKeys = []) {
+    const o = JSON.parse(JSON.stringify(c));
+    for (const k of extraKeys)
+        delete o[k];
+    return o;
+}
+
 function isTrayOnlyChange(prev, next) {
     if (!prev || !next)
         return false;
-    const strip = c => {
-        const o = JSON.parse(JSON.stringify(c));
-        delete o.trayAllHidden;
-        delete o.foreignRoleZones;
-        delete o.hiddenForeignRoles;
-        delete o.foreignRoleZonesBackup;
-        return JSON.stringify(o);
-    };
     try {
-        return strip(prev) === strip(next);
+        const keys = ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles', 'foreignRoleZonesBackup'];
+        return JSON.stringify(cloneStrip(prev, keys)) === JSON.stringify(cloneStrip(next, keys));
     } catch (e) {
         return false;
     }
+}
+
+/** Only panelSize differs (scale / gaps). */
+function isPanelSizeOnlyChange(prev, next) {
+    if (!prev || !next)
+        return false;
+    try {
+        return JSON.stringify(cloneStrip(prev, ['panelSize'])) ===
+            JSON.stringify(cloneStrip(next, ['panelSize']));
+    } catch (e) {
+        return false;
+    }
+}
+
+function scaleOf(c) {
+    const s = Number(c?.panelSize?.scale);
+    return Number.isFinite(s) ? s : 1.0;
 }
 
 export default class MaterialPanelExtension extends Extension {
     enable() {
         this._configStore = new ConfigStore();
         this._config = this._configStore.load();
+        this._sizeDebounceId = 0;
 
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
@@ -36,8 +54,7 @@ export default class MaterialPanelExtension extends Extension {
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
 
-        // Full build once
-        this._applyTheme();
+        this._applyTheme({rebuildPanel: true});
 
         Main.panel.hide();
 
@@ -45,16 +62,21 @@ export default class MaterialPanelExtension extends Extension {
             const prev = this._config;
             this._config = newConfig;
 
-            // CRITICAL: hide-all / Left-Right must NOT rebuild the whole panel.
-            // Full render was destroying builtins + QS after a few toggles.
             if (isTrayOnlyChange(prev, newConfig)) {
-                log('material-panel: tray-only config change — bridge update, no rebuild');
+                log('material-panel: tray-only change — no rebuild');
                 this._applyTrayOnly();
                 return;
             }
 
-            log('material-panel: layout/theme config change — full rebuild');
-            this._applyTheme();
+            if (isPanelSizeOnlyChange(prev, newConfig)) {
+                const scaleChanged = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
+                log(`material-panel: panelSize-only change (scaleChanged=${scaleChanged})`);
+                this._schedulePanelSizeUpdate(scaleChanged);
+                return;
+            }
+
+            log('material-panel: layout/theme change — full rebuild');
+            this._applyTheme({rebuildPanel: true});
         });
     }
 
@@ -69,12 +91,44 @@ export default class MaterialPanelExtension extends Extension {
         }
     }
 
-    // Full theme + panel rebuild (enable, module layout, size, colors)
-    _applyTheme() {
+    /**
+     * Gaps → CSS only. Scale → debounced rebuild (slider fires many saves).
+     */
+    _schedulePanelSizeUpdate(scaleChanged) {
+        if (this._sizeDebounceId) {
+            GLib.source_remove(this._sizeDebounceId);
+            this._sizeDebounceId = 0;
+        }
+        // Apply CSS immediately so gaps feel live
+        try {
+            const panelSize = this._config.panelSize ?? {};
+            const colorSource = resolveColorSource(this._config.colorSource);
+            this._theme.apply(colorSource, panelSize);
+        } catch (e) {
+            logError(e, 'material-panel: theme apply on size change');
+        }
+
+        if (!scaleChanged)
+            return;
+
+        this._sizeDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+            this._sizeDebounceId = 0;
+            try {
+                this._builder.render(this._config);
+                this._applyTrayOnly();
+            } catch (e) {
+                logError(e, 'material-panel: debounced scale rebuild failed');
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _applyTheme({rebuildPanel = true} = {}) {
         const panelSize = this._config.panelSize ?? {};
         const colorSource = resolveColorSource(this._config.colorSource);
         this._theme.apply(colorSource, panelSize);
-        this._builder.render(this._config);
+        if (rebuildPanel)
+            this._builder.render(this._config);
         this._applyTrayOnly();
 
         if (colorSource) {
@@ -93,6 +147,10 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        if (this._sizeDebounceId) {
+            GLib.source_remove(this._sizeDebounceId);
+            this._sizeDebounceId = 0;
+        }
         this._configStore.unwatch();
         this._configStore = null;
 

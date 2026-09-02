@@ -177,7 +177,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 updateValueLabel();
                 if (saveDebounceId)
                     GLib.source_remove(saveDebounceId);
-                saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+                saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 280, () => {
                     saveDebounceId = null;
                     store.save(config);
                     return GLib.SOURCE_REMOVE;
