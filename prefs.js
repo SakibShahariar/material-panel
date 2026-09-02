@@ -546,20 +546,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 });
 
                 const buttons = {};
+                let groupLeader = null;
                 for (const opt of PLACE_OPTS) {
                     const btn = new Gtk.ToggleButton({
                         label: opt.label,
                         valign: Gtk.Align.CENTER,
                     });
+                    if (groupLeader)
+                        btn.group = groupLeader;
+                    else
+                        groupLeader = btn;
                     btn.active = current === opt.id;
                     buttons[opt.id] = btn;
                     btn.connect('toggled', () => {
-                        if (syncingExternal || config.trayAllHidden) return;
-                        if (!btn.active) return; // only handle the one turning on
-                        syncingExternal = true;
-                        for (const [id, b] of Object.entries(buttons))
-                            b.active = id === opt.id;
-                        syncingExternal = false;
+                        if (syncingExternal || config.trayAllHidden)
+                            return;
+                        if (!btn.active)
+                            return;
                         setRolePlacement(role, opt.id);
                     });
                     btnBox.append(btn);
