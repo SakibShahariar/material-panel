@@ -6,7 +6,7 @@ import UPowerGlib from 'gi://UPowerGlib';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath, iconPathPrimary} from '../lib/icons.js';
+import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 function formatSeconds(sec) {
