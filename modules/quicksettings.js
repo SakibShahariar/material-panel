@@ -17,6 +17,33 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
+// Only one of BT / Wi-Fi lists open at a time.
+// Use a function so call sites never hit a TDZ / missing-binding ReferenceError
+// if the module is partially reloaded.
+function getQsExpandController() {
+    if (!globalThis._materialPanelQsExpand) {
+        globalThis._materialPanelQsExpand = {
+            _apis: new Map(),
+            register(id, api) {
+                this._apis.set(id, api);
+            },
+            unregister(id) {
+                this._apis.delete(id);
+            },
+            expandOnly(id) {
+                for (const [key, api] of this._apis.entries()) {
+                    try {
+                        api.setExpanded(key === id);
+                    } catch (e) {}
+                }
+            },
+        };
+    }
+    return globalThis._materialPanelQsExpand;
+}
+const qsExpandController = getQsExpandController();
+
+
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
@@ -1033,19 +1060,19 @@ function bluetoothTile() {
 
     dropBtn.connect('clicked', () => {
         if (expanded)
-            qsExpandController.expandOnly(null);
+            getQsExpandController().expandOnly(null);
         else
-            qsExpandController.expandOnly('bt');
+            getQsExpandController().expandOnly('bt');
         return Clutter.EVENT_STOP;
     });
 
-    qsExpandController.register('bt', {setExpanded});
+    getQsExpandController().register('bt', {setExpanded});
 
     discoverAndBind();
     setupDeviceList();
 
     outer.connect('destroy', () => {
-        qsExpandController.unregister('bt');
+        getQsExpandController().unregister('bt');
         if (objMgrProxy && objMgrSignalId) try { objMgrProxy.disconnect(objMgrSignalId); } catch (e) {}
     });
 
@@ -1499,13 +1526,13 @@ function wifiQsBlock() {
 
     dropBtn.connect('clicked', () => {
         if (expanded)
-            qsExpandController.expandOnly(null);
+            getQsExpandController().expandOnly(null);
         else
-            qsExpandController.expandOnly('wifi');
+            getQsExpandController().expandOnly('wifi');
         return Clutter.EVENT_STOP;
     });
-    qsExpandController.register('wifi', {setExpanded});
-    row.connect('destroy', () => qsExpandController.unregister('wifi'));
+    getQsExpandController().register('wifi', {setExpanded});
+    row.connect('destroy', () => getQsExpandController().unregister('wifi'));
     mainBtn.connect('clicked', () => {
         if (!client)
             return Clutter.EVENT_STOP;
@@ -1634,7 +1661,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     menu.connect('open-state-changed', (_m, open) => {
         if (!open)
-            qsExpandController.expandOnly(null);
+            getQsExpandController().expandOnly(null);
     });
 
     button.connect('clicked', () => {
