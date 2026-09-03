@@ -17,26 +17,6 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
-// Only one of BT / Wi-Fi lists open at a time.
-const qsExpandController = {
-    _apis: new Map(),
-    register(id, api) {
-        this._apis.set(id, api);
-    },
-    unregister(id) {
-        this._apis.delete(id);
-    },
-    /** Expand id; pass null to collapse all. */
-    expandOnly(id) {
-        for (const [key, api] of this._apis.entries()) {
-            try {
-                api.setExpanded(key === id);
-            } catch (e) {}
-        }
-    },
-};
-
-
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
