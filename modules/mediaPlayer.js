@@ -167,6 +167,7 @@ export function buildMediaPlayerRow() {
         style_class: 'material-panel-qs-media',
         vertical: false,
         x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
     });
     const titleLabel = new St.Label({
         text: 'No media',
@@ -192,7 +193,7 @@ export function buildMediaPlayerRow() {
             track_hover: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        b.set_child(new St.Icon({icon_name: iconName, icon_size: 16}));
+        b.set_child(new St.Icon({icon_name: iconName, icon_size: 14}));
         return b;
     };
     const prevBtn = mkBtn('media-skip-backward-symbolic');
@@ -219,7 +220,11 @@ export function buildMediaPlayerRow() {
         }
         bindPlayer(busName, {
             onMeta: ({title, artist}) => {
-                titleLabel.text = artist ? `${title} — ${artist}` : title;
+                // Keep one short line in QS
+                let t = title || 'Media';
+                if (t.length > 28)
+                    t = t.slice(0, 27) + '…';
+                titleLabel.text = t;
                 artistLabel.text = artist || '';
             },
             onStatus: playing => {

@@ -1421,8 +1421,7 @@ function wifiQsBlock() {
 
     let _ssid = 'Wi-Fi';
     const stopNet = startNetSpeedMonitor(({downText, upText}) => {
-        if (speedLabel.visible)
-            speedLabel.text = `↓ ${downText}  ↑ ${upText}`;
+        speedLabel.text = `↓ ${downText}  ↑ ${upText}`;
     });
     row.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 
@@ -1603,17 +1602,19 @@ function wifiQsBlock() {
             const on = !!client.wireless_enabled;
             setActive(on);
             const conn = client.get_primary_connection();
-            if (on && conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME) {
-                _ssid = conn.get_id?.() || 'Wi-Fi';
+            if (on) {
+                if (conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME)
+                    _ssid = conn.get_id?.() || 'Wi-Fi';
+                else
+                    _ssid = 'Wi-Fi';
                 text.text = _ssid;
                 speedLabel.visible = true;
-                if (!speedLabel.text)
+                if (!speedLabel.text || speedLabel.text === '')
                     speedLabel.text = '↓ —  ↑ —';
             } else {
                 _ssid = 'Wi-Fi';
                 text.text = 'Wi-Fi';
                 speedLabel.visible = false;
-                speedLabel.text = '';
             }
             if (expanded)
                 rebuildList();
