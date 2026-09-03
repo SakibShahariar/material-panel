@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 import {iconPath} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 
 function findTempFile() {
     const candidates = [];
@@ -164,6 +165,7 @@ function readCpuFreq() {
 export function buildCpu(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-cpu material-panel-chip',
+        track_hover: true,
         reactive: true,
         can_focus: true,
         y_align: Clutter.ActorAlign.CENTER,
@@ -446,5 +448,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
+    try { wireFileIconPress(button, () => [{icon: button.get_child()?.get_child_at_index?.(0), key: 'cpu'}].filter(x => x.icon)); } catch (e) {}
     return button;
 }

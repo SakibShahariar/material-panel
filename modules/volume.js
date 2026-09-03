@@ -4,7 +4,7 @@ import Clutter from 'gi://Clutter';
 import Gvc from 'gi://Gvc';
 
 import {iconPathPrimary, iconPathOnAccent, iconPath} from '../lib/iconTheme.js';
-import {wireFileIconPress} from '../lib/pressFx.js';
+import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
 import {getMixerControl} from '../lib/audio.js';
 
 // Shared control so the chip and QS slider share one sink object —
@@ -29,14 +29,16 @@ export function buildVolume(_extensionPath, scale = 1.0) {
     box.add_child(label);
 
     let currentKey = 'volume-high';
+    let press = null;
     const setIcon = key => {
         currentKey = key;
-        try {
-            let p = iconPathPrimary(key);
-            if (!Gio.File.new_for_path(p).query_exists(null))
-                p = iconPath(key);
-            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
-        } catch (e) {}
+        if (press?.applyIcons) {
+            try { press.applyIcons(); } catch (e) {}
+        } else {
+            const g = giconForKey(key, false);
+            if (g)
+                icon.gicon = g;
+        }
     };
 
     let sink = null;
@@ -80,7 +82,7 @@ export function buildVolume(_extensionPath, scale = 1.0) {
             attachSink();
     } catch (e) {}
 
-    wireFileIconPress(box, () => [{icon, key: currentKey}]);
+    press = wireFileIconPress(box, () => [{icon, key: currentKey}]);
 
     box.connect('button-press-event', () => {
         if (sink)

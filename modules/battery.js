@@ -55,7 +55,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
         return null;
 
     const box = new St.BoxLayout({
-        style_class: 'material-panel-battery material-panel-chip',
+        style_class: 'material-panel-battery',
         y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
     });
@@ -91,7 +91,10 @@ export function buildBattery(extensionPath, scale = 1.0) {
         track_hover: true,
         child: box,
     });
-    wireFileIconPress(button, () => [{icon, key: currentKey}]);
+    try {
+        label.clutter_text.ellipsize = 0; // none
+    } catch (e) {}
+    const press = wireFileIconPress(button, () => [{icon, key: currentKey}]);
 
     // Popup widgets
     const pctHero = new St.Label({text: '—', style_class: 'material-panel-battery-popup-value'});
@@ -138,6 +141,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
         } catch (e) {}
         setIconKey(key);
         label.text = `${pct}%`;
+        try { press.applyIcons(); } catch (e) {}
 
         pctHero.text = `${pct}%`;
         stateHero.text = stateLabel(device.state);

@@ -744,3 +744,27 @@
     border-radius: 999px;
     transition-duration: 160ms;
 }
+
+
+.material-panel-network-speed-inner {
+    spacing: 2px;
+}
+.material-panel-network-speed-btn {
+    padding: 0 10px;
+    min-width: 36px;
+}
+.material-panel-battery {
+    spacing: 5px;
+}
+.material-panel-battery-label {
+    font-weight: 600;
+    min-width: 2.5em;
+}
+.material-panel-qs-wifi-text {
+    spacing: 2px;
+    min-width: 0;
+}
+.material-panel-qs-wifi-speed {
+    font-size: 10px;
+    font-weight: 600;
+}

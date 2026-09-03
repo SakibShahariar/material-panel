@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 
 // Notification widget for right panel
 // Shows notification count, click to open notification list
@@ -160,7 +161,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     // Click to open message tray
     const button = new St.Button({
-        style_class: 'material-panel-notifications-btn',
+        style_class: 'material-panel-notifications-btn material-panel-chip',
         reactive: true,
         can_focus: true,
         child: box,
@@ -196,5 +197,6 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         }
     });
 
+    wireFileIconPress(button, () => [{icon, key: 'notifications'}]);
     return button;
 }

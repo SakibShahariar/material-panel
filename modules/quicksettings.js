@@ -1421,8 +1421,11 @@ function wifiQsBlock() {
     mainBtn.set_child(mainBox);
 
     let _ssid = 'Wi-Fi';
-    const stopNet = startNetSpeedMonitor(({downText, upText}) => {
-        speedLabel.text = `↓ ${downText}  ↑ ${upText}`;
+    const stopNet = startNetSpeedMonitor(({downShort, upShort, downText, upText}) => {
+        // Compact on tile so full rates fit; full text still used in network list
+        const d = downShort || downText || '—';
+        const u = upShort || upText || '—';
+        speedLabel.text = `↓ ${d}  ↑ ${u}`;
     });
     row.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 
@@ -1517,7 +1520,7 @@ function wifiQsBlock() {
                 });
                 name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
                 const status = new St.Label({
-                    text: isActive ? (speedLabel.text || 'Connected') : 'Saved',
+                    text: isActive ? 'Connected' : 'Saved',
                     style_class: 'material-panel-qs-bt-device-status',
                     y_align: Clutter.ActorAlign.CENTER,
                 });

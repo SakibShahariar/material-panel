@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -143,5 +144,6 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         });
     });
 
+    try { wireFileIconPress(button, () => [{icon, key: 'network-wifi'}]); } catch (e) {}
     return button;
 }

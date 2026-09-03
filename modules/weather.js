@@ -6,6 +6,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 // Prefer GNOME Weather location + libgweather conditions.
@@ -425,10 +426,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     const button = new St.Button({
-        style_class: 'material-panel-weather-btn',
+        style_class: 'material-panel-weather-btn material-panel-chip',
         reactive: true,
+        track_hover: true,
         child: box,
     });
+    wireFileIconPress(button, () => [{icon, key: 'weather'}]);
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-weather-popup');
     Main.uiGroup.add_child(menu.actor);
