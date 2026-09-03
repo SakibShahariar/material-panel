@@ -2,153 +2,405 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPathPrimary} from '../lib/iconTheme.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
-const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
+const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 
-function findMprisName(callback) {
+function listMprisNames() {
+    try {
+        const dbus = Gio.DBus.session;
+        const reply = dbus.call_sync(
+            'org.freedesktop.DBus', '/', 'org.freedesktop.DBus',
+            'ListNames', null, null, Gio.DBusCallFlags.NONE, -1, null);
+        const [names] = reply.deep_unpack();
+        return names.filter(n => n.startsWith(MPRIS_PREFIX));
+    } catch (e) {
+        return [];
+    }
+}
+
+function makePlayerProxy(busName, callback) {
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
-        'org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', null,
+        busName, '/org/mpris/MediaPlayer2', PLAYER_IFACE, null,
         (_s, res) => {
-            let bus;
             try {
-                bus = Gio.DBusProxy.new_for_bus_finish(res);
+                callback(Gio.DBusProxy.new_for_bus_finish(res), busName);
             } catch (e) {
-                callback(null);
-                return;
+                callback(null, busName);
             }
-            bus.call('ListNames', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, r) => {
-                try {
-                    const [names] = proxy.call_finish(r).deep_unpack();
-                    callback(names.find(n => n.startsWith(MPRIS_PREFIX)) ?? null);
-                } catch (e) {
-                    callback(null);
-                }
-            });
         });
 }
 
-// Only shows/wires up to whichever MPRIS player was active when the popup
-// was built - doesn't watch for players starting/stopping after that
-// (would need NameOwnerChanged tracking, a reasonable v2 addition). If no
-// player is running when the popup opens, the whole row just stays hidden.
-export function buildMediaPlayerRow() {
-    const row = new St.BoxLayout({style_class: 'material-panel-qs-media', x_expand: true});
-    row.visible = false;
+function makePropsProxy(busName, callback) {
+    Gio.DBusProxy.new_for_bus(
+        Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
+        busName, '/org/mpris/MediaPlayer2', 'org.freedesktop.DBus.Properties', null,
+        (_s, res) => {
+            try {
+                callback(Gio.DBusProxy.new_for_bus_finish(res));
+            } catch (e) {
+                callback(null);
+            }
+        });
+}
 
-    const art = new St.Widget({style_class: 'material-panel-qs-media-art'});
-    const textBox = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
-    const titleLabel = new St.Label({style_class: 'material-panel-qs-media-title'});
-    const subLabel = new St.Label({style_class: 'material-panel-qs-media-sub'});
-    textBox.add_child(titleLabel);
-    textBox.add_child(subLabel);
+function metaField(meta, key) {
+    try {
+        if (!meta || !(key in meta))
+            return '';
+        const v = meta[key].deep_unpack();
+        if (Array.isArray(v))
+            return v[0] || '';
+        return String(v || '');
+    } catch (e) {
+        return '';
+    }
+}
 
-    const makeControlBtn = iconKey => new St.Button({
-        style_class: 'material-panel-qs-media-btn',
-        reactive: true,
-        child: new St.Icon({
-            icon_size: 15,
-            y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(iconKey))),
-        }),
-    });
-    const prevBtn = makeControlBtn('media-prev');
-    const playPauseBtn = makeControlBtn('media-play');
-    const nextBtn = makeControlBtn('media-next');
-    const controls = new St.BoxLayout({style_class: 'material-panel-qs-media-controls'});
-    controls.add_child(prevBtn);
-    controls.add_child(playPauseBtn);
-    controls.add_child(nextBtn);
-
-    row.add_child(art);
-    row.add_child(textBox);
-    row.add_child(controls);
-
-    findMprisName(busName => {
-        if (!busName)
+function bindPlayer(busName, hooks) {
+    makePlayerProxy(busName, (player, name) => {
+        if (!player) {
+            hooks.onGone?.();
             return;
+        }
+        makePropsProxy(name, propsProxy => {
+            if (!propsProxy) {
+                hooks.onGone?.();
+                return;
+            }
 
-        Gio.DBusProxy.new_for_bus(
-            Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
-            busName, '/org/mpris/MediaPlayer2', PLAYER_IFACE, null,
-            (_s, res) => {
-                let player;
+            const applyMeta = variant => {
                 try {
-                    player = Gio.DBusProxy.new_for_bus_finish(res);
-                } catch (e) {
-                    logError(e, 'material-panel: MPRIS player proxy failed');
+                    const meta = variant.deep_unpack();
+                    const title = metaField(meta, 'xesam:title') || 'Unknown';
+                    const artist = metaField(meta, 'xesam:artist');
+                    hooks.onMeta?.({title, artist, busName: name});
+                } catch (e) {}
+            };
+            const applyStatus = variant => {
+                try {
+                    const st = variant.deep_unpack();
+                    hooks.onStatus?.(st === 'Playing');
+                } catch (e) {}
+            };
+
+            propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'Metadata']),
+                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                    try {
+                        const [v] = p.call_finish(r).deep_unpack();
+                        applyMeta(v);
+                    } catch (e) {}
+                });
+            propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
+                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                    try {
+                        const [v] = p.call_finish(r).deep_unpack();
+                        applyStatus(v);
+                    } catch (e) {}
+                });
+
+            const sigId = propsProxy.connect('g-signal', (_p, _sender, signal, params) => {
+                if (signal !== 'PropertiesChanged')
                     return;
-                }
-
-                const setPlayPauseIcon = playing => {
-                    playPauseBtn.get_child().gicon = Gio.FileIcon.new(
-                        Gio.File.new_for_path(iconPathPrimary(playing ? 'media-pause' : 'media-play')));
-                };
-
-                const updateFromMetadata = metadataVariant => {
-                    const meta = metadataVariant.deep_unpack();
-                    const title = meta['xesam:title']?.deep_unpack() ?? 'Unknown title';
-                    const artistArr = meta['xesam:artist']?.deep_unpack();
-                    const artist = Array.isArray(artistArr) && artistArr.length ? artistArr[0] : '';
-                    titleLabel.text = title;
-                    subLabel.text = artist;
-                    row.visible = true;
-                };
-
-                // Properties.Get for the two properties we need up front.
-                const propsProxy = new Gio.DBusProxy({
-                    g_connection: player.get_connection(),
-                    g_name: busName,
-                    g_object_path: '/org/mpris/MediaPlayer2',
-                    g_interface_name: 'org.freedesktop.DBus.Properties',
-                });
-                propsProxy.init(null);
-
-                propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'Metadata']),
-                    Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                        try {
-                            const [variant] = p.call_finish(r).deep_unpack();
-                            updateFromMetadata(variant);
-                        } catch (e) {
-                            logError(e, 'material-panel: MPRIS Metadata Get failed');
-                        }
-                    });
-                propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
-                    Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                        try {
-                            const [variant] = p.call_finish(r).deep_unpack();
-                            setPlayPauseIcon(variant.deep_unpack() === 'Playing');
-                        } catch (e) {
-                            logError(e, 'material-panel: MPRIS PlaybackStatus Get failed');
-                        }
-                    });
-
-                propsProxy.connect('g-signal', (_p, _sender, signal, params) => {
-                    if (signal !== 'PropertiesChanged')
-                        return;
-                    const [iface, changed] = params.deep_unpack();
-                    if (iface !== PLAYER_IFACE)
-                        return;
-                    if ('Metadata' in changed)
-                        updateFromMetadata(changed['Metadata']);
-                    if ('PlaybackStatus' in changed)
-                        setPlayPauseIcon(changed['PlaybackStatus'].deep_unpack() === 'Playing');
-                });
-
-                prevBtn.connect('clicked', () => {
-                    player.call('Previous', null, Gio.DBusCallFlags.NONE, -1, null, () => {});
-                });
-                playPauseBtn.connect('clicked', () => {
-                    player.call('PlayPause', null, Gio.DBusCallFlags.NONE, -1, null, () => {});
-                });
-                nextBtn.connect('clicked', () => {
-                    player.call('Next', null, Gio.DBusCallFlags.NONE, -1, null, () => {});
-                });
+                const [iface, changed] = params.deep_unpack();
+                if (iface !== PLAYER_IFACE)
+                    return;
+                if ('Metadata' in changed)
+                    applyMeta(changed['Metadata']);
+                if ('PlaybackStatus' in changed)
+                    applyStatus(changed['PlaybackStatus']);
             });
+
+            hooks.onReady?.({
+                player,
+                destroy: () => {
+                    try { propsProxy.disconnect(sigId); } catch (e) {}
+                },
+                previous: () => player.call('Previous', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
+                playPause: () => player.call('PlayPause', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
+                next: () => player.call('Next', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
+            });
+        });
+    });
+}
+
+function pickPreferredPlayer(callback) {
+    const names = listMprisNames();
+    if (names.length === 0) {
+        callback(null);
+        return;
+    }
+    // Prefer one that is Playing
+    let pending = names.length;
+    let playing = null;
+    let fallback = names[0];
+    for (const name of names) {
+        makePropsProxy(name, props => {
+            if (!props) {
+                if (--pending === 0)
+                    callback(playing || fallback);
+                return;
+            }
+            props.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
+                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                    try {
+                        const [v] = p.call_finish(r).deep_unpack();
+                        if (v.deep_unpack() === 'Playing')
+                            playing = name;
+                    } catch (e) {}
+                    if (--pending === 0)
+                        callback(playing || fallback);
+                });
+        });
+    }
+}
+
+/** QS media card */
+export function buildMediaPlayerRow() {
+    const row = new St.BoxLayout({
+        style_class: 'material-panel-qs-media',
+        vertical: false,
+        x_expand: true,
+    });
+    const titleLabel = new St.Label({
+        text: 'No media',
+        style_class: 'material-panel-qs-media-title',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    const artistLabel = new St.Label({
+        text: '',
+        style_class: 'material-panel-qs-media-artist',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    const textCol = new St.BoxLayout({vertical: true, x_expand: true});
+    textCol.add_child(titleLabel);
+    textCol.add_child(artistLabel);
+
+    const mkBtn = (iconName) => {
+        const b = new St.Button({
+            style_class: 'material-panel-qs-media-btn',
+            reactive: true,
+            track_hover: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        b.set_child(new St.Icon({icon_name: iconName, icon_size: 16}));
+        return b;
+    };
+    const prevBtn = mkBtn('media-skip-backward-symbolic');
+    const playPauseBtn = mkBtn('media-playback-start-symbolic');
+    const nextBtn = mkBtn('media-skip-forward-symbolic');
+
+    row.add_child(textCol);
+    row.add_child(prevBtn);
+    row.add_child(playPauseBtn);
+    row.add_child(nextBtn);
+
+    let ctl = null;
+    const clearCtl = () => {
+        try { ctl?.destroy(); } catch (e) {}
+        ctl = null;
+    };
+
+    const attach = busName => {
+        clearCtl();
+        if (!busName) {
+            titleLabel.text = 'No media';
+            artistLabel.text = '';
+            return;
+        }
+        bindPlayer(busName, {
+            onMeta: ({title, artist}) => {
+                titleLabel.text = title;
+                artistLabel.text = artist || '';
+            },
+            onStatus: playing => {
+                playPauseBtn.child.icon_name = playing
+                    ? 'media-playback-pause-symbolic'
+                    : 'media-playback-start-symbolic';
+            },
+            onReady: c => {
+                ctl = c;
+                prevBtn.connect('clicked', () => c.previous());
+                playPauseBtn.connect('clicked', () => c.playPause());
+                nextBtn.connect('clicked', () => c.next());
+            },
+            onGone: () => {
+                titleLabel.text = 'No media';
+                artistLabel.text = '';
+            },
+        });
+    };
+
+    pickPreferredPlayer(attach);
+    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+        pickPreferredPlayer(name => {
+            if (!ctl)
+                attach(name);
+        });
+        return GLib.SOURCE_CONTINUE;
+    });
+    row.connect('destroy', () => {
+        clearCtl();
+        try { GLib.source_remove(scanId); } catch (e) {}
     });
 
     return row;
+}
+
+/** Panel chip + popup controls */
+export function buildMedia(_extensionPath, scale = 1.0) {
+    const icon = new St.Icon({
+        icon_name: 'multimedia-player-symbolic',
+        icon_size: Math.round(16 * (scale || 1.0)),
+        style_class: 'material-panel-media-icon',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const label = new St.Label({
+        text: 'Media',
+        style_class: 'material-panel-media-label',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    const box = new St.BoxLayout({
+        style_class: 'material-panel-media material-panel-chip',
+        y_align: Clutter.ActorAlign.CENTER,
+        vertical: false,
+    });
+    box.add_child(icon);
+    box.add_child(label);
+
+    const button = new St.Button({
+        style_class: 'material-panel-media-btn',
+        reactive: true,
+        track_hover: true,
+        child: box,
+    });
+
+    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name('material-panel-popup material-panel-media-popup');
+    Main.uiGroup.add_child(menu.actor);
+    menu.actor.hide();
+    attachPopupDismiss(menu, button);
+
+    const body = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-media-popup-body',
+    });
+    const hero = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-popup-card',
+    });
+    const pTitle = new St.Label({
+        text: 'No media',
+        style_class: 'material-panel-media-popup-title',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    pTitle.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    const pArtist = new St.Label({
+        text: '',
+        style_class: 'material-panel-media-popup-artist',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    pArtist.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    hero.add_child(pTitle);
+    hero.add_child(pArtist);
+    body.add_child(hero);
+
+    const controls = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-popup-card material-panel-media-popup-controls',
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    const mk = iconName => {
+        const b = new St.Button({
+            style_class: 'material-panel-media-popup-btn',
+            reactive: true,
+            track_hover: true,
+        });
+        b.set_child(new St.Icon({icon_name: iconName, icon_size: 20}));
+        return b;
+    };
+    const prevBtn = mk('media-skip-backward-symbolic');
+    const playBtn = mk('media-playback-start-symbolic');
+    const nextBtn = mk('media-skip-forward-symbolic');
+    controls.add_child(prevBtn);
+    controls.add_child(playBtn);
+    controls.add_child(nextBtn);
+    body.add_child(controls);
+
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    item.add_child(body);
+    menu.addMenuItem(item);
+
+    let ctl = null;
+    const clearCtl = () => {
+        try { ctl?.destroy(); } catch (e) {}
+        ctl = null;
+    };
+
+    const attach = busName => {
+        clearCtl();
+        if (!busName) {
+            label.text = 'Media';
+            pTitle.text = 'No media';
+            pArtist.text = '';
+            return;
+        }
+        bindPlayer(busName, {
+            onMeta: ({title, artist}) => {
+                label.text = title || 'Media';
+                pTitle.text = title || 'Unknown';
+                pArtist.text = artist || '';
+            },
+            onStatus: playing => {
+                playBtn.child.icon_name = playing
+                    ? 'media-playback-pause-symbolic'
+                    : 'media-playback-start-symbolic';
+                icon.icon_name = playing
+                    ? 'media-playback-start-symbolic'
+                    : 'multimedia-player-symbolic';
+            },
+            onReady: c => {
+                ctl = c;
+            },
+        });
+    };
+
+    prevBtn.connect('clicked', () => ctl?.previous());
+    playBtn.connect('clicked', () => ctl?.playPause());
+    nextBtn.connect('clicked', () => ctl?.next());
+
+    pickPreferredPlayer(attach);
+    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+        pickPreferredPlayer(name => {
+            if (!ctl)
+                attach(name);
+        });
+        return GLib.SOURCE_CONTINUE;
+    });
+
+    button.connect('clicked', () => {
+        if (menu.isOpen)
+            menu.close();
+        else {
+            pickPreferredPlayer(attach);
+            menu.open();
+        }
+    });
+    button.connect('destroy', () => {
+        clearCtl();
+        try { GLib.source_remove(scanId); } catch (e) {}
+        menu.destroy();
+    });
+
+    return button;
 }

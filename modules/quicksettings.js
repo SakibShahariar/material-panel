@@ -14,6 +14,7 @@ import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
+import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -767,7 +768,7 @@ function bluetoothTile() {
         pulseTimers.set(path, id);
     };
 
-    const buildDeviceRow = (path, props, isPaired = true) => {
+    const buildDeviceRow = (path, props, isPaired = true, batteryPct = null) => {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
         const name = props['Name'] ? props['Name'].deep_unpack() : null;
         const displayName = alias ?? name ?? 'Unknown device';
@@ -777,11 +778,12 @@ function bluetoothTile() {
         if (connected)
             connectingPaths.delete(path);
 
-        let batteryPct = null;
-        try {
-            if ('Battery' in props && props['Battery'])
-                batteryPct = props['Battery'].deep_unpack();
-        } catch (e) {}
+        if (batteryPct == null) {
+            try {
+                if ('Battery' in props && props['Battery'])
+                    batteryPct = props['Battery'].deep_unpack();
+            } catch (e) {}
+        }
 
         let deviceClass = null;
         try {
@@ -992,12 +994,28 @@ function bluetoothTile() {
                             }
                             const pairedDevices = Object.entries(objects)
                                 .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                                .map(([path, ifaces]) => {
+                                    let batteryPct = null;
+                                    try {
+                                        const bat = ifaces['org.bluez.Battery1'];
+                                        if (bat && bat['Percentage'])
+                                            batteryPct = bat['Percentage'].deep_unpack();
+                                    } catch (e) {}
+                                    return {path, props: ifaces[DEVICE_IFACE], batteryPct};
+                                })
                                 .filter(({props}) => props['Paired']?.deep_unpack());
                             // Also show unpaired nearby devices
                             const nearbyDevices = Object.entries(objects)
                                 .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                                .map(([path, ifaces]) => {
+                                    let batteryPct = null;
+                                    try {
+                                        const bat = ifaces['org.bluez.Battery1'];
+                                        if (bat && bat['Percentage'])
+                                            batteryPct = bat['Percentage'].deep_unpack();
+                                    } catch (e) {}
+                                    return {path, props: ifaces[DEVICE_IFACE], batteryPct};
+                                })
                                 .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
                             if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
                                 const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty'});
@@ -1011,15 +1029,15 @@ function bluetoothTile() {
                                 text: 'Bluetooth',
                                 style_class: 'material-panel-qs-list-header',
                             }));
-                            for (const {path, props} of pairedDevices)
-                                deviceContainer.add_child(buildDeviceRow(path, props, true));
+                            for (const {path, props, batteryPct} of pairedDevices)
+                                deviceContainer.add_child(buildDeviceRow(path, props, true, batteryPct));
                             if (nearbyDevices.length > 0) {
                                 deviceContainer.add_child(new St.Label({
                                     text: 'Nearby',
                                     style_class: 'material-panel-qs-list-header material-panel-qs-list-header-sub',
                                 }));
-                                for (const {path, props} of nearbyDevices.slice(0, 6))
-                                    deviceContainer.add_child(buildDeviceRow(path, props, false));
+                                for (const {path, props, batteryPct} of nearbyDevices.slice(0, 6))
+                                    deviceContainer.add_child(buildDeviceRow(path, props, false, batteryPct));
                             }
                         } catch (e) {
                             logError(e, 'material-panel: bluez GetManagedObjects failed for device list');
@@ -1239,7 +1257,15 @@ function buildBluetoothDeviceList() {
                         }
                         const pairedDevices = Object.entries(objects)
                             .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                            .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                            .map(([path, ifaces]) => {
+                                    let batteryPct = null;
+                                    try {
+                                        const bat = ifaces['org.bluez.Battery1'];
+                                        if (bat && bat['Percentage'])
+                                            batteryPct = bat['Percentage'].deep_unpack();
+                                    } catch (e) {}
+                                    return {path, props: ifaces[DEVICE_IFACE], batteryPct};
+                                })
                             .filter(({props}) => props['Paired']?.deep_unpack());
 
                         headerLabel.text = `Paired devices (${pairedDevices.length})`;
@@ -1651,6 +1677,27 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         wifiListItem.visible = false;
         menu.addMenuItem(wifiListItem);
     }
+
+    // Live net speed under Wi-Fi (when wireless is relevant)
+    const netSpeedRow = new St.BoxLayout({
+        vertical: false,
+        x_expand: true,
+        style_class: 'material-panel-qs-net-speed',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const netSpeedLabel = new St.Label({
+        text: '↓ —  ↑ —',
+        style_class: 'material-panel-qs-net-speed-label',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    netSpeedRow.add_child(netSpeedLabel);
+    const netSpeedItem = wrapAsMenuItem(netSpeedRow);
+    menu.addMenuItem(netSpeedItem);
+    const stopNet = startNetSpeedMonitor(({downText, upText}) => {
+        netSpeedLabel.text = `↓ ${downText}  ↑ ${upText}`;
+    });
+    menu.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 

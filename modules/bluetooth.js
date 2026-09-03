@@ -116,7 +116,14 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
         style: `opacity: 0.7; margin-left: ${Math.round(3 * (scale || 1.0))}px; padding-left: ${Math.round(4 * (scale || 1.0))}px; border-left: 1px solid rgba(255,255,255,0.15);`,
     });
+    const chipBatt = new St.Label({
+        text: '',
+        style_class: 'material-panel-bt-chip-batt',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    chipBatt.visible = false;
     buttonBox.add_child(icon);
+    buttonBox.add_child(chipBatt);
     buttonBox.add_child(dropArrow);
     const button = new St.Button({
         style_class: 'material-panel-bluetooth-btn material-panel-chip',
@@ -379,13 +386,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         const displayName = alias ?? name ?? 'Unknown device';
         const connected = props['Connected']?.deep_unpack() ?? false;
         const paired = props['Paired']?.deep_unpack() ?? false;
-        const batteryPct = (() => {
-            // Some adapters expose Battery percentage via Battery1; try generic
-            try {
-                if ('Battery' in props && props['Battery']) return props['Battery'].deep_unpack();
-            } catch (e) {}
-            return null;
-        })();
+        let batteryPct = null;
+        try {
+            if (props && props._mpBatteryPct != null)
+                batteryPct = props._mpBatteryPct;
+            else if ('Battery' in props && props['Battery'])
+                batteryPct = props['Battery'].deep_unpack();
+        } catch (e) {}
         const row = new St.Button({
             style_class: `material-panel-bt-device${connected ? ' connected' : ''}${paired ? '' : ' unpaired'}`,
             reactive: true,
@@ -493,7 +500,15 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         }
                         const pairedDevices = Object.entries(objects)
                             .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                            .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                            .map(([path, ifaces]) => {
+                                const props = ifaces[DEVICE_IFACE];
+                                try {
+                                    const bat = ifaces['org.bluez.Battery1'];
+                                    if (bat && bat['Percentage'])
+                                        props._mpBatteryPct = bat['Percentage'].deep_unpack();
+                                } catch (e) {}
+                                return {path, props};
+                            })
                             .filter(({props}) => props['Paired']?.deep_unpack());
                         // Show paired first, connected at top (Noctalia order)
                         pairedDevices.sort((a, b) => {
@@ -511,11 +526,36 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         }
                         for (const {path, props} of pairedDevices)
                             devicesBox.add_child(buildDeviceRow(path, props));
+                        try {
+                            let shown = false;
+                            for (const {props} of pairedDevices) {
+                                const connected = props['Connected']?.deep_unpack() ?? false;
+                                const pct = props._mpBatteryPct;
+                                if (connected && pct != null && pct !== undefined) {
+                                    chipBatt.text = `${Math.round(Number(pct))}%`;
+                                    chipBatt.visible = true;
+                                    shown = true;
+                                    break;
+                                }
+                            }
+                            if (!shown) {
+                                chipBatt.text = '';
+                                chipBatt.visible = false;
+                            }
+                        } catch (e) {}
                         // Also show unpaired nearby if discovering (End4 style: nearby section)
                         if (discovering) {
                             const nearby = Object.entries(objects)
                                 .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => ({path, props: ifaces[DEVICE_IFACE]}))
+                                .map(([path, ifaces]) => {
+                                const props = ifaces[DEVICE_IFACE];
+                                try {
+                                    const bat = ifaces['org.bluez.Battery1'];
+                                    if (bat && bat['Percentage'])
+                                        props._mpBatteryPct = bat['Percentage'].deep_unpack();
+                                } catch (e) {}
+                                return {path, props};
+                            })
                                 .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
                             if (nearby.length > 0) {
                                 const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-bt-nearby-header'});

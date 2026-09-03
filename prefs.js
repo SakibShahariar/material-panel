@@ -58,6 +58,7 @@ const ALL_MODULES = [
     {id: 'dnd', name: 'Do Not Disturb', zone: 'right'},
     {id: 'powermenu', name: 'Power Menu', zone: 'right'},
     {id: 'bluetooth', name: 'Bluetooth', zone: 'right'},
+    {id: 'media', name: 'Media', zone: 'right'},
     {id: 'quicksettings', name: 'Quick Settings', zone: 'right'},
 ];
 

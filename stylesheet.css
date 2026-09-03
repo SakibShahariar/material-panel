@@ -634,3 +634,62 @@
 .material-panel-popup .popup-menu-item {
     transition-duration: 140ms;
 }
+
+
+.material-panel-qs-net-speed {
+    spacing: 8px;
+    padding: 4px 10px 2px 10px;
+}
+.material-panel-qs-net-speed-label {
+    font-size: 11px;
+    font-weight: 500;
+}
+.material-panel-media {
+    spacing: 5px;
+}
+.material-panel-media-label {
+    font-weight: 500;
+    max-width: 120px;
+}
+.material-panel-media-popup-body {
+    spacing: 8px;
+    min-width: 220px;
+    padding: 4px;
+}
+.material-panel-media-popup-title {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+.material-panel-media-popup-artist {
+    font-size: 12px;
+    text-align: center;
+}
+.material-panel-media-popup-controls {
+    spacing: 16px;
+    padding: 8px;
+}
+.material-panel-media-popup-btn {
+    border-radius: 999px;
+    padding: 8px;
+}
+.material-panel-qs-media {
+    spacing: 8px;
+    padding: 4px 0;
+}
+.material-panel-qs-media-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+.material-panel-qs-media-artist {
+    font-size: 11px;
+}
+.material-panel-qs-media-btn {
+    border-radius: 999px;
+    padding: 6px;
+}
+.material-panel-bt-chip-batt {
+    font-size: 11px;
+    font-weight: 600;
+    padding-left: 2px;
+}
