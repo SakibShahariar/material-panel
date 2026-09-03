@@ -6,7 +6,8 @@ import UPowerGlib from 'gi://UPowerGlib';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
+import {iconPath, iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 function formatSeconds(sec) {
@@ -59,7 +60,9 @@ export function buildBattery(extensionPath, scale = 1.0) {
         vertical: false,
     });
 
+    let currentKey = 'battery-full';
     const setIconKey = key => {
+        currentKey = key;
         try {
             let pth = iconPathPrimary(key);
             if (!Gio.File.new_for_path(pth).query_exists(null))
@@ -83,10 +86,12 @@ export function buildBattery(extensionPath, scale = 1.0) {
     box.add_child(label);
 
     const button = new St.Button({
-        style_class: 'material-panel-battery-btn',
+        style_class: 'material-panel-battery-btn material-panel-chip',
         reactive: true,
+        track_hover: true,
         child: box,
     });
+    wireFileIconPress(button, () => [{icon, key: currentKey}]);
 
     // Popup widgets
     const pctHero = new St.Label({text: '—', style_class: 'material-panel-battery-popup-value'});

@@ -193,7 +193,7 @@ export function buildMediaPlayerRow() {
             track_hover: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        b.set_child(new St.Icon({icon_name: iconName, icon_size: 14}));
+        b.set_child(new St.Icon({icon_name: iconName, icon_size: 16}));
         return b;
     };
     const prevBtn = mkBtn('media-skip-backward-symbolic');
@@ -222,8 +222,8 @@ export function buildMediaPlayerRow() {
             onMeta: ({title, artist}) => {
                 // Keep one short line in QS
                 let t = title || 'Media';
-                if (t.length > 28)
-                    t = t.slice(0, 27) + '…';
+                if (t.length > 40)
+                    t = t.slice(0, 39) + '…';
                 titleLabel.text = t;
                 artistLabel.text = artist || '';
             },

@@ -706,19 +706,30 @@
     min-height: 48px;
 }
 .material-panel-qs-media {
-    spacing: 4px;
-    padding: 0 2px;
-    min-height: 28px;
-    max-height: 32px;
+    spacing: 8px;
+    padding: 6px 8px;
+    min-height: 40px;
 }
 .material-panel-qs-media-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    max-width: 160px;
+    max-width: 200px;
 }
 .material-panel-qs-media-btn {
-    padding: 2px;
-    min-width: 24px;
+    padding: 6px;
+    min-width: 28px;
+}
+.material-panel-qs-wifi-speed {
+    font-size: 10px;
+    font-weight: 500;
+}
+.material-panel-net-speed-popup-body {
+    spacing: 6px;
+    padding: 8px 12px;
+    min-width: 180px;
+}
+.material-panel-network-speed-btn {
+    padding: 0 8px;
 }
 .material-panel-network-speed {
     spacing: 3px;

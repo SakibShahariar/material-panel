@@ -2,8 +2,12 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {iconPath, iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 
 function decodeBytes(bytes) {
     try {
@@ -11,11 +15,7 @@ function decodeBytes(bytes) {
             return new TextDecoder('utf-8').decode(bytes);
         return String(bytes);
     } catch (e) {
-        try {
-            return ByteArray.toString(bytes);
-        } catch (e2) {
-            return '';
-        }
+        return '';
     }
 }
 
@@ -89,67 +89,66 @@ function fileIcon(key, onAccent) {
         if (Gio.File.new_for_path(p).query_exists(null))
             return Gio.FileIcon.new(Gio.File.new_for_path(p));
     } catch (e) {}
-    return Gio.ThemedIcon.new(key.includes('down') ? 'go-down-symbolic' : 'go-up-symbolic');
+    return Gio.ThemedIcon.new('network-transmit-receive-symbolic');
 }
 
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
-    const box = new St.BoxLayout({
-        style_class: 'material-panel-network-speed material-panel-chip',
-        y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
-        reactive: true,
-        track_hover: true,
-    });
+    let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
 
-    const s = Math.round(15 * (scale || 1.0));
-    const downIcon = new St.Icon({
-        style_class: 'material-panel-network-speed-icon material-panel-network-speed-down-icon',
-        icon_size: s,
+    const icon = new St.Icon({
+        style_class: 'material-panel-network-speed-icon',
+        icon_size: Math.round(17 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
         gicon: fileIcon('network-down', false),
     });
-    const upIcon = new St.Icon({
-        style_class: 'material-panel-network-speed-icon material-panel-network-speed-up-icon',
-        icon_size: s,
-        y_align: Clutter.ActorAlign.CENTER,
-        gicon: fileIcon('network-up', false),
-    });
-    const downLabel = new St.Label({
-        style_class: 'material-panel-network-speed-label material-panel-network-speed-down-label',
-        y_align: Clutter.ActorAlign.CENTER,
-        text: '…',
-    });
-    const upLabel = new St.Label({
-        style_class: 'material-panel-network-speed-label material-panel-network-speed-up-label',
-        y_align: Clutter.ActorAlign.CENTER,
-        text: '…',
+
+    const button = new St.Button({
+        style_class: 'material-panel-network-speed material-panel-chip material-panel-network-speed-btn',
+        reactive: true,
+        track_hover: true,
+        child: icon,
     });
 
-    box.add_child(downIcon);
-    box.add_child(downLabel);
-    box.add_child(upIcon);
-    box.add_child(upLabel);
+    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name('material-panel-popup material-panel-net-speed-popup');
+    Main.uiGroup.add_child(menu.actor);
+    menu.actor.hide();
+    attachPopupDismiss(menu, button);
 
-    // Press: swap to on-primary recolored icons (FileIcon ignores CSS color)
-    const setPressedIcons = pressed => {
-        downIcon.gicon = fileIcon('network-down', pressed);
-        upIcon.gicon = fileIcon('network-up', pressed);
-        if (pressed)
-            box.add_style_class_name('pressed');
-        else
-            box.remove_style_class_name('pressed');
+    const body = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-net-speed-popup-body',
+    });
+    const title = new St.Label({
+        text: 'Network speed',
+        style_class: 'material-panel-net-speed-popup-title',
+    });
+    const ifaceL = new St.Label({text: '—', style_class: 'material-panel-net-speed-popup-iface'});
+    const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
+    const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
+    body.add_child(title);
+    body.add_child(ifaceL);
+    body.add_child(downL);
+    body.add_child(upL);
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    item.add_child(body);
+    menu.addMenuItem(item);
+
+    const refreshPopup = () => {
+        ifaceL.text = last.iface ? `Interface: ${last.iface}` : 'Interface: —';
+        downL.text = `↓ Download  ${last.downText}`;
+        upL.text = `↑ Upload  ${last.upText}`;
     };
-    box.connect('button-press-event', () => {
-        setPressedIcons(true);
-        return Clutter.EVENT_PROPAGATE;
-    });
-    box.connect('button-release-event', () => {
-        setPressedIcons(false);
-        return Clutter.EVENT_PROPAGATE;
-    });
-    box.connect('leave-event', () => {
-        setPressedIcons(false);
-        return Clutter.EVENT_PROPAGATE;
+
+    wireFileIconPress(button, () => [{icon, key: 'network-down'}]);
+
+    button.connect('clicked', () => {
+        if (menu.isOpen)
+            menu.close();
+        else {
+            refreshPopup();
+            menu.open();
+        }
     });
 
     let iface = findActiveInterface();
@@ -162,35 +161,46 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         if (!stats) {
             iface = findActiveInterface();
             primed = false;
-            downLabel.text = '—';
-            upLabel.text = '—';
+            last = {down: 0, up: 0, downText: '—', upText: '—', iface};
+            try {
+                button.set_tooltip_text('Network speed\nNo interface');
+            } catch (e) {}
+            if (menu.isOpen)
+                refreshPopup();
             return GLib.SOURCE_CONTINUE;
         }
         if (!primed) {
             prevRx = stats.rx;
             prevTx = stats.tx;
             primed = true;
-            downLabel.text = '0 B/s';
-            upLabel.text = '0 B/s';
+            last = {down: 0, up: 0, downText: '0 B/s', upText: '0 B/s', iface};
             return GLib.SOURCE_CONTINUE;
         }
         const down = Math.max(0, stats.rx - prevRx);
         const up = Math.max(0, stats.tx - prevTx);
         prevRx = stats.rx;
         prevTx = stats.tx;
-        downLabel.text = formatSpeed(down);
-        upLabel.text = formatSpeed(up);
+        last = {
+            down, up,
+            downText: formatSpeed(down),
+            upText: formatSpeed(up),
+            iface,
+        };
         try {
-            box.set_tooltip_text(`${iface || '?'}\n↓ ${downLabel.text}  ↑ ${upLabel.text}`);
+            button.set_tooltip_text(
+                `${iface}\n↓ ${last.downText}\n↑ ${last.upText}`);
         } catch (e) {}
+        if (menu.isOpen)
+            refreshPopup();
         return GLib.SOURCE_CONTINUE;
     };
 
     tick();
     const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, tick);
-    box.connect('destroy', () => {
+    button.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
+        menu.destroy();
     });
 
-    return box;
+    return button;
 }

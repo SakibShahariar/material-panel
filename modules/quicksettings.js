@@ -1412,7 +1412,8 @@ function wifiQsBlock() {
         x_expand: true,
     });
     speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    speedLabel.visible = false;
+    speedLabel.visible = true;
+    speedLabel.text = '↓ —  ↑ —';
     textCol.add_child(text);
     textCol.add_child(speedLabel);
     mainBox.add_child(icon);
@@ -1615,6 +1616,7 @@ function wifiQsBlock() {
                 _ssid = 'Wi-Fi';
                 text.text = 'Wi-Fi';
                 speedLabel.visible = false;
+                speedLabel.text = '';
             }
             if (expanded)
                 rebuildList();
