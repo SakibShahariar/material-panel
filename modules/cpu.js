@@ -448,6 +448,5 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
-    try { wireFileIconPress(button, () => [{icon: button.get_child()?.get_child_at_index?.(0), key: 'cpu'}].filter(x => x.icon)); } catch (e) {}
     return button;
 }

@@ -282,7 +282,7 @@ async function resolveIpLocation() {
 
 export function buildWeather(_extensionPath, scale = 1.0) {
     const box = new St.BoxLayout({
-        style_class: 'material-panel-weather material-panel-chip',
+        style_class: 'material-panel-weather',
         y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
     });
@@ -317,11 +317,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     let inFlight = false;
     let detail = {temp: null, condition: '', extra: '', place: '', source: ''};
 
+    let currentIconKey = 'weather';
+    let press = null;
     const setIconKey = key => {
+        currentIconKey = key || 'weather';
+        if (press?.applyIcons) {
+            try { press.applyIcons(); return; } catch (e) {}
+        }
         try {
-            let pth = iconPathPrimary(key);
+            let pth = iconPathPrimary(currentIconKey);
             if (!Gio.File.new_for_path(pth).query_exists(null))
-                pth = iconPath(key);
+                pth = iconPath(currentIconKey);
             if (Gio.File.new_for_path(pth).query_exists(null))
                 icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(pth));
         } catch (e) {}
@@ -386,7 +392,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         } catch (e) {
             logError(e, 'material-panel: weather failed');
             if (label.text === '…' || label.text === '—')
-                label.text = '—';
+                label.text = '—°';
         } finally {
             inFlight = false;
         }
@@ -431,7 +437,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: box,
     });
-    wireFileIconPress(button, () => [{icon, key: 'weather'}]);
+    press = wireFileIconPress(button, () => [{icon, key: currentIconKey}]);
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-weather-popup');
     Main.uiGroup.add_child(menu.actor);

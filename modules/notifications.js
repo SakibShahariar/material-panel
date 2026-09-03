@@ -197,6 +197,5 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         }
     });
 
-    wireFileIconPress(button, () => [{icon, key: 'notifications'}]);
     return button;
 }

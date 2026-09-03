@@ -5,8 +5,8 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {giconForKey, wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {wirePressedClass} from '../lib/pressFx.js';
 
 function decodeBytes(bytes) {
     try {
@@ -83,33 +83,21 @@ function readStats(iface) {
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
 
-    const s = Math.round(14 * (scale || 1.0));
-    const downIcon = new St.Icon({
+    // Symbolic icon — CSS color works (primary / on-primary on press)
+    const icon = new St.Icon({
         style_class: 'material-panel-network-speed-icon',
-        icon_size: s,
-        y_align: Clutter.ActorAlign.CENTER,
-        gicon: giconForKey('network-down', false) || Gio.ThemedIcon.new('go-down-symbolic'),
-    });
-    const upIcon = new St.Icon({
-        style_class: 'material-panel-network-speed-icon',
-        icon_size: s,
-        y_align: Clutter.ActorAlign.CENTER,
-        gicon: giconForKey('network-up', false) || Gio.ThemedIcon.new('go-up-symbolic'),
-    });
-    const inner = new St.BoxLayout({
-        vertical: false,
-        style_class: 'material-panel-network-speed-inner',
+        icon_name: 'network-transmit-receive-symbolic',
+        icon_size: Math.round(17 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
     });
-    inner.add_child(downIcon);
-    inner.add_child(upIcon);
 
     const button = new St.Button({
         style_class: 'material-panel-network-speed material-panel-chip material-panel-network-speed-btn',
         reactive: true,
         track_hover: true,
-        child: inner,
+        child: icon,
     });
+    wirePressedClass(button);
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-net-speed-popup');
@@ -121,7 +109,10 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         vertical: true,
         style_class: 'material-panel-net-speed-popup-body',
     });
-    body.add_child(new St.Label({text: 'Network speed', style_class: 'material-panel-net-speed-popup-title'}));
+    body.add_child(new St.Label({
+        text: 'Network speed',
+        style_class: 'material-panel-net-speed-popup-title',
+    }));
     const ifaceL = new St.Label({text: '—', style_class: 'material-panel-net-speed-popup-iface'});
     const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
     const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
@@ -137,11 +128,6 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         downL.text = `↓ Download  ${last.downText}`;
         upL.text = `↑ Upload  ${last.upText}`;
     };
-
-    wireFileIconPress(button, () => [
-        {icon: downIcon, key: 'network-down'},
-        {icon: upIcon, key: 'network-up'},
-    ]);
 
     button.connect('clicked', () => {
         if (menu.isOpen)
@@ -164,7 +150,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             primed = false;
             last = {down: 0, up: 0, downText: '—', upText: '—', iface};
             try { button.set_tooltip_text('Network speed'); } catch (e) {}
-            if (menu.isOpen) refreshPopup();
+            if (menu.isOpen)
+                refreshPopup();
             return GLib.SOURCE_CONTINUE;
         }
         if (!primed) {
