@@ -41,12 +41,12 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     const downLabel = new St.Label({
         style_class: 'material-panel-network-speed-label material-panel-network-speed-down-label',
         y_align: Clutter.ActorAlign.CENTER,
-        text: '—',
+        text: '0 B/s',
     });
     const upLabel = new St.Label({
         style_class: 'material-panel-network-speed-label material-panel-network-speed-up-label',
         y_align: Clutter.ActorAlign.CENTER,
-        text: '—',
+        text: '0 B/s',
     });
 
     box.add_child(downIcon);

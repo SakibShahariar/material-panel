@@ -693,3 +693,31 @@
     font-weight: 600;
     padding-left: 2px;
 }
+
+
+.material-panel-qs-wifi-text {
+    spacing: 1px;
+}
+.material-panel-qs-wifi-speed {
+    font-size: 10px;
+    font-weight: 500;
+}
+.material-panel-qs-wifi-row {
+    min-height: 48px;
+}
+.material-panel-qs-media {
+    spacing: 6px;
+    padding: 2px 4px;
+    min-height: 36px;
+}
+.material-panel-qs-media-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+.material-panel-qs-media-btn {
+    padding: 4px;
+}
+.material-panel-foreign {
+    border-radius: 999px;
+    transition-duration: 160ms;
+}

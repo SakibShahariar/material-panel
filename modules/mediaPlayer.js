@@ -181,9 +181,9 @@ export function buildMediaPlayerRow() {
         y_align: Clutter.ActorAlign.CENTER,
     });
     artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    const textCol = new St.BoxLayout({vertical: true, x_expand: true});
+    artistLabel.visible = false; // compact: title only in QS
+    const textCol = new St.BoxLayout({vertical: false, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
     textCol.add_child(titleLabel);
-    textCol.add_child(artistLabel);
 
     const mkBtn = (iconName) => {
         const b = new St.Button({
@@ -219,7 +219,7 @@ export function buildMediaPlayerRow() {
         }
         bindPlayer(busName, {
             onMeta: ({title, artist}) => {
-                titleLabel.text = title;
+                titleLabel.text = artist ? `${title} — ${artist}` : title;
                 artistLabel.text = artist || '';
             },
             onStatus: playing => {

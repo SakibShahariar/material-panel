@@ -1370,7 +1370,7 @@ function wifiQsBlock() {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: 48,
+        height: 52,
         width: 148,
     });
 
@@ -1392,6 +1392,12 @@ function wifiQsBlock() {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('network-offline'))),
     });
+    const textCol = new St.BoxLayout({
+        vertical: true,
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-qs-wifi-text',
+    });
     const text = new St.Label({
         text: 'Wi-Fi',
         style_class: 'material-panel-qs-tile-label',
@@ -1399,9 +1405,26 @@ function wifiQsBlock() {
         x_expand: true,
     });
     text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    const speedLabel = new St.Label({
+        text: '',
+        style_class: 'material-panel-qs-wifi-speed',
+        y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
+    });
+    speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    speedLabel.visible = false;
+    textCol.add_child(text);
+    textCol.add_child(speedLabel);
     mainBox.add_child(icon);
-    mainBox.add_child(text);
+    mainBox.add_child(textCol);
     mainBtn.set_child(mainBox);
+
+    let _ssid = 'Wi-Fi';
+    const stopNet = startNetSpeedMonitor(({downText, upText}) => {
+        if (speedLabel.visible)
+            speedLabel.text = `↓ ${downText}  ↑ ${upText}`;
+    });
+    row.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-drop',
@@ -1494,7 +1517,7 @@ function wifiQsBlock() {
                 });
                 name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
                 const status = new St.Label({
-                    text: isActive ? 'Connected' : 'Saved',
+                    text: isActive ? (speedLabel.text || 'Connected') : 'Saved',
                     style_class: 'material-panel-qs-bt-device-status',
                     y_align: Clutter.ActorAlign.CENTER,
                 });
@@ -1580,10 +1603,18 @@ function wifiQsBlock() {
             const on = !!client.wireless_enabled;
             setActive(on);
             const conn = client.get_primary_connection();
-            if (on && conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME)
-                text.text = conn.get_id?.() || 'Wi-Fi';
-            else
+            if (on && conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME) {
+                _ssid = conn.get_id?.() || 'Wi-Fi';
+                text.text = _ssid;
+                speedLabel.visible = true;
+                if (!speedLabel.text)
+                    speedLabel.text = '↓ —  ↑ —';
+            } else {
+                _ssid = 'Wi-Fi';
                 text.text = 'Wi-Fi';
+                speedLabel.visible = false;
+                speedLabel.text = '';
+            }
             if (expanded)
                 rebuildList();
         };
@@ -1677,27 +1708,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         wifiListItem.visible = false;
         menu.addMenuItem(wifiListItem);
     }
-
-    // Live net speed under Wi-Fi (when wireless is relevant)
-    const netSpeedRow = new St.BoxLayout({
-        vertical: false,
-        x_expand: true,
-        style_class: 'material-panel-qs-net-speed',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    const netSpeedLabel = new St.Label({
-        text: '↓ —  ↑ —',
-        style_class: 'material-panel-qs-net-speed-label',
-        x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    netSpeedRow.add_child(netSpeedLabel);
-    const netSpeedItem = wrapAsMenuItem(netSpeedRow);
-    menu.addMenuItem(netSpeedItem);
-    const stopNet = startNetSpeedMonitor(({downText, upText}) => {
-        netSpeedLabel.text = `↓ ${downText}  ↑ ${upText}`;
-    });
-    menu.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
