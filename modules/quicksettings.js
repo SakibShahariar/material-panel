@@ -711,46 +711,107 @@ function bluetoothTile() {
     });
 
 // Device list logic — inline, toggled by dropBtn (10% area)
+    const connectingPaths = new Set();
+    const pulseTimers = new Map();
+
+    const stopPulse = path => {
+        const id = pulseTimers.get(path);
+        if (id) {
+            try { GLib.source_remove(id); } catch (e) {}
+            pulseTimers.delete(path);
+        }
+    };
+
+    const startPulse = (path, iconActor) => {
+        stopPulse(path);
+        let tick = 0;
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 90, () => {
+            if (!connectingPaths.has(path)) {
+                try { iconActor.opacity = 255; } catch (e) {}
+                pulseTimers.delete(path);
+                return GLib.SOURCE_REMOVE;
+            }
+            tick++;
+            try {
+                iconActor.opacity = 100 + Math.floor(120 * (0.5 + 0.5 * Math.sin(tick * 0.45)));
+            } catch (e) {}
+            return GLib.SOURCE_CONTINUE;
+        });
+        pulseTimers.set(path, id);
+    };
+
     const buildDeviceRow = (path, props, isPaired = true) => {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
         const name = props['Name'] ? props['Name'].deep_unpack() : null;
         const displayName = alias ?? name ?? 'Unknown device';
         const connected = props['Connected'] ? props['Connected'].deep_unpack() : false;
         const paired = props['Paired'] ? props['Paired'].deep_unpack() : false;
-        const batteryPct = (() => {
-            // Try to get battery percentage from device
-            try {
-                if ('Battery' in props && props['Battery']) return props['Battery'].deep_unpack();
-            } catch (e) {}
-            return null;
-        })();
-        const deviceClass = (() => {
-            try {
-                if ('Class' in props && props['Class']) return props['Class'].deep_unpack();
-            } catch (e) {}
-            return null;
-        })();
-        const iconName = getDeviceIcon(deviceClass, connected);
-        const iconPathStr = connected ? iconPathOnAccent(iconName) : iconPathPrimary(iconName);
+        const isConnecting = connectingPaths.has(path);
+        if (connected)
+            connectingPaths.delete(path);
+
+        let batteryPct = null;
+        try {
+            if ('Battery' in props && props['Battery'])
+                batteryPct = props['Battery'].deep_unpack();
+        } catch (e) {}
+
+        let deviceClass = null;
+        try {
+            if ('Class' in props && props['Class'])
+                deviceClass = props['Class'].deep_unpack();
+        } catch (e) {}
+
+        const iconName = getDeviceIcon(deviceClass, connected || isConnecting);
+        const iconPathStr = connected
+            ? iconPathOnAccent(iconName)
+            : iconPathPrimary(iconName);
+
+        let style = 'material-panel-qs-bt-device';
+        if (connected)
+            style += ' connected';
+        if (isConnecting)
+            style += ' connecting';
+        if (!paired)
+            style += ' unpaired';
 
         const row = new St.Button({
-            style_class: `material-panel-qs-bt-device${connected ? ' connected' : ''}${!paired ? ' unpaired' : ''}`,
+            style_class: style,
             reactive: true,
             x_expand: true,
         });
-        const rowBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-qs-bt-device-box'});
+        const rowBox = new St.BoxLayout({
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'material-panel-qs-bt-device-box',
+        });
         const devIcon = new St.Icon({
             style_class: 'material-panel-qs-bt-device-icon',
             icon_size: 16,
             y_align: Clutter.ActorAlign.CENTER,
             gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathStr)),
         });
+        if (isConnecting)
+            startPulse(path, devIcon);
+        else
+            stopPulse(path);
+
         const textBox = new St.BoxLayout({vertical: true, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name');
         nameLabel.x_expand = true;
-        const statusText = batteryPct !== null
-            ? `${connected ? 'Connected' : (paired ? 'Paired' : 'Available')} · ${batteryPct}%`
-            : (connected ? 'Connected' : (paired ? 'Tap to connect' : 'Tap to pair'));
+
+        let statusText;
+        if (isConnecting)
+            statusText = 'Connecting…';
+        else if (connected)
+            statusText = batteryPct !== null ? `Connected · ${batteryPct}%` : 'Connected';
+        else if (paired)
+            statusText = batteryPct !== null
+                ? `Disconnected · ${batteryPct}%`
+                : 'Disconnected · Tap to connect';
+        else
+            statusText = 'Available · Tap to pair';
+
         const statusLabel = new St.Label({
             text: statusText,
             style_class: 'material-panel-qs-bt-device-status',
@@ -759,9 +820,12 @@ function bluetoothTile() {
         statusLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(nameLabel);
         textBox.add_child(statusLabel);
+
         const actionIcon = new St.Icon({
             style_class: 'material-panel-qs-bt-device-action',
-            icon_name: connected ? 'object-select-symbolic' : 'list-add-symbolic',
+            icon_name: isConnecting
+                ? 'content-loading-symbolic'
+                : (connected ? 'object-select-symbolic' : 'list-add-symbolic'),
             icon_size: 14,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -769,8 +833,18 @@ function bluetoothTile() {
         rowBox.add_child(textBox);
         rowBox.add_child(actionIcon);
         row.set_child(rowBox);
+
         row.connect('clicked', () => {
+            if (connectingPaths.has(path))
+                return Clutter.EVENT_STOP;
             const method = connected ? 'Disconnect' : 'Connect';
+            if (method === 'Connect') {
+                connectingPaths.add(path);
+                statusLabel.text = 'Connecting…';
+                row.add_style_class_name('connecting');
+                actionIcon.icon_name = 'content-loading-symbolic';
+                startPulse(path, devIcon);
+            }
             Gio.DBusProxy.new_for_bus(
                 Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
                 BLUEZ_SERVICE, path, DEVICE_IFACE, null,
@@ -780,20 +854,48 @@ function bluetoothTile() {
                         deviceProxy = Gio.DBusProxy.new_for_bus_finish(res);
                     } catch (e) {
                         logError(e, `material-panel: bluez device proxy failed for "${displayName}"`);
+                        connectingPaths.delete(path);
+                        stopPulse(path);
+                        if (_refreshDevices) _refreshDevices();
                         return;
                     }
-                    // If not paired yet, Pair first then Connect
+                    const done = (ok) => {
+                        if (!ok) {
+                            connectingPaths.delete(path);
+                            stopPulse(path);
+                        }
+                        if (_refreshDevices)
+                            _refreshDevices();
+                    };
                     if (!paired && method === 'Connect') {
                         deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                            try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); return; }
+                            try {
+                                p.call_finish(r);
+                            } catch (e) {
+                                logError(e, `material-panel: bluez Pair failed for "${displayName}"`);
+                                done(false);
+                                return;
+                            }
                             deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, -1, null, (p2, r2) => {
-                                try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); }
+                                try {
+                                    p2.call_finish(r2);
+                                    done(true);
+                                } catch (e) {
+                                    logError(e, `material-panel: bluez Connect failed for "${displayName}"`);
+                                    done(false);
+                                }
                             });
                         });
                         return;
                     }
                     deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                        try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); }
+                        try {
+                            p.call_finish(r);
+                            done(true);
+                        } catch (e) {
+                            logError(e, `material-panel: bluez ${method} failed for "${displayName}"`);
+                            done(false);
+                        }
                     });
                 });
             return Clutter.EVENT_STOP;
@@ -878,12 +980,17 @@ function bluetoothTile() {
                                 return;
                             }
                             deviceContainer.visible = expanded;
+                            deviceContainer.add_child(new St.Label({
+                                text: 'Bluetooth',
+                                style_class: 'material-panel-qs-list-header',
+                            }));
                             for (const {path, props} of pairedDevices)
                                 deviceContainer.add_child(buildDeviceRow(path, props, true));
                             if (nearbyDevices.length > 0) {
-                                const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-qs-bt-nearby-header'});
-                                sep.style = 'font-size: 10px; opacity: 0.6; padding: 6px 8px 2px 8px;';
-                                deviceContainer.add_child(sep);
+                                deviceContainer.add_child(new St.Label({
+                                    text: 'Nearby',
+                                    style_class: 'material-panel-qs-list-header material-panel-qs-list-header-sub',
+                                }));
                                 for (const {path, props} of nearbyDevices.slice(0, 6))
                                     deviceContainer.add_child(buildDeviceRow(path, props, false));
                             }
@@ -907,27 +1014,38 @@ function bluetoothTile() {
             });
     };
 
-    dropBtn.connect('clicked', () => {
-        expanded = !expanded;
+    const setExpanded = v => {
+        expanded = !!v;
         deviceContainer.visible = expanded;
-        // Collapse the wrapping PopupBaseMenuItem so the QS height shrinks
         const menuItem = deviceContainer.get_parent();
         if (menuItem)
             menuItem.visible = expanded;
         updateArrow();
+        try {
+            if (expanded)
+                dropBtn.add_style_class_name('list-open');
+            else
+                dropBtn.remove_style_class_name('list-open');
+        } catch (e) {}
         if (expanded && _refreshDevices)
             _refreshDevices();
+    };
+
+    dropBtn.connect('clicked', () => {
+        if (expanded)
+            qsExpandController.expandOnly(null);
+        else
+            qsExpandController.expandOnly('bt');
         return Clutter.EVENT_STOP;
     });
 
-    // Also allow clicking the narrow arrow area to not trigger power toggle
-    // (handled by separate buttons; mainBtn only toggles power).
+    qsExpandController.register('bt', {setExpanded});
 
     discoverAndBind();
     setupDeviceList();
 
-    // Cleanup
     outer.connect('destroy', () => {
+        qsExpandController.unregister('bt');
         if (objMgrProxy && objMgrSignalId) try { objMgrProxy.disconnect(objMgrSignalId); } catch (e) {}
     });
 
@@ -1303,6 +1421,10 @@ function wifiQsBlock() {
                 style_class: 'material-panel-qs-bt-empty',
             }));
         } else {
+            listPanel.add_child(new St.Label({
+                text: 'Networks',
+                style_class: 'material-panel-qs-list-header',
+            }));
             for (const conn of wifiConnections) {
                 const isActive = conn.get_uuid() === activeId;
                 const btn = new St.Button({
@@ -1376,9 +1498,14 @@ function wifiQsBlock() {
     };
 
     dropBtn.connect('clicked', () => {
-        setExpanded(!expanded);
+        if (expanded)
+            qsExpandController.expandOnly(null);
+        else
+            qsExpandController.expandOnly('wifi');
         return Clutter.EVENT_STOP;
     });
+    qsExpandController.register('wifi', {setExpanded});
+    row.connect('destroy', () => qsExpandController.unregister('wifi'));
     mainBtn.connect('clicked', () => {
         if (!client)
             return Clutter.EVENT_STOP;
@@ -1505,9 +1632,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         powerRow(menu),
     )));
 
+    menu.connect('open-state-changed', (_m, open) => {
+        if (!open)
+            qsExpandController.expandOnly(null);
+    });
+
     button.connect('clicked', () => {
-        // Dismiss handler already closes on chip press while open (EVENT_STOP).
-        // This path mainly opens; if still open, force close.
         if (menu.isOpen)
             menu.close();
         else

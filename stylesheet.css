@@ -511,3 +511,37 @@
     font-size: 13px;
     font-weight: 600;
 }
+
+
+/* QS exclusive lists */
+.material-panel-qs-list-header {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 10px 4px 10px;
+    opacity: 0.9;
+}
+.material-panel-qs-list-header-sub {
+    padding-top: 10px;
+    opacity: 0.7;
+    font-weight: 500;
+}
+.material-panel-qs-bt-devices-panel,
+.material-panel-qs-wifi-panel {
+    spacing: 4px;
+    padding: 4px 0 2px 0;
+}
+.material-panel-qs-bt-device {
+    border-radius: 12px;
+    padding: 8px 10px;
+    min-height: 40px;
+}
+.material-panel-qs-bt-device-box {
+    spacing: 10px;
+}
+.material-panel-qs-bt-device.connecting {
+    opacity: 0.95;
+}
+.material-panel-qs-bt-drop.list-open,
+.material-panel-qs-wifi-drop.list-open {
+    /* open chevron affordance */
+}
