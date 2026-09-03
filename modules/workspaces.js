@@ -13,6 +13,9 @@ export function buildWorkspaces() {
                     ? 'material-panel-workspace-btn active'
                     : 'material-panel-workspace-btn',
                 label: `${i + 1}`,
+                reactive: true,
+                track_hover: true,
+                can_focus: true,
             });
             btn.connect('clicked', () => {
                 manager.get_workspace_by_index(i).activate(global.get_current_time());

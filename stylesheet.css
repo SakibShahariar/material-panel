@@ -36,7 +36,8 @@
 
 .material-panel-chip {
     border-radius: 999px;
-    transition-duration: 150ms;
+    transition-duration: 160ms;
+    transition-timing-function: ease-out;
 }
 
 .material-panel-volume {
@@ -544,4 +545,92 @@
 .material-panel-qs-bt-drop.list-open,
 .material-panel-qs-wifi-drop.list-open {
     /* open chevron affordance */
+}
+
+
+/* ===== Motion: hover / press / transitions ===== */
+.material-panel-chip,
+.material-panel-clock-btn,
+.material-panel-battery-btn,
+.material-panel-weather-btn,
+.material-panel-notifications-btn,
+.material-panel-activities-btn,
+.material-panel-workspace-btn,
+.material-panel-qs-tile,
+.material-panel-qs-bt-main,
+.material-panel-qs-bt-drop,
+.material-panel-qs-wifi-main,
+.material-panel-qs-wifi-drop,
+.material-panel-qs-bt-device,
+.material-panel-clock-cal-nav-btn,
+.material-panel-clock-cal-day,
+.material-panel-qs-power-btn,
+.material-panel-popup .popup-menu-item {
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.0, 0, 1.0);
+}
+
+/* Panel chips / module buttons — hover lift, press squash */
+.material-panel-chip:hover,
+.material-panel-clock-btn:hover,
+.material-panel-battery-btn:hover,
+.material-panel-weather-btn:hover,
+.material-panel-notifications-btn:hover,
+.material-panel-activities-btn:hover {
+    transition-duration: 120ms;
+}
+
+.material-panel-chip:active,
+.material-panel-clock-btn:active,
+.material-panel-battery-btn:active,
+.material-panel-weather-btn:active,
+.material-panel-notifications-btn:active,
+.material-panel-activities-btn:active,
+.material-panel-workspace-btn:active {
+    transition-duration: 80ms;
+}
+
+/* QS tiles */
+.material-panel-qs-tile {
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.0, 0, 1.0);
+    border-radius: 16px;
+}
+.material-panel-qs-tile:active,
+.material-panel-qs-bt-main:active,
+.material-panel-qs-wifi-main:active,
+.material-panel-qs-bt-drop:active,
+.material-panel-qs-wifi-drop:active {
+    transition-duration: 70ms;
+}
+
+.material-panel-qs-bt-device {
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+}
+.material-panel-qs-bt-device:active {
+    transition-duration: 70ms;
+}
+
+.material-panel-clock-cal-nav-btn {
+    transition-duration: 140ms;
+}
+.material-panel-clock-cal-nav-btn:active {
+    transition-duration: 70ms;
+}
+
+.material-panel-clock-cal-day {
+    transition-duration: 140ms;
+    border-radius: 10px;
+}
+
+/* Soft fade for expand panels */
+.material-panel-qs-bt-devices-panel,
+.material-panel-qs-wifi-panel {
+    transition-duration: 180ms;
+}
+
+/* Popup menu items */
+.material-panel-popup .popup-menu-item {
+    transition-duration: 140ms;
 }
