@@ -794,8 +794,8 @@ function bluetoothTile() {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
         const name = props['Name'] ? props['Name'].deep_unpack() : null;
         const displayName = alias ?? name ?? 'Unknown device';
-        const connected = props['Connected'] ? props['Connected'].deep_unpack() : false;
-        const paired = props['Paired'] ? props['Paired'].deep_unpack() : false;
+        const connected = props['Connected']?.deep_unpack?.() === true;
+        const paired = props['Paired']?.deep_unpack?.() === true;
         const isConnecting = connectingPaths.has(path);
         if (connected)
             connectingPaths.delete(path);
@@ -829,8 +829,11 @@ function bluetoothTile() {
         const row = new St.Button({
             style_class: style,
             reactive: true,
+            track_hover: true,
+            can_focus: true,
             x_expand: true,
         });
+        wireQsInteractive(row);
         const rowBox = new St.BoxLayout({
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
@@ -955,20 +958,20 @@ function bluetoothTile() {
     };
 
     function getDeviceIcon(deviceClass, connected) {
-        if (!deviceClass) return 'bluetooth-on';
-        // Bluetooth device class major service classes
-        // Audio/Video: 0x200400
-        // Headset: 0x200404
-        // Keyboard: 0x002540
-        // Mouse: 0x002580
-        // Phone: 0x100000
-        // Computer: 0x000100
-        const cls = deviceClass;
-        if ((cls & 0x200000) !== 0) return 'headphones'; // Audio
-        if ((cls & 0x000500) !== 0) return 'keyboard'; // Keyboard/Mouse
-        if ((cls & 0x100000) !== 0) return 'phone'; // Phone
-        if ((cls & 0x000100) !== 0) return 'computer'; // Computer
-        return 'bluetooth-on';
+        // BlueZ Class is a uint32; major device class is bits 8-12
+        const n = Number(deviceClass) || 0;
+        const major = (n >> 8) & 0x1f;
+        // 4 = Audio/Video (headsets), 2 = Phone, 5 = Peripheral (keyboard/mouse)
+        if (major === 4)
+            return 'headphones';
+        if (major === 2)
+            return 'phone';
+        if (major === 5)
+            return 'keyboard';
+        const c = String(deviceClass || '').toLowerCase();
+        if (c.includes('audio') || c.includes('headset') || c.includes('headphone'))
+            return 'headphones';
+        return connected ? 'bluetooth-on' : 'bluetooth-off';
     }
 
     const setupDeviceList = () => {
@@ -1055,7 +1058,7 @@ function bluetoothTile() {
                             try {
                                 let tileName = currentlyPowered ? 'Bluetooth' : 'Bluetooth';
                                 for (const {props, batteryPct} of pairedDevices) {
-                                    const connected = props['Connected']?.deep_unpack() ?? false;
+                                    const connected = props['Connected']?.deep_unpack() === true;
                                     if (!connected)
                                         continue;
                                     const alias = props['Alias']?.deep_unpack() ?? props['Name']?.deep_unpack() ?? 'Device';
@@ -1208,8 +1211,11 @@ function buildBluetoothDeviceList() {
         const row = new St.Button({
             style_class: `material-panel-qs-bt-device${connected ? ' connected' : ''}`,
             reactive: true,
+            track_hover: true,
+            can_focus: true,
             x_expand: true,
         });
+        wireQsInteractive(row);
         const rowBox = new St.BoxLayout({x_expand: true});
         const icon = new St.Icon({
             style_class: 'material-panel-qs-bt-device-icon',
@@ -1630,9 +1636,17 @@ function wifiQsBlock() {
     getQsExpandController().register('wifi', {setExpanded});
     row.connect('destroy', () => getQsExpandController().unregister('wifi'));
     mainBtn.connect('clicked', () => {
-        if (!client)
-            return Clutter.EVENT_STOP;
-        try { client.wireless_enabled = !client.wireless_enabled; } catch (e) {
+        try {
+            let on = false;
+            if (client)
+                on = !!client.wireless_enabled;
+            // nmcli is more reliable than NM.Client.wireless_enabled alone on some setups
+            GLib.spawn_command_line_async(on ? 'nmcli radio wifi off' : 'nmcli radio wifi on');
+            try {
+                if (client)
+                    client.wireless_enabled = !on;
+            } catch (e) {}
+        } catch (e) {
             logError(e, 'material-panel: QS Wi-Fi toggle failed');
         }
         return Clutter.EVENT_STOP;

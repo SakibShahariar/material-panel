@@ -168,6 +168,7 @@ export function buildMediaPlayerRow() {
         vertical: false,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
+        visible: false,
     });
     const titleLabel = new St.Label({
         text: 'No media',
@@ -216,6 +217,7 @@ export function buildMediaPlayerRow() {
         if (!busName) {
             titleLabel.text = 'No media';
             artistLabel.text = '';
+            row.visible = false;
             return;
         }
         bindPlayer(busName, {
@@ -231,6 +233,7 @@ export function buildMediaPlayerRow() {
                 playPauseBtn.child.icon_name = playing
                     ? 'media-playback-pause-symbolic'
                     : 'media-playback-start-symbolic';
+                row.visible = !!playing;
             },
             onReady: c => {
                 ctl = c;
@@ -241,6 +244,7 @@ export function buildMediaPlayerRow() {
             onGone: () => {
                 titleLabel.text = 'No media';
                 artistLabel.text = '';
+                row.visible = false;
             },
         });
     };
