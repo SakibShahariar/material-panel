@@ -82,6 +82,7 @@ function readStats(iface) {
 
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
+    let sessionRx = 0, sessionTx = 0;
 
     // Symbolic icon — CSS color works (primary / on-primary on press)
     const icon = new St.Icon({
@@ -116,9 +117,11 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     const ifaceL = new St.Label({text: '—', style_class: 'material-panel-net-speed-popup-iface'});
     const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
     const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
+    const sessL = new St.Label({text: '', style_class: 'material-panel-net-speed-popup-iface'});
     body.add_child(ifaceL);
     body.add_child(downL);
     body.add_child(upL);
+    body.add_child(sessL);
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
     menu.addMenuItem(item);
@@ -127,6 +130,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         ifaceL.text = last.iface ? `Interface: ${last.iface}` : 'Interface: —';
         downL.text = `↓ Download  ${last.downText}`;
         upL.text = `↑ Upload  ${last.upText}`;
+        const fmtTot = n => {
+            n = Math.max(0, Number(n) || 0);
+            if (n < 1024) return `${Math.round(n)} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+            if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+        };
+        sessL.text = `Session  ↓ ${fmtTot(sessionRx)}  ↑ ${fmtTot(sessionTx)}`;
     };
 
     button.connect('clicked', () => {
@@ -165,6 +176,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         const up = Math.max(0, stats.tx - prevTx);
         prevRx = stats.rx;
         prevTx = stats.tx;
+        sessionRx += down;
+        sessionTx += up;
         last = {down, up, downText: formatSpeed(down), upText: formatSpeed(up), iface};
         try {
             button.set_tooltip_text(`${iface}\n↓ ${last.downText}\n↑ ${last.upText}`);

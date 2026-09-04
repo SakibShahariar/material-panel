@@ -48,9 +48,27 @@ function makeStat(title) {
 export function buildBattery(extensionPath, scale = 1.0) {
     const client = UPowerGlib.Client.new();
     let device = null;
+    // Prefer real battery (BAT*) so % matches `upower -i BAT0`, not a composite DisplayDevice
     try {
-        device = client.get_display_device();
+        const devices = client.get_devices?.() || [];
+        for (let i = 0; i < devices.length; i++) {
+            const d = devices[i];
+            try {
+                if (d.is_present === false)
+                    continue;
+                if (d.kind === UPowerGlib.DeviceKind.BATTERY ||
+                    (d.native_path && String(d.native_path).includes('BAT'))) {
+                    device = d;
+                    break;
+                }
+            } catch (e) {}
+        }
     } catch (e) {}
+    if (!device) {
+        try {
+            device = client.get_display_device();
+        } catch (e) {}
+    }
     if (!device)
         return null;
 
@@ -117,6 +135,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
     const sEnergy = makeStat('Energy');
     const sRate = makeStat('Power');
     const sHealth = makeStat('Health');
+    const modelLabel = new St.Label({text: '', style_class: 'material-panel-battery-popup-model'});
 
     const refresh = () => {
         let pct = 0;
@@ -145,6 +164,13 @@ export function buildBattery(extensionPath, scale = 1.0) {
 
         pctHero.text = `${pct}%`;
         stateHero.text = stateLabel(device.state);
+        try {
+            const model = device.model || device.vendor || '';
+            const path = device.native_path || '';
+            modelLabel.text = [model, path].filter(Boolean).join(' · ');
+        } catch (e) {
+            modelLabel.text = '';
+        }
         const barW = Math.max(4, Math.round(2.4 * pct));
         try { barFill.width = barW; } catch (e) {}
 
@@ -215,6 +241,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
     });
     hero.add_child(pctHero);
     hero.add_child(stateHero);
+    hero.add_child(modelLabel);
     hero.add_child(barTrack);
     wrap.add_child(hero);
 

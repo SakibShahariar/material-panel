@@ -1,5 +1,6 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -127,6 +128,13 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     const store = new ConfigStore();
     let use12h = store.load().clockFormat === '12h';
+    try {
+        // Prefer GNOME session clock format when panel config is unset/default
+        const gs = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const gf = gs.get_string('clock-format');
+        if (gf === '12h' || gf === '24h')
+            use12h = gf === '12h';
+    } catch (e) {}
 
     const update = () => {
         label.text = formatNow(use12h);

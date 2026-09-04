@@ -329,6 +329,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const usageValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const tempValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const loadValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
+    const thermalSensor = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalCurrent = new St.Label({text: 'Current: —', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalHigh = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalCrit = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
@@ -363,6 +364,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-cpu-popup-section-title',
     }));
     const thermalGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
+    thermalGrid.add_child(thermalSensor);
     thermalGrid.add_child(thermalCurrent);
     thermalGrid.add_child(thermalHigh);
     thermalGrid.add_child(thermalCrit);
@@ -412,9 +414,9 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
         usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
         tempValue.text = temp !== null ? `${temp}°C` : '—';
-        loadValue.text = load ? `${load.load1}` : '—';
+        loadValue.text = load ? `${load.load1} / ${load.load5} / ${load.load15}` : '—';
         try {
-            loadValue.set_tooltip_text(load ? `1 / 5 / 15 min: ${load.load1} ${load.load5} ${load.load15}` : '');
+            loadValue.set_tooltip_text(load ? `Load average 1 / 5 / 15 min` : '');
         } catch (e) {}
 
         const list = Array.isArray(cores) ? cores : [];
@@ -438,6 +440,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             }
         }
 
+        thermalSensor.text = zoneName ? `Sensor  ${zoneName}` : (tempPath ? 'Sensor  hwmon' : 'Sensor  —');
         thermalCurrent.text = `Now  ${temp !== null ? temp + '°C' : '—'}`;
         thermalHigh.text = trips.high != null ? `High  ${trips.high}°C` : '';
         thermalCrit.text = trips.critical != null ? `Crit  ${trips.critical}°C` : '';
