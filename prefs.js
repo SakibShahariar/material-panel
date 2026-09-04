@@ -4,7 +4,6 @@ import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
-import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4} from './lib/layoutPresets.js';
 // Prefer moduleIds over moduleRegistry: the registry imports every panel
 // module (St, Clutter, Main, …) which only exist inside gnome-shell.
 // Preferences run in a separate GTK process and cannot load those typelibs.
@@ -98,52 +97,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         if (!config.hiddenModules) config.hiddenModules = [];
 
         // Adw.PreferencesWindow only supports Adw.PreferencesPage via window.add().
-
-        // —— Layout (Default vs End-4) ——
-        const layoutPage = new Adw.PreferencesPage({
-            title: 'Layout',
-            icon_name: 'view-grid-symbolic',
-        });
-        const layoutGroup = new Adw.PreferencesGroup({
-            title: 'Panel layout',
-            description: 'Switch looks without losing the other layout’s module placement.',
-        });
-        const layoutRow = new Adw.ActionRow({
-            title: 'Style',
-            subtitle: 'Default keeps your classic three-zone bar. End-4 uses floating BarGroups, workspace dots, and denser QS.',
-        });
-        const layoutDrop = new Gtk.DropDown({
-            model: Gtk.StringList.new(['Default', 'End-4']),
-            valign: Gtk.Align.CENTER,
-        });
-        layoutDrop.set_selected((config.layoutStyle === 'end4') ? 1 : 0);
-        layoutDrop.connect('notify::selected', () => {
-            const sel = layoutDrop.get_selected();
-            const style = sel === 1 ? LAYOUT_END4 : LAYOUT_DEFAULT;
-            applyLayoutStyle(config, style);
-            store.save(config);
-        });
-        layoutRow.add_suffix(layoutDrop);
-        layoutRow.activatable_widget = layoutDrop;
-        layoutGroup.add(layoutRow);
-
-        const gapSideRow = new Adw.SpinRow({
-            title: 'Side inset',
-            subtitle: 'Horizontal float gap (End-4). 0 = edge-to-edge.',
-            adjustment: new Gtk.Adjustment({
-                lower: 0, upper: 48, step_increment: 1, page_increment: 4,
-                value: config.panelSize?.gapSide ?? 0,
-            }),
-        });
-        gapSideRow.connect('changed', () => {
-            if (!config.panelSize) config.panelSize = {};
-            config.panelSize.gapSide = gapSideRow.get_value();
-            store.save(config);
-        });
-        layoutGroup.add(gapSideRow);
-        layoutPage.add(layoutGroup);
-        window.add(layoutPage);
-
         // TabView / set_title_widget are for Adw.ApplicationWindow — not available here.
 
         // --- PAGE 1: General / Panel Size ---
