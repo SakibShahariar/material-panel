@@ -49,7 +49,10 @@ function classifyConfigChange(prev, next) {
     ]))
         return 'tray';
 
-    if (sameExcept(prev, next, ['panelSize', 'layoutStyle']))
+    if (sameExcept(prev, next, ['layoutStyle', 'layoutSnapshots']))
+        return 'full';
+
+    if (sameExcept(prev, next, ['panelSize']))
         return 'panelSize';
 
     if (sameExcept(prev, next, ['clockFormat']))
@@ -156,6 +159,9 @@ export default class MaterialPanelExtension extends Extension {
     _applyTheme({rebuildPanel = true} = {}) {
         const panelSize = this._config.panelSize ?? {};
         const colorSource = resolveColorSource(this._config.colorSource);
+        try {
+            globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
+        } catch (e) {}
         this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
         if (rebuildPanel)
             this._builder.render(this._config);
