@@ -797,18 +797,6 @@
     padding: 8px;
 }
 
-.material-panel-notifications-icon-wrap {
-    width: 22px;
-    height: 22px;
-}
-.material-panel-notifications-badge {
-    font-size: 9px;
-    font-weight: 700;
-    min-width: 12px;
-    padding: 0 3px;
-    border-radius: 999px;
-    background-color: rgba(255, 255, 255, 0.2);
-}
 .material-panel-notifications-header {
     spacing: 8px;
     padding: 4px 2px 8px 2px;
@@ -843,4 +831,47 @@
 .material-panel-notifications-body {
     min-width: 260px;
     max-width: 320px;
+}
+
+.material-panel-notifications {
+    spacing: 4px;
+}
+.material-panel-notifications-count {
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 1.2em;
+}
+.material-panel-notifications-body {
+    min-width: 280px;
+    max-width: 340px;
+    spacing: 6px;
+}
+.material-panel-notifications-header {
+    spacing: 8px;
+    padding: 2px 4px 6px 4px;
+}
+.material-panel-notifications-header-title {
+    font-weight: 700;
+    font-size: 13px;
+}
+.material-panel-notifications-clear-all,
+.material-panel-notifications-footer,
+.material-panel-notifications-dismiss {
+    border-radius: 999px;
+    padding: 6px 10px;
+}
+.material-panel-notifications-card {
+    border-radius: 14px;
+    padding: 10px 12px;
+    margin: 2px 0;
+}
+.material-panel-notifications-card-row {
+    spacing: 8px;
+}
+.material-panel-notifications-row-title {
+    font-weight: 600;
+    font-size: 12px;
+}
+.material-panel-notifications-row-body {
+    font-size: 11px;
 }
