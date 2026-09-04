@@ -232,17 +232,22 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     };
 
     const makeCard = item => {
-        const card = new St.Button({
+        // BoxLayout shell — NOT St.Button parent (nested buttons eat child clicks)
+        const card = new St.BoxLayout({
+            vertical: false,
             style_class: 'material-panel-notifications-card',
+            x_expand: true,
+            reactive: true,
+            track_hover: true,
+        });
+        wireChipPress(card, {stickyUntilLeave: true});
+
+        const openBtn = new St.Button({
+            style_class: 'material-panel-notifications-open',
             reactive: true,
             track_hover: true,
             x_expand: true,
-        });
-        wireChipPress(card, {stickyUntilLeave: true});
-        const row = new St.BoxLayout({
-            vertical: false,
-            x_expand: true,
-            style_class: 'material-panel-notifications-card-row',
+            y_expand: true,
         });
         const textCol = new St.BoxLayout({vertical: true, x_expand: true});
         const topLine = new St.BoxLayout({vertical: false, x_expand: true});
@@ -273,6 +278,13 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             } catch (e) {}
             textCol.add_child(b);
         }
+        openBtn.set_child(textCol);
+        openBtn.connect('clicked', () => {
+            try { item.notification?.activate?.(); } catch (e) {}
+            try { menuClose(menu); } catch (e) {}
+            openSystemNotificationCenter();
+        });
+
         const dismiss = new St.Button({
             style_class: 'material-panel-notifications-dismiss',
             reactive: true,
@@ -289,14 +301,9 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             });
             return Clutter.EVENT_STOP;
         });
-        row.add_child(textCol);
-        row.add_child(dismiss);
-        card.set_child(row);
-        card.connect('clicked', () => {
-            try { item.notification?.activate?.(); } catch (e) {}
-            try { menuClose(menu); } catch (e) {}
-            openSystemNotificationCenter();
-        });
+
+        card.add_child(openBtn);
+        card.add_child(dismiss);
         return card;
     };
 
