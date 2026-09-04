@@ -44,6 +44,7 @@ function friendlyRoleName(role) {
 
 const ALL_MODULES = [
     {id: 'activities', name: 'Activities', zone: 'left'},
+    {id: 'btConnected', name: 'BT Connected Device', zone: 'left'},
     {id: 'workspaces', name: 'Workspaces', zone: 'left'},
     {id: 'cpu', name: 'CPU Usage', zone: 'left'},
     {id: 'networkSpeed', name: 'Network Speed', zone: 'right'},

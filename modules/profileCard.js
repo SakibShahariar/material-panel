@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
-import {wireFileIconPress} from '../lib/pressFx.js';
+import {wireChipPress} from '../lib/pressFx.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -117,31 +117,17 @@ export function buildProfileCard({onPrefs = null} = {}) {
             y_align: Clutter.ActorAlign.CENTER,
             child: prefsIcon,
         });
-        const press = wireFileIconPress(prefsBtn, () => [{icon: prefsIcon, key: 'settings'}]);
-        // Keep pressed look until pointer is up (prefs open shouldn't skip release styling)
-        prefsBtn.connect('button-press-event', () => {
-            try {
-                prefsBtn.add_style_class_name('pressed');
-                press.pressed = true;
-                press.applyIcons();
-            } catch (e) {}
-            return Clutter.EVENT_PROPAGATE;
-        });
-        prefsBtn.connect('button-release-event', () => {
-            try {
-                prefsBtn.remove_style_class_name('pressed');
-                press.pressed = false;
-                press.applyIcons();
-            } catch (e) {}
-            return Clutter.EVENT_PROPAGATE;
+        wireChipPress(prefsBtn, {
+            getIcons: () => [{icon: prefsIcon, key: 'settings'}],
+            stickyUntilLeave: true,
         });
         prefsBtn.connect('clicked', () => {
-            // Delay prefs so press visual can paint one frame
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60, () => {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
                 try { onPrefs(); } catch (e) { logError(e, 'material-panel: profile prefs click'); }
                 return GLib.SOURCE_REMOVE;
             });
         });
+
         row.add_child(prefsBtn);
     }
 

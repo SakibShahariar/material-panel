@@ -15,12 +15,24 @@ import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
+import {wireChipPress} from '../lib/pressFx.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
 // Only one of BT / Wi-Fi lists open at a time.
 // Use a function so call sites never hit a TDZ / missing-binding ReferenceError
 // if the module is partially reloaded.
+function wireQsInteractive(actor) {
+    if (!actor)
+        return;
+    try {
+        actor.reactive = true;
+        actor.track_hover = true;
+        actor.can_focus = true;
+    } catch (e) {}
+    wireChipPress(actor, {stickyUntilLeave: true});
+}
+
 function getQsExpandController() {
     if (!globalThis._materialPanelQsExpand) {
         globalThis._materialPanelQsExpand = {
@@ -96,12 +108,17 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
+    wireQsInteractive(tile);
 
     const refresh = () => {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
-        icon.gicon = Gio.FileIcon.new(
-            Gio.File.new_for_path(on ? iconPathOnAccent(iconKey) : iconPath(iconKey)));
+        try {
+            let p = on ? iconPathOnAccent(iconKey) : iconPathPrimary(iconKey);
+            if (!Gio.File.new_for_path(p).query_exists(null))
+                p = iconPath(iconKey);
+            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
     };
     refresh();
 
@@ -569,6 +586,8 @@ function bluetoothTile() {
     tileRow.add_child(mainBtn);
     tileRow.add_child(dropBtn);
     outer.add_child(tileRow);
+    wireQsInteractive(mainBtn);
+    wireQsInteractive(dropBtn);
 
     // Full-width device panel — parented under the QS menu, not this column
     const deviceContainer = new St.BoxLayout({
@@ -1465,6 +1484,8 @@ function wifiQsBlock() {
     dropBtn.set_child(dropIcon);
     row.add_child(mainBtn);
     row.add_child(dropBtn);
+    wireQsInteractive(mainBtn);
+    wireQsInteractive(dropBtn);
 
     const listPanel = new St.BoxLayout({
         vertical: true,
@@ -1659,17 +1680,42 @@ function wifiQsBlock() {
 }
 
 export function buildQuickSettings(_extensionPath, scale = 1.0) {
+    const qsIcon = new St.Icon({
+        icon_size: Math.round(17 * scale),
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-quicksettings-icon',
+        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
+    });
     const button = new St.Button({
         style_class: 'material-panel-quicksettings-btn material-panel-chip',
         reactive: true,
-        child: new St.Icon({
-            icon_size: Math.round(17 * scale),
-            y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
-        }),
+        track_hover: true,
+        child: qsIcon,
+    });
+    wireChipPress(button, {
+        getIcons: () => [{icon: qsIcon, key: 'quicksettings'}],
+        stickyUntilLeave: true,
     });
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name('material-panel-qs-menu');
+    const clampQsHeight = () => {
+        try {
+            const mon = Main.layoutManager.primaryMonitor;
+            if (!mon) return;
+            const maxH = Math.floor(mon.height * 0.68);
+            menu.box.style = `max-height: ${maxH}px; overflow: hidden;`;
+            try {
+                menu.box.clip_to_allocation = true;
+            } catch (e) {}
+            try {
+                // Enable scrolling when content exceeds max height (St.BoxLayout in menu)
+                if (menu.box.set_vertical_scroll)
+                    menu.box.set_vertical_scroll(true);
+            } catch (e) {}
+        } catch (e) {}
+    };
+
     menu.actor.add_style_class_name('material-panel-popup material-panel-qs-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
@@ -1746,6 +1792,8 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     )));
 
     menu.connect('open-state-changed', (_m, open) => {
+        if (open)
+            clampQsHeight();
         if (!open)
             getQsExpandController().expandOnly(null);
     });
