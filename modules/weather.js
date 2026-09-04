@@ -14,7 +14,8 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 const OPEN_METEO =
     'https://api.open-meteo.com/v1/forecast?latitude=%LAT%&longitude=%LON%' +
-    '&current=temperature_2m,weather_code,is_day&timezone=auto';
+    '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day' +
+    '&timezone=auto';
 const IP_LOC = 'https://ipapi.co/json/';
 
 let _GWeather = undefined; // undefined = not tried, null = unavailable
@@ -35,6 +36,29 @@ async function ensureGWeather() {
             return null;
         }
     }
+}
+
+function wmoToCondition(code, isDay) {
+    const c = parseInt(code, 10);
+    if (c === 0)
+        return isDay ? 'Clear' : 'Clear night';
+    if (c === 1)
+        return isDay ? 'Mainly clear' : 'Mainly clear night';
+    if (c === 2)
+        return 'Partly cloudy';
+    if (c === 3)
+        return 'Overcast';
+    if ([45, 48].includes(c))
+        return 'Fog';
+    if ([51, 53, 55, 56, 57].includes(c))
+        return 'Drizzle';
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(c))
+        return 'Rain';
+    if ([71, 73, 75, 77, 85, 86].includes(c))
+        return 'Snow';
+    if ([95, 96, 99].includes(c))
+        return 'Thunderstorm';
+    return 'Weather';
 }
 
 function wmoToIcon(code, isDay) {
@@ -213,10 +237,38 @@ function fetchViaGWeatherInfo(GWeather, gwLoc, placeName) {
                 } catch (e) {}
 
                 let extra = '';
+                let humidity = null;
+                let wind = null;
                 try {
                     const parts = [];
-                    try { if (info.get_humidity()) parts.push(info.get_humidity()); } catch (e) {}
-                    try { if (info.get_wind()) parts.push(info.get_wind()); } catch (e) {}
+                    try {
+                        const h = info.get_humidity();
+                        if (h) {
+                            parts.push(h);
+                            const m = String(h).match(/(\d+)/);
+                            if (m) humidity = parseFloat(m[1]);
+                        }
+                    } catch (e) {}
+                    try {
+                        // Prefer numeric wind if available
+                        if (info.get_value_wind) {
+                            const wr = info.get_value_wind(GWeather.SpeedUnit.KPH);
+                            if (Array.isArray(wr) && wr[0])
+                                wind = wr[1];
+                            else if (typeof wr === 'number')
+                                wind = wr;
+                        }
+                    } catch (e) {}
+                    try {
+                        const w = info.get_wind();
+                        if (w) {
+                            parts.push(w);
+                            if (wind == null) {
+                                const m = String(w).match(/([\d.]+)/);
+                                if (m) wind = parseFloat(m[1]);
+                            }
+                        }
+                    } catch (e) {}
                     extra = parts.join(' · ');
                 } catch (e) {}
 
@@ -230,6 +282,8 @@ function fetchViaGWeatherInfo(GWeather, gwLoc, placeName) {
                     condition: condition || 'Weather',
                     iconKey: gweatherIconKey(info),
                     extra,
+                    humidity,
+                    wind,
                     place: placeName || 'GNOME Weather',
                     source: 'GNOME Weather (libgweather)',
                 }));
@@ -258,11 +312,11 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
     parts.push(isDay ? 'Daytime' : 'Night');
     return {
         temp: cur.temperature_2m,
-        condition: `Code ${cur.weather_code}`,
+        condition: wmoToCondition(cur.weather_code, isDay),
         iconKey: wmoToIcon(cur.weather_code, isDay),
         extra: parts.join(' · '),
-        humidity: cur.relative_humidity_2m,
-        wind: cur.wind_speed_10m,
+        humidity: cur.relative_humidity_2m != null ? Number(cur.relative_humidity_2m) : null,
+        wind: cur.wind_speed_10m != null ? Number(cur.wind_speed_10m) : null,
         place: place || `${Number(lat).toFixed(2)}, ${Number(lon).toFixed(2)}`,
         source: sourceTag || 'Open-Meteo',
     };
@@ -315,7 +369,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     let lastFetch = 0;
     let inFlight = false;
-    let detail = {temp: null, condition: '', extra: '', place: '', source: ''};
+    let detail = {temp: null, condition: '', extra: '', place: '', source: '', humidity: null, wind: null};
 
     let currentIconKey = 'weather';
     let press = null;
@@ -340,6 +394,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             extra: result.extra || '',
             place: result.place || '',
             source: result.source || '',
+            humidity: result.humidity != null ? Number(result.humidity) : null,
+            wind: result.wind != null ? Number(result.wind) : null,
         };
         label.text = `${Math.round(result.temp)}°`;
         setIconKey(result.iconKey || 'weather');
