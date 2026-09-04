@@ -67,12 +67,24 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         updateStatusIcon();
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
 
-        const wifiToggle = new PopupMenu.PopupSwitchMenuItem('Wi-Fi', client.wireless_enabled);
+        const wifiToggle = new PopupMenu.PopupSwitchMenuItem('Wi-Fi', !!client.wireless_enabled);
         wifiToggle.connect('toggled', item => {
-            client.wireless_enabled = item.state;
+            const want = !!item.state;
+            try {
+                GLib.spawn_command_line_async(want ? 'nmcli radio wifi on' : 'nmcli radio wifi off');
+            } catch (e) {
+                logError(e, 'material-panel: nmcli wifi radio failed');
+            }
+            try {
+                client.wireless_enabled = want;
+            } catch (e2) {
+                logError(e2, 'material-panel: NM wireless_enabled set failed');
+            }
         });
         const wirelessEnabledId = client.connect('notify::wireless-enabled', () => {
-            wifiToggle.setToggleState(client.wireless_enabled);
+            try {
+                wifiToggle.setToggleState(!!client.wireless_enabled);
+            } catch (e) {}
         });
         menu.addMenuItem(wifiToggle);
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());

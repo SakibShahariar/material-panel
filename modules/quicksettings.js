@@ -855,7 +855,7 @@ function bluetoothTile() {
             stopPulse(path);
 
         const textBox = new St.BoxLayout({vertical: true, x_expand: true});
-        const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name');
+        const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name' + (connected ? ' is-connected' : ''));
         nameLabel.x_expand = true;
 
         let statusText;
@@ -872,9 +872,15 @@ function bluetoothTile() {
 
         const statusLabel = new St.Label({
             text: statusText,
-            style_class: 'material-panel-qs-bt-device-status',
+            style_class: 'material-panel-qs-bt-device-status' + (connected ? ' is-connected' : ''),
             y_align: Clutter.ActorAlign.CENTER,
         });
+        // Force same primary as name when connected (avoid muddy secondary color)
+        if (connected) {
+            try {
+                statusLabel.add_style_class_name('is-connected');
+            } catch (e) {}
+        }
         statusLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(nameLabel);
         textBox.add_child(statusLabel);
@@ -1228,7 +1234,7 @@ function buildBluetoothDeviceList() {
             gicon: Gio.FileIcon.new(Gio.File.new_for_path(
                 connected ? iconPathOnAccent('bluetooth-on') : iconPathPrimary('bluetooth-off'))),
         });
-        const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name');
+        const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name' + (connected ? ' is-connected' : ''));
         nameLabel.x_expand = true;
         const statusLabel = new St.Label({
             text: connected ? 'Connected' : 'Tap to connect',
