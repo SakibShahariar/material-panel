@@ -44,6 +44,9 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    try {
+        label.style = 'font-size: 11px; font-weight: 600;';
+    } catch (e) {}
 
     const box = new St.BoxLayout({
         style_class: 'material-panel-bt-connected',
@@ -147,11 +150,8 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     button.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
     });
-    button.connect('clicked', () => {
-        try {
-            GLib.spawn_command_line_async('gnome-control-center bluetooth');
-        } catch (e) {}
-    });
+    // Click is visual only (press state); do not open Settings
+    button.connect('clicked', () => Clutter.EVENT_STOP);
 
     return button;
 }

@@ -108,7 +108,10 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
-    wireQsInteractive(tile);
+    wireChipPress(tile, {
+        getIcons: () => [{icon, key: iconKey}],
+        stickyUntilLeave: true,
+    });
 
     const refresh = () => {
         const on = isOn();
@@ -814,9 +817,8 @@ function bluetoothTile() {
         } catch (e) {}
 
         const iconName = getDeviceIcon(deviceClass, connected || isConnecting);
-        const iconPathStr = connected
-            ? iconPathOnAccent(iconName)
-            : iconPathPrimary(iconName);
+        // Primary-colored icons on surface; on-accent only while row is pressed
+        const iconPathStr = iconPathPrimary(iconName);
 
         let style = 'material-panel-qs-bt-device';
         if (connected)

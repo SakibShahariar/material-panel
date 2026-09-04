@@ -785,5 +785,14 @@
 }
 .material-panel-bt-connected-label {
     font-weight: 600;
-    max-width: 120px;
+    font-size: 11px;
+    max-width: 100px;
+}
+.material-panel-bt-connected-icon {
+    icon-size: 14px;
+}
+.material-panel-qs-power-btn {
+    min-height: 40px;
+    border-radius: 12px;
+    padding: 8px;
 }
