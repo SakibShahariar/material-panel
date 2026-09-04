@@ -596,6 +596,9 @@ function bluetoothTile() {
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        if (!powered) {
+            try { text.text = 'Bluetooth'; } catch (e) {}
+        }
         isBlocked = false;
         const key = powered ? 'bluetooth-on' : 'bluetooth-off';
         icon.gicon = Gio.FileIcon.new(
@@ -1029,6 +1032,23 @@ function bluetoothTile() {
                                 text: 'Bluetooth',
                                 style_class: 'material-panel-qs-list-header',
                             }));
+                            // Tile shows connected device name + battery when linked
+                            try {
+                                let tileName = currentlyPowered ? 'Bluetooth' : 'Bluetooth';
+                                for (const {props, batteryPct} of pairedDevices) {
+                                    const connected = props['Connected']?.deep_unpack() ?? false;
+                                    if (!connected)
+                                        continue;
+                                    const alias = props['Alias']?.deep_unpack() ?? props['Name']?.deep_unpack() ?? 'Device';
+                                    tileName = batteryPct != null
+                                        ? `${alias} · ${Math.round(Number(batteryPct))}%`
+                                        : alias;
+                                    break;
+                                }
+                                if (!currentlyPowered)
+                                    tileName = 'Bluetooth';
+                                text.text = tileName;
+                            } catch (e) {}
                             for (const {path, props, batteryPct} of pairedDevices)
                                 deviceContainer.add_child(buildDeviceRow(path, props, true, batteryPct));
                             if (nearbyDevices.length > 0) {

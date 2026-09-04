@@ -113,12 +113,34 @@ export function buildProfileCard({onPrefs = null} = {}) {
             style_class: 'material-panel-qs-profile-prefs',
             reactive: true,
             track_hover: true,
+            can_focus: true,
             y_align: Clutter.ActorAlign.CENTER,
             child: prefsIcon,
         });
-        wireFileIconPress(prefsBtn, () => [{icon: prefsIcon, key: 'settings'}]);
+        const press = wireFileIconPress(prefsBtn, () => [{icon: prefsIcon, key: 'settings'}]);
+        // Keep pressed look until pointer is up (prefs open shouldn't skip release styling)
+        prefsBtn.connect('button-press-event', () => {
+            try {
+                prefsBtn.add_style_class_name('pressed');
+                press.pressed = true;
+                press.applyIcons();
+            } catch (e) {}
+            return Clutter.EVENT_PROPAGATE;
+        });
+        prefsBtn.connect('button-release-event', () => {
+            try {
+                prefsBtn.remove_style_class_name('pressed');
+                press.pressed = false;
+                press.applyIcons();
+            } catch (e) {}
+            return Clutter.EVENT_PROPAGATE;
+        });
         prefsBtn.connect('clicked', () => {
-            try { onPrefs(); } catch (e) { logError(e, 'material-panel: profile prefs click'); }
+            // Delay prefs so press visual can paint one frame
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60, () => {
+                try { onPrefs(); } catch (e) { logError(e, 'material-panel: profile prefs click'); }
+                return GLib.SOURCE_REMOVE;
+            });
         });
         row.add_child(prefsBtn);
     }
