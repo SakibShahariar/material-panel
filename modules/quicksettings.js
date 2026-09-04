@@ -31,6 +31,15 @@ function wireQsInteractive(actor) {
         actor.can_focus = true;
     } catch (e) {}
     wireChipPress(actor, {stickyUntilLeave: true});
+    // Extra enter/leave in case child actors steal hover
+    actor.connect('enter-event', () => {
+        try { actor.add_style_class_name('hover'); } catch (e) {}
+        return Clutter.EVENT_PROPAGATE;
+    });
+    actor.connect('leave-event', () => {
+        try { actor.remove_style_class_name('hover'); } catch (e) {}
+        return Clutter.EVENT_PROPAGATE;
+    });
 }
 
 function getQsExpandController() {

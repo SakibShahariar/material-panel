@@ -50,7 +50,7 @@ const ALL_MODULES = [
     {id: 'networkSpeed', name: 'Network Speed', zone: 'right'},
     {id: 'clock', name: 'Clock', zone: 'center'},
     {id: 'weather', name: 'Weather', zone: 'center'},
-    {id: 'notifications', name: 'Notifications', zone: 'center'},
+    {id: 'notifications', name: 'Notifications', zone: 'right'},
     {id: 'battery', name: 'Battery', zone: 'right'},
     {id: 'volume', name: 'Volume', zone: 'right'},
     {id: 'network', name: 'Network', zone: 'right'},

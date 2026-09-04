@@ -2,6 +2,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -10,8 +11,8 @@ import {wireChipPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 /**
- * Center-zone chip: visible only while GNOME MessageTray has notifications.
- * Click opens a compact list; footer opens the system notification center.
+ * Right-zone notification chip (badge on icon).
+ * Lists MessageTray notifications with dismiss / clear-all / open system center.
  */
 
 function listNotifications() {
@@ -35,12 +36,19 @@ function listNotifications() {
                 try {
                     if (n.isTransient)
                         continue;
-                    const title = n.title || source.title || 'Notification';
+                    const title = n.title || source?.title || 'Notification';
                     let body = '';
                     try {
                         body = n.bannerBodyText || n.body || '';
                     } catch (e) {}
-                    out.push({source, notification: n, title: String(title), body: String(body || '')});
+                    if (body === 'undefined' || body === undefined)
+                        body = '';
+                    out.push({
+                        source,
+                        notification: n,
+                        title: String(title),
+                        body: String(body || ''),
+                    });
                 } catch (e) {}
             }
         }
@@ -48,6 +56,19 @@ function listNotifications() {
         logError(e, 'material-panel: listNotifications');
     }
     return out;
+}
+
+function destroyNotification(n) {
+    try {
+        if (typeof n.destroy === 'function')
+            n.destroy(0); // NotificationDestroyedReason.DISMISSED ≈ 0/2 depending on version
+        else if (typeof n.destroy === 'function')
+            n.destroy();
+    } catch (e1) {
+        try {
+            n.destroy?.(2);
+        } catch (e2) {}
+    }
 }
 
 function openSystemNotificationCenter() {
@@ -59,8 +80,7 @@ function openSystemNotificationCenter() {
         }
     } catch (e) {}
     try {
-        if (Main.messageTray?.toggle)
-            Main.messageTray.toggle();
+        Main.messageTray?.toggle?.();
     } catch (e) {}
 }
 
@@ -71,25 +91,30 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('notifications'))),
     });
-    const label = new St.Label({
+
+    // Badge count overlaid on the icon (right-top)
+    const badge = new St.Label({
         text: '',
-        style_class: 'material-panel-notifications-label',
+        style_class: 'material-panel-notifications-badge',
+        y_align: Clutter.ActorAlign.START,
+        x_align: Clutter.ActorAlign.END,
+    });
+    badge.visible = false;
+
+    const iconWrap = new St.Widget({
+        style_class: 'material-panel-notifications-icon-wrap',
+        layout_manager: new Clutter.BinLayout(),
         y_align: Clutter.ActorAlign.CENTER,
     });
-    const box = new St.BoxLayout({
-        style_class: 'material-panel-notifications',
-        y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
-    });
-    box.add_child(icon);
-    box.add_child(label);
+    iconWrap.add_child(icon);
+    iconWrap.add_child(badge);
 
     const button = new St.Button({
         style_class: 'material-panel-notifications-btn material-panel-chip',
         reactive: true,
         track_hover: true,
         can_focus: true,
-        child: box,
+        child: iconWrap,
         visible: false,
     });
     wireChipPress(button, {
@@ -105,12 +130,40 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const section = new PopupMenu.PopupMenuSection();
+    const body = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-notifications-body',
+        x_expand: true,
+    });
+
+    const header = new St.BoxLayout({
+        style_class: 'material-panel-notifications-header',
+        x_expand: true,
+        vertical: false,
+    });
+    const headerTitle = new St.Label({
+        text: 'Notifications',
+        style_class: 'material-panel-notifications-header-title',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const clearAllBtn = new St.Button({
+        style_class: 'material-panel-notifications-clear-all',
+        label: 'Clear all',
+        reactive: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    header.add_child(headerTitle);
+    header.add_child(clearAllBtn);
+    body.add_child(header);
+
     const listBox = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-notifications-list',
         x_expand: true,
     });
-    section.actor.add_child(listBox);
+    body.add_child(listBox);
+    section.actor.add_child(body);
     menu.addMenuItem(section);
 
     const footer = new PopupMenu.PopupMenuItem('Open notification center…');
@@ -120,19 +173,28 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
     menu.addMenuItem(footer);
 
-    const rebuild = () => {
-        listBox.destroy_all_children();
-        const items = listNotifications();
-        const count = items.length;
+    const setCount = count => {
         button.visible = count > 0;
-        label.text = count > 0 ? String(count) : '';
+        if (count > 0) {
+            badge.text = count > 99 ? '99+' : String(count);
+            badge.visible = true;
+        } else {
+            badge.text = '';
+            badge.visible = false;
+        }
         try {
             button.set_tooltip_text(count > 0
                 ? `${count} notification${count === 1 ? '' : 's'}`
                 : '');
         } catch (e) {}
+    };
 
-        if (count === 0) {
+    const rebuild = () => {
+        listBox.destroy_all_children();
+        const items = listNotifications();
+        setCount(items.length);
+
+        if (items.length === 0) {
             listBox.add_child(new St.Label({
                 text: 'No notifications',
                 style_class: 'material-panel-notifications-empty',
@@ -140,18 +202,27 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             return;
         }
 
-        for (const item of items.slice(0, 12)) {
-            const row = new St.Button({
-                style_class: 'material-panel-notifications-row',
-                reactive: true,
+        for (const item of items.slice(0, 20)) {
+            const card = new St.BoxLayout({
+                vertical: false,
+                style_class: 'material-panel-notifications-card',
                 x_expand: true,
             });
-            const col = new St.BoxLayout({vertical: true, x_expand: true});
-            col.add_child(new St.Label({
+
+            const textCol = new St.BoxLayout({
+                vertical: true,
+                x_expand: true,
+                style_class: 'material-panel-notifications-card-text',
+            });
+            const title = new St.Label({
                 text: item.title,
                 style_class: 'material-panel-notifications-row-title',
                 x_expand: true,
-            }));
+            });
+            try {
+                title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+            } catch (e) {}
+            textCol.add_child(title);
             if (item.body) {
                 const b = new St.Label({
                     text: item.body,
@@ -160,11 +231,36 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 });
                 try {
                     b.clutter_text.line_wrap = true;
+                    b.clutter_text.ellipsize = Pango.EllipsizeMode.END;
                 } catch (e) {}
-                col.add_child(b);
+                textCol.add_child(b);
             }
-            row.set_child(col);
-            row.connect('clicked', () => {
+
+            const dismiss = new St.Button({
+                style_class: 'material-panel-notifications-dismiss',
+                reactive: true,
+                y_align: Clutter.ActorAlign.START,
+                child: new St.Icon({
+                    icon_name: 'window-close-symbolic',
+                    icon_size: 14,
+                }),
+            });
+            dismiss.connect('clicked', () => {
+                destroyNotification(item.notification);
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+                    rebuild();
+                    return GLib.SOURCE_REMOVE;
+                });
+                return Clutter.EVENT_STOP;
+            });
+
+            const openBtn = new St.Button({
+                style_class: 'material-panel-notifications-open',
+                reactive: true,
+                x_expand: true,
+                child: textCol,
+            });
+            openBtn.connect('clicked', () => {
                 try {
                     item.notification?.activate?.();
                 } catch (e) {}
@@ -173,9 +269,22 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 } catch (e) {}
                 openSystemNotificationCenter();
             });
-            listBox.add_child(row);
+
+            card.add_child(openBtn);
+            card.add_child(dismiss);
+            listBox.add_child(card);
         }
     };
+
+    clearAllBtn.connect('clicked', () => {
+        for (const item of listNotifications())
+            destroyNotification(item.notification);
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            rebuild();
+            try { menu.close(); } catch (e) {}
+            return GLib.SOURCE_REMOVE;
+        });
+    });
 
     menu.connect('open-state-changed', (_m, open) => {
         if (open)
@@ -194,13 +303,11 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         }
     });
 
-    const tick = () => {
+    rebuild();
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
         rebuild();
         return GLib.SOURCE_CONTINUE;
-    };
-    rebuild();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, tick);
-
+    });
     const signalIds = [];
     try {
         const tray = Main.messageTray;
