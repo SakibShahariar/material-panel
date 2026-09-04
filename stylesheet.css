@@ -14,6 +14,9 @@
 .material-panel-zone {
     spacing: 8px;
 }
+.material-panel-layout-end4 .material-panel-zone {
+    spacing: 5px;
+}
 
 .material-panel-zone-left,
 .material-panel-zone-right,

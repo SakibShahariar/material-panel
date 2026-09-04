@@ -49,7 +49,7 @@ function classifyConfigChange(prev, next) {
     ]))
         return 'tray';
 
-    if (sameExcept(prev, next, ['panelSize']))
+    if (sameExcept(prev, next, ['panelSize', 'layoutStyle']))
         return 'panelSize';
 
     if (sameExcept(prev, next, ['clockFormat']))
@@ -133,7 +133,7 @@ export default class MaterialPanelExtension extends Extension {
         try {
             const panelSize = this._config.panelSize ?? {};
             const colorSource = resolveColorSource(this._config.colorSource);
-            this._theme.apply(colorSource, panelSize);
+            this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'end4');
         } catch (e) {
             logError(e, 'material-panel: theme apply on size change');
         }
@@ -156,7 +156,7 @@ export default class MaterialPanelExtension extends Extension {
     _applyTheme({rebuildPanel = true} = {}) {
         const panelSize = this._config.panelSize ?? {};
         const colorSource = resolveColorSource(this._config.colorSource);
-        this._theme.apply(colorSource, panelSize);
+        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'end4');
         if (rebuildPanel)
             this._builder.render(this._config);
         this._applyTrayOnly();
@@ -166,7 +166,7 @@ export default class MaterialPanelExtension extends Extension {
                 log('material-panel: matugen watch — theme + rebuild');
                 const freshSize = this._config.panelSize ?? {};
                 const freshSource = resolveColorSource(this._config.colorSource);
-                this._theme.apply(freshSource, freshSize);
+                this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'end4');
                 this._builder.render(this._config);
                 this._applyTrayOnly();
             });
