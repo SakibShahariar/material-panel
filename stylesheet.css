@@ -750,8 +750,9 @@
     spacing: 2px;
 }
 .material-panel-network-speed-btn {
-    padding: 0 10px;
-    min-width: 36px;
+    padding: 0 6px;
+    min-width: 28px;
+    max-width: 40px;
 }
 .material-panel-battery {
     spacing: 5px;
@@ -767,4 +768,11 @@
 .material-panel-qs-wifi-speed {
     font-size: 10px;
     font-weight: 600;
+    min-width: 0;
+}
+.material-panel-qs-wifi-main-box {
+    spacing: 6px;
+}
+.material-panel-qs-wifi-text {
+    min-width: 72px;
 }

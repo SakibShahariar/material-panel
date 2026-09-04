@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {wirePressedClass} from '../lib/pressFx.js';
 
 export function buildWorkspaces() {
     const box = new St.BoxLayout({style_class: 'material-panel-workspaces'});
@@ -17,6 +18,7 @@ export function buildWorkspaces() {
                 track_hover: true,
                 can_focus: true,
             });
+            wirePressedClass(btn);
             btn.connect('clicked', () => {
                 manager.get_workspace_by_index(i).activate(global.get_current_time());
             });

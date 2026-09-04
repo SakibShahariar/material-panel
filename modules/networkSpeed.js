@@ -87,7 +87,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     const icon = new St.Icon({
         style_class: 'material-panel-network-speed-icon',
         icon_name: 'network-transmit-receive-symbolic',
-        icon_size: Math.round(17 * (scale || 1.0)),
+        icon_size: Math.round(16 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
     });
 

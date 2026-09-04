@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {ConfigStore} from '../lib/configStore.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {wirePressedClass} from '../lib/pressFx.js';
 
 const CELL = 34;
 
@@ -139,10 +140,12 @@ export function buildClock(_extensionPath, scale = 1.0) {
     });
 
     const button = new St.Button({
-        style_class: 'material-panel-clock-btn',
+        style_class: 'material-panel-clock-btn material-panel-chip',
         reactive: true,
+        track_hover: true,
         child: label,
     });
+    wirePressedClass(button);
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-clock-popup');

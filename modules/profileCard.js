@@ -4,7 +4,8 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
+import {wireFileIconPress} from '../lib/pressFx.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -95,16 +96,27 @@ export function buildProfileCard({onPrefs = null} = {}) {
 
     // Settings gear — top of QS, inside user info card
     if (onPrefs) {
+        let settingsPath = iconPathPrimary('settings');
+        try {
+            if (!Gio.File.new_for_path(settingsPath).query_exists(null))
+                settingsPath = iconPath('settings');
+        } catch (e) {
+            settingsPath = iconPath('settings');
+        }
+        const prefsIcon = new St.Icon({
+            icon_size: 18,
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'material-panel-qs-profile-prefs-icon',
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(settingsPath)),
+        });
         const prefsBtn = new St.Button({
             style_class: 'material-panel-qs-profile-prefs',
             reactive: true,
+            track_hover: true,
             y_align: Clutter.ActorAlign.CENTER,
-            child: new St.Icon({
-                icon_size: 18,
-                y_align: Clutter.ActorAlign.CENTER,
-                gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('settings'))),
-            }),
+            child: prefsIcon,
         });
+        wireFileIconPress(prefsBtn, () => [{icon: prefsIcon, key: 'settings'}]);
         prefsBtn.connect('clicked', () => {
             try { onPrefs(); } catch (e) { logError(e, 'material-panel: profile prefs click'); }
         });

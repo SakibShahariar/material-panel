@@ -1406,14 +1406,17 @@ function wifiQsBlock() {
     });
     text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     const speedLabel = new St.Label({
-        text: '',
+        text: '↓— ↑—',
         style_class: 'material-panel-qs-wifi-speed',
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
     });
-    speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    // Never ellipsize — compact format must stay fully visible
+    try {
+        speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        speedLabel.clutter_text.line_wrap = false;
+    } catch (e) {}
     speedLabel.visible = true;
-    speedLabel.text = '↓ —  ↑ —';
     textCol.add_child(text);
     textCol.add_child(speedLabel);
     mainBox.add_child(icon);
@@ -1421,11 +1424,11 @@ function wifiQsBlock() {
     mainBtn.set_child(mainBox);
 
     let _ssid = 'Wi-Fi';
-    const stopNet = startNetSpeedMonitor(({downShort, upShort, downText, upText}) => {
-        // Compact on tile so full rates fit; full text still used in network list
-        const d = downShort || downText || '—';
-        const u = upShort || upText || '—';
-        speedLabel.text = `↓ ${d}  ↑ ${u}`;
+    const stopNet = startNetSpeedMonitor(({downShort, upShort}) => {
+        const d = downShort || '—';
+        const u = upShort || '—';
+        // Tight: "↓16K ↑2K" fits the tile without clipping
+        speedLabel.text = `↓${d} ↑${u}`;
     });
     row.connect('destroy', () => { try { stopNet(); } catch (e) {} });
 

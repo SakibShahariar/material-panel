@@ -6,7 +6,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 
 function findTempFile() {
@@ -174,7 +174,9 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     let cpuGicon;
     try {
-        const p = iconPath('cpu');
+        let p = iconPathPrimary('cpu');
+        if (!Gio.File.new_for_path(p).query_exists(null))
+            p = iconPath('cpu');
         if (Gio.File.new_for_path(p).query_exists(null))
             cpuGicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         else
@@ -191,13 +193,15 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     let tempGicon;
     try {
-        const p = iconPath('cpu-temp');
+        let p = iconPathPrimary('cpu-temp');
+        if (!Gio.File.new_for_path(p).query_exists(null))
+            p = iconPath('cpu-temp');
         if (Gio.File.new_for_path(p).query_exists(null))
             tempGicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         else
-            tempGicon = Gio.ThemedIcon.new('computer-symbolic');
+            tempGicon = Gio.ThemedIcon.new('temperature-symbolic');
     } catch (e) {
-        tempGicon = Gio.ThemedIcon.new('computer-symbolic');
+        tempGicon = Gio.ThemedIcon.new('temperature-symbolic');
     }
     const tempIcon = new St.Icon({
         style_class: 'material-panel-cpu-temp-icon',
@@ -224,6 +228,10 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     box.add_child(tempIcon);
     box.add_child(tempLabel);
     button.set_child(box);
+    wireFileIconPress(button, () => [
+        {icon: cpuIcon, key: 'cpu'},
+        {icon: tempIcon, key: 'cpu-temp'},
+    ]);
 
     const tempInfo = findTempFile();
     const tempPath = tempInfo?.path ?? null;
