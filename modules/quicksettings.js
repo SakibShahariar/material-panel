@@ -108,21 +108,23 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
-    wireChipPress(tile, {
-        getIcons: () => [{icon, key: iconKey}],
-        stickyUntilLeave: true,
-    });
-
     const refresh = () => {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
         try {
-            let p = on ? iconPathOnAccent(iconKey) : iconPathPrimary(iconKey);
+            // Off: neutral surface icon | On: on-primary | Press handled by wireChipPress
+            let p = on ? iconPathOnAccent(iconKey) : iconPath(iconKey);
             if (!Gio.File.new_for_path(p).query_exists(null))
                 p = iconPath(iconKey);
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         } catch (e) {}
     };
+    wireChipPress(tile, {
+        getIcons: () => [{icon, key: iconKey}],
+        stickyUntilLeave: true,
+        // Active tiles keep on-primary icons at rest
+        restingIcon: () => isOn(),
+    });
     refresh();
 
     // Light press feedback (scale) — end-4/Caelestia-style, cheap in St
