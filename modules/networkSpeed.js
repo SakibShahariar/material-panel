@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {wirePressedClass} from '../lib/pressFx.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 function decodeBytes(bytes) {
     try {
@@ -142,10 +143,10 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else {
             refreshPopup();
-            menu.open();
+            menuOpen(menu);
         }
     });
 

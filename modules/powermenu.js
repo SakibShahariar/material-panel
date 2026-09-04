@@ -5,6 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
+import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath} from '../lib/iconTheme.js';
 
@@ -48,7 +49,7 @@ export function buildPowerMenu() {
         menu.addMenuItem(item);
     }
 
-    button.connect('clicked', () => menu.toggle());
+    button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => menu.destroy());
 
     return button;

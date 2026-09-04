@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 // Prefer GNOME Weather location + libgweather conditions.
 // Fallback: Open-Meteo at those coords → IP → default.
@@ -542,8 +543,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
     });
     button.connect('clicked', () => {
-        if (menu.isOpen) menu.close();
-        else menu.open();
+        if (menu.isOpen) menuClose(menu);
+        else menuOpen(menu);
     });
 
     fetchWeather();

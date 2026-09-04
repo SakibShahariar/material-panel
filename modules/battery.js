@@ -9,6 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPath, iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 function formatSeconds(sec) {
     if (!sec || sec <= 0 || sec > 60 * 60 * 48)
@@ -270,9 +271,9 @@ export function buildBattery(extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else
-            menu.open();
+            menuOpen(menu);
     });
     button.connect('destroy', () => {
         if (notifyId) try { device.disconnect(notifyId); } catch (e) {}

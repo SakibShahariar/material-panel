@@ -5,6 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -453,7 +454,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             refreshPopup(); // may show … for one tick until next sample
     });
 
-    button.connect('clicked', () => menu.toggle());
+    button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
         try { GLib.source_remove(timerId); } catch (e) {}
         menu.destroy();

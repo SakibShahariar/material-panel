@@ -6,6 +6,7 @@ import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
+import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -34,7 +35,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
-    button.connect('clicked', () => menu.toggle());
+    button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => menu.destroy());
 
     NM.Client.new_async(null, (_obj, res) => {

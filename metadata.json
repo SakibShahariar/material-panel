@@ -1,7 +1,11 @@
 {
-  "uuid": "material-panel@SakibShahariar",
-  "name": "Material Panel",
-  "description": "A custom, config-driven GNOME Shell top panel with zone-based module placement and support for other extensions' status area buttons.",
-  "shell-version": ["50"],
-  "url": "https://github.com/SakibShahariar/material-panel"
+    "uuid": "material-panel@SakibShahariar",
+    "name": "Material Panel",
+    "description": "A custom, config-driven GNOME Shell top panel with zone-based module placement and support for other extensions' status area buttons.",
+    "shell-version": [
+        "49",
+        "50",
+        "51"
+    ],
+    "url": "https://github.com/SakibShahariar/material-panel"
 }

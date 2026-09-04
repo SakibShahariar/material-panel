@@ -9,6 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const MAX_SHOWN = 40;
 
@@ -87,7 +88,7 @@ function openSystemNotificationCenter() {
     try {
         const dateMenu = Main.panel?.statusArea?.dateMenu;
         if (dateMenu?.menu) {
-            dateMenu.menu.open();
+            dateMenu.menuOpen(menu);
             return;
         }
     } catch (e) {}
@@ -202,7 +203,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
     wireChipPress(footer, {stickyUntilLeave: true});
     footer.connect('clicked', () => {
-        menu.close();
+        menuClose(menu);
         openSystemNotificationCenter();
     });
     root.add_child(footer);
@@ -293,7 +294,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         card.set_child(row);
         card.connect('clicked', () => {
             try { item.notification?.activate?.(); } catch (e) {}
-            try { menu.close(); } catch (e) {}
+            try { menuClose(menu); } catch (e) {}
             openSystemNotificationCenter();
         });
         return card;
@@ -340,7 +341,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             destroyNotification(item.notification);
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
             rebuild();
-            try { menu.close(); } catch (e) {}
+            try { menuClose(menu); } catch (e) {}
             return GLib.SOURCE_REMOVE;
         });
     });
@@ -351,14 +352,14 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else {
             rebuild();
             if (listNotifications().length === 0) {
                 openSystemNotificationCenter();
                 return;
             }
-            menu.open();
+            menuOpen(menu);
         }
     });
 

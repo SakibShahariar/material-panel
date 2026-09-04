@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -246,7 +247,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     });
     footerBtn.connect('clicked', () => {
         try { GLib.spawn_command_line_async('gnome-control-center bluetooth'); } catch (e) {}
-        menu.close();
+        menuClose(menu);
     });
     const footerItem = wrapAsMenuItem(footerBtn);
 
@@ -590,8 +591,8 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     // power is now the switch inside the popup (Noctalia/End4 header).
     // Keep quick toggle on right-click or middle?
     button.connect('clicked', () => {
-        if (menu.isOpen) menu.close();
-        else menu.open();
+        if (menu.isOpen) menuClose(menu);
+        else menuOpen(menu);
         return Clutter.EVENT_STOP;
     });
     // Right-click quick toggle power (alternative fast path)

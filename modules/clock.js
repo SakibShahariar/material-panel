@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {wirePressedClass} from '../lib/pressFx.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const CELL = 34;
 
@@ -259,9 +260,9 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else
-            menu.open();
+            menuOpen(menu);
     });
     button.connect('destroy', () => {
         try { GLib.source_remove(sourceId); } catch (e) {}

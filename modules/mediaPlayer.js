@@ -7,6 +7,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
@@ -399,10 +400,10 @@ export function buildMedia(_extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else {
             pickPreferredPlayer(attach);
-            menu.open();
+            menuOpen(menu);
         }
     });
     button.connect('destroy', () => {

@@ -16,6 +16,7 @@ import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {wireChipPress} from '../lib/pressFx.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -1416,7 +1417,7 @@ function powerRow(menu = null) {
                 logError(e, `material-panel: failed to run "${command}"`);
             }
             if (menu) {
-                try { menu.close(); } catch (e) {}
+                try { menuClose(menu); } catch (e) {}
             }
         });
         row.add_child(btn);
@@ -1760,7 +1761,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         buildProfileCard({
             onPrefs: () => {
                 openExtensionPrefs();
-                try { menu.close(); } catch (e) {}
+                try { menuClose(menu); } catch (e) {}
             },
         }),
         buildMediaPlayerRow(),
@@ -1833,9 +1834,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => {
         if (menu.isOpen)
-            menu.close();
+            menuClose(menu);
         else
-            menu.open();
+            menuOpen(menu);
     });
     button.connect('destroy', () => menu.destroy());
 
