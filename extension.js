@@ -164,12 +164,8 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
         try {
             if (this._config.layoutStyle === 'end4') {
-                const preset = this._config.presets?.[this._config.activePreset];
-                const left = preset?.zones?.left ?? [];
-                if (!left.includes('focusedWindow')) {
-                    applyLayoutStyle(this._config, 'end4');
-                    this._store.save(this._config);
-                }
+                applyLayoutStyle(this._config, 'end4');
+                this._store.save(this._config);
             }
         } catch (e) {}
         } catch (e) {}

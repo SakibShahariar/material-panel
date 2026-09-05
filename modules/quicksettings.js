@@ -1734,8 +1734,11 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const end4 = globalThis._materialPanelLayoutStyle === 'end4';
     const menu = new PopupMenu.PopupMenu(button, end4 ? 1.0 : 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-qs-menu');
-    if (end4)
+    if (end4) {
         menu.actor.add_style_class_name('material-panel-layout-end4');
+        try { menu.box.add_style_class_name('material-panel-layout-end4'); } catch (e) {}
+        try { menu.actor.add_style_class_name('material-panel-qs-end4'); } catch (e) {}
+    }
     const clampQsHeight = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
