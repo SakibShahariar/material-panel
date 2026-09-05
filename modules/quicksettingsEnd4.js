@@ -420,7 +420,7 @@ function buildPowerRow(menu) {
     ];
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: true});
-        style(b, 'border-radius: 999px; min-height: 44px; background-color: rgba(255,255,255,0.10);');
+        style(b, 'border-radius: 999px; min-height: 40px; background-color: rgba(255,255,255,0.10);');
         b.set_child(new St.Icon({icon_name: a.icon, icon_size: 16}));
         b.connect('clicked', () => {
             if (a.cmd) {
@@ -457,7 +457,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         x_expand: true,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, 'min-width: 360px; max-width: 400px; padding: 14px; spacing: 12px; border-radius: 24px;');
+    style(shell, 'min-width: 300px; max-width: 320px; padding: 12px; spacing: 10px; border-radius: 22px;');
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
@@ -498,7 +498,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             if (mon) {
-                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; min-width: 360px; border-radius: 24px;`;
+                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; min-width: 300px; max-width: 320px; border-radius: 22px;`;
                 menu.box.clip_to_allocation = true;
             }
         } catch (e) {}
