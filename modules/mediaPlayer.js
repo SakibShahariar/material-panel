@@ -269,7 +269,7 @@ export function buildMediaPlayerRow() {
 /** Panel chip + popup controls */
 export function buildMedia(_extensionPath, scale = 1.0) {
     const icon = new St.Icon({
-        icon_name: 'multimedia-player-symbolic',
+        icon_name: 'audio-x-generic-symbolic',
         icon_size: Math.round(16 * (scale || 1.0)),
         style_class: 'material-panel-media-icon',
         y_align: Clutter.ActorAlign.CENTER,
@@ -377,8 +377,8 @@ export function buildMedia(_extensionPath, scale = 1.0) {
                     ? 'media-playback-pause-symbolic'
                     : 'media-playback-start-symbolic';
                 icon.icon_name = playing
-                    ? 'media-playback-start-symbolic'
-                    : 'multimedia-player-symbolic';
+                    ? 'media-playback-pause-symbolic'
+                    : 'audio-x-generic-symbolic';
             },
             onReady: c => {
                 ctl = c;

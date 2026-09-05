@@ -30,7 +30,7 @@ function _iconForWindows(windows) {
 export function buildWorkspaces(_extensionPath, scale = 1.0) {
     const box = new St.BoxLayout({style_class: 'material-panel-workspaces'});
     const manager = global.workspace_manager;
-    const iconSize = Math.max(12, Math.round(14 * (scale || 1)));
+    const iconSize = Math.max(14, Math.round(16 * (scale || 1)));
 
     const rebuild = () => {
         box.destroy_all_children();
@@ -59,13 +59,15 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                     can_focus: true,
                     child: img,
                 });
-                // Never set numeric label in end4
-                try { btn.label = ''; } catch (e) {}
+                try {
+                    btn.style = active
+                        ? 'width: 24px; height: 24px; border-radius: 999px; padding: 2px;'
+                        : 'width: 22px; height: 22px; border-radius: 999px; padding: 2px;';
+                } catch (e) {}
                 wirePressedClass(btn);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
             } else if (end4) {
-                // Pure dot — no label text at all
                 const btn = new St.Button({
                     style_class: active
                         ? 'material-panel-workspace-btn material-panel-workspace-dot active'
@@ -74,7 +76,12 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                     track_hover: true,
                     can_focus: true,
                 });
-                try { btn.set_label(''); } catch (e) {}
+                // Inline — CSS was losing to chip rules (big pink pill)
+                try {
+                    btn.style = active
+                        ? 'width: 22px; height: 9px; min-width: 22px; min-height: 9px; padding: 0; border-radius: 999px; border: none;'
+                        : 'width: 9px; height: 9px; min-width: 9px; min-height: 9px; padding: 0; border-radius: 999px; border: none;';
+                } catch (e) {}
                 wirePressedClass(btn);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);

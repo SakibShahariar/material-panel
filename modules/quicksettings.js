@@ -147,8 +147,15 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
     });
-    text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    text.clutter_text.line_wrap = false;
+    if (globalThis._materialPanelLayoutStyle === 'end4') {
+        try { text.style = 'font-size: 12px; font-weight: 600;'; } catch (e) {}
+        text.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        text.clutter_text.line_wrap = true;
+        text.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+    } else {
+        text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        text.clutter_text.line_wrap = false;
+    }
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
@@ -156,12 +163,25 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
         try {
-            // Off: neutral surface icon | On: on-primary | Press handled by wireChipPress
             let p = on ? iconPathOnAccent(iconKey) : iconPath(iconKey);
             if (!Gio.File.new_for_path(p).query_exists(null))
                 p = iconPath(iconKey);
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         } catch (e) {}
+        // Force readable label on active (St CSS often fails in popups)
+        try {
+            if (on)
+                text.style = 'color: #1a1a1a; font-weight: 700;';
+            else
+                text.style = 'color: #e8e0f0; font-weight: 600;';
+        } catch (e) {}
+        if (globalThis._materialPanelLayoutStyle === 'end4') {
+            try {
+                tile.style = on
+                    ? 'border-radius: 22px; min-height: 66px; background-color: #f5b8d0;'
+                    : 'border-radius: 22px; min-height: 66px;';
+            } catch (e) {}
+        }
     };
     wireChipPress(tile, {
         getIcons: () => [{icon, key: iconKey}],
@@ -677,6 +697,13 @@ function bluetoothTile() {
             Gio.File.new_for_path(powered ? iconPathOnAccent(key) : iconPath(key)));
         tileRow.set_style_class_name(`material-panel-qs-tile material-panel-qs-bt-tile-row${powered ? ' active' : ''}`);
         text.text = 'Bluetooth';
+        try {
+            text.style = powered ? 'color: #1a1a1a; font-weight: 700;' : 'color: #e8e0f0; font-weight: 600;';
+            if (globalThis._materialPanelLayoutStyle === 'end4')
+                tileRow.style = powered
+                    ? 'border-radius: 22px; min-height: 66px; background-color: #f5b8d0;'
+                    : 'border-radius: 22px; min-height: 66px;';
+        } catch (e) {}
         if (_refreshDevices) _refreshDevices();
     };
 
@@ -1572,6 +1599,10 @@ function wifiQsBlock() {
     const setActive = on => {
         if (on)
             row.add_style_class_name('active');
+            try {
+                if (ssidLabel)
+                    ssidLabel.style = 'color: #1a1a1a; font-weight: 700;';
+            } catch (e) {}
         else
             row.remove_style_class_name('active');
         const key = on ? 'network-wifi' : 'network-offline';
