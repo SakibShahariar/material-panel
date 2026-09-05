@@ -1774,12 +1774,29 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         buildMediaPlayerRow(),
     )));
 
-    // Section: volume + brightness
-    menu.addMenuItem(wrapAsMenuItem(qsSection(
-        'material-panel-qs-section-sliders',
-        volumeSliderRow(),
-        brightnessSliderRow(),
-    )));
+    // Section: volume + brightness (end4: combined dual capsule)
+    if (end4) {
+        const dual = new St.BoxLayout({
+            style_class: 'material-panel-qs-dual-slider',
+            vertical: false,
+            x_expand: true,
+        });
+        const vol = volumeSliderRow();
+        const bri = brightnessSliderRow();
+        try { vol.x_expand = true; bri.x_expand = true; } catch (e) {}
+        dual.add_child(vol);
+        dual.add_child(bri);
+        menu.addMenuItem(wrapAsMenuItem(qsSection(
+            'material-panel-qs-section-sliders material-panel-qs-section-sliders-end4',
+            dual,
+        )));
+    } else {
+        menu.addMenuItem(wrapAsMenuItem(qsSection(
+            'material-panel-qs-section-sliders',
+            volumeSliderRow(),
+            brightnessSliderRow(),
+        )));
+    }
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -1793,8 +1810,8 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         layout_manager: new Clutter.GridLayout({
             column_homogeneous: true,
             row_homogeneous: true,
-            column_spacing: 8,
-            row_spacing: 8,
+            column_spacing: end4 ? 10 : 8,
+            row_spacing: end4 ? 10 : 8,
         }),
     });
     const gl = grid.layout_manager;
