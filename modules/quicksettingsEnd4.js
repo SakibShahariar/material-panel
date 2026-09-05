@@ -55,7 +55,7 @@ function makeIcon(keys, size = 18, onAccent = false, symbolicFallback = null) {
 
 function wrapShell(child) {
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-    try { item.set_style('padding: 0; margin: 0;'); } catch (e) {}
+    try { item.set_style('padding: 0; margin: 0; min-width: 0;'); } catch (e) {}
     item.add_child(child);
     return item;
 }
@@ -74,7 +74,7 @@ function buildDualSliders() {
         x_expand: true,
         style_class: 'material-panel-e4-dual',
     });
-    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px; spacing: 12px;');
+    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 10px; spacing: 8px;');
 
     const volBox = new St.BoxLayout({vertical: false, x_expand: true});
     const volIcon = makeIcon(['volume-high', 'volume-medium'], 16, false, 'audio-volume-high-symbolic');
@@ -193,7 +193,7 @@ function makeToggle(opts) {
     if (kind !== 'round' && opts.label) {
         const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
         title = new St.Label({text: opts.label});
-        style(title, 'font-size: 12px; font-weight: 700;');
+        style(title, 'font-size: 11px; font-weight: 700;');
         col.add_child(title);
         if (opts.sub) {
             sub = new St.Label({text: opts.sub});
@@ -210,12 +210,12 @@ function makeToggle(opts) {
 
         if (kind === 'round') {
             style(btn, on
-                ? 'border-radius: 999px; min-height: 52px; min-width: 52px; padding: 8px; background-color: #f5b8d0;'
-                : 'border-radius: 999px; min-height: 52px; min-width: 52px; padding: 8px; background-color: rgba(255,255,255,0.10);');
+                ? 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: #f5b8d0;'
+                : 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: rgba(255,255,255,0.10);');
         } else {
             style(btn, on
-                ? 'border-radius: 18px; min-height: 52px; padding: 8px 12px; background-color: #f5b8d0;'
-                : 'border-radius: 18px; min-height: 52px; padding: 8px 12px; background-color: rgba(255,255,255,0.10);');
+                ? 'border-radius: 16px; min-height: 48px; padding: 6px 10px; background-color: #f5b8d0;'
+                : 'border-radius: 16px; min-height: 48px; padding: 6px 10px; background-color: rgba(255,255,255,0.10);');
         }
 
         const g = loadGicon(opts.iconKeys, on);
@@ -226,12 +226,12 @@ function makeToggle(opts) {
 
         if (title)
             style(title, on
-                ? 'font-size: 12px; font-weight: 700; color: #1a1a1a;'
-                : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
+                ? 'font-size: 11px; font-weight: 700; color: #1a1a1a;'
+                : 'font-size: 11px; font-weight: 700; color: #eee6f4;');
         if (sub)
             style(sub, on
-                ? 'font-size: 11px; color: #3a2a32;'
-                : 'font-size: 11px; opacity: 0.7; color: #c8bdd0;');
+                ? 'font-size: 10px; color: #3a2a32;'
+                : 'font-size: 10px; opacity: 0.7; color: #c8bdd0;');
     };
 
     btn.connect('clicked', () => {
@@ -282,9 +282,10 @@ function buildToggleGrid() {
         },
     });
     try {
-        wifi.width = 56;
-        wifi.height = 56;
+        wifi.width = 48;
+        wifi.height = 48;
         wifi.x_expand = false;
+        wifi.x_align = Clutter.ActorAlign.CENTER;
     } catch (e) {}
 
     const bt = makeToggle({
@@ -467,7 +468,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         x_expand: true,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, 'width: 348px; min-width: 348px; max-width: 348px; padding: 12px; spacing: 10px; border-radius: 22px;');
+    style(shell, 'width: 320px; min-width: 320px; max-width: 320px; padding: 10px; spacing: 8px; border-radius: 20px;');
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
@@ -507,10 +508,11 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
             return;
         try {
             const mon = Main.layoutManager.primaryMonitor;
-            if (mon) {
-                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; width: 348px; min-width: 348px; max-width: 348px; border-radius: 22px;`;
-                menu.box.clip_to_allocation = true;
-            }
+            const maxH = mon ? Math.floor(mon.height * 0.85) : 700;
+            menu.box.style = `max-height: ${maxH}px; width: 320px; min-width: 320px; max-width: 320px; padding: 0; margin: 0; border-radius: 20px;`;
+            menu.box.clip_to_allocation = true;
+            try { menu.actor.width = 320; } catch (e) {}
+            try { shell.width = 320; } catch (e) {}
         } catch (e) {}
     });
 
