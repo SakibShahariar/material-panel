@@ -327,7 +327,7 @@ function buildToggleGrid() {
     });
     const dnd = makeToggle({
         kind: 'wide',
-        label: 'Do not disturb',
+        label: 'DND',
         iconKeys: ['dnd-active', 'dnd-inactive'],
         symbolic: 'notifications-disabled-symbolic',
         getOn: () => {
@@ -414,14 +414,24 @@ function buildPowerRow(menu) {
     style(row, 'spacing: 8px;');
     const actions = [
         {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
-        {icon: 'night-light-symbolic', cmd: null},
+        {icon: 'weather-clear-night-symbolic', cmd: null},
         {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
         {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
     ];
     for (const a of actions) {
-        const b = new St.Button({reactive: true, x_expand: true});
-        style(b, 'border-radius: 999px; min-height: 40px; background-color: rgba(255,255,255,0.10);');
-        b.set_child(new St.Icon({icon_name: a.icon, icon_size: 16}));
+        const b = new St.Button({
+            reactive: true,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.FILL,
+        });
+        style(b, 'border-radius: 999px; height: 40px; background-color: rgba(255,255,255,0.10);');
+        const ic = new St.Icon({
+            icon_name: a.icon,
+            icon_size: 16,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        b.set_child(ic);
         b.connect('clicked', () => {
             if (a.cmd) {
                 try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
@@ -457,7 +467,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         x_expand: true,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, 'min-width: 300px; max-width: 320px; padding: 12px; spacing: 10px; border-radius: 22px;');
+    style(shell, 'width: 348px; min-width: 348px; max-width: 348px; padding: 12px; spacing: 10px; border-radius: 22px;');
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
@@ -498,7 +508,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             if (mon) {
-                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; min-width: 300px; max-width: 320px; border-radius: 22px;`;
+                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; width: 348px; min-width: 348px; max-width: 348px; border-radius: 22px;`;
                 menu.box.clip_to_allocation = true;
             }
         } catch (e) {}
