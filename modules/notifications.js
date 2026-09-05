@@ -13,7 +13,7 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const MAX_SHOWN = 40;
 
-function listNotifications() {
+export function listNotifications() {
     const out = [];
     try {
         const tray = Main.messageTray;

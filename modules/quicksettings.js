@@ -16,6 +16,7 @@ import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {wireChipPress} from '../lib/pressFx.js';
+import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
@@ -1597,14 +1598,19 @@ function wifiQsBlock() {
     let client = null;
 
     const setActive = on => {
-        if (on)
+        if (on) {
             row.add_style_class_name('active');
             try {
                 if (ssidLabel)
                     ssidLabel.style = 'color: #1a1a1a; font-weight: 700;';
             } catch (e) {}
-        else
+        } else {
             row.remove_style_class_name('active');
+            try {
+                if (ssidLabel)
+                    ssidLabel.style = '';
+            } catch (e) {}
+        }
         const key = on ? 'network-wifi' : 'network-offline';
         try {
             icon.gicon = Gio.FileIcon.new(
@@ -1934,6 +1940,15 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
 
     if (end4) {
         try {
+            menu.addMenuItem(wrapAsMenuItem(qsSection(null, buildEnd4NotiSection())));
+            menu.addMenuItem(wrapAsMenuItem(qsSection(null, buildEnd4CalendarSection())));
+        } catch (e) {
+            logError(e, 'material-panel: end4 QS extras failed');
+        }
+    }
+
+    if (end4) {
+        try {
             const dualEl = menu.box.get_children?.()?.find?.(c => {
                 try {
                     return String(c.style_class || '').includes('dual') ||
@@ -1991,12 +2006,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             }
         });
     } else {
-    menu.connect('open-state-changed', (_m, open) => {
-        if (open)
-            clampQsHeight();
-        if (!open)
-            getQsExpandController().expandOnly(null);
-    });
+        menu.connect('open-state-changed', (_m, open) => {
+            if (open)
+                clampQsHeight();
+            if (!open)
+                getQsExpandController().expandOnly(null);
+        });
     }
 
     button.connect('clicked', () => {
