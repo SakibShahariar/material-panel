@@ -268,7 +268,7 @@ function buildToggleGrid() {
     let nlSettings = null;
     try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Row 0: circular Wi-Fi + Bluetooth (end-4 style)
+    // Row 0: Wi-Fi circle + Bluetooth — BoxLayout (fixed + expand)
     const row0 = new St.BoxLayout({vertical: false, x_expand: true});
     style(row0, 'spacing: 8px;');
 
@@ -292,7 +292,6 @@ function buildToggleGrid() {
         wifi.width = 48;
         wifi.height = 48;
         wifi.x_expand = false;
-        wifi.x_align = Clutter.ActorAlign.CENTER;
     } catch (e) {}
 
     const bt = makeToggle({
@@ -313,14 +312,19 @@ function buildToggleGrid() {
             } catch (e) {}
         },
     });
-
     row0.add_child(wifi);
     row0.add_child(bt);
     root.add_child(row0);
 
-    // Row 1: Dark | DND
-    const row1 = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row1, 'spacing: 8px;');
+    // Row 1: Dark | DND — GridLayout column_homogeneous (TRUE equal halves)
+    const row1 = new St.Widget({
+        x_expand: true,
+        layout_manager: new Clutter.GridLayout({
+            column_homogeneous: true,
+            column_spacing: 8,
+            row_spacing: 0,
+        }),
+    });
     const dark = makeToggle({
         kind: 'wide',
         label: 'Dark mode',
@@ -345,15 +349,8 @@ function buildToggleGrid() {
             try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
         },
     });
-    row1.add_child(dark);
-    row1.add_child(dnd);
-    // Equal share — prevent Dark mode from crushing DND
-    try {
-        dark.x_expand = true;
-        dnd.x_expand = true;
-        dark.x_align = Clutter.ActorAlign.FILL;
-        dnd.x_align = Clutter.ActorAlign.FILL;
-    } catch (e) {}
+    row1.layout_manager.attach(dark, 0, 0, 1, 1);
+    row1.layout_manager.attach(dnd, 1, 0, 1, 1);
     root.add_child(row1);
 
     // Row 2: Night light full width
@@ -425,38 +422,43 @@ function buildHeader(menu) {
 }
 
 function buildPowerRow(menu) {
-    const row = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row, 'spacing: 6px;');
+    const grid = new St.Widget({
+        x_expand: true,
+        layout_manager: new Clutter.GridLayout({
+            column_homogeneous: true,
+            column_spacing: 6,
+        }),
+    });
+    const gl = grid.layout_manager;
     const actions = [
         {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
         {icon: 'weather-clear-night-symbolic', cmd: null},
         {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
         {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
     ];
-    for (const a of actions) {
+    actions.forEach((a, i) => {
         const b = new St.Button({
             reactive: true,
             x_expand: true,
-            width: 70,
+            x_align: Clutter.ActorAlign.FILL,
         });
-        style(b, 'border-radius: 999px; height: 40px; width: 70px; background-color: rgba(255,255,255,0.10);');
-        try { b.width = 70; b.height = 40; } catch (e) {}
-        const ic = new St.Icon({
+        style(b, 'border-radius: 999px; height: 40px; background-color: rgba(255,255,255,0.10);');
+        try { b.height = 40; } catch (e) {}
+        b.set_child(new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
-        });
-        b.set_child(ic);
+        }));
         b.connect('clicked', () => {
             if (a.cmd) {
                 try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
             }
             try { menuClose(menu); } catch (e) {}
         });
-        row.add_child(b);
-    }
-    return row;
+        gl.attach(b, i, 0, 1, 1);
+    });
+    return grid;
 }
 
 export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
@@ -483,7 +485,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         x_expand: true,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, 'width: 320px; min-width: 320px; max-width: 320px; padding: 10px; spacing: 8px; border-radius: 20px;');
+    style(shell, 'width: 336px; min-width: 336px; max-width: 336px; padding: 10px; spacing: 8px; border-radius: 20px;');
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
@@ -524,10 +526,10 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             const maxH = mon ? Math.floor(mon.height * 0.85) : 700;
-            menu.box.style = `max-height: ${maxH}px; width: 320px; min-width: 320px; max-width: 320px; padding: 0; margin: 0; border-radius: 20px;`;
+            menu.box.style = `max-height: ${maxH}px; width: 336px; min-width: 336px; max-width: 336px; padding: 0; margin: 0; border-radius: 20px;`;
             menu.box.clip_to_allocation = true;
-            try { menu.actor.width = 320; } catch (e) {}
-            try { shell.width = 320; } catch (e) {}
+            try { menu.actor.width = 336; } catch (e) {}
+            try { shell.width = 336; } catch (e) {}
         } catch (e) {}
     });
 
