@@ -175,6 +175,7 @@ function makeToggle(opts) {
         reactive: true,
         can_focus: true,
         x_expand: kind !== 'round',
+        x_align: kind === 'round' ? Clutter.ActorAlign.CENTER : Clutter.ActorAlign.FILL,
     });
 
     const box = new St.BoxLayout({
@@ -183,21 +184,28 @@ function makeToggle(opts) {
         x_align: kind === 'round' ? Clutter.ActorAlign.CENTER : Clutter.ActorAlign.START,
         x_expand: true,
     });
-    style(box, kind === 'round' ? 'spacing: 0;' : 'spacing: 10px; padding: 0 4px;');
+    style(box, kind === 'round' ? 'spacing: 0;' : 'spacing: 8px; padding: 0 2px;');
 
-    const ic = makeIcon(opts.iconKeys, 20, false, opts.symbolic);
+    const ic = makeIcon(opts.iconKeys, 18, false, opts.symbolic);
     box.add_child(ic);
 
     let title = null;
     let sub = null;
     if (kind !== 'round' && opts.label) {
         const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
-        title = new St.Label({text: opts.label});
+        title = new St.Label({text: opts.label, x_expand: true});
+        try {
+            title.clutter_text.ellipsize = 3; // END
+            title.clutter_text.line_wrap = false;
+        } catch (e) {}
         style(title, 'font-size: 11px; font-weight: 700;');
         col.add_child(title);
         if (opts.sub) {
-            sub = new St.Label({text: opts.sub});
-            style(sub, 'font-size: 11px; opacity: 0.75;');
+            sub = new St.Label({text: opts.sub, x_expand: true});
+            try {
+                sub.clutter_text.ellipsize = 3;
+            } catch (e) {}
+            style(sub, 'font-size: 10px; opacity: 0.75;');
             col.add_child(sub);
         }
         box.add_child(col);
@@ -212,10 +220,11 @@ function makeToggle(opts) {
             style(btn, on
                 ? 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: #f5b8d0;'
                 : 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: rgba(255,255,255,0.10);');
+            try { btn.width = 48; btn.height = 48; btn.x_expand = false; } catch (e) {}
         } else {
             style(btn, on
-                ? 'border-radius: 16px; min-height: 48px; padding: 6px 10px; background-color: #f5b8d0;'
-                : 'border-radius: 16px; min-height: 48px; padding: 6px 10px; background-color: rgba(255,255,255,0.10);');
+                ? 'border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: #f5b8d0;'
+                : 'border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: rgba(255,255,255,0.10);');
         }
 
         const g = loadGicon(opts.iconKeys, on);
@@ -235,9 +244,7 @@ function makeToggle(opts) {
     };
 
     btn.connect('clicked', () => {
-        try {
-            opts.setOn(!opts.getOn());
-        } catch (e) {}
+        try { opts.setOn(!opts.getOn()); } catch (e) {}
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
             paint();
             return GLib.SOURCE_REMOVE;
@@ -340,6 +347,13 @@ function buildToggleGrid() {
     });
     row1.add_child(dark);
     row1.add_child(dnd);
+    // Equal share — prevent Dark mode from crushing DND
+    try {
+        dark.x_expand = true;
+        dnd.x_expand = true;
+        dark.x_align = Clutter.ActorAlign.FILL;
+        dnd.x_align = Clutter.ActorAlign.FILL;
+    } catch (e) {}
     root.add_child(row1);
 
     // Row 2: Night light full width
@@ -383,7 +397,7 @@ function buildHeader(menu) {
 
     const mkBtn = (symbolic, fn) => {
         const b = new St.Button({reactive: true});
-        style(b, 'width: 32px; height: 32px; border-radius: 999px; background-color: rgba(255,255,255,0.10);');
+        style(b, 'width: 28px; height: 28px; border-radius: 999px; background-color: rgba(255,255,255,0.10);');
         b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
         b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
@@ -412,7 +426,7 @@ function buildHeader(menu) {
 
 function buildPowerRow(menu) {
     const row = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row, 'spacing: 8px;');
+    style(row, 'spacing: 6px;');
     const actions = [
         {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
         {icon: 'weather-clear-night-symbolic', cmd: null},
@@ -423,9 +437,10 @@ function buildPowerRow(menu) {
         const b = new St.Button({
             reactive: true,
             x_expand: true,
-            x_align: Clutter.ActorAlign.FILL,
+            width: 70,
         });
-        style(b, 'border-radius: 999px; height: 40px; background-color: rgba(255,255,255,0.10);');
+        style(b, 'border-radius: 999px; height: 40px; width: 70px; background-color: rgba(255,255,255,0.10);');
+        try { b.width = 70; b.height = 40; } catch (e) {}
         const ic = new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
