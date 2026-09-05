@@ -124,7 +124,8 @@ function buildDualSliders() {
     } catch (e) {}
 
     const briBox = new St.BoxLayout({vertical: false, x_expand: true});
-    const briIcon = makeIcon(['brightness'], 16, false, 'display-brightness-symbolic');
+    const briIcon = makeIcon(['brightness', 'weather-sunny'], 16, false, 'weather-clear-symbolic');
+    try { briIcon.icon_name = 'weather-clear-symbolic'; } catch (e) {}
     briBox.add_child(briIcon);
 
     let maxB = 100;
@@ -173,7 +174,7 @@ function makeToggle(opts) {
         style_class: 'material-panel-e4-toggle',
         reactive: true,
         can_focus: true,
-        x_expand: true,
+        x_expand: kind !== 'round',
     });
 
     const box = new St.BoxLayout({
@@ -247,16 +248,12 @@ function makeToggle(opts) {
 }
 
 function buildToggleGrid() {
-    const grid = new St.Widget({
+    const root = new St.BoxLayout({
+        vertical: true,
         x_expand: true,
-        layout_manager: new Clutter.GridLayout({
-            column_homogeneous: true,
-            row_homogeneous: false,
-            column_spacing: 8,
-            row_spacing: 8,
-        }),
+        style_class: 'material-panel-e4-grid',
     });
-    const gl = grid.layout_manager;
+    style(root, 'spacing: 8px;');
 
     const iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     let dndSettings = null;
@@ -264,7 +261,10 @@ function buildToggleGrid() {
     let nlSettings = null;
     try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Row 0: Wi-Fi (round) | Bluetooth (wide)
+    // Row 0: circular Wi-Fi + Bluetooth (end-4 style)
+    const row0 = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row0, 'spacing: 8px;');
+
     const wifi = makeToggle({
         kind: 'round',
         iconKeys: ['network-wifi'],
@@ -281,6 +281,11 @@ function buildToggleGrid() {
             } catch (e) {}
         },
     });
+    try {
+        wifi.width = 56;
+        wifi.height = 56;
+        wifi.x_expand = false;
+    } catch (e) {}
 
     const bt = makeToggle({
         kind: 'wide',
@@ -301,7 +306,13 @@ function buildToggleGrid() {
         },
     });
 
+    row0.add_child(wifi);
+    row0.add_child(bt);
+    root.add_child(row0);
+
     // Row 1: Dark | DND
+    const row1 = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row1, 'spacing: 8px;');
     const dark = makeToggle({
         kind: 'wide',
         label: 'Dark mode',
@@ -314,7 +325,6 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light'); } catch (e) {}
         },
     });
-
     const dnd = makeToggle({
         kind: 'wide',
         label: 'Do not disturb',
@@ -327,8 +337,11 @@ function buildToggleGrid() {
             try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
         },
     });
+    row1.add_child(dark);
+    row1.add_child(dnd);
+    root.add_child(row1);
 
-    // Row 2: Night light (wide full-ish)
+    // Row 2: Night light full width
     const night = makeToggle({
         kind: 'wide',
         label: 'Night light',
@@ -341,15 +354,9 @@ function buildToggleGrid() {
             try { nlSettings?.set_boolean('night-light-enabled', on); } catch (e) {}
         },
     });
+    root.add_child(night);
 
-    // Layout like end-4: round wifi small, bt takes rest of row
-    gl.attach(wifi, 0, 0, 1, 1);
-    gl.attach(bt, 1, 0, 1, 1);
-    gl.attach(dark, 0, 1, 1, 1);
-    gl.attach(dnd, 1, 1, 1, 1);
-    gl.attach(night, 0, 2, 2, 1);
-
-    return grid;
+    return root;
 }
 
 // ── header ───────────────────────────────────────────────────────────
