@@ -66,6 +66,35 @@ function getQsExpandController() {
 }
 const qsExpandController = getQsExpandController();
 
+function applyEnd4QsChrome(menu, dual, grid, powerSection) {
+    // Inline styles — St stylesheet cascade often ignores nested menu selectors
+    try {
+        menu.box.style = (menu.box.style || '') +
+            '; min-width: 380px; border-radius: 24px; padding: 12px;';
+    } catch (e) {}
+    try {
+        menu.actor.style = (menu.actor.style || '') + '; border-radius: 24px;';
+    } catch (e) {}
+    if (dual) {
+        try {
+            dual.style = 'background-color: rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 12px; spacing: 10px;';
+        } catch (e) {}
+    }
+    if (grid) {
+        try {
+            const n = grid.get_n_children?.() ?? 0;
+            for (let i = 0; i < n; i++) {
+                const c = grid.get_child_at_index(i);
+                if (!c) continue;
+                try {
+                    c.style = 'border-radius: 20px; min-height: 64px;';
+                } catch (e) {}
+            }
+        } catch (e) {}
+    }
+}
+
+
 
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
@@ -90,10 +119,15 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 58 : 48,
+        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 66 : 48,
         // Natural width ignored when grid is column-homogeneous
-        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 160 : 148,
+        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
     });
+    if (globalThis._materialPanelLayoutStyle === 'end4') {
+        try {
+            tile.style = 'border-radius: 22px; min-height: 66px;';
+        } catch (e) {}
+    }
     const box = new St.BoxLayout({
         vertical: false,
         style_class: 'material-panel-qs-tile-content',
@@ -1414,6 +1448,11 @@ function powerRow(menu = null) {
                 gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKey))),
             }),
         });
+        if (globalThis._materialPanelLayoutStyle === 'end4') {
+            try {
+                btn.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
+            } catch (e) {}
+        }
         btn.connect('clicked', () => {
             try {
                 GLib.spawn_command_line_async(command);
@@ -1439,9 +1478,12 @@ function wifiQsBlock() {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: 52,
-        width: 148,
+        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 66 : 52,
+        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
     });
+    if (globalThis._materialPanelLayoutStyle === 'end4') {
+        try { row.style = 'border-radius: 22px; min-height: 66px;'; } catch (e) {}
+    }
 
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-main',
@@ -1736,6 +1778,8 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     });
 
     const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+    try { log(`material-panel: QS end4=${end4} layout=${globalThis._materialPanelLayoutStyle}`); } catch (e) {}
+
     const menu = new PopupMenu.PopupMenu(button, end4 ? 1.0 : 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-qs-menu');
     if (end4) {
@@ -1790,6 +1834,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         try { vol.x_expand = true; bri.x_expand = true; } catch (e) {}
         dual.add_child(vol);
         dual.add_child(bri);
+        try {
+            dual.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
+        } catch (e) {}
         menu.addMenuItem(wrapAsMenuItem(qsSection(
             'material-panel-qs-section-sliders material-panel-qs-section-sliders-end4',
             dual,
@@ -1854,12 +1901,72 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         powerRow(menu),
     )));
 
+    if (end4) {
+        try {
+            const dualEl = menu.box.get_children?.()?.find?.(c => {
+                try {
+                    return String(c.style_class || '').includes('dual') ||
+                        String(c.get_style_class_name?.() || '').includes('dual');
+                } catch (e) { return false; }
+            });
+        } catch (e) {}
+        // Force chrome on open every time
+        const forceChrome = () => {
+            try {
+                menu.box.set_style(
+                    `min-width: 380px; max-width: 400px; border-radius: 24px; padding: 14px;`);
+            } catch (e) {
+                try {
+                    menu.box.style = 'min-width: 380px; border-radius: 24px; padding: 14px;';
+                } catch (e2) {}
+            }
+            // Style every tile-like button under the menu
+            const walk = actor => {
+                if (!actor) return;
+                try {
+                    const sc = String(actor.style_class || actor.get_style_class_name?.() || '');
+                    if (sc.includes('material-panel-qs-tile')) {
+                        actor.style = 'border-radius: 22px; min-height: 66px; padding: 10px;';
+                    }
+                    if (sc.includes('material-panel-qs-power-btn')) {
+                        actor.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
+                    }
+                    if (sc.includes('material-panel-qs-dual-slider')) {
+                        actor.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
+                    }
+                    if (sc.includes('material-panel-qs-slider-row')) {
+                        actor.style = 'padding: 4px 6px;';
+                    }
+                } catch (e) {}
+                try {
+                    const n = actor.get_n_children?.() ?? 0;
+                    for (let i = 0; i < n; i++)
+                        walk(actor.get_child_at_index(i));
+                } catch (e) {}
+            };
+            try { walk(menu.box); } catch (e) {}
+            try { walk(menu.actor); } catch (e) {}
+        };
+        menu.connect('open-state-changed', (_m, open) => {
+            if (open) {
+                clampQsHeight();
+                forceChrome();
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    forceChrome();
+                    return GLib.SOURCE_REMOVE;
+                });
+            } else {
+                getQsExpandController().expandOnly(null);
+            }
+        });
+    } else {
     menu.connect('open-state-changed', (_m, open) => {
         if (open)
             clampQsHeight();
         if (!open)
             getQsExpandController().expandOnly(null);
     });
+    }
 
     button.connect('clicked', () => {
         if (menu.isOpen)
