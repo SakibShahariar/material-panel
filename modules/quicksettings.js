@@ -252,6 +252,8 @@ function volumeSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         style: 'min-width: 36px; text-align: right; font-size: 12px;',
     });
+    if (globalThis._materialPanelLayoutStyle === 'end4')
+        pctLabel.visible = false;
     const slider = createSlider({
         initialValue: 0,
         onChange: value => {
@@ -436,6 +438,8 @@ function brightnessSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         style: 'min-width: 36px; text-align: right; font-size: 12px;',
     });
+    if (globalThis._materialPanelLayoutStyle === 'end4')
+        pctLabel.visible = false;
     const slider = createSlider({
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         onChange: value => {
@@ -1842,7 +1846,8 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         menu.addMenuItem(wifiListItem);
     }
 
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    if (!end4)
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
     menu.addMenuItem(wrapAsMenuItem(qsSection(
         'material-panel-qs-section-power',
