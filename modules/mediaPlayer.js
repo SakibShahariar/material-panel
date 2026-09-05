@@ -275,7 +275,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     const label = new St.Label({
-        text: 'Media',
+        text: 'No media',
         style_class: 'material-panel-media-label',
         y_align: Clutter.ActorAlign.CENTER,
     });
@@ -285,6 +285,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
     });
+    label.text = 'No media';
     box.add_child(icon);
     box.add_child(label);
 
@@ -360,7 +361,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     const attach = busName => {
         clearCtl();
         if (!busName) {
-            label.text = 'Media';
+            label.text = 'No media';
             pTitle.text = 'No media';
             pArtist.text = '';
             return;
