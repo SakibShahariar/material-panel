@@ -1,5 +1,4 @@
 import St from 'gi://St';
-import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import {wirePressedClass} from '../lib/pressFx.js';
 
@@ -11,11 +10,11 @@ function _windowsOnWorkspace(ws) {
     }
 }
 
-function _iconForWindows(windows, size) {
+function _iconForWindows(windows) {
     const tracker = Shell.WindowTracker.get_default();
     for (const win of windows) {
         try {
-            if (win.minimized || !win.showing_on_its_workspace?.())
+            if (win.minimized)
                 continue;
         } catch (e) {}
         try {
@@ -43,14 +42,11 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             const active = i === activeIndex;
             const ws = manager.get_workspace_by_index(i);
             const windows = _windowsOnWorkspace(ws);
-            const gicon = end4 ? _iconForWindows(windows, iconSize) : null;
+            const gicon = end4 ? _iconForWindows(windows) : null;
 
             if (end4 && gicon) {
-                // App icon for occupied workspace (end-4 style)
                 const img = new St.Icon({
-                    style_class: active
-                        ? 'material-panel-workspace-app active'
-                        : 'material-panel-workspace-app',
+                    style_class: 'material-panel-workspace-app',
                     gicon,
                     icon_size: iconSize,
                 });
@@ -63,27 +59,37 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                     can_focus: true,
                     child: img,
                 });
+                // Never set numeric label in end4
+                try { btn.label = ''; } catch (e) {}
                 wirePressedClass(btn);
-                btn.connect('clicked', () => {
-                    ws.activate(global.get_current_time());
+                btn.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(btn);
+            } else if (end4) {
+                // Pure dot — no label text at all
+                const btn = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-btn material-panel-workspace-dot active'
+                        : 'material-panel-workspace-btn material-panel-workspace-dot',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
                 });
+                try { btn.set_label(''); } catch (e) {}
+                wirePressedClass(btn);
+                btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
             } else {
                 const btn = new St.Button({
                     style_class: active
                         ? 'material-panel-workspace-btn active'
                         : 'material-panel-workspace-btn',
-                    label: end4 ? '' : `${i + 1}`,
+                    label: `${i + 1}`,
                     reactive: true,
                     track_hover: true,
                     can_focus: true,
                 });
-                if (end4)
-                    btn.add_style_class_name('material-panel-workspace-dot');
                 wirePressedClass(btn);
-                btn.connect('clicked', () => {
-                    ws.activate(global.get_current_time());
-                });
+                btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
             }
         }
@@ -94,10 +100,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     const nChangedId = manager.connect('notify::n-workspaces', rebuild);
     let restackId = 0;
     try {
-        restackId = global.display.connect('restacked', () => {
-            // refresh icons when windows move
-            rebuild();
-        });
+        restackId = global.display.connect('restacked', () => rebuild());
     } catch (e) {}
 
     box.connect('destroy', () => {

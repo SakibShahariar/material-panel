@@ -5,6 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore, resolveColorSource} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
+import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 
 function cloneStrip(c, extraKeys = []) {
@@ -161,6 +162,16 @@ export default class MaterialPanelExtension extends Extension {
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
+        try {
+            if (this._config.layoutStyle === 'end4') {
+                const preset = this._config.presets?.[this._config.activePreset];
+                const left = preset?.zones?.left ?? [];
+                if (!left.includes('focusedWindow')) {
+                    applyLayoutStyle(this._config, 'end4');
+                    this._store.save(this._config);
+                }
+            }
+        } catch (e) {}
         } catch (e) {}
         this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
         if (rebuildPanel)

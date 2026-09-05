@@ -90,9 +90,9 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: 48,
+        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 58 : 48,
         // Natural width ignored when grid is column-homogeneous
-        width: 148,
+        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 160 : 148,
     });
     const box = new St.BoxLayout({
         vertical: false,
@@ -1731,14 +1731,18 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         stickyUntilLeave: true,
     });
 
-    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+    const menu = new PopupMenu.PopupMenu(button, end4 ? 1.0 : 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-qs-menu');
+    if (end4)
+        menu.actor.add_style_class_name('material-panel-layout-end4');
     const clampQsHeight = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             if (!mon) return;
-            const maxH = Math.floor(mon.height * 0.68);
-            menu.box.style = `max-height: ${maxH}px; overflow: hidden;`;
+            const maxH = Math.floor(mon.height * (end4 ? 0.82 : 0.68));
+            const minW = end4 ? 360 : 300;
+            menu.box.style = `max-height: ${maxH}px; min-width: ${minW}px; overflow: hidden;`;
             try {
                 menu.box.clip_to_allocation = true;
             } catch (e) {}
