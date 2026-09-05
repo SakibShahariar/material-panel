@@ -12,6 +12,14 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const CELL = 34;
 
+function formatEnd4(use12h) {
+    const now = GLib.DateTime.new_now_local();
+    // end-4 crop style: time • weekday, day mon
+    const time = (now.format(use12h ? '%-I:%M %p' : '%H:%M') ?? '').replace(/\s+/g, ' ').trim();
+    const date = (now.format('%a, %d %b') ?? '').replace(/\s+/g, ' ').trim();
+    return `${time} · ${date}`;
+}
+
 function formatNow(use12h) {
     const now = GLib.DateTime.new_now_local();
     const fmt = use12h ? '%a, %d %b  %l:%M %p' : '%a, %d %b  %H:%M';
@@ -138,7 +146,9 @@ export function buildClock(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const update = () => {
-        label.text = formatNow(use12h);
+        label.text = (globalThis._materialPanelLayoutStyle === 'end4')
+            ? formatEnd4(use12h)
+            : formatNow(use12h);
         return GLib.SOURCE_CONTINUE;
     };
     update();

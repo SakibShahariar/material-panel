@@ -7,17 +7,22 @@ export function buildWorkspaces() {
 
     const rebuild = () => {
         box.destroy_all_children();
+        const end4 = globalThis._materialPanelLayoutStyle === 'end4';
         const activeIndex = manager.get_active_workspace_index();
         for (let i = 0; i < manager.get_n_workspaces(); i++) {
+            const active = i === activeIndex;
             const btn = new St.Button({
-                style_class: i === activeIndex
+                style_class: active
                     ? 'material-panel-workspace-btn active'
                     : 'material-panel-workspace-btn',
-                label: `${i + 1}`,
+                // end-4: pure dots (no numbers)
+                label: end4 ? '' : `${i + 1}`,
                 reactive: true,
                 track_hover: true,
                 can_focus: true,
             });
+            if (end4)
+                btn.add_style_class_name('material-panel-workspace-dot');
             wirePressedClass(btn);
             btn.connect('clicked', () => {
                 manager.get_workspace_by_index(i).activate(global.get_current_time());
