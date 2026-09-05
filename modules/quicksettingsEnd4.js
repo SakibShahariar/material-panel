@@ -105,6 +105,7 @@ function buildDualSliders() {
         },
     });
     volBox.add_child(volSlider.actor);
+    try { volBox.x_expand = true; volBox.width = 130; } catch (e) {}
     row.add_child(volBox);
 
     try {
@@ -155,8 +156,10 @@ function buildDualSliders() {
         },
     });
     briBox.add_child(briSlider.actor);
+    try { briBox.x_expand = true; briBox.width = 130; } catch (e) {}
     row.add_child(briBox);
 
+    try { row.width = 284; } catch (e) {}
     return row;
 }
 
