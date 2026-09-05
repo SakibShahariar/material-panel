@@ -265,7 +265,7 @@ function qsSection(styleExtra, ...children) {
 
 // Uses GNOME Shell's own Slider actor (same one the stock quick settings
 // menu uses) rather than building a custom drag widget from scratch.
-function volumeSliderRow() {
+export function volumeSliderRow() {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
     const icon = new St.Icon({
         style_class: 'material-panel-qs-slider-icon',
@@ -445,7 +445,7 @@ function readIntFile(path) {
 // brightnessctl to be installed; degrades to hiding the slider if it
 // isn't. Still reads sysfs directly for the live external-change sync,
 // since that's just reading and doesn't need elevated permissions.
-function brightnessSliderRow() {
+export function brightnessSliderRow() {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-slider-row', x_expand: true});
     const icon = new St.Icon({
         style_class: 'material-panel-qs-slider-icon',
@@ -533,7 +533,7 @@ function brightnessSliderRow() {
     return row;
 }
 
-function darkModeTile() {
+export function darkModeTile() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     return buildTile({
         iconKey: 'dark-mode',
@@ -550,7 +550,7 @@ function darkModeTile() {
     });
 }
 
-function nightLightTile() {
+export function nightLightTile() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'});
     return buildTile({
         iconKey: 'night-light',
@@ -564,7 +564,7 @@ function nightLightTile() {
     });
 }
 
-function dndTile() {
+export function dndTile() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
     return buildTile({
         iconKey: 'dnd-active',
@@ -591,7 +591,7 @@ function isBluetoothSoftBlocked() {
     }
 }
 
-function bluetoothTile() {
+export function bluetoothTile() {
     // Grid cell only: power toggle + chevron. Device list is a SEPARATE
     // full-width panel below the 2-col grid (attached as outer.devicePanel)
     // so expanding devices never stretches the right column wider than left.
@@ -1462,7 +1462,7 @@ function openExtensionPrefs() {
     }
 }
 
-function powerRow(menu = null) {
+export function powerRow(menu = null) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-power-row', x_expand: true});
 
     for (const {iconKey, command} of POWER_ACTIONS) {
@@ -1499,7 +1499,7 @@ function powerRow(menu = null) {
 
 
 /** QS Wi-Fi: compact full-width strip + optional saved-network list (sibling menu item). */
-function wifiQsBlock() {
+export function wifiQsBlock() {
     const row = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-wifi-row',
         x_expand: true,
