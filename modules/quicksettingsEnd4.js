@@ -78,9 +78,14 @@ function buildDualSliders() {
         x_expand: true,
         style_class: 'material-panel-e4-dual',
     });
-    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 10px; spacing: 8px;');
+    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 8px; spacing: 8px;');
 
+    const halfW = 130;
+
+    // —— Volume half ——
     const volBox = new St.BoxLayout({vertical: false, x_expand: true});
+    style(volBox, `spacing: 6px; width: ${halfW}px;`);
+    try { volBox.width = halfW; volBox.x_expand = true; } catch (e) {}
     const volIcon = makeIcon(['volume-high', 'volume-medium'], 16, false, 'audio-volume-high-symbolic');
     volBox.add_child(volIcon);
 
@@ -104,8 +109,8 @@ function buildDualSliders() {
                 volIcon.gicon = g;
         },
     });
+    try { volSlider.actor.x_expand = true; } catch (e) {}
     volBox.add_child(volSlider.actor);
-    try { volBox.x_expand = true; volBox.width = 130; } catch (e) {}
     row.add_child(volBox);
 
     try {
@@ -128,7 +133,16 @@ function buildDualSliders() {
         }
     } catch (e) {}
 
+    // Divider
+    const div = new St.Widget();
+    style(div, 'width: 2px; height: 18px; background-color: rgba(0,0,0,0.25); border-radius: 1px;');
+    try { div.width = 2; div.height = 18; } catch (e) {}
+    row.add_child(div);
+
+    // —— Brightness half ——
     const briBox = new St.BoxLayout({vertical: false, x_expand: true});
+    style(briBox, `spacing: 6px; width: ${halfW}px;`);
+    try { briBox.width = halfW; briBox.x_expand = true; } catch (e) {}
     const briIcon = makeIcon(['brightness', 'weather-sunny'], 16, false, 'weather-clear-symbolic');
     try { briIcon.icon_name = 'weather-clear-symbolic'; } catch (e) {}
     briBox.add_child(briIcon);
@@ -155,11 +169,10 @@ function buildDualSliders() {
             } catch (e) {}
         },
     });
+    try { briSlider.actor.x_expand = true; } catch (e) {}
     briBox.add_child(briSlider.actor);
-    try { briBox.x_expand = true; briBox.width = 130; } catch (e) {}
     row.add_child(briBox);
 
-    try { row.width = 284; } catch (e) {}
     return row;
 }
 
