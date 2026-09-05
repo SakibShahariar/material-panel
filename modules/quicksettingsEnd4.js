@@ -1,13 +1,9 @@
 /**
- * End-4 Quick Settings — built from scratch.
- * Does NOT import modules/quicksettings.js (default QS).
- *
- * Structure (matches end-4 sidebarRight):
- *   header · dual volume/brightness · toggle grid · notifications · calendar · power
+ * End-4 Quick Settings — from scratch (no default QS imports).
+ * Visual target: end-4 sidebarRight (header, dual slider, compact toggles, noti, calendar).
  */
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
-import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -17,23 +13,44 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {createSlider} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
-import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
+import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 
 const UUID = 'material-panel@SakibShahariar';
-
-// ── helpers ──────────────────────────────────────────────────────────
 
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
 }
 
-function icon(key, size = 18) {
-    return new St.Icon({
+function loadGicon(key, onAccent = false) {
+    const keys = Array.isArray(key) ? key : [key];
+    for (const k of keys) {
+        try {
+            const p = onAccent ? iconPathOnAccent(k) : iconPath(k);
+            if (Gio.File.new_for_path(p).query_exists(null))
+                return Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
+        try {
+            const p = iconPath(k);
+            if (Gio.File.new_for_path(p).query_exists(null))
+                return Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
+    }
+    return null;
+}
+
+function makeIcon(keys, size = 18, onAccent = false, symbolicFallback = null) {
+    const ic = new St.Icon({
         icon_size: size,
         y_align: Clutter.ActorAlign.CENTER,
-        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key))),
+        x_align: Clutter.ActorAlign.CENTER,
     });
+    const g = loadGicon(keys, onAccent);
+    if (g)
+        ic.gicon = g;
+    else if (symbolicFallback)
+        ic.icon_name = symbolicFallback;
+    return ic;
 }
 
 function wrapShell(child) {
@@ -49,7 +66,7 @@ function openPrefs() {
     } catch (e) {}
 }
 
-// ── dual volume + brightness capsule ─────────────────────────────────
+// ── dual slider ──────────────────────────────────────────────────────
 
 function buildDualSliders() {
     const row = new St.BoxLayout({
@@ -57,11 +74,10 @@ function buildDualSliders() {
         x_expand: true,
         style_class: 'material-panel-e4-dual',
     });
-    style(row, 'background-color: rgba(255,255,255,0.08); border-radius: 999px; padding: 6px 10px; spacing: 10px;');
+    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px; spacing: 12px;');
 
-    // Volume
-    const volBox = new St.BoxLayout({vertical: false, x_expand: true, style_class: 'material-panel-e4-vol'});
-    const volIcon = icon('volume-high', 16);
+    const volBox = new St.BoxLayout({vertical: false, x_expand: true});
+    const volIcon = makeIcon(['volume-high', 'volume-medium'], 16, false, 'audio-volume-high-symbolic');
     volBox.add_child(volIcon);
 
     let sink = null;
@@ -78,10 +94,10 @@ function buildDualSliders() {
                     sink.push_volume();
                 }
             } catch (e) {}
-            try {
-                const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
-                volIcon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(key)));
-            } catch (e) {}
+            const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
+            const g = loadGicon(key);
+            if (g)
+                volIcon.gicon = g;
         },
     });
     volBox.add_child(volSlider.actor);
@@ -92,38 +108,32 @@ function buildDualSliders() {
         const bind = () => {
             try {
                 sink = control.get_default_sink?.() ?? null;
-                if (!sink) return;
+                if (!sink || !control)
+                    return;
                 const max = control.get_vol_max_norm();
                 const v = max > 0 ? sink.volume / max : 0;
-                volSlider.setValue?.(v) ?? (volSlider.actor.value = v);
+                if (typeof volSlider.setValue === 'function')
+                    volSlider.setValue(v);
             } catch (e) {}
         };
         if (control) {
-            control.connect('state-changed', bind);
-            control.connect('default-sink-changed', bind);
+            try { control.connect('state-changed', bind); } catch (e) {}
+            try { control.connect('default-sink-changed', bind); } catch (e) {}
             bind();
         }
     } catch (e) {}
 
-    // Brightness
-    const briBox = new St.BoxLayout({vertical: false, x_expand: true, style_class: 'material-panel-e4-bri'});
-    const briIcon = icon('brightness', 16);
-    // fallback if no brightness icon
-    try {
-        if (!Gio.File.new_for_path(iconPath('brightness')).query_exists(null))
-            briIcon.icon_name = 'display-brightness-symbolic';
-    } catch (e) {
-        try { briIcon.icon_name = 'display-brightness-symbolic'; } catch (e2) {}
-    }
+    const briBox = new St.BoxLayout({vertical: false, x_expand: true});
+    const briIcon = makeIcon(['brightness'], 16, false, 'display-brightness-symbolic');
     briBox.add_child(briIcon);
 
     let maxB = 100;
+    let curB = 50;
     try {
         const [ok, out] = GLib.spawn_command_line_sync('brightnessctl max');
         if (ok)
             maxB = parseInt(new TextDecoder().decode(out).trim(), 10) || 100;
     } catch (e) {}
-    let curB = 50;
     try {
         const [ok, out] = GLib.spawn_command_line_sync('brightnessctl get');
         if (ok)
@@ -131,7 +141,7 @@ function buildDualSliders() {
     } catch (e) {}
 
     const briSlider = createSlider({
-        initialValue: Math.min(1, Math.max(0, curB / maxB)),
+        initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
         onChange: value => {
             const pct = Math.max(1, Math.round(value * 100));
             try {
@@ -145,63 +155,89 @@ function buildDualSliders() {
     return row;
 }
 
-// ── toggle tile ──────────────────────────────────────────────────────
+// ── compact toggle ───────────────────────────────────────────────────
 
-function makeToggle({label, iconKey, getOn, setOn, round = false}) {
+/**
+ * @param {object} opts
+ * @param {string} [opts.label]
+ * @param {string} [opts.sub]
+ * @param {string[]} opts.iconKeys
+ * @param {string} [opts.symbolic]
+ * @param {() => boolean} opts.getOn
+ * @param {(v: boolean) => void} opts.setOn
+ * @param {'round'|'wide'} [opts.kind]
+ */
+function makeToggle(opts) {
+    const kind = opts.kind || 'wide';
     const btn = new St.Button({
         style_class: 'material-panel-e4-toggle',
         reactive: true,
-        x_expand: true,
         can_focus: true,
+        x_expand: true,
     });
-    style(btn, round
-        ? 'border-radius: 999px; min-height: 56px; min-width: 56px; padding: 10px;'
-        : 'border-radius: 18px; min-height: 56px; padding: 10px 12px;');
 
     const box = new St.BoxLayout({
-        vertical: !round,
+        vertical: false,
         y_align: Clutter.ActorAlign.CENTER,
-        x_align: Clutter.ActorAlign.CENTER,
+        x_align: kind === 'round' ? Clutter.ActorAlign.CENTER : Clutter.ActorAlign.START,
         x_expand: true,
     });
-    const ic = icon(iconKey, 20);
+    style(box, kind === 'round' ? 'spacing: 0;' : 'spacing: 10px; padding: 0 4px;');
+
+    const ic = makeIcon(opts.iconKeys, 20, false, opts.symbolic);
     box.add_child(ic);
-    let lab = null;
-    if (label && !round) {
-        lab = new St.Label({
-            text: label,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        style(lab, 'font-size: 12px; font-weight: 650;');
-        box.add_child(lab);
+
+    let title = null;
+    let sub = null;
+    if (kind !== 'round' && opts.label) {
+        const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+        title = new St.Label({text: opts.label});
+        style(title, 'font-size: 12px; font-weight: 700;');
+        col.add_child(title);
+        if (opts.sub) {
+            sub = new St.Label({text: opts.sub});
+            style(sub, 'font-size: 11px; opacity: 0.75;');
+            col.add_child(sub);
+        }
+        box.add_child(col);
     }
     btn.set_child(box);
 
     const paint = () => {
         let on = false;
-        try { on = !!getOn(); } catch (e) {}
-        if (on) {
-            style(btn, (round
-                ? 'border-radius: 999px; min-height: 56px; min-width: 56px; padding: 10px;'
-                : 'border-radius: 18px; min-height: 56px; padding: 10px 12px;')
-                + ' background-color: #f5b8d0;');
-            if (lab)
-                style(lab, 'font-size: 12px; font-weight: 700; color: #1a1a1a;');
+        try { on = !!opts.getOn(); } catch (e) {}
+
+        if (kind === 'round') {
+            style(btn, on
+                ? 'border-radius: 999px; min-height: 52px; min-width: 52px; padding: 8px; background-color: #f5b8d0;'
+                : 'border-radius: 999px; min-height: 52px; min-width: 52px; padding: 8px; background-color: rgba(255,255,255,0.10);');
         } else {
-            style(btn, (round
-                ? 'border-radius: 999px; min-height: 56px; min-width: 56px; padding: 10px; background-color: rgba(255,255,255,0.08);'
-                : 'border-radius: 18px; min-height: 56px; padding: 10px 12px; background-color: rgba(255,255,255,0.08);'));
-            if (lab)
-                style(lab, 'font-size: 12px; font-weight: 650; color: #e8e0f0;');
+            style(btn, on
+                ? 'border-radius: 18px; min-height: 52px; padding: 8px 12px; background-color: #f5b8d0;'
+                : 'border-radius: 18px; min-height: 52px; padding: 8px 12px; background-color: rgba(255,255,255,0.10);');
         }
+
+        const g = loadGicon(opts.iconKeys, on);
+        if (g)
+            ic.gicon = g;
+        else if (opts.symbolic)
+            ic.icon_name = opts.symbolic;
+
+        if (title)
+            style(title, on
+                ? 'font-size: 12px; font-weight: 700; color: #1a1a1a;'
+                : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
+        if (sub)
+            style(sub, on
+                ? 'font-size: 11px; color: #3a2a32;'
+                : 'font-size: 11px; opacity: 0.7; color: #c8bdd0;');
     };
 
     btn.connect('clicked', () => {
         try {
-            const on = !!getOn();
-            setOn(!on);
+            opts.setOn(!opts.getOn());
         } catch (e) {}
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
             paint();
             return GLib.SOURCE_REMOVE;
         });
@@ -213,93 +249,31 @@ function makeToggle({label, iconKey, getOn, setOn, round = false}) {
 function buildToggleGrid() {
     const grid = new St.Widget({
         x_expand: true,
-        style_class: 'material-panel-e4-grid',
         layout_manager: new Clutter.GridLayout({
             column_homogeneous: true,
-            row_homogeneous: true,
+            row_homogeneous: false,
             column_spacing: 8,
             row_spacing: 8,
         }),
     });
     const gl = grid.layout_manager;
 
-    // Dark mode
-    const schema = 'org.gnome.desktop.interface';
-    const settings = new Gio.Settings({schema_id: schema});
-    const dark = makeToggle({
-        label: 'Dark mode',
-        iconKey: 'darkmode',
-        getOn: () => {
-            try {
-                return settings.get_string('color-scheme') === 'prefer-dark';
-            } catch (e) {
-                return false;
-            }
-        },
-        setOn: on => {
-            try {
-                settings.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light');
-            } catch (e) {}
-        },
-    });
-
-    // DND
+    const iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     let dndSettings = null;
-    try {
-        dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
-    } catch (e) {}
-    const dnd = makeToggle({
-        label: 'Do not disturb',
-        iconKey: 'dnd',
-        getOn: () => {
-            try {
-                return dndSettings ? !dndSettings.get_boolean('show-banners') : false;
-            } catch (e) {
-                return false;
-            }
-        },
-        setOn: on => {
-            try {
-                dndSettings?.set_boolean('show-banners', !on);
-            } catch (e) {}
-        },
-    });
-
-    // Night light
+    try { dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'}); } catch (e) {}
     let nlSettings = null;
-    try {
-        nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'});
-    } catch (e) {}
-    const night = makeToggle({
-        label: 'Night light',
-        iconKey: 'nightlight',
-        getOn: () => {
-            try {
-                return nlSettings?.get_boolean('night-light-enabled') ?? false;
-            } catch (e) {
-                return false;
-            }
-        },
-        setOn: on => {
-            try {
-                nlSettings?.set_boolean('night-light-enabled', on);
-            } catch (e) {}
-        },
-    });
+    try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Wi-Fi power (round)
+    // Row 0: Wi-Fi (round) | Bluetooth (wide)
     const wifi = makeToggle({
-        label: null,
-        iconKey: 'network-wifi',
-        round: true,
+        kind: 'round',
+        iconKeys: ['network-wifi'],
+        symbolic: 'network-wireless-symbolic',
         getOn: () => {
             try {
                 const [ok, out] = GLib.spawn_command_line_sync('nmcli -t -f WIFI g');
-                if (!ok) return false;
-                return new TextDecoder().decode(out).trim().toLowerCase().includes('enabled');
-            } catch (e) {
-                return false;
-            }
+                return ok && new TextDecoder().decode(out).toLowerCase().includes('enabled');
+            } catch (e) { return false; }
         },
         setOn: on => {
             try {
@@ -308,18 +282,17 @@ function buildToggleGrid() {
         },
     });
 
-    // Bluetooth power
     const bt = makeToggle({
+        kind: 'wide',
         label: 'Bluetooth',
-        iconKey: 'bluetooth',
+        sub: 'Tap to toggle',
+        iconKeys: ['bluetooth-on', 'bluetooth-off'],
+        symbolic: 'bluetooth-active-symbolic',
         getOn: () => {
             try {
                 const [ok, out] = GLib.spawn_command_line_sync('bluetoothctl show');
-                if (!ok) return false;
-                return new TextDecoder().decode(out).includes('Powered: yes');
-            } catch (e) {
-                return false;
-            }
+                return ok && new TextDecoder().decode(out).includes('Powered: yes');
+            } catch (e) { return false; }
         },
         setOn: on => {
             try {
@@ -328,11 +301,53 @@ function buildToggleGrid() {
         },
     });
 
+    // Row 1: Dark | DND
+    const dark = makeToggle({
+        kind: 'wide',
+        label: 'Dark mode',
+        iconKeys: ['dark-mode', 'light-mode'],
+        symbolic: 'weather-clear-night-symbolic',
+        getOn: () => {
+            try { return iface.get_string('color-scheme') === 'prefer-dark'; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light'); } catch (e) {}
+        },
+    });
+
+    const dnd = makeToggle({
+        kind: 'wide',
+        label: 'Do not disturb',
+        iconKeys: ['dnd-active', 'dnd-inactive'],
+        symbolic: 'notifications-disabled-symbolic',
+        getOn: () => {
+            try { return dndSettings ? !dndSettings.get_boolean('show-banners') : false; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
+        },
+    });
+
+    // Row 2: Night light (wide full-ish)
+    const night = makeToggle({
+        kind: 'wide',
+        label: 'Night light',
+        iconKeys: ['night-light'],
+        symbolic: 'night-light-symbolic',
+        getOn: () => {
+            try { return nlSettings?.get_boolean('night-light-enabled') ?? false; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { nlSettings?.set_boolean('night-light-enabled', on); } catch (e) {}
+        },
+    });
+
+    // Layout like end-4: round wifi small, bt takes rest of row
     gl.attach(wifi, 0, 0, 1, 1);
     gl.attach(bt, 1, 0, 1, 1);
     gl.attach(dark, 0, 1, 1, 1);
     gl.attach(dnd, 1, 1, 1, 1);
-    gl.attach(night, 0, 2, 1, 1);
+    gl.attach(night, 0, 2, 2, 1);
 
     return grid;
 }
@@ -340,104 +355,66 @@ function buildToggleGrid() {
 // ── header ───────────────────────────────────────────────────────────
 
 function buildHeader(menu) {
-    const row = new St.BoxLayout({
-        vertical: false,
-        x_expand: true,
-        style_class: 'material-panel-e4-hdr',
-    });
-    style(row, 'spacing: 8px; padding: 2px 0;');
+    const row = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row, 'spacing: 6px;');
 
-    // Uptime pill
-    const uptime = new St.Label({
-        text: 'Up —',
-        style_class: 'material-panel-e4-uptime',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    style(uptime, 'background-color: rgba(255,255,255,0.08); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;');
+    const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
+    style(uptime, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;');
     row.add_child(uptime);
-
-    const refreshUptime = () => {
-        try {
-            const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
-            if (!ok) return;
+    try {
+        const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
+        if (ok) {
             const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
             const h = Math.floor(secs / 3600);
             const m = Math.floor((secs % 3600) / 60);
             uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
-        } catch (e) {}
-    };
-    refreshUptime();
+        }
+    } catch (e) {}
 
-    const spacer = new St.Widget({x_expand: true});
-    row.add_child(spacer);
+    row.add_child(new St.Widget({x_expand: true}));
 
-    const mkIconBtn = (iconName, onClick) => {
-        const b = new St.Button({
-            reactive: true,
-            style_class: 'material-panel-e4-iconbtn',
-        });
-        style(b, 'width: 34px; height: 34px; border-radius: 999px; background-color: rgba(255,255,255,0.08);');
-        const ic = new St.Icon({icon_name: iconName, icon_size: 16});
-        b.set_child(ic);
-        b.connect('clicked', () => {
-            try { onClick(); } catch (e) {}
-        });
+    const mkBtn = (symbolic, fn) => {
+        const b = new St.Button({reactive: true});
+        style(b, 'width: 32px; height: 32px; border-radius: 999px; background-color: rgba(255,255,255,0.10);');
+        b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
+        b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
     };
-
-    row.add_child(mkIconBtn('document-edit-symbolic', openPrefs));
-    row.add_child(mkIconBtn('emblem-system-symbolic', openPrefs));
-    row.add_child(mkIconBtn('system-shutdown-symbolic', () => {
+    row.add_child(mkBtn('document-edit-symbolic', openPrefs));
+    row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
+    row.add_child(mkBtn('system-shutdown-symbolic', () => {
         try { GLib.spawn_command_line_async('gnome-session-quit --power-off'); } catch (e) {}
         try { menuClose(menu); } catch (e) {}
     }));
 
-    // Battery %
-    const batt = new St.Label({
-        text: '—%',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    style(batt, 'background-color: rgba(255,255,255,0.08); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;');
+    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
+    style(batt, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;');
     row.add_child(batt);
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('cat /sys/class/power_supply/BAT0/capacity');
-        if (ok)
-            batt.text = `${new TextDecoder().decode(out).trim()}%`;
-    } catch (e) {
+    for (const bat of ['BAT0', 'BAT1']) {
         try {
-            const [ok, out] = GLib.spawn_command_line_sync('cat /sys/class/power_supply/BAT1/capacity');
-            if (ok)
+            const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
+            if (ok) {
                 batt.text = `${new TextDecoder().decode(out).trim()}%`;
-        } catch (e2) {}
+                break;
+            }
+        } catch (e) {}
     }
-
     return row;
 }
 
-// ── power row ────────────────────────────────────────────────────────
-
 function buildPowerRow(menu) {
-    const row = new St.BoxLayout({
-        vertical: false,
-        x_expand: true,
-        style_class: 'material-panel-e4-power',
-    });
-    style(row, 'spacing: 10px;');
-
+    const row = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row, 'spacing: 8px;');
     const actions = [
         {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
-        {icon: 'night-light-symbolic', cmd: null}, // placeholder
+        {icon: 'night-light-symbolic', cmd: null},
         {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
         {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
     ];
     for (const a of actions) {
-        const b = new St.Button({
-            reactive: true,
-            x_expand: true,
-            style_class: 'material-panel-e4-power-btn',
-        });
-        style(b, 'border-radius: 999px; min-height: 48px; background-color: rgba(255,255,255,0.08);');
-        b.set_child(new St.Icon({icon_name: a.icon, icon_size: 18}));
+        const b = new St.Button({reactive: true, x_expand: true});
+        style(b, 'border-radius: 999px; min-height: 44px; background-color: rgba(255,255,255,0.10);');
+        b.set_child(new St.Icon({icon_name: a.icon, icon_size: 16}));
         b.connect('clicked', () => {
             if (a.cmd) {
                 try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
@@ -448,8 +425,6 @@ function buildPowerRow(menu) {
     }
     return row;
 }
-
-// ── main entry ───────────────────────────────────────────────────────
 
 export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     const qsIcon = new St.Icon({
@@ -477,26 +452,12 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     });
     style(shell, 'min-width: 360px; max-width: 400px; padding: 14px; spacing: 12px; border-radius: 24px;');
 
-    // 1 Header
     shell.add_child(buildHeader(menu));
-    // 2 Dual sliders
     shell.add_child(buildDualSliders());
-    // 3 Toggles
     shell.add_child(buildToggleGrid());
-    // 4 Power
     shell.add_child(buildPowerRow(menu));
-    // 5 Notifications
-    try {
-        shell.add_child(buildEnd4NotiSection());
-    } catch (e) {
-        logError(e, 'material-panel: e4 noti');
-    }
-    // 6 Calendar
-    try {
-        shell.add_child(buildEnd4CalendarSection());
-    } catch (e) {
-        logError(e, 'material-panel: e4 cal');
-    }
+    try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
+    try { shell.add_child(buildEnd4CalendarSection()); } catch (e) { logError(e, 'e4 cal'); }
 
     menu.addMenuItem(wrapShell(shell));
 
@@ -506,8 +467,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             if (mon) {
-                const maxH = Math.floor(mon.height * 0.88);
-                menu.box.style = `max-height: ${maxH}px; min-width: 360px; border-radius: 24px;`;
+                menu.box.style = `max-height: ${Math.floor(mon.height * 0.88)}px; min-width: 360px; border-radius: 24px;`;
                 menu.box.clip_to_allocation = true;
             }
         } catch (e) {}
@@ -519,13 +479,8 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         else
             menuOpen(menu);
     });
-    button.connect('destroy', () => {
-        try { menu.destroy(); } catch (e) {}
-    });
+    button.connect('destroy', () => { try { menu.destroy(); } catch (e) {} });
 
-    try {
-        log('material-panel: End-4 QS from-scratch (no default QS imports)');
-    } catch (e) {}
-
+    try { log('material-panel: End-4 QS from-scratch v2 (icons fixed)'); } catch (e) {}
     return button;
 }
