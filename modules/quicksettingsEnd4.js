@@ -17,6 +17,10 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 
 const UUID = 'material-panel@SakibShahariar';
+/** Outer chrome width; INNER is content after horizontal padding. */
+const QS_W = 340;
+const QS_PAD = 10;
+const QS_INNER = QS_W - QS_PAD * 2; // 320
 
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
@@ -316,15 +320,7 @@ function buildToggleGrid() {
     row0.add_child(bt);
     root.add_child(row0);
 
-    // Row 1: Dark | DND — GridLayout column_homogeneous (TRUE equal halves)
-    const row1 = new St.Widget({
-        x_expand: true,
-        layout_manager: new Clutter.GridLayout({
-            column_homogeneous: true,
-            column_spacing: 8,
-            row_spacing: 0,
-        }),
-    });
+    // Row 1: Dark | DND — fixed equal widths
     const dark = makeToggle({
         kind: 'wide',
         label: 'Dark mode',
@@ -349,9 +345,19 @@ function buildToggleGrid() {
             try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
         },
     });
-    row1.layout_manager.attach(dark, 0, 0, 1, 1);
-    row1.layout_manager.attach(dnd, 1, 0, 1, 1);
-    root.add_child(row1);
+    // Explicit pixel halves — GridLayout homogeneous still failed in St popup
+    const half = Math.floor((QS_INNER - 8) / 2);
+    try {
+        dark.x_expand = false;
+        dnd.x_expand = false;
+        dark.width = half;
+        dnd.width = half;
+    } catch (e) {}
+    const row1box = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row1box, 'spacing: 8px;');
+    row1box.add_child(dark);
+    row1box.add_child(dnd);
+    root.add_child(row1box);
 
     // Row 2: Night light full width
     const night = makeToggle({
@@ -422,28 +428,23 @@ function buildHeader(menu) {
 }
 
 function buildPowerRow(menu) {
-    const grid = new St.Widget({
-        x_expand: true,
-        layout_manager: new Clutter.GridLayout({
-            column_homogeneous: true,
-            column_spacing: 6,
-        }),
-    });
-    const gl = grid.layout_manager;
+    const row = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row, 'spacing: 6px;');
     const actions = [
         {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
         {icon: 'weather-clear-night-symbolic', cmd: null},
         {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
         {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
     ];
-    actions.forEach((a, i) => {
+    const gap = 6;
+    const bw = Math.floor((QS_INNER - gap * (actions.length - 1)) / actions.length);
+    for (const a of actions) {
         const b = new St.Button({
             reactive: true,
-            x_expand: true,
-            x_align: Clutter.ActorAlign.FILL,
+            x_expand: false,
         });
-        style(b, 'border-radius: 999px; height: 40px; background-color: rgba(255,255,255,0.10);');
-        try { b.height = 40; } catch (e) {}
+        try { b.width = bw; b.height = 40; } catch (e) {}
+        style(b, `border-radius: 999px; height: 40px; width: ${bw}px; background-color: rgba(255,255,255,0.10);`);
         b.set_child(new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
@@ -456,9 +457,9 @@ function buildPowerRow(menu) {
             }
             try { menuClose(menu); } catch (e) {}
         });
-        gl.attach(b, i, 0, 1, 1);
-    });
-    return grid;
+        row.add_child(b);
+    }
+    return row;
 }
 
 export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
@@ -485,7 +486,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         x_expand: true,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, 'width: 336px; min-width: 336px; max-width: 336px; padding: 10px; spacing: 8px; border-radius: 20px;');
+    style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 8px; border-radius: 20px;`);
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
@@ -526,10 +527,12 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try {
             const mon = Main.layoutManager.primaryMonitor;
             const maxH = mon ? Math.floor(mon.height * 0.85) : 700;
-            menu.box.style = `max-height: ${maxH}px; width: 336px; min-width: 336px; max-width: 336px; padding: 0; margin: 0; border-radius: 20px;`;
-            menu.box.clip_to_allocation = true;
-            try { menu.actor.width = 336; } catch (e) {}
-            try { shell.width = 336; } catch (e) {}
+            const wstyle = `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px;`;
+            menu.box.style = `max-height: ${maxH}px; ${wstyle} padding: 0; margin: 0; border-radius: 20px;`;
+            try { menu.box.clip_to_allocation = true; } catch (e) {}
+            try { menu.actor.width = QS_W; } catch (e) {}
+            try { shell.width = QS_W; } catch (e) {}
+            try { scroll.width = QS_W; } catch (e) {}
         } catch (e) {}
     });
 
