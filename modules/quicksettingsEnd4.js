@@ -464,9 +464,33 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     shell.add_child(buildToggleGrid());
     shell.add_child(buildPowerRow(menu));
     try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
-    try { shell.add_child(buildEnd4CalendarSection()); } catch (e) { logError(e, 'e4 cal'); }
+    try {
+        const cal = buildEnd4CalendarSection();
+        shell.add_child(cal);
+        log('material-panel: e4 calendar attached');
+    } catch (e) { logError(e, 'material-panel: e4 cal failed'); }
 
-    menu.addMenuItem(wrapShell(shell));
+    // Scroll so calendar is reachable (end-4 sidebar is tall)
+    const scroll = new St.ScrollView({
+        style_class: 'material-panel-e4qs-scroll',
+        x_expand: true,
+        y_expand: true,
+        overlay_scrollbars: true,
+    });
+    try {
+        scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+    } catch (e) {
+        try { scroll.hscrollbar_policy = 2; scroll.vscrollbar_policy = 1; } catch (e2) {}
+    }
+    try {
+        if (scroll.add_actor)
+            scroll.add_actor(shell);
+        else
+            scroll.set_child(shell);
+    } catch (e) {
+        try { scroll.add_child(shell); } catch (e2) {}
+    }
+    menu.addMenuItem(wrapShell(scroll));
 
     menu.connect('open-state-changed', (_m, open) => {
         if (!open)
