@@ -25,7 +25,12 @@ const UUID = 'material-panel@SakibShahariar';
 const QS_W = 360;
 const QS_PAD = 12;
 const QS_INNER = QS_W - QS_PAD * 2;
-const ACCENT = '#f5b8d0';
+function accent() {
+    return globalThis._materialPanelPrimary ?? '#89b4fa';
+}
+function onAccent() {
+    return globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+}
 const SURFACE = 'rgba(255,255,255,0.10)';
 const SURFACE2 = 'rgba(255,255,255,0.06)';
 
@@ -126,7 +131,7 @@ function buildHeader(menu) {
         const apply = state => {
             let bg = SURFACE;
             if (state === 'active' || state === 'pressed')
-                bg = ACCENT;
+                bg = accent();
             else if (state === 'hover' || state === 'focus')
                 bg = 'rgba(255,255,255,0.18)';
             style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
@@ -274,13 +279,13 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
-        let bg = on ? ACCENT : SURFACE;
+        let bg = on ? accent() : SURFACE;
         if (pressed)
-            bg = on ? '#e8a0bc' : 'rgba(255,255,255,0.22)';
+            bg = on ? accent() : 'rgba(255,255,255,0.22)';
         else if (btn.hover && !on)
             bg = 'rgba(255,255,255,0.18)';
         else if (btn.hover && on)
-            bg = '#f7c4d8';
+            bg = accent();
         style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
         try { btn.width = 52; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
@@ -327,13 +332,13 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
         const w = width || 140;
-        let bg = on ? ACCENT : SURFACE;
+        let bg = on ? accent() : SURFACE;
         if (pressed)
-            bg = on ? '#e8a0bc' : 'rgba(255,255,255,0.22)';
+            bg = on ? accent() : 'rgba(255,255,255,0.22)';
         else if (btn.hover && !on)
             bg = 'rgba(255,255,255,0.18)';
         else if (btn.hover && on)
-            bg = '#f7c4d8';
+            bg = accent();
         style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
         try { btn.width = w; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
@@ -342,7 +347,7 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         else if (symbolic)
             ic.icon_name = symbolic;
         style(title, on
-            ? 'font-size: 12px; font-weight: 700; color: #1a1a1a;'
+            ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
             : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
         if (subLab)
             style(subLab, on
