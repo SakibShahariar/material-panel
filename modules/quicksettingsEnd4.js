@@ -73,19 +73,24 @@ function openPrefs() {
 // ── dual slider ──────────────────────────────────────────────────────
 
 function buildDualSliders() {
+    // QS_INNER ≈ 320. Icons ~18 + spacing → track ≈ 120 each side.
+    const iconSpace = 22;
+    const gap = 8;
+    const divW = 2;
+    const trackW = Math.floor((QS_INNER - gap * 3 - iconSpace * 2 - divW) / 2);
+
     const row = new St.BoxLayout({
         vertical: false,
-        x_expand: true,
+        x_expand: false,
         style_class: 'material-panel-e4-dual',
     });
-    style(row, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 8px; spacing: 8px;');
+    style(row,
+        `background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 10px; spacing: ${gap}px; width: ${QS_INNER}px;`);
+    try { row.width = QS_INNER; } catch (e) {}
 
-    const halfW = 130;
-
-    // —— Volume half ——
-    const volBox = new St.BoxLayout({vertical: false, x_expand: true});
-    style(volBox, `spacing: 6px; width: ${halfW}px;`);
-    try { volBox.width = halfW; volBox.x_expand = true; } catch (e) {}
+    // Volume
+    const volBox = new St.BoxLayout({vertical: false, x_expand: false});
+    style(volBox, `spacing: 6px;`);
     const volIcon = makeIcon(['volume-high', 'volume-medium'], 16, false, 'audio-volume-high-symbolic');
     volBox.add_child(volIcon);
 
@@ -93,6 +98,7 @@ function buildDualSliders() {
     let control = null;
     const volSlider = createSlider({
         initialValue: 0.7,
+        width: trackW,
         onChange: value => {
             const pct = Math.round(value * 100);
             try {
@@ -109,7 +115,6 @@ function buildDualSliders() {
                 volIcon.gicon = g;
         },
     });
-    try { volSlider.actor.x_expand = true; } catch (e) {}
     volBox.add_child(volSlider.actor);
     row.add_child(volBox);
 
@@ -133,16 +138,14 @@ function buildDualSliders() {
         }
     } catch (e) {}
 
-    // Divider
     const div = new St.Widget();
-    style(div, 'width: 2px; height: 18px; background-color: rgba(0,0,0,0.25); border-radius: 1px;');
-    try { div.width = 2; div.height = 18; } catch (e) {}
+    style(div, `width: ${divW}px; height: 16px; background-color: rgba(255,255,255,0.22); border-radius: 1px;`);
+    try { div.width = divW; div.height = 16; } catch (e) {}
     row.add_child(div);
 
-    // —— Brightness half ——
-    const briBox = new St.BoxLayout({vertical: false, x_expand: true});
-    style(briBox, `spacing: 6px; width: ${halfW}px;`);
-    try { briBox.width = halfW; briBox.x_expand = true; } catch (e) {}
+    // Brightness
+    const briBox = new St.BoxLayout({vertical: false, x_expand: false});
+    style(briBox, `spacing: 6px;`);
     const briIcon = makeIcon(['brightness', 'weather-sunny'], 16, false, 'weather-clear-symbolic');
     try { briIcon.icon_name = 'weather-clear-symbolic'; } catch (e) {}
     briBox.add_child(briIcon);
@@ -162,6 +165,7 @@ function buildDualSliders() {
 
     const briSlider = createSlider({
         initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
+        width: trackW,
         onChange: value => {
             const pct = Math.max(1, Math.round(value * 100));
             try {
@@ -169,7 +173,6 @@ function buildDualSliders() {
             } catch (e) {}
         },
     });
-    try { briSlider.actor.x_expand = true; } catch (e) {}
     briBox.add_child(briSlider.actor);
     row.add_child(briBox);
 
@@ -242,9 +245,16 @@ function makeToggle(opts) {
                 : 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: rgba(255,255,255,0.10);');
             try { btn.width = 48; btn.height = 48; btn.x_expand = false; } catch (e) {}
         } else {
+            const wfix = opts.width ? ` width: ${opts.width}px; min-width: ${opts.width}px; max-width: ${opts.width}px;` : '';
             style(btn, on
-                ? 'border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: #f5b8d0;'
-                : 'border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: rgba(255,255,255,0.10);');
+                ? `border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: #f5b8d0;${wfix}`
+                : `border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: rgba(255,255,255,0.10);${wfix}`);
+            if (opts.width) {
+                try {
+                    btn.width = opts.width;
+                    btn.x_expand = false;
+                } catch (e) {}
+            }
         }
 
         const g = loadGicon(opts.iconKeys, on);
@@ -336,10 +346,12 @@ function buildToggleGrid() {
     row0.add_child(bt);
     root.add_child(row0);
 
-    // Row 1: Dark | DND — fixed equal widths
+    // Row 1: Dark | DND — locked equal widths
+    const half = Math.floor((QS_INNER - 8) / 2);
     const dark = makeToggle({
         kind: 'wide',
         label: 'Dark mode',
+        width: half,
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
         getOn: () => {
@@ -352,6 +364,7 @@ function buildToggleGrid() {
     const dnd = makeToggle({
         kind: 'wide',
         label: 'DND',
+        width: half,
         iconKeys: ['dnd-active', 'dnd-inactive'],
         symbolic: 'notifications-disabled-symbolic',
         getOn: () => {
@@ -361,16 +374,9 @@ function buildToggleGrid() {
             try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
         },
     });
-    // Explicit pixel halves — GridLayout homogeneous still failed in St popup
-    const half = Math.floor((QS_INNER - 8) / 2);
-    try {
-        dark.x_expand = false;
-        dnd.x_expand = false;
-        dark.width = half;
-        dnd.width = half;
-    } catch (e) {}
-    const row1box = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row1box, 'spacing: 8px;');
+    const row1box = new St.BoxLayout({vertical: false, x_expand: false});
+    style(row1box, `spacing: 8px; width: ${QS_INNER}px;`);
+    try { row1box.width = QS_INNER; } catch (e) {}
     row1box.add_child(dark);
     row1box.add_child(dnd);
     root.add_child(row1box);
