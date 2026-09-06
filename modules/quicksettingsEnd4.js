@@ -83,29 +83,62 @@ function buildHeader(menu) {
     const row = new St.BoxLayout({vertical: false, x_expand: true});
     style(row, 'spacing: 6px;');
 
+    const uptimePill = new St.BoxLayout({
+        vertical: false,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    style(uptimePill, `background-color: ${SURFACE}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
+
+    // Fedora logo (falls back to symbolic / os-release brand)
+    const logo = new St.Icon({
+        icon_name: 'fedora-logo-icon',
+        icon_size: 16,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try {
+        // Common Fedora icon names across spins
+        for (const name of ['fedora-logo-icon', 'fedora', 'start-here-symbolic']) {
+            logo.icon_name = name;
+            break;
+        }
+    } catch (e) {}
+    uptimePill.add_child(logo);
+
     const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
-    style(uptime, `background-color: ${SURFACE}; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;`);
-    row.add_child(uptime);
+    style(uptime, 'font-size: 12px; font-weight: 600;');
+    uptimePill.add_child(uptime);
+    row.add_child(uptimePill);
+
     try {
         const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
         if (ok) {
             const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
             const h = Math.floor(secs / 3600);
             const m = Math.floor((secs % 3600) / 60);
-            uptime.text = h > 0 ? `▲ Up ${h}h ${m}m` : `▲ Up ${m}m`;
+            uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
         }
     } catch (e) {}
 
     row.add_child(new St.Widget({x_expand: true}));
 
     const mkBtn = (symbolic, fn) => {
-        const b = new St.Button({reactive: true});
-        style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${SURFACE};`);
+        const b = new St.Button({reactive: true, track_hover: true, can_focus: true});
+        const apply = state => {
+            let bg = SURFACE;
+            if (state === 'active' || state === 'pressed')
+                bg = ACCENT;
+            else if (state === 'hover' || state === 'focus')
+                bg = 'rgba(255,255,255,0.18)';
+            style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
+        };
+        apply('normal');
         b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
+        b.connect('notify::hover', () => apply(b.hover ? 'hover' : 'normal'));
+        b.connect('button-press-event', () => { apply('pressed'); return Clutter.EVENT_PROPAGATE; });
+        b.connect('button-release-event', () => { apply(b.hover ? 'hover' : 'normal'); return Clutter.EVENT_PROPAGATE; });
         b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
     };
-    // end-4: edit, refresh-ish, settings, power
     row.add_child(mkBtn('document-edit-symbolic', openPrefs));
     row.add_child(mkBtn('view-refresh-symbolic', () => {
         try { Main.notify('material-panel', 'Quick Settings refreshed'); } catch (e) {}
@@ -134,22 +167,27 @@ function buildHeader(menu) {
 // ── Dual slider capsule (end-4 continuous bar) ──
 
 function buildDualSliders() {
-    const gap = 6;
-    const iconSpace = 20;
-    const divW = 2;
-    const trackW = Math.floor((QS_INNER - 20 - gap * 3 - iconSpace * 2 - divW) / 2);
+    // end-4-inspired: two full-width slider rows (not side-by-side)
+    const trackW = QS_INNER - 28 - 16; // padding + icon
 
-    const row = new St.BoxLayout({vertical: false, x_expand: false});
-    style(row, `background-color: ${SURFACE}; border-radius: 999px; padding: 8px 10px; spacing: ${gap}px; width: ${QS_INNER}px;`);
-    try { row.width = QS_INNER; } catch (e) {}
+    const col = new St.BoxLayout({vertical: true, x_expand: false});
+    style(col, `spacing: 8px; width: ${QS_INNER}px;`);
+    try { col.width = QS_INNER; } catch (e) {}
 
-    const volBox = new St.BoxLayout({vertical: false});
-    style(volBox, 'spacing: 6px;');
-    const volIcon = makeIcon(['volume-high'], 16, false, 'audio-volume-high-symbolic');
-    volBox.add_child(volIcon);
+    const mkRow = (iconKeys, symbolic, slider) => {
+        const row = new St.BoxLayout({vertical: false, x_expand: false});
+        style(row, `background-color: ${SURFACE}; border-radius: 999px; padding: 10px 14px; spacing: 12px; width: ${QS_INNER}px;`);
+        try { row.width = QS_INNER; } catch (e) {}
+        const ic = makeIcon(iconKeys, 18, false, symbolic);
+        try { if (symbolic) ic.icon_name = symbolic; } catch (e) {}
+        row.add_child(ic);
+        row.add_child(slider.actor);
+        return row;
+    };
 
     let sink = null;
     let control = null;
+    const volIconKeys = ['volume-high', 'volume-medium', 'volume-low', 'volume-muted'];
     const volSlider = createSlider({
         initialValue: 0.7,
         width: trackW,
@@ -162,15 +200,15 @@ function buildDualSliders() {
                     sink.push_volume();
                 }
             } catch (e) {}
-            const pct = Math.round(value * 100);
-            const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
-            const g = loadGicon(key);
-            if (g)
-                volIcon.gicon = g;
         },
     });
-    volBox.add_child(volSlider.actor);
-    row.add_child(volBox);
+    const volRow = mkRow(['volume-high'], 'audio-volume-high-symbolic', volSlider);
+    // keep icon ref for updates
+    const volIcon = volRow.get_child_at_index(0);
+    try {
+        const orig = volSlider.actor;
+        // wrap onChange to update icon - already set; re-bind via control
+    } catch (e) {}
 
     try {
         control = getMixerControl();
@@ -180,8 +218,14 @@ function buildDualSliders() {
                 if (!sink || !control)
                     return;
                 const max = control.get_vol_max_norm();
+                const v = max > 0 ? sink.volume / max : 0;
                 if (typeof volSlider.setValue === 'function')
-                    volSlider.setValue(max > 0 ? sink.volume / max : 0);
+                    volSlider.setValue(v);
+                const pct = Math.round(v * 100);
+                const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
+                const g = loadGicon(key);
+                if (g && volIcon)
+                    volIcon.gicon = g;
             } catch (e) {}
         };
         if (control) {
@@ -190,17 +234,6 @@ function buildDualSliders() {
             bind();
         }
     } catch (e) {}
-
-    const div = new St.Widget();
-    style(div, `width: ${divW}px; height: 14px; background-color: rgba(255,255,255,0.25);`);
-    try { div.width = divW; div.height = 14; } catch (e) {}
-    row.add_child(div);
-
-    const briBox = new St.BoxLayout({vertical: false});
-    style(briBox, 'spacing: 6px;');
-    const briIcon = makeIcon(['brightness'], 16, false, 'weather-clear-symbolic');
-    try { briIcon.icon_name = 'weather-clear-symbolic'; } catch (e) {}
-    briBox.add_child(briIcon);
 
     let maxB = 100, curB = 50;
     try {
@@ -223,25 +256,32 @@ function buildDualSliders() {
             } catch (e) {}
         },
     });
-    briBox.add_child(briSlider.actor);
-    row.add_child(briBox);
+    const briRow = mkRow(['brightness'], 'weather-clear-symbolic', briSlider);
 
-    return row;
+    col.add_child(volRow);
+    col.add_child(briRow);
+    return col;
 }
 
 // ── Toggles (end-4 style: round + labeled wide) ──
 
 function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
-    const btn = new St.Button({reactive: true, can_focus: true, x_expand: false});
+    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const ic = makeIcon(iconKeys, 20, false, symbolic);
     btn.set_child(ic);
+    let pressed = false;
 
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
-        style(btn, on
-            ? `border-radius: 999px; width: 52px; height: 52px; background-color: ${ACCENT};`
-            : `border-radius: 999px; width: 52px; height: 52px; background-color: ${SURFACE};`);
+        let bg = on ? ACCENT : SURFACE;
+        if (pressed)
+            bg = on ? '#e8a0bc' : 'rgba(255,255,255,0.22)';
+        else if (btn.hover && !on)
+            bg = 'rgba(255,255,255,0.18)';
+        else if (btn.hover && on)
+            bg = '#f7c4d8';
+        style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
         try { btn.width = 52; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
         if (g)
@@ -249,6 +289,9 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
         else if (symbolic)
             ic.icon_name = symbolic;
     };
+    btn.connect('notify::hover', paint);
+    btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });
+    btn.connect('button-release-event', () => { pressed = false; paint(); return Clutter.EVENT_PROPAGATE; });
     btn.connect('clicked', () => {
         try { setOn(!getOn()); } catch (e) {}
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
@@ -261,7 +304,7 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
 }
 
 function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
-    const btn = new St.Button({reactive: true, can_focus: true, x_expand: false});
+    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const box = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
     style(box, 'spacing: 10px; padding: 0 4px;');
     const ic = makeIcon(iconKeys, 18, false, symbolic);
@@ -278,14 +321,20 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
     }
     box.add_child(col);
     btn.set_child(box);
+    let pressed = false;
 
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
         const w = width || 140;
-        style(btn, on
-            ? `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${ACCENT};`
-            : `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${SURFACE};`);
+        let bg = on ? ACCENT : SURFACE;
+        if (pressed)
+            bg = on ? '#e8a0bc' : 'rgba(255,255,255,0.22)';
+        else if (btn.hover && !on)
+            bg = 'rgba(255,255,255,0.18)';
+        else if (btn.hover && on)
+            bg = '#f7c4d8';
+        style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
         try { btn.width = w; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
         if (g)
@@ -300,6 +349,9 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
                 ? 'font-size: 11px; color: #3a2a32;'
                 : 'font-size: 11px; opacity: 0.7; color: #c8bdd0;');
     };
+    btn.connect('notify::hover', paint);
+    btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });
+    btn.connect('button-release-event', () => { pressed = false; paint(); return Clutter.EVENT_PROPAGATE; });
     btn.connect('clicked', () => {
         try { setOn(!getOn()); } catch (e) {}
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
@@ -446,7 +498,13 @@ function buildPowerStrip(menu) {
     ];
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: false});
-        style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${SURFACE};`);
+        const paintP = () => {
+            let bg = SURFACE;
+            if (b.hover)
+                bg = 'rgba(255,255,255,0.18)';
+            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
+        };
+        paintP();
         try { b.width = btnW; b.height = 42; } catch (e) {}
         b.set_child(new St.Icon({
             icon_name: a.icon,
@@ -454,6 +512,8 @@ function buildPowerStrip(menu) {
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         }));
+        try { b.track_hover = true; } catch (e) {}
+        b.connect('notify::hover', paintP);
         b.connect('clicked', () => {
             try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
             try { menuClose(menu); } catch (e) {}
