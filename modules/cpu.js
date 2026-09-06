@@ -460,5 +460,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
+    try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
     return button;
 }

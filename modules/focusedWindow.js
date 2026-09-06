@@ -7,6 +7,7 @@ import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import Pango from 'gi://Pango';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {wireChipPress} from '../lib/pressFx.js';
 
 export function buildFocusedWindow(_extensionPath, scale = 1.0) {
     const iconSize = Math.max(14, Math.round(16 * scale));
@@ -43,6 +44,9 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
     try {
         // Cap width like end-4 ellipsized title
         button.style = `max-width: ${Math.round(180 * scale)}px;`;
+    } catch (e) {}
+    try {
+        wireChipPress(button, {stickyUntilLeave: true});
     } catch (e) {}
 
     const tracker = Shell.WindowTracker.get_default();
