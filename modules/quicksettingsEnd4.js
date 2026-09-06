@@ -1,6 +1,11 @@
 /**
- * End-4 Quick Settings — from scratch (no default QS imports).
- * Visual target: end-4 sidebarRight (header, dual slider, compact toggles, noti, calendar).
+ * End-4 QS — structured to match end-4 sidebarRight reference:
+ *   header (uptime + icon actions + battery)
+ *   dual volume|brightness capsule
+ *   toggle grid (round + wide mix)
+ *   notification cards
+ *   calendar
+ * No default QS imports.
  */
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
@@ -17,10 +22,12 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 
 const UUID = 'material-panel@SakibShahariar';
-/** Outer chrome width; INNER is content after horizontal padding. */
-const QS_W = 340;
-const QS_PAD = 10;
-const QS_INNER = QS_W - QS_PAD * 2; // 320
+const QS_W = 360;
+const QS_PAD = 12;
+const QS_INNER = QS_W - QS_PAD * 2;
+const ACCENT = '#f5b8d0';
+const SURFACE = 'rgba(255,255,255,0.10)';
+const SURFACE2 = 'rgba(255,255,255,0.06)';
 
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
@@ -70,28 +77,75 @@ function openPrefs() {
     } catch (e) {}
 }
 
-// ── dual slider ──────────────────────────────────────────────────────
+// ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
+
+function buildHeader(menu) {
+    const row = new St.BoxLayout({vertical: false, x_expand: true});
+    style(row, 'spacing: 6px;');
+
+    const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
+    style(uptime, `background-color: ${SURFACE}; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;`);
+    row.add_child(uptime);
+    try {
+        const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
+        if (ok) {
+            const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            uptime.text = h > 0 ? `▲ Up ${h}h ${m}m` : `▲ Up ${m}m`;
+        }
+    } catch (e) {}
+
+    row.add_child(new St.Widget({x_expand: true}));
+
+    const mkBtn = (symbolic, fn) => {
+        const b = new St.Button({reactive: true});
+        style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${SURFACE};`);
+        b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
+        b.connect('clicked', () => { try { fn(); } catch (e) {} });
+        return b;
+    };
+    // end-4: edit, refresh-ish, settings, power
+    row.add_child(mkBtn('document-edit-symbolic', openPrefs));
+    row.add_child(mkBtn('view-refresh-symbolic', () => {
+        try { Main.notify('material-panel', 'Quick Settings refreshed'); } catch (e) {}
+    }));
+    row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
+    row.add_child(mkBtn('system-shutdown-symbolic', () => {
+        try { GLib.spawn_command_line_async('gnome-session-quit --power-off'); } catch (e) {}
+        try { menuClose(menu); } catch (e) {}
+    }));
+
+    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
+    style(batt, `background-color: ${SURFACE}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
+    row.add_child(batt);
+    for (const bat of ['BAT0', 'BAT1']) {
+        try {
+            const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
+            if (ok) {
+                batt.text = `${new TextDecoder().decode(out).trim()}%`;
+                break;
+            }
+        } catch (e) {}
+    }
+    return row;
+}
+
+// ── Dual slider capsule (end-4 continuous bar) ──
 
 function buildDualSliders() {
-    // QS_INNER ≈ 320. Icons ~18 + spacing → track ≈ 120 each side.
-    const iconSpace = 22;
-    const gap = 8;
+    const gap = 6;
+    const iconSpace = 20;
     const divW = 2;
-    const trackW = Math.floor((QS_INNER - gap * 3 - iconSpace * 2 - divW) / 2);
+    const trackW = Math.floor((QS_INNER - 20 - gap * 3 - iconSpace * 2 - divW) / 2);
 
-    const row = new St.BoxLayout({
-        vertical: false,
-        x_expand: false,
-        style_class: 'material-panel-e4-dual',
-    });
-    style(row,
-        `background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 10px; spacing: ${gap}px; width: ${QS_INNER}px;`);
+    const row = new St.BoxLayout({vertical: false, x_expand: false});
+    style(row, `background-color: ${SURFACE}; border-radius: 999px; padding: 8px 10px; spacing: ${gap}px; width: ${QS_INNER}px;`);
     try { row.width = QS_INNER; } catch (e) {}
 
-    // Volume
-    const volBox = new St.BoxLayout({vertical: false, x_expand: false});
-    style(volBox, `spacing: 6px;`);
-    const volIcon = makeIcon(['volume-high', 'volume-medium'], 16, false, 'audio-volume-high-symbolic');
+    const volBox = new St.BoxLayout({vertical: false});
+    style(volBox, 'spacing: 6px;');
+    const volIcon = makeIcon(['volume-high'], 16, false, 'audio-volume-high-symbolic');
     volBox.add_child(volIcon);
 
     let sink = null;
@@ -100,7 +154,6 @@ function buildDualSliders() {
         initialValue: 0.7,
         width: trackW,
         onChange: value => {
-            const pct = Math.round(value * 100);
             try {
                 if (sink && control) {
                     if (sink.is_muted && value > 0)
@@ -109,6 +162,7 @@ function buildDualSliders() {
                     sink.push_volume();
                 }
             } catch (e) {}
+            const pct = Math.round(value * 100);
             const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
             const g = loadGicon(key);
             if (g)
@@ -126,9 +180,8 @@ function buildDualSliders() {
                 if (!sink || !control)
                     return;
                 const max = control.get_vol_max_norm();
-                const v = max > 0 ? sink.volume / max : 0;
                 if (typeof volSlider.setValue === 'function')
-                    volSlider.setValue(v);
+                    volSlider.setValue(max > 0 ? sink.volume / max : 0);
             } catch (e) {}
         };
         if (control) {
@@ -139,19 +192,17 @@ function buildDualSliders() {
     } catch (e) {}
 
     const div = new St.Widget();
-    style(div, `width: ${divW}px; height: 16px; background-color: rgba(255,255,255,0.22); border-radius: 1px;`);
-    try { div.width = divW; div.height = 16; } catch (e) {}
+    style(div, `width: ${divW}px; height: 14px; background-color: rgba(255,255,255,0.25);`);
+    try { div.width = divW; div.height = 14; } catch (e) {}
     row.add_child(div);
 
-    // Brightness
-    const briBox = new St.BoxLayout({vertical: false, x_expand: false});
-    style(briBox, `spacing: 6px;`);
-    const briIcon = makeIcon(['brightness', 'weather-sunny'], 16, false, 'weather-clear-symbolic');
+    const briBox = new St.BoxLayout({vertical: false});
+    style(briBox, 'spacing: 6px;');
+    const briIcon = makeIcon(['brightness'], 16, false, 'weather-clear-symbolic');
     try { briIcon.icon_name = 'weather-clear-symbolic'; } catch (e) {}
     briBox.add_child(briIcon);
 
-    let maxB = 100;
-    let curB = 50;
+    let maxB = 100, curB = 50;
     try {
         const [ok, out] = GLib.spawn_command_line_sync('brightnessctl max');
         if (ok)
@@ -167,9 +218,8 @@ function buildDualSliders() {
         initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
         width: trackW,
         onChange: value => {
-            const pct = Math.max(1, Math.round(value * 100));
             try {
-                GLib.spawn_command_line_async(`brightnessctl set ${pct}%`);
+                GLib.spawn_command_line_async(`brightnessctl set ${Math.max(1, Math.round(value * 100))}%`);
             } catch (e) {}
         },
     });
@@ -179,103 +229,80 @@ function buildDualSliders() {
     return row;
 }
 
-// ── compact toggle ───────────────────────────────────────────────────
+// ── Toggles (end-4 style: round + labeled wide) ──
 
-/**
- * @param {object} opts
- * @param {string} [opts.label]
- * @param {string} [opts.sub]
- * @param {string[]} opts.iconKeys
- * @param {string} [opts.symbolic]
- * @param {() => boolean} opts.getOn
- * @param {(v: boolean) => void} opts.setOn
- * @param {'round'|'wide'} [opts.kind]
- */
-function makeToggle(opts) {
-    const kind = opts.kind || 'wide';
-    const btn = new St.Button({
-        style_class: 'material-panel-e4-toggle',
-        reactive: true,
-        can_focus: true,
-        x_expand: kind !== 'round',
-        x_align: kind === 'round' ? Clutter.ActorAlign.CENTER : Clutter.ActorAlign.FILL,
+function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
+    const btn = new St.Button({reactive: true, can_focus: true, x_expand: false});
+    const ic = makeIcon(iconKeys, 20, false, symbolic);
+    btn.set_child(ic);
+
+    const paint = () => {
+        let on = false;
+        try { on = !!getOn(); } catch (e) {}
+        style(btn, on
+            ? `border-radius: 999px; width: 52px; height: 52px; background-color: ${ACCENT};`
+            : `border-radius: 999px; width: 52px; height: 52px; background-color: ${SURFACE};`);
+        try { btn.width = 52; btn.height = 52; } catch (e) {}
+        const g = loadGicon(iconKeys, on);
+        if (g)
+            ic.gicon = g;
+        else if (symbolic)
+            ic.icon_name = symbolic;
+    };
+    btn.connect('clicked', () => {
+        try { setOn(!getOn()); } catch (e) {}
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+            paint();
+            return GLib.SOURCE_REMOVE;
+        });
     });
+    paint();
+    return btn;
+}
 
-    const box = new St.BoxLayout({
-        vertical: false,
-        y_align: Clutter.ActorAlign.CENTER,
-        x_align: kind === 'round' ? Clutter.ActorAlign.CENTER : Clutter.ActorAlign.START,
-        x_expand: true,
-    });
-    style(box, kind === 'round' ? 'spacing: 0;' : 'spacing: 8px; padding: 0 2px;');
-
-    const ic = makeIcon(opts.iconKeys, 18, false, opts.symbolic);
+function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
+    const btn = new St.Button({reactive: true, can_focus: true, x_expand: false});
+    const box = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    style(box, 'spacing: 10px; padding: 0 4px;');
+    const ic = makeIcon(iconKeys, 18, false, symbolic);
     box.add_child(ic);
-
-    let title = null;
-    let sub = null;
-    if (kind !== 'round' && opts.label) {
-        const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
-        title = new St.Label({text: opts.label, x_expand: true});
-        try {
-            title.clutter_text.ellipsize = 3; // END
-            title.clutter_text.line_wrap = false;
-        } catch (e) {}
-        style(title, 'font-size: 11px; font-weight: 700;');
-        col.add_child(title);
-        if (opts.sub) {
-            sub = new St.Label({text: opts.sub, x_expand: true});
-            try {
-                sub.clutter_text.ellipsize = 3;
-            } catch (e) {}
-            style(sub, 'font-size: 10px; opacity: 0.75;');
-            col.add_child(sub);
-        }
-        box.add_child(col);
+    const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+    const title = new St.Label({text: label});
+    style(title, 'font-size: 12px; font-weight: 700;');
+    col.add_child(title);
+    let subLab = null;
+    if (sub) {
+        subLab = new St.Label({text: sub});
+        style(subLab, 'font-size: 11px; opacity: 0.7;');
+        col.add_child(subLab);
     }
+    box.add_child(col);
     btn.set_child(box);
 
     const paint = () => {
         let on = false;
-        try { on = !!opts.getOn(); } catch (e) {}
-
-        if (kind === 'round') {
-            style(btn, on
-                ? 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: #f5b8d0;'
-                : 'border-radius: 999px; height: 48px; width: 48px; padding: 6px; background-color: rgba(255,255,255,0.10);');
-            try { btn.width = 48; btn.height = 48; btn.x_expand = false; } catch (e) {}
-        } else {
-            const wfix = opts.width ? ` width: ${opts.width}px; min-width: ${opts.width}px; max-width: ${opts.width}px;` : '';
-            style(btn, on
-                ? `border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: #f5b8d0;${wfix}`
-                : `border-radius: 16px; min-height: 48px; padding: 6px 8px; background-color: rgba(255,255,255,0.10);${wfix}`);
-            if (opts.width) {
-                try {
-                    btn.width = opts.width;
-                    btn.x_expand = false;
-                } catch (e) {}
-            }
-        }
-
-        const g = loadGicon(opts.iconKeys, on);
+        try { on = !!getOn(); } catch (e) {}
+        const w = width || 140;
+        style(btn, on
+            ? `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${ACCENT};`
+            : `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${SURFACE};`);
+        try { btn.width = w; btn.height = 52; } catch (e) {}
+        const g = loadGicon(iconKeys, on);
         if (g)
             ic.gicon = g;
-        else if (opts.symbolic)
-            ic.icon_name = opts.symbolic;
-
-        if (title)
-            style(title, on
-                ? 'font-size: 11px; font-weight: 700; color: #1a1a1a;'
-                : 'font-size: 11px; font-weight: 700; color: #eee6f4;');
-        if (sub)
-            style(sub, on
-                ? 'font-size: 10px; color: #3a2a32;'
-                : 'font-size: 10px; opacity: 0.7; color: #c8bdd0;');
+        else if (symbolic)
+            ic.icon_name = symbolic;
+        style(title, on
+            ? 'font-size: 12px; font-weight: 700; color: #1a1a1a;'
+            : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
+        if (subLab)
+            style(subLab, on
+                ? 'font-size: 11px; color: #3a2a32;'
+                : 'font-size: 11px; opacity: 0.7; color: #c8bdd0;');
     };
-
     btn.connect('clicked', () => {
-        try { opts.setOn(!opts.getOn()); } catch (e) {}
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        try { setOn(!getOn()); } catch (e) {}
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
             paint();
             return GLib.SOURCE_REMOVE;
         });
@@ -285,12 +312,9 @@ function makeToggle(opts) {
 }
 
 function buildToggleGrid() {
-    const root = new St.BoxLayout({
-        vertical: true,
-        x_expand: true,
-        style_class: 'material-panel-e4-grid',
-    });
-    style(root, 'spacing: 8px;');
+    const root = new St.BoxLayout({vertical: true, x_expand: false});
+    style(root, `spacing: 8px; width: ${QS_INNER}px;`);
+    try { root.width = QS_INNER; } catch (e) {}
 
     const iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     let dndSettings = null;
@@ -298,12 +322,10 @@ function buildToggleGrid() {
     let nlSettings = null;
     try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Row 0: Wi-Fi circle + Bluetooth — BoxLayout (fixed + expand)
-    const row0 = new St.BoxLayout({vertical: false, x_expand: true});
+    // Row 0 — end-4: [WiFi●] [Bluetooth wide] [round]
+    const row0 = new St.BoxLayout({vertical: false});
     style(row0, 'spacing: 8px;');
-
-    const wifi = makeToggle({
-        kind: 'round',
+    const wifi = makeRoundToggle({
         iconKeys: ['network-wifi'],
         symbolic: 'network-wireless-symbolic',
         getOn: () => {
@@ -318,16 +340,19 @@ function buildToggleGrid() {
             } catch (e) {}
         },
     });
+    let btSub = 'Tap to toggle';
     try {
-        wifi.width = 48;
-        wifi.height = 48;
-        wifi.x_expand = false;
+        const [ok, out] = GLib.spawn_command_line_sync('bluetoothctl devices Connected');
+        if (ok) {
+            const lines = new TextDecoder().decode(out).trim().split('\n').filter(Boolean);
+            btSub = lines.length ? lines[0].replace(/^Device\s+\S+\s+/, '').slice(0, 18) : 'Not connected';
+        }
     } catch (e) {}
-
-    const bt = makeToggle({
-        kind: 'wide',
+    const btW = QS_INNER - 52 - 52 - 16; // wifi + third round + gaps
+    const bt = makeWideToggle({
         label: 'Bluetooth',
-        sub: 'Tap to toggle',
+        sub: btSub,
+        width: Math.max(120, btW),
         iconKeys: ['bluetooth-on', 'bluetooth-off'],
         symbolic: 'bluetooth-active-symbolic',
         getOn: () => {
@@ -342,16 +367,8 @@ function buildToggleGrid() {
             } catch (e) {}
         },
     });
-    row0.add_child(wifi);
-    row0.add_child(bt);
-    root.add_child(row0);
-
-    // Row 1: Dark | DND — locked equal widths
-    const half = Math.floor((QS_INNER - 8) / 2);
-    const dark = makeToggle({
-        kind: 'wide',
-        label: 'Dark mode',
-        width: half,
+    // Third round = Dark mode (maps to end-4 third tile)
+    const darkRound = makeRoundToggle({
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
         getOn: () => {
@@ -361,30 +378,15 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light'); } catch (e) {}
         },
     });
-    const dnd = makeToggle({
-        kind: 'wide',
-        label: 'DND',
-        width: half,
-        iconKeys: ['dnd-active', 'dnd-inactive'],
-        symbolic: 'notifications-disabled-symbolic',
-        getOn: () => {
-            try { return dndSettings ? !dndSettings.get_boolean('show-banners') : false; } catch (e) { return false; }
-        },
-        setOn: on => {
-            try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
-        },
-    });
-    const row1box = new St.BoxLayout({vertical: false, x_expand: false});
-    style(row1box, `spacing: 8px; width: ${QS_INNER}px;`);
-    try { row1box.width = QS_INNER; } catch (e) {}
-    row1box.add_child(dark);
-    row1box.add_child(dnd);
-    root.add_child(row1box);
+    row0.add_child(wifi);
+    row0.add_child(bt);
+    row0.add_child(darkRound);
+    root.add_child(row0);
 
-    // Row 2: Night light full width
-    const night = makeToggle({
-        kind: 'wide',
-        label: 'Night light',
+    // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
+    const row1 = new St.BoxLayout({vertical: false});
+    style(row1, 'spacing: 8px;');
+    const night = makeRoundToggle({
         iconKeys: ['night-light'],
         symbolic: 'night-light-symbolic',
         getOn: () => {
@@ -394,79 +396,58 @@ function buildToggleGrid() {
             try { nlSettings?.set_boolean('night-light-enabled', on); } catch (e) {}
         },
     });
-    root.add_child(night);
+    const dndW = QS_INNER - 52 * 2 - 16;
+    const dnd = makeWideToggle({
+        label: 'Do not disturb',
+        sub: 'Hide banners',
+        width: Math.max(120, dndW),
+        iconKeys: ['dnd-active', 'dnd-inactive'],
+        symbolic: 'notifications-disabled-symbolic',
+        getOn: () => {
+            try { return dndSettings ? !dndSettings.get_boolean('show-banners') : false; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
+        },
+    });
+    const lockBtn = makeRoundToggle({
+        iconKeys: ['lock'],
+        symbolic: 'system-lock-screen-symbolic',
+        getOn: () => false,
+        setOn: () => {
+            try { GLib.spawn_command_line_async('loginctl lock-session'); } catch (e) {}
+        },
+    });
+    // Force lock to use symbolic always
+    try {
+        lockBtn.get_child().icon_name = 'system-lock-screen-symbolic';
+    } catch (e) {}
+    row1.add_child(night);
+    row1.add_child(dnd);
+    row1.add_child(lockBtn);
+    root.add_child(row1);
 
     return root;
 }
 
-// ── header ───────────────────────────────────────────────────────────
+// ── Power strip (compact, under toggles — end-4 puts some in header; keep reboot/power) ──
 
-function buildHeader(menu) {
-    const row = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row, 'spacing: 6px;');
-
-    const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
-    style(uptime, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;');
-    row.add_child(uptime);
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
-        if (ok) {
-            const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
-            const h = Math.floor(secs / 3600);
-            const m = Math.floor((secs % 3600) / 60);
-            uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
-        }
-    } catch (e) {}
-
-    row.add_child(new St.Widget({x_expand: true}));
-
-    const mkBtn = (symbolic, fn) => {
-        const b = new St.Button({reactive: true});
-        style(b, 'width: 28px; height: 28px; border-radius: 999px; background-color: rgba(255,255,255,0.10);');
-        b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
-        b.connect('clicked', () => { try { fn(); } catch (e) {} });
-        return b;
-    };
-    row.add_child(mkBtn('document-edit-symbolic', openPrefs));
-    row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
-    row.add_child(mkBtn('system-shutdown-symbolic', () => {
-        try { GLib.spawn_command_line_async('gnome-session-quit --power-off'); } catch (e) {}
-        try { menuClose(menu); } catch (e) {}
-    }));
-
-    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
-    style(batt, 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;');
-    row.add_child(batt);
-    for (const bat of ['BAT0', 'BAT1']) {
-        try {
-            const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
-            if (ok) {
-                batt.text = `${new TextDecoder().decode(out).trim()}%`;
-                break;
-            }
-        } catch (e) {}
-    }
-    return row;
-}
-
-function buildPowerRow(menu) {
-    const row = new St.BoxLayout({vertical: false, x_expand: true});
-    style(row, 'spacing: 6px;');
+function buildPowerStrip(menu) {
+    const row = new St.BoxLayout({vertical: false, x_expand: false});
+    const gap = 8;
+    const n = 3;
+    const btnW = Math.floor((QS_INNER - gap * (n - 1)) / n);
+    style(row, `spacing: ${gap}px; width: ${QS_INNER}px;`);
+    try { row.width = QS_INNER; } catch (e) {}
     const actions = [
-        {icon: 'system-lock-screen-symbolic', cmd: 'loginctl lock-session'},
-        {icon: 'weather-clear-night-symbolic', cmd: null},
+        {icon: 'system-log-out-symbolic', cmd: 'gnome-session-quit --logout --no-prompt'},
         {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
         {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
     ];
-    const gap = 6;
-    const bw = Math.floor((QS_INNER - gap * (actions.length - 1)) / actions.length);
     for (const a of actions) {
-        const b = new St.Button({
-            reactive: true,
-            x_expand: false,
-        });
-        try { b.width = bw; b.height = 40; } catch (e) {}
-        style(b, `border-radius: 999px; height: 40px; width: ${bw}px; background-color: rgba(255,255,255,0.10);`);
+        const b = new St.Button({reactive: true, x_expand: false});
+        style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${SURFACE};`);
+        try { b.width = btnW; b.height = 42; } catch (e) {}
         b.set_child(new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
@@ -474,9 +455,7 @@ function buildPowerRow(menu) {
             y_align: Clutter.ActorAlign.CENTER,
         }));
         b.connect('clicked', () => {
-            if (a.cmd) {
-                try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
-            }
+            try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
             try { menuClose(menu); } catch (e) {}
         });
         row.add_child(b);
@@ -505,34 +484,25 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
 
     const shell = new St.BoxLayout({
         vertical: true,
-        x_expand: true,
+        x_expand: false,
         style_class: 'material-panel-e4qs-shell',
     });
-    style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 8px; border-radius: 20px;`);
+    style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 10px; border-radius: 22px;`);
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
     shell.add_child(buildToggleGrid());
-    shell.add_child(buildPowerRow(menu));
+    shell.add_child(buildPowerStrip(menu));
     try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
-    try {
-        const cal = buildEnd4CalendarSection();
-        shell.add_child(cal);
-        log('material-panel: e4 calendar attached');
-    } catch (e) { logError(e, 'material-panel: e4 cal failed'); }
+    try { shell.add_child(buildEnd4CalendarSection()); } catch (e) { logError(e, 'e4 cal'); }
 
-    // Scroll so calendar is reachable (end-4 sidebar is tall)
     const scroll = new St.ScrollView({
         style_class: 'material-panel-e4qs-scroll',
-        x_expand: true,
+        x_expand: false,
         y_expand: true,
         overlay_scrollbars: true,
     });
-    try {
-        scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-    } catch (e) {
-        try { scroll.hscrollbar_policy = 2; scroll.vscrollbar_policy = 1; } catch (e2) {}
-    }
+    try { scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC); } catch (e) {}
     try {
         if (scroll.add_actor)
             scroll.add_actor(shell);
@@ -548,10 +518,9 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
             return;
         try {
             const mon = Main.layoutManager.primaryMonitor;
-            const maxH = mon ? Math.floor(mon.height * 0.85) : 700;
-            const wstyle = `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px;`;
-            menu.box.style = `max-height: ${maxH}px; ${wstyle} padding: 0; margin: 0; border-radius: 20px;`;
-            try { menu.box.clip_to_allocation = true; } catch (e) {}
+            const maxH = mon ? Math.floor(mon.height * 0.88) : 720;
+            menu.box.style = `max-height: ${maxH}px; width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: 0; margin: 0; border-radius: 22px;`;
+            menu.box.clip_to_allocation = true;
             try { menu.actor.width = QS_W; } catch (e) {}
             try { shell.width = QS_W; } catch (e) {}
             try { scroll.width = QS_W; } catch (e) {}
@@ -566,6 +535,6 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => { try { menu.destroy(); } catch (e) {} });
 
-    try { log('material-panel: End-4 QS from-scratch v2 (icons fixed)'); } catch (e) {}
+    try { log('material-panel: End-4 QS matched to reference layout'); } catch (e) {}
     return button;
 }
