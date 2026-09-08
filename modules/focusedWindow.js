@@ -71,7 +71,7 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
         child: box,
     });
     try {
-        button.style = `max-width: ${Math.round(200 * scale)}px;`;
+        button.style = `max-width: ${Math.round(200 * scale)}px; border-radius: 999px;`;
     } catch (e) {}
     try {
         wireChipPress(button, {stickyUntilLeave: true});
@@ -138,7 +138,10 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
         } catch (e) {
             title = '';
         }
-        label.text = title.trim() || 'Desktop';
+        let clean = title.trim();
+        if (!clean || clean === '~' || clean === '—' )
+            clean = 'Desktop';
+        label.text = clean;
 
         try {
             const app = tracker.get_window_app(win);
