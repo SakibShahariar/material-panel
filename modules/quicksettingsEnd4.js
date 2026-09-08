@@ -96,17 +96,18 @@ function buildHeader(menu) {
 
     // Fedora logo (falls back to symbolic / os-release brand)
     const logo = new St.Icon({
-        icon_name: 'fedora-logo-icon',
         icon_size: 16,
         y_align: Clutter.ActorAlign.CENTER,
     });
     try {
-        // Common Fedora icon names across spins
-        for (const name of ['fedora-logo-icon', 'fedora', 'start-here-symbolic']) {
-            logo.icon_name = name;
-            break;
-        }
-    } catch (e) {}
+        const g = loadGicon(['fedora-logo'], false);
+        if (g)
+            logo.gicon = g;
+        else
+            logo.icon_name = 'fedora-logo-icon';
+    } catch (e) {
+        try { logo.icon_name = 'fedora-logo-icon'; } catch (e2) {}
+    }
     uptimePill.add_child(logo);
 
     const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
