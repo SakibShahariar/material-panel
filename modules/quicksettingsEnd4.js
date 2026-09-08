@@ -23,6 +23,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
+import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 const UUID = 'material-panel@SakibShahariar';
 const QS_W = 360;
@@ -623,6 +624,13 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
 
     shell.add_child(buildHeader(menu));
     shell.add_child(buildDualSliders());
+    try {
+        const media = buildMediaPlayerRow();
+        if (media) {
+            try { media.x_expand = true; media.width = QS_INNER; } catch (e) {}
+            shell.add_child(media);
+        }
+    } catch (e) { logError(e, 'e4 qs media'); }
     shell.add_child(buildToggleGrid());
     shell.add_child(buildPowerStrip(menu));
     try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
@@ -632,17 +640,17 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-e4qs-scroll material-panel-qs-scroll',
         x_expand: false,
         y_expand: true,
-        overlay_scrollbars: false,
+        overlay_scrollbars: true,
     });
     try {
-        scroll.overlay_scrollbars = false;
-        // BOTH axes NEVER — previous AUTOMATIC vertical forced the scrollbar back
+        // Scroll when content overflows; overlay + CSS hide the bar
+        scroll.overlay_scrollbars = true;
         if (St.PolicyType) {
-            scroll.vscrollbar_policy = St.PolicyType.NEVER;
+            scroll.vscrollbar_policy = St.PolicyType.AUTOMATIC;
             scroll.hscrollbar_policy = St.PolicyType.NEVER;
         }
         if (scroll.set_policy)
-            scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.NEVER);
+            scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
     } catch (e) {}
     try {
         if (scroll.add_actor)

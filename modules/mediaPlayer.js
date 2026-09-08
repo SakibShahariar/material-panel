@@ -1,4 +1,5 @@
-import {wireChipPress} from '../lib/pressFx.js';
+import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
+import {iconPathPrimary} from '../lib/iconTheme.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -269,33 +270,47 @@ export function buildMediaPlayerRow() {
 
 /** Panel chip + popup controls */
 export function buildMedia(_extensionPath, scale = 1.0) {
-    const icon = new St.Icon({
-        icon_name: 'audio-x-generic-symbolic',
-        icon_size: Math.round(16 * (scale || 1.0)),
-        style_class: 'material-panel-media-icon',
+    const box = new St.BoxLayout({
+        style_class: 'material-panel-media',
         y_align: Clutter.ActorAlign.CENTER,
     });
+    try { box.style = 'spacing: 6px;'; } catch (e) {}
+
+    const icon = new St.Icon({
+        style_class: 'material-panel-media-icon',
+        icon_size: Math.round(16 * scale),
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try {
+        const g = giconForKey('media-play', false);
+        if (g)
+            icon.gicon = g;
+        else
+            icon.icon_name = 'audio-x-generic-symbolic';
+    } catch (e) {
+        icon.icon_name = 'audio-x-generic-symbolic';
+    }
     const label = new St.Label({
         text: 'No media',
         style_class: 'material-panel-media-label',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    const box = new St.BoxLayout({
-        style_class: 'material-panel-media material-panel-chip',
-        y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
-    });
-    label.text = 'No media';
+    try {
+        label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    } catch (e) {}
     box.add_child(icon);
     box.add_child(label);
 
     const button = new St.Button({
-        style_class: 'material-panel-media-btn',
+        style_class: 'material-panel-media-btn material-panel-chip',
         reactive: true,
         track_hover: true,
+        can_focus: true,
         child: box,
     });
+    try {
+        button.style = `max-width: ${Math.round(160 * scale)}px;`;
+    } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-media-popup');
@@ -307,38 +322,64 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         vertical: true,
         style_class: 'material-panel-media-popup-body',
     });
-    const hero = new St.BoxLayout({
-        vertical: true,
+    try { body.style = 'spacing: 10px; padding: 4px; min-width: 220px;'; } catch (e) {}
+
+    const head = new St.BoxLayout({
+        vertical: false,
         style_class: 'material-panel-popup-card',
+        y_align: Clutter.ActorAlign.CENTER,
     });
+    try { head.style = 'spacing: 12px; padding: 10px 12px;'; } catch (e) {}
+
+    const art = new St.Icon({
+        icon_size: 48,
+        style_class: 'material-panel-media-popup-art',
+        icon_name: 'audio-x-generic-symbolic',
+    });
+    const textCol = new St.BoxLayout({vertical: true, x_expand: true});
+    try { textCol.style = 'spacing: 4px;'; } catch (e) {}
     const pTitle = new St.Label({
         text: 'No media',
         style_class: 'material-panel-media-popup-title',
-        x_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
     });
-    pTitle.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    try { pTitle.clutter_text.ellipsize = Pango.EllipsizeMode.END; } catch (e) {}
     const pArtist = new St.Label({
         text: '',
         style_class: 'material-panel-media-popup-artist',
-        x_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
     });
-    pArtist.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    hero.add_child(pTitle);
-    hero.add_child(pArtist);
-    body.add_child(hero);
+    try { pArtist.clutter_text.ellipsize = Pango.EllipsizeMode.END; } catch (e) {}
+    textCol.add_child(pTitle);
+    textCol.add_child(pArtist);
+    head.add_child(art);
+    head.add_child(textCol);
+    body.add_child(head);
 
     const controls = new St.BoxLayout({
-        vertical: false,
         style_class: 'material-panel-popup-card material-panel-media-popup-controls',
         x_align: Clutter.ActorAlign.CENTER,
     });
+    try { controls.style = 'spacing: 8px; padding: 8px;'; } catch (e) {}
+
     const mk = iconName => {
         const b = new St.Button({
             style_class: 'material-panel-media-popup-btn',
             reactive: true,
             track_hover: true,
+            can_focus: true,
         });
-        b.set_child(new St.Icon({icon_name: iconName, icon_size: 20}));
+        const ic = new St.Icon({icon_name: iconName, icon_size: 20});
+        try { tintSymbolic(ic, primaryColor()); } catch (e) {}
+        b.set_child(ic);
+        b.connect('button-press-event', () => {
+            try { tintSymbolic(ic, onPrimaryColor()); } catch (e) {}
+            return Clutter.EVENT_PROPAGATE;
+        });
+        b.connect('button-release-event', () => {
+            try { tintSymbolic(ic, primaryColor()); } catch (e) {}
+            return Clutter.EVENT_PROPAGATE;
+        });
         return b;
     };
     const prevBtn = mk('media-skip-backward-symbolic');
@@ -359,31 +400,42 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         ctl = null;
     };
 
+    const setPlayingUi = playing => {
+        try {
+            playBtn.child.icon_name = playing
+                ? 'media-playback-pause-symbolic'
+                : 'media-playback-start-symbolic';
+        } catch (e) {}
+        try {
+            const key = playing ? 'media-pause' : 'media-play';
+            const g = giconForKey(key, false);
+            if (g)
+                icon.gicon = g;
+            else
+                icon.icon_name = playing
+                    ? 'media-playback-pause-symbolic'
+                    : 'audio-x-generic-symbolic';
+        } catch (e) {}
+    };
+
     const attach = busName => {
         clearCtl();
         if (!busName) {
             label.text = 'No media';
             pTitle.text = 'No media';
             pArtist.text = '';
+            setPlayingUi(false);
             return;
         }
         bindPlayer(busName, {
             onMeta: ({title, artist}) => {
-                label.text = title || 'Media';
+                const t = title || 'Media';
+                label.text = t.length > 22 ? `${t.slice(0, 20)}…` : t;
                 pTitle.text = title || 'Unknown';
                 pArtist.text = artist || '';
             },
-            onStatus: playing => {
-                playBtn.child.icon_name = playing
-                    ? 'media-playback-pause-symbolic'
-                    : 'media-playback-start-symbolic';
-                icon.icon_name = playing
-                    ? 'media-playback-pause-symbolic'
-                    : 'audio-x-generic-symbolic';
-            },
-            onReady: c => {
-                ctl = c;
-            },
+            onStatus: playing => setPlayingUi(!!playing),
+            onReady: c => { ctl = c; },
         });
     };
 
@@ -392,9 +444,9 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     nextBtn.connect('clicked', () => ctl?.next());
 
     pickPreferredPlayer(attach);
-    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 4, () => {
         pickPreferredPlayer(name => {
-            if (!ctl)
+            if (!ctl || !name)
                 attach(name);
         });
         return GLib.SOURCE_CONTINUE;
@@ -411,9 +463,14 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     button.connect('destroy', () => {
         clearCtl();
         try { GLib.source_remove(scanId); } catch (e) {}
-        menu.destroy();
+        try { menu.destroy(); } catch (e) {}
     });
 
-    try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
+    try {
+        wireChipPress(button, {
+            stickyUntilLeave: true,
+            getIcons: () => [{icon, key: label.text === 'No media' ? 'media-play' : 'media-pause'}],
+        });
+    } catch (e) {}
     return button;
 }
