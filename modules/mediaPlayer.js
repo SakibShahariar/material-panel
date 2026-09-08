@@ -1,3 +1,4 @@
+import {wireChipPress} from '../lib/pressFx.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -413,5 +414,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
+    try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
     return button;
 }

@@ -6,7 +6,6 @@ import Gvc from 'gi://Gvc';
 import {iconPathPrimary, iconPathOnAccent, iconPath} from '../lib/iconTheme.js';
 import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
 import {getMixerControl} from '../lib/audio.js';
-import {wireChipPress} from '../lib/pressFx.js';
 
 // Shared control so the chip and QS slider share one sink object —
 // volume changes from the slider emit notify::volume on the same
@@ -137,6 +136,5 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         // Do NOT close shared control here — QS/other chip may still need it
     });
 
-    try { wireChipPress(box,{stickyUntilLeave:true}); } catch(e) {}
     return box;
 }

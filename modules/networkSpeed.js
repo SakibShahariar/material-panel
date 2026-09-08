@@ -1,3 +1,4 @@
+import {wireChipPress} from '../lib/pressFx.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -6,7 +7,6 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {wirePressedClass} from '../lib/pressFx.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 function decodeBytes(bytes) {
@@ -99,7 +99,6 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: icon,
     });
-    wirePressedClass(button);
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-net-speed-popup');

@@ -9,6 +9,7 @@
  */
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
+import {wireFileIconPress} from '../lib/pressFx.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -541,6 +542,9 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: qsIcon,
     });
+    try {
+        wireFileIconPress(button, () => [{icon: qsIcon, key: 'quicksettings'}]);
+    } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 1.0, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-e4qs-menu material-panel-popup');
@@ -563,20 +567,21 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     try { shell.add_child(buildEnd4CalendarSection()); } catch (e) { logError(e, 'e4 cal'); }
 
     const scroll = new St.ScrollView({
-        style_class: 'material-panel-e4qs-scroll',
+        style_class: 'material-panel-e4qs-scroll material-panel-qs-scroll',
         x_expand: false,
         y_expand: true,
-        overlay_scrollbars: true,
+        overlay_scrollbars: false,
     });
     try {
-        scroll.overlay_scrollbars = true;
-        if (St.PolicyType)
+        scroll.overlay_scrollbars = false;
+        // BOTH axes NEVER — previous AUTOMATIC vertical forced the scrollbar back
+        if (St.PolicyType) {
             scroll.vscrollbar_policy = St.PolicyType.NEVER;
-        if (St.PolicyType)
             scroll.hscrollbar_policy = St.PolicyType.NEVER;
+        }
+        if (scroll.set_policy)
+            scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.NEVER);
     } catch (e) {}
-
-    try { scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC); } catch (e) {}
     try {
         if (scroll.add_actor)
             scroll.add_actor(shell);
