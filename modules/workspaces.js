@@ -1,23 +1,31 @@
 /**
- * Workspaces — end4 style: active workspace shows overlapping app icons
- * in a soft pill with a primary ring on the focused app; empty = dots.
+ * end-4 style workspaces:
+ *  - Soft chip pill background (like other panel chips)
+ *  - Overlapping app icons via negative margin (St ignores negative spacing)
+ *  - Primary ring on focused app
+ *  - Empty workspaces = small dots
  */
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import {wirePressedClass} from '../lib/pressFx.js';
 
-const MAX_ICONS = 4;
+const MAX_ICONS = 5;
 
 function _windowsOnWorkspace(ws) {
     try {
         return (ws.list_windows() || []).filter(w => {
             try {
-                if (w.is_skip_taskbar?.())
+                if (typeof w.is_skip_taskbar === 'function' && w.is_skip_taskbar())
                     return false;
             } catch (e) {}
             try {
                 if (w.minimized)
+                    return false;
+            } catch (e) {}
+            // Skip desktop / shell
+            try {
+                const t = w.get_window_type?.();
                     return false;
             } catch (e) {}
             return true;
@@ -36,14 +44,15 @@ function _appsOnWorkspace(ws) {
             const app = tracker.get_window_app(win);
             if (!app)
                 continue;
-            const id = app.get_id?.() || app.get_name?.() || String(apps.length);
+            const id = app.get_id?.() || app.get_name?.() || `w${apps.length}`;
             if (seen.has(id))
                 continue;
             seen.add(id);
-            const gicon = app.get_icon?.();
+            let gicon = null;
+            try { gicon = app.get_icon(); } catch (e) {}
             if (!gicon)
                 continue;
-            apps.push({app, gicon, win});
+            apps.push({app, gicon, id});
             if (apps.length >= MAX_ICONS)
                 break;
         } catch (e) {}
@@ -65,16 +74,17 @@ function _focusAppId() {
 
 export function buildWorkspaces(_extensionPath, scale = 1.0) {
     const box = new St.BoxLayout({
-        style_class: 'material-panel-workspaces',
+        style_class: 'material-panel-workspaces material-panel-chip',
         y_align: Clutter.ActorAlign.CENTER,
     });
     try {
-        box.style = 'spacing: 6px;';
+        box.style = 'spacing: 8px; padding: 2px 8px; border-radius: 999px;';
     } catch (e) {}
 
     const manager = global.workspace_manager;
-    const iconSize = Math.max(14, Math.round(18 * (scale || 1)));
-    const overlap = Math.round(iconSize * 0.35);
+    const iconSize = Math.max(16, Math.round(20 * (scale || 1)));
+    // How much each icon pulls left under the previous
+    const pull = Math.round(iconSize * 0.42);
 
     const rebuild = () => {
         box.destroy_all_children();
@@ -83,89 +93,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         const n = manager.get_n_workspaces();
         const focusId = _focusAppId();
 
-        for (let i = 0; i < n; i++) {
-            const active = i === activeIndex;
-            const ws = manager.get_workspace_by_index(i);
-            const apps = end4 ? _appsOnWorkspace(ws) : [];
-
-            if (end4 && apps.length > 0) {
-                // Cluster of app icons (end4 / screenshot style)
-                const cluster = new St.BoxLayout({
-                    style_class: active
-                        ? 'material-panel-ws-cluster active'
-                        : 'material-panel-ws-cluster',
-                    y_align: Clutter.ActorAlign.CENTER,
-                });
-                try {
-                    cluster.style = active
-                        ? `spacing: -${overlap}px; padding: 3px 8px; border-radius: 999px;`
-                        : `spacing: -${Math.round(overlap * 0.7)}px; padding: 2px 6px; border-radius: 999px;`;
-                } catch (e) {}
-
-                apps.forEach((entry, idx) => {
-                    const isFocus = active && focusId &&
-                        (entry.app.get_id?.() === focusId || entry.app.get_name?.() === focusId);
-                    const wrap = new St.Bin({
-                        style_class: isFocus
-                            ? 'material-panel-ws-app-ring active'
-                            : 'material-panel-ws-app-ring',
-                        x_align: Clutter.ActorAlign.CENTER,
-                        y_align: Clutter.ActorAlign.CENTER,
-                    });
-                    const sz = active ? iconSize : Math.max(12, iconSize - 4);
-                    try {
-                        wrap.style = isFocus
-                            ? `padding: 2px; border-radius: 999px; border: 2px solid;`
-                            : `padding: 1px; border-radius: 999px; border: 2px solid transparent;`;
-                    } catch (e) {}
-                    const img = new St.Icon({
-                        style_class: 'material-panel-workspace-app',
-                        gicon: entry.gicon,
-                        icon_size: sz,
-                    });
-                    wrap.set_child(img);
-                    // Raise focused / later icons for overlap order
-                    try {
-                        wrap.set_style_class_name(
-                            (isFocus ? 'material-panel-ws-app-ring active' : 'material-panel-ws-app-ring') +
-                            ` z${idx}`
-                        );
-                    } catch (e) {}
-                    cluster.add_child(wrap);
-                });
-
-                const btn = new St.Button({
-                    style_class: active
-                        ? 'material-panel-workspace-btn app active cluster'
-                        : 'material-panel-workspace-btn app cluster',
-                    reactive: true,
-                    track_hover: true,
-                    can_focus: true,
-                    child: cluster,
-                });
-                wirePressedClass(btn);
-                btn.connect('clicked', () => ws.activate(global.get_current_time()));
-                box.add_child(btn);
-            } else if (end4) {
-                // Empty workspace — small dot
-                const btn = new St.Button({
-                    style_class: active
-                        ? 'material-panel-workspace-btn material-panel-workspace-dot active'
-                        : 'material-panel-workspace-btn material-panel-workspace-dot',
-                    reactive: true,
-                    track_hover: true,
-                    can_focus: true,
-                });
-                try {
-                    btn.style = active
-                        ? 'width: 10px; height: 10px; min-width: 10px; min-height: 10px; padding: 0; border-radius: 999px;'
-                        : 'width: 8px; height: 8px; min-width: 8px; min-height: 8px; padding: 0; border-radius: 999px;';
-                } catch (e) {}
-                wirePressedClass(btn);
-                btn.connect('clicked', () => ws.activate(global.get_current_time()));
-                box.add_child(btn);
-            } else {
-                // Default layout — numbered pills
+        if (!end4) {
+            for (let i = 0; i < n; i++) {
+                const active = i === activeIndex;
+                const ws = manager.get_workspace_by_index(i);
                 const btn = new St.Button({
                     style_class: active
                         ? 'material-panel-workspace-btn active'
@@ -179,29 +110,120 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
             }
+            return;
+        }
+
+        for (let i = 0; i < n; i++) {
+            const active = i === activeIndex;
+            const ws = manager.get_workspace_by_index(i);
+            const apps = _appsOnWorkspace(ws);
+
+            if (apps.length === 0) {
+                const dot = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-dot active'
+                        : 'material-panel-workspace-dot',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                try {
+                    const d = active ? 10 : 8;
+                    dot.style =
+                        `width: ${d}px; height: ${d}px; min-width: ${d}px; min-height: ${d}px;` +
+                        `padding: 0; border-radius: 999px; border: none;`;
+                } catch (e) {}
+                wirePressedClass(dot);
+                dot.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(dot);
+                continue;
+            }
+
+            // Pill + overlapping icons
+            const cluster = new St.BoxLayout({
+                style_class: active
+                    ? 'material-panel-ws-cluster active'
+                    : 'material-panel-ws-cluster',
+                y_align: Clutter.ActorAlign.CENTER,
+                reactive: false,
+            });
+            try {
+                cluster.style =
+                    'spacing: 0; padding: 3px 6px; border-radius: 999px;';
+            } catch (e) {}
+
+            apps.forEach((entry, idx) => {
+                const isFocus = !!(
+                    active && focusId &&
+                    (entry.id === focusId ||
+                        entry.app.get_id?.() === focusId ||
+                        entry.app.get_name?.() === focusId)
+                );
+
+                const ring = new St.Bin({
+                    style_class: isFocus
+                        ? 'material-panel-ws-app-ring active'
+                        : 'material-panel-ws-app-ring',
+                    x_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+                const sz = iconSize;
+                try {
+                    // Negative margin = real overlap (St BoxLayout spacing cannot go negative)
+                    const ml = idx === 0 ? 0 : -pull;
+                    ring.style = isFocus
+                        ? `margin-left: ${ml}px; padding: 2px; border-radius: 999px;` +
+                          `border: 2px solid; background-color: transparent;`
+                        : `margin-left: ${ml}px; padding: 2px; border-radius: 999px;` +
+                          `border: 2px solid transparent;`;
+                } catch (e) {}
+
+                const img = new St.Icon({
+                    style_class: 'material-panel-workspace-app',
+                    gicon: entry.gicon,
+                    icon_size: sz,
+                });
+                ring.set_child(img);
+                cluster.add_child(ring);
+            });
+
+            const btn = new St.Button({
+                style_class: active
+                    ? 'material-panel-workspace-btn cluster active'
+                    : 'material-panel-workspace-btn cluster',
+                reactive: true,
+                track_hover: true,
+                can_focus: true,
+                child: cluster,
+            });
+            try {
+                btn.style =
+                    'background-color: transparent; border: none; padding: 0; border-radius: 999px;';
+            } catch (e) {}
+            wirePressedClass(btn);
+            btn.connect('clicked', () => ws.activate(global.get_current_time()));
+            box.add_child(btn);
         }
     };
 
     rebuild();
-    const changedId = manager.connect('active-workspace-changed', rebuild);
-    const nChangedId = manager.connect('notify::n-workspaces', rebuild);
-    let restackId = 0;
-    let focusId = 0;
-    try {
-        restackId = global.display.connect('restacked', () => rebuild());
-    } catch (e) {}
-    try {
-        focusId = global.display.connect('notify::focus-window', () => rebuild());
-    } catch (e) {}
+    const ids = [];
+    try { ids.push(['m', manager.connect('active-workspace-changed', rebuild)]); } catch (e) {}
+    try { ids.push(['m', manager.connect('notify::n-workspaces', rebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('restacked', () => rebuild())]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('notify::focus-window', () => rebuild())]); } catch (e) {}
+    try { ids.push(['w', global.window_manager.connect('switch-workspace', () => rebuild())]); } catch (e) {}
 
     box.connect('destroy', () => {
-        try { manager.disconnect(changedId); } catch (e) {}
-        try { manager.disconnect(nChangedId); } catch (e) {}
-        if (restackId) {
-            try { global.display.disconnect(restackId); } catch (e) {}
-        }
-        if (focusId) {
-            try { global.display.disconnect(focusId); } catch (e) {}
+        for (const [kind, id] of ids) {
+            try {
+                if (kind === 'm')
+                    manager.disconnect(id);
+                else if (kind === 'd')
+                    global.display.disconnect(id);
+                else
+                    global.window_manager.disconnect(id);
+            } catch (e) {}
         }
     });
 
