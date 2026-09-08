@@ -9,7 +9,7 @@
  */
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
-import {wireFileIconPress} from '../lib/pressFx.js';
+import {wireFileIconPress, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -332,10 +332,17 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
         style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
         try { btn.width = 52; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
-        if (g)
+        if (g) {
             ic.gicon = g;
-        else if (symbolic)
+        } else if (symbolic) {
             ic.icon_name = symbolic;
+            // on = primary bg → icon must be on_primary (not default white)
+            tintSymbolic(ic, on || pressed ? onPrimaryColor() : primaryColor());
+        }
+        try { btn.remove_style_class_name('pressed'); } catch (e) {}
+        if (pressed) {
+            try { btn.add_style_class_name('pressed'); } catch (e) {}
+        }
     };
     btn.connect('notify::hover', paint);
     btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });
@@ -385,10 +392,12 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
         try { btn.width = w; btn.height = 52; } catch (e) {}
         const g = loadGicon(iconKeys, on);
-        if (g)
+        if (g) {
             ic.gicon = g;
-        else if (symbolic)
+        } else if (symbolic) {
             ic.icon_name = symbolic;
+            tintSymbolic(ic, on || pressed ? onPrimaryColor() : primaryColor());
+        }
         style(title, on
             ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
             : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
@@ -558,7 +567,7 @@ function buildPowerStrip(menu) {
                 bg = surfaceHover();
             }
             style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
-            try { ic.style = `color: ${fg};`; } catch (e) {}
+            try { tintSymbolic(ic, fg); } catch (e) {}
         };
         paintP();
         try { b.width = btnW; b.height = 42; } catch (e) {}
