@@ -568,6 +568,14 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         y_expand: true,
         overlay_scrollbars: true,
     });
+    try {
+        scroll.overlay_scrollbars = true;
+        if (St.PolicyType)
+            scroll.vscrollbar_policy = St.PolicyType.NEVER;
+        if (St.PolicyType)
+            scroll.hscrollbar_policy = St.PolicyType.NEVER;
+    } catch (e) {}
+
     try { scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC); } catch (e) {}
     try {
         if (scroll.add_actor)

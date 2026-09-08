@@ -79,9 +79,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 });
                 // Inline — CSS was losing to chip rules (big pink pill)
                 try {
+                    // Same size as app slots — no shrink when empty (end-4)
                     btn.style = active
-                        ? 'width: 22px; height: 9px; min-width: 22px; min-height: 9px; padding: 0; border-radius: 999px; border: none;'
-                        : 'width: 9px; height: 9px; min-width: 9px; min-height: 9px; padding: 0; border-radius: 999px; border: none;';
+                        ? 'width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; border-radius: 999px; border: none;'
+                        : 'width: 26px; height: 26px; min-width: 26px; min-height: 26px; padding: 0; border-radius: 999px; border: none;';
                 } catch (e) {}
                 wirePressedClass(btn);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
