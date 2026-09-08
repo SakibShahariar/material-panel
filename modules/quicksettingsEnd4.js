@@ -34,8 +34,18 @@ function accent() {
 function onAccent() {
     return globalThis._materialPanelOnPrimary ?? '#1e1e2e';
 }
-const SURFACE = 'rgba(255,255,255,0.10)';
-const SURFACE2 = 'rgba(255,255,255,0.06)';
+/** Matugen-driven surfaces (set in theme.apply). Never hardcode white alpha. */
+function surface() {
+    return globalThis._materialPanelQsSurface ?? 'rgba(49, 50, 68, 0.55)';
+}
+function surfaceHover() {
+    return globalThis._materialPanelHoverBg ?? 'rgba(205, 214, 244, 0.14)';
+}
+function surfaceHoverStrong() {
+    return globalThis._materialPanelHoverBgStrong ?? 'rgba(205, 214, 244, 0.22)';
+}
+// Back-compat aliases used in this file
+const SURFACE = null; // do not use — call surface()
 
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
@@ -95,7 +105,7 @@ function buildHeader(menu) {
         vertical: false,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    style(uptimePill, `background-color: ${SURFACE}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
+    style(uptimePill, `background-color: ${surface()}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
 
     // Fedora logo (falls back to symbolic / os-release brand)
     const logo = new St.Icon({
@@ -130,18 +140,24 @@ function buildHeader(menu) {
 
     row.add_child(new St.Widget({x_expand: true}));
 
-    const mkBtn = (symbolic, fn) => {
+        const mkBtn = (symbolic, fn) => {
         const b = new St.Button({reactive: true, track_hover: true, can_focus: true});
+        const ic = new St.Icon({icon_name: symbolic, icon_size: 14});
         const apply = state => {
-            let bg = SURFACE;
-            if (state === 'active' || state === 'pressed')
+            let bg = surface();
+            let fg = accent();
+            if (state === 'active' || state === 'pressed') {
                 bg = accent();
-            else if (state === 'hover' || state === 'focus')
-                bg = 'rgba(255,255,255,0.18)';
+                fg = onAccent();
+            } else if (state === 'hover' || state === 'focus') {
+                bg = surfaceHover();
+                fg = accent();
+            }
             style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
+            try { ic.style = `color: ${fg};`; } catch (e) {}
         };
         apply('normal');
-        b.set_child(new St.Icon({icon_name: symbolic, icon_size: 14}));
+        b.set_child(ic);
         b.connect('notify::hover', () => apply(b.hover ? 'hover' : 'normal'));
         b.connect('button-press-event', () => { apply('pressed'); return Clutter.EVENT_PROPAGATE; });
         b.connect('button-release-event', () => { apply(b.hover ? 'hover' : 'normal'); return Clutter.EVENT_PROPAGATE; });
@@ -159,7 +175,7 @@ function buildHeader(menu) {
     }));
 
     const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
-    style(batt, `background-color: ${SURFACE}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
+    style(batt, `background-color: ${surface()}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
     row.add_child(batt);
     for (const bat of ['BAT0', 'BAT1']) {
         try {
@@ -185,7 +201,7 @@ function buildDualSliders() {
 
     const mkRow = (iconKeys, symbolic, slider) => {
         const row = new St.BoxLayout({vertical: false, x_expand: false});
-        style(row, `background-color: ${SURFACE}; border-radius: 999px; padding: 10px 14px; spacing: 12px; width: ${QS_INNER}px;`);
+        style(row, `background-color: ${surface()}; border-radius: 999px; padding: 10px 14px; spacing: 12px; width: ${QS_INNER}px;`);
         try { row.width = QS_INNER; } catch (e) {}
         const ic = makeIcon(iconKeys, 18, false, symbolic);
         try { if (symbolic) ic.icon_name = symbolic; } catch (e) {}
@@ -283,11 +299,11 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
-        let bg = on ? accent() : SURFACE;
+        let bg = on ? accent() : surface();
         if (pressed)
-            bg = on ? accent() : 'rgba(255,255,255,0.22)';
+            bg = on ? accent() : surfaceHoverStrong();
         else if (btn.hover && !on)
-            bg = 'rgba(255,255,255,0.18)';
+            bg = surfaceHover();
         else if (btn.hover && on)
             bg = accent();
         style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
@@ -336,11 +352,11 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
         const w = width || 140;
-        let bg = on ? accent() : SURFACE;
+        let bg = on ? accent() : surface();
         if (pressed)
-            bg = on ? accent() : 'rgba(255,255,255,0.22)';
+            bg = on ? accent() : surfaceHoverStrong();
         else if (btn.hover && !on)
-            bg = 'rgba(255,255,255,0.18)';
+            bg = surfaceHover();
         else if (btn.hover && on)
             bg = accent();
         style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
@@ -502,22 +518,32 @@ function buildPowerStrip(menu) {
     ];
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: false});
-        const paintP = () => {
-            let bg = SURFACE;
-            if (b.hover)
-                bg = 'rgba(255,255,255,0.18)';
-            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
-        };
-        paintP();
-        try { b.width = btnW; b.height = 42; } catch (e) {}
-        b.set_child(new St.Icon({
+        let pressed = false;
+        const ic = new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
-        }));
+        });
+        const paintP = () => {
+            let bg = surface();
+            let fg = accent();
+            if (pressed) {
+                bg = accent();
+                fg = onAccent();
+            } else if (b.hover) {
+                bg = surfaceHover();
+            }
+            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
+            try { ic.style = `color: ${fg};`; } catch (e) {}
+        };
+        paintP();
+        try { b.width = btnW; b.height = 42; } catch (e) {}
+        b.set_child(ic);
         try { b.track_hover = true; } catch (e) {}
         b.connect('notify::hover', paintP);
+        b.connect('button-press-event', () => { pressed = true; paintP(); return Clutter.EVENT_PROPAGATE; });
+        b.connect('button-release-event', () => { pressed = false; paintP(); return Clutter.EVENT_PROPAGATE; });
         b.connect('clicked', () => {
             try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
             try { menuClose(menu); } catch (e) {}
