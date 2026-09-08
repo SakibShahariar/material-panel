@@ -62,8 +62,8 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 try {
                     // Explicit size so theme "active = 8px pill" never crushes the app icon
                     btn.style = active
-                        ? 'width: 28px; height: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; padding: 4px;'
-                        : 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 999px; padding: 3px;';
+                        ? 'width: 30px; height: 30px; min-width: 30px; min-height: 30px; border-radius: 999px; padding: 2px;'
+                        : 'width: 26px; height: 26px; min-width: 26px; min-height: 26px; border-radius: 999px; padding: 2px;';
                 } catch (e) {}
                 wirePressedClass(btn);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
