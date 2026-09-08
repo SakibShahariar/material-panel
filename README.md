@@ -138,3 +138,18 @@ you fix the mapping in the script.
 - The bridge only catches extensions that use the public
   `addToStatusArea` API. A few extensions poke `Main.panel`'s internals
   directly and won't be caught — not chasing 100% compatibility here.
+
+
+## Icons (end-4 style)
+
+Panel/QS chrome uses **Material Symbols Rounded** (same as end-4 Quickshell `MaterialSymbol`), including the FILL axis when the variable font is installed.
+
+Install the font for best results:
+
+```bash
+# Arch
+yay -S ttf-material-symbols-variable-git
+# or copy Material Symbols Rounded.ttf into ~/.local/share/fonts && fc-cache -fv
+```
+
+Without the font, the extension falls back to bundled SVGs.

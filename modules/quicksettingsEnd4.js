@@ -20,7 +20,9 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {createSlider} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
+import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
+import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
 
 const UUID = 'material-panel@SakibShahariar';
 const QS_W = 360;
@@ -381,52 +383,48 @@ function buildToggleGrid() {
     let nlSettings = null;
     try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Row 0 — end-4: [WiFi●] [Bluetooth wide] [round]
+    // Full Wi‑Fi + Bluetooth (NM / BlueZ) — not stub nmcli toggles
+    // Each has power toggle, status, chevron, and expandable device/network list.
+    const wifi = wifiQsBlock();
+    const bt = bluetoothTile();
+    try {
+        wifi.x_expand = true;
+        wifi.width = QS_INNER;
+        if (wifi.style_class && !wifi.style_class.includes('material-panel-qs-wifi-row'))
+            wifi.add_style_class_name('material-panel-qs-wifi-row');
+    } catch (e) {}
+    try {
+        bt.x_expand = true;
+        bt.width = QS_INNER;
+        bt.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px;`;
+    } catch (e) {}
+    try {
+        wifi.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px; border-radius: 18px;`;
+    } catch (e) {}
+
+    const netCol = new St.BoxLayout({vertical: true, x_expand: true});
+    style(netCol, `spacing: 8px; width: ${QS_INNER}px;`);
+    netCol.add_child(wifi);
+    netCol.add_child(bt);
+    // Expand panels sit under the tiles (same as default QS)
+    try {
+        if (bt.devicePanel) {
+            bt.devicePanel.visible = false;
+            try { bt.devicePanel.x_expand = true; bt.devicePanel.width = QS_INNER; } catch (e) {}
+            netCol.add_child(bt.devicePanel);
+        }
+    } catch (e) { logError(e, 'e4 qs bt panel'); }
+    try {
+        if (wifi.listPanel) {
+            wifi.listPanel.visible = false;
+            try { wifi.listPanel.x_expand = true; wifi.listPanel.width = QS_INNER; } catch (e) {}
+            netCol.add_child(wifi.listPanel);
+        }
+    } catch (e) { logError(e, 'e4 qs wifi panel'); }
+
+    // Row of round toggles: dark / dnd / night (former third slot + rest)
     const row0 = new St.BoxLayout({vertical: false});
     style(row0, 'spacing: 8px;');
-    const wifi = makeRoundToggle({
-        iconKeys: ['network-wifi'],
-        symbolic: 'network-wireless-symbolic',
-        getOn: () => {
-            try {
-                const [ok, out] = GLib.spawn_command_line_sync('nmcli -t -f WIFI g');
-                return ok && new TextDecoder().decode(out).toLowerCase().includes('enabled');
-            } catch (e) { return false; }
-        },
-        setOn: on => {
-            try {
-                GLib.spawn_command_line_async(on ? 'nmcli radio wifi on' : 'nmcli radio wifi off');
-            } catch (e) {}
-        },
-    });
-    let btSub = 'Tap to toggle';
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('bluetoothctl devices Connected');
-        if (ok) {
-            const lines = new TextDecoder().decode(out).trim().split('\n').filter(Boolean);
-            btSub = lines.length ? lines[0].replace(/^Device\s+\S+\s+/, '').slice(0, 18) : 'Not connected';
-        }
-    } catch (e) {}
-    const btW = QS_INNER - 52 - 52 - 16; // wifi + third round + gaps
-    const bt = makeWideToggle({
-        label: 'Bluetooth',
-        sub: btSub,
-        width: Math.max(120, btW),
-        iconKeys: ['bluetooth-on', 'bluetooth-off'],
-        symbolic: 'bluetooth-active-symbolic',
-        getOn: () => {
-            try {
-                const [ok, out] = GLib.spawn_command_line_sync('bluetoothctl show');
-                return ok && new TextDecoder().decode(out).includes('Powered: yes');
-            } catch (e) { return false; }
-        },
-        setOn: on => {
-            try {
-                GLib.spawn_command_line_async(on ? 'bluetoothctl power on' : 'bluetoothctl power off');
-            } catch (e) {}
-        },
-    });
-    // Third round = Dark mode (maps to end-4 third tile)
     const darkRound = makeRoundToggle({
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
@@ -437,9 +435,8 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light'); } catch (e) {}
         },
     });
-    row0.add_child(wifi);
-    row0.add_child(bt);
     row0.add_child(darkRound);
+    root.add_child(netCol);
     root.add_child(row0);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
@@ -531,19 +528,26 @@ function buildPowerStrip(menu) {
 }
 
 export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
-    const qsIcon = new St.Icon({
-        icon_size: Math.round(17 * scale),
-        y_align: Clutter.ActorAlign.CENTER,
-        gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
-    });
+    const qsSize = Math.round(17 * scale);
+    let qsSymbol = createMaterialSymbol('quicksettings', qsSize, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+    let qsIcon = null;
+    if (!qsSymbol) {
+        qsIcon = new St.Icon({
+            icon_size: qsSize,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
+        });
+    }
     const button = new St.Button({
         style_class: 'material-panel-quicksettings-btn material-panel-chip',
         reactive: true,
         track_hover: true,
-        child: qsIcon,
+        child: qsSymbol || qsIcon,
     });
     try {
-        wireFileIconPress(button, () => [{icon: qsIcon, key: 'quicksettings'}]);
+        wireFileIconPress(button, () => qsSymbol
+            ? [{symbol: qsSymbol, key: 'quicksettings'}]
+            : [{icon: qsIcon, key: 'quicksettings'}]);
     } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 1.0, St.Side.TOP);

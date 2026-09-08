@@ -5,6 +5,7 @@ import Gvc from 'gi://Gvc';
 
 import {iconPathPrimary, iconPathOnAccent, iconPath} from '../lib/iconTheme.js';
 import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
+import {createMaterialSymbol, setMaterialSymbolKey, setMaterialSymbolColor} from '../lib/materialSymbol.js';
 import {getMixerControl} from '../lib/audio.js';
 
 // Shared control so the chip and QS slider share one sink object —
@@ -23,20 +24,36 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         reactive: true,
         track_hover: true,
     });
-    const icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: Math.round(17 * scale)});
+    const iconSize = Math.round(17 * scale);
+    let symbol = createMaterialSymbol('volume-high', iconSize, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+    let icon = null;
+    if (symbol) {
+        box.add_child(symbol);
+    } else {
+        icon = new St.Icon({style_class: 'material-panel-volume-icon', icon_size: iconSize});
+        box.add_child(icon);
+    }
     const label = new St.Label({style_class: 'material-panel-volume-label', y_align: Clutter.ActorAlign.CENTER});
-    box.add_child(icon);
     box.add_child(label);
 
     let currentKey = 'volume-high';
     let press = null;
     const setIcon = key => {
         currentKey = key;
+        if (symbol) {
+            setMaterialSymbolKey(symbol, key);
+            if (press?.applyIcons) {
+                try { press.applyIcons(); } catch (e) {}
+            } else {
+                setMaterialSymbolColor(symbol, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+            }
+            return;
+        }
         if (press?.applyIcons) {
             try { press.applyIcons(); } catch (e) {}
         } else {
             const g = giconForKey(key, false);
-            if (g)
+            if (g && icon)
                 icon.gicon = g;
         }
     };
@@ -82,7 +99,9 @@ export function buildVolume(_extensionPath, scale = 1.0) {
             attachSink();
     } catch (e) {}
 
-    press = wireFileIconPress(box, () => [{icon, key: currentKey}]);
+    press = wireFileIconPress(box, () => symbol
+        ? [{symbol, key: currentKey}]
+        : [{icon, key: currentKey}]);
 
     box.connect('button-press-event', () => {
         if (sink)
