@@ -140,27 +140,50 @@ function buildHeader(menu) {
 
     row.add_child(new St.Widget({x_expand: true}));
 
-        const mkBtn = (symbolic, fn) => {
-        const b = new St.Button({reactive: true, track_hover: true, can_focus: true});
-        const ic = new St.Icon({icon_name: symbolic, icon_size: 14});
+            const mkBtn = (symbolic, fn) => {
+        const b = new St.Button({
+            style_class: 'material-panel-e4qs-header-btn',
+            reactive: true,
+            track_hover: true,
+            can_focus: true,
+        });
+        // Prefer *-symbolic so St tints with CSS color (on_primary on press)
+        let name = symbolic;
+        if (name && !String(name).endsWith('-symbolic'))
+            name = `${name}-symbolic`;
+        const ic = new St.Icon({
+            icon_name: name,
+            icon_size: 14,
+            style_class: 'material-panel-e4qs-header-icon',
+        });
+        try { ic.style = `-st-icon-style: symbolic; color: ${accent()};`; } catch (e) {}
         const apply = state => {
+            try {
+                b.remove_style_class_name('pressed');
+                b.remove_style_class_name('hover');
+            } catch (e) {}
             let bg = surface();
             let fg = accent();
             if (state === 'active' || state === 'pressed') {
                 bg = accent();
                 fg = onAccent();
+                try { b.add_style_class_name('pressed'); } catch (e) {}
             } else if (state === 'hover' || state === 'focus') {
                 bg = surfaceHover();
-                fg = accent();
+                try { b.add_style_class_name('hover'); } catch (e) {}
             }
+            // Inline mirrors CSS so FileIcon/symbolic always gets on_primary, not default white
             style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
-            try { ic.style = `color: ${fg};`; } catch (e) {}
+            try {
+                ic.style = `-st-icon-style: symbolic; color: ${fg};`;
+            } catch (e) {}
         };
         apply('normal');
         b.set_child(ic);
         b.connect('notify::hover', () => apply(b.hover ? 'hover' : 'normal'));
         b.connect('button-press-event', () => { apply('pressed'); return Clutter.EVENT_PROPAGATE; });
         b.connect('button-release-event', () => { apply(b.hover ? 'hover' : 'normal'); return Clutter.EVENT_PROPAGATE; });
+        b.connect('leave-event', () => { apply('normal'); return Clutter.EVENT_PROPAGATE; });
         b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
     };
