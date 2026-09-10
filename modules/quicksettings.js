@@ -18,6 +18,7 @@ import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {confirmAndRun} from '../lib/powerConfirm.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -172,14 +173,14 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         // Force readable label on active (St CSS often fails in popups)
         try {
             if (on)
-                text.style = 'color: #1a1a1a; font-weight: 700;';
+                text.style = `color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; font-weight: 700;`;
             else
-                text.style = 'color: #e8e0f0; font-weight: 600;';
+                text.style = `color: ${globalThis._materialPanelPrimary ?? '#cdd6f4'}; font-weight: 600;`;
         } catch (e) {}
         if (globalThis._materialPanelLayoutStyle === 'end4') {
             try {
                 tile.style = on
-                    ? 'border-radius: 22px; min-height: 66px; background-color: #f5b8d0;'
+                    ? `border-radius: 22px; min-height: 66px; background-color: ${globalThis._materialPanelPrimary ?? '#89b4fa'};`
                     : 'border-radius: 22px; min-height: 66px;';
             } catch (e) {}
         }
@@ -601,23 +602,24 @@ export function bluetoothTile() {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: 48,
-        width: 148,
         style_class: 'material-panel-qs-bt-tile-outer',
     });
+    try { outer.style = 'min-height: 52px; width: 100%;'; } catch (e) {}
     const tileRow = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-bt-tile-row',
         x_expand: true,
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: 48,
     });
+    try { tileRow.style = 'min-height: 52px; border-radius: 18px;'; } catch (e) {}
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-bt-main',
         reactive: true,
         x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
+        y_align: Clutter.ActorAlign.FILL,
     });
     const mainBox = new St.BoxLayout({
         vertical: false,
@@ -643,12 +645,21 @@ export function bluetoothTile() {
     mainBox.add_child(icon);
     mainBox.add_child(text);
     mainBtn.set_child(mainBox);
+    try {
+        mainBtn.x_expand = true;
+        mainBtn.y_expand = true;
+        mainBtn.style = 'min-height: 52px; padding: 8px 12px; border-radius: 18px 0 0 18px;';
+    } catch (e) {}
 
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-bt-drop',
         reactive: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        y_align: Clutter.ActorAlign.FILL,
     });
+    try {
+        dropBtn.style = 'min-height: 52px; min-width: 40px; padding: 0 10px; border-radius: 0 18px 18px 0;';
+    } catch (e) {}
     const dropIcon = new St.Icon({
         icon_name: 'pan-down-symbolic',
         icon_size: 14,
@@ -696,14 +707,27 @@ export function bluetoothTile() {
         const key = powered ? 'bluetooth-on' : 'bluetooth-off';
         icon.gicon = Gio.FileIcon.new(
             Gio.File.new_for_path(powered ? iconPathOnAccent(key) : iconPath(key)));
-        tileRow.set_style_class_name(`material-panel-qs-tile material-panel-qs-bt-tile-row${powered ? ' active' : ''}`);
+        tileRow.set_style_class_name(
+            `material-panel-qs-tile material-panel-qs-bt-tile-row${powered ? ' active' : ''}`);
         text.text = 'Bluetooth';
+        // Force matugen primary when on — CSS alone was losing specificity → wrong/pink fills
         try {
-            text.style = powered ? 'color: #1a1a1a; font-weight: 700;' : 'color: #e8e0f0; font-weight: 600;';
-            if (globalThis._materialPanelLayoutStyle === 'end4')
-                tileRow.style = powered
-                    ? 'border-radius: 22px; min-height: 66px; background-color: #f5b8d0;'
-                    : 'border-radius: 22px; min-height: 66px;';
+            const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
+            const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+            const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
+            text.style = powered
+                ? `font-weight: 700; color: ${onP};`
+                : 'font-weight: 600;';
+            tileRow.style = powered
+                ? `border-radius: 18px; min-height: 52px; width: 100%; background-color: ${primary};`
+                : `border-radius: 18px; min-height: 52px; width: 100%; background-color: ${surface};`;
+            mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
+            dropBtn.style = 'min-height: 52px; min-width: 44px; padding: 0 12px; background-color: transparent;';
+            outer.style = 'min-height: 52px;';
+            outer.height = 52;
+            tileRow.height = 52;
+            mainBtn.x_expand = true;
+            mainBtn.y_expand = true;
         } catch (e) {}
         if (_refreshDevices) _refreshDevices();
     };
@@ -1437,8 +1461,9 @@ function buildBluetoothDeviceList() {
 const POWER_ACTIONS = [
     {iconKey: 'lock', command: 'loginctl lock-session'},
     {iconKey: 'suspend', command: 'systemctl suspend'},
-    {iconKey: 'restart', command: 'systemctl reboot'},
-    {iconKey: 'shutdown', command: 'systemctl poweroff'},
+    // gnome-session-quit without --no-prompt shows the confirm dialog
+    {iconKey: 'restart', command: 'gnome-session-quit --reboot'},
+    {iconKey: 'shutdown', command: 'gnome-session-quit --power-off'},
 ];
 
 function openExtensionPrefs() {
@@ -1482,13 +1507,28 @@ export function powerRow(menu = null) {
             } catch (e) {}
         }
         btn.connect('clicked', () => {
-            try {
-                GLib.spawn_command_line_async(command);
-            } catch (e) {
-                logError(e, `material-panel: failed to run "${command}"`);
-            }
             if (menu) {
                 try { menuClose(menu); } catch (e) {}
+            }
+            const needsConfirm = /poweroff|reboot|logout|power-off|--reboot/.test(command);
+            if (needsConfirm) {
+                let title = 'Confirm';
+                let body = 'Continue?';
+                let lab = 'Confirm';
+                if (/poweroff|power-off/.test(command)) {
+                    title = 'Power off'; body = 'Power off this system?'; lab = 'Power off';
+                } else if (/reboot|--reboot/.test(command)) {
+                    title = 'Restart'; body = 'Restart this system now?'; lab = 'Restart';
+                } else if (/logout/.test(command)) {
+                    title = 'Log out'; body = 'Close all apps and log out?'; lab = 'Log out';
+                }
+                confirmAndRun(title, body, lab, command);
+            } else {
+                try {
+                    GLib.spawn_command_line_async(command);
+                } catch (e) {
+                    logError(e, `material-panel: failed to run "${command}"`);
+                }
             }
         });
         row.add_child(btn);
@@ -1509,20 +1549,30 @@ export function wifiQsBlock() {
         height: (globalThis._materialPanelLayoutStyle === 'end4') ? 66 : 52,
         width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
     });
-    if (globalThis._materialPanelLayoutStyle === 'end4') {
-        try { row.style = 'border-radius: 22px; min-height: 66px;'; } catch (e) {}
-    }
+    try {
+        const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
+        row.style = `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
+        row.height = 52;
+    } catch (e) {}
 
     const mainBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-main',
         reactive: true,
+        track_hover: true,
+        can_focus: true,
         x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        x_align: Clutter.ActorAlign.FILL,
+        y_align: Clutter.ActorAlign.FILL,
     });
+    try {
+        mainBtn.style = 'min-height: 48px; padding: 8px 12px;';
+    } catch (e) {}
     const mainBox = new St.BoxLayout({
         vertical: false,
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
+        y_expand: true,
         style_class: 'material-panel-qs-wifi-main-box',
     });
     const icon = new St.Icon({
@@ -1574,7 +1624,8 @@ export function wifiQsBlock() {
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-drop',
         reactive: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        y_expand: true,
+        y_align: Clutter.ActorAlign.FILL,
     });
     const dropIcon = new St.Icon({
         icon_name: 'pan-down-symbolic',
@@ -1598,25 +1649,31 @@ export function wifiQsBlock() {
     let client = null;
 
     const setActive = on => {
-        if (on) {
+        const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
+        const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+        const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
+        if (on)
             row.add_style_class_name('active');
-            try {
-                if (ssidLabel)
-                    ssidLabel.style = 'color: #1a1a1a; font-weight: 700;';
-            } catch (e) {}
-        } else {
+        else
             row.remove_style_class_name('active');
-            try {
-                if (ssidLabel)
-                    ssidLabel.style = '';
-            } catch (e) {}
-        }
+        try {
+            row.style = on
+                ? `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${primary};`
+                : `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
+            row.height = 52;
+            mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
+            dropBtn.style = 'min-height: 52px; min-width: 44px; padding: 0 12px; background-color: transparent;';
+            text.style = on ? `font-weight: 700; color: ${onP};` : 'font-weight: 600;';
+        } catch (e) {}
+        try {
+            if (ssidLabel)
+                ssidLabel.style = on ? `color: ${onP}; font-weight: 700;` : '';
+        } catch (e) {}
         const key = on ? 'network-wifi' : 'network-offline';
         try {
             icon.gicon = Gio.FileIcon.new(
                 Gio.File.new_for_path(on ? iconPathOnAccent(key) : iconPath(key)));
         } catch (e) {}
-        // Chevron uses on-primary (onAccent) when tile is active
         try {
             if (on) {
                 dropBtn.add_style_class_name('active-drop');

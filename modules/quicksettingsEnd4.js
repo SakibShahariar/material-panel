@@ -23,6 +23,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
+import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 const UUID = 'material-panel@SakibShahariar';
@@ -94,6 +95,19 @@ function openPrefs() {
     try {
         GLib.spawn_command_line_async(`gnome-extensions prefs ${UUID}`);
     } catch (e) {}
+}
+
+/** @deprecated use confirmAndRun */
+function confirmPower(action) {
+    const map = {
+        logout: ['Log out', 'Close all apps and log out?', 'Log out', 'gnome-session-quit --logout --no-prompt'],
+        reboot: ['Restart', 'Restart this system now?', 'Restart', 'systemctl reboot'],
+        poweroff: ['Power off', 'Power off this system?', 'Power off', 'systemctl poweroff'],
+    };
+    const entry = map[action];
+    if (!entry)
+        return;
+    confirmAndRun(entry[0], entry[1], entry[2], entry[3]);
 }
 
 // ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
@@ -194,8 +208,8 @@ function buildHeader(menu) {
     }));
     row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
     row.add_child(mkBtn('system-shutdown-symbolic', () => {
-        try { GLib.spawn_command_line_async('gnome-session-quit --power-off'); } catch (e) {}
         try { menuClose(menu); } catch (e) {}
+        confirmAndRun('Power off', 'Power off this system?', 'Power off', 'systemctl poweroff');
     }));
 
     const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
@@ -545,9 +559,9 @@ function buildPowerStrip(menu) {
     style(row, `spacing: ${gap}px; width: ${QS_INNER}px;`);
     try { row.width = QS_INNER; } catch (e) {}
     const actions = [
-        {icon: 'system-log-out-symbolic', cmd: 'gnome-session-quit --logout --no-prompt'},
-        {icon: 'view-refresh-symbolic', cmd: 'systemctl reboot'},
-        {icon: 'system-shutdown-symbolic', cmd: 'systemctl poweroff'},
+        {icon: 'system-log-out-symbolic', title: 'Log out', body: 'Close all apps and log out?', confirm: 'Log out', cmd: 'gnome-session-quit --logout --no-prompt'},
+        {icon: 'view-refresh-symbolic', title: 'Restart', body: 'Restart this system now?', confirm: 'Restart', cmd: 'systemctl reboot'},
+        {icon: 'system-shutdown-symbolic', title: 'Power off', body: 'Power off this system?', confirm: 'Power off', cmd: 'systemctl poweroff'},
     ];
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: false});
@@ -578,8 +592,8 @@ function buildPowerStrip(menu) {
         b.connect('button-press-event', () => { pressed = true; paintP(); return Clutter.EVENT_PROPAGATE; });
         b.connect('button-release-event', () => { pressed = false; paintP(); return Clutter.EVENT_PROPAGATE; });
         b.connect('clicked', () => {
-            try { GLib.spawn_command_line_async(a.cmd); } catch (e) {}
             try { menuClose(menu); } catch (e) {}
+            confirmAndRun(a.title, a.body, a.confirm, a.cmd);
         });
         row.add_child(b);
     }
