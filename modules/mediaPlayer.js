@@ -11,6 +11,40 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
+
+function setArtFromUrl(icon, artUrl) {
+    if (!icon)
+        return;
+    try {
+        if (!artUrl) {
+            icon.gicon = null;
+            icon.icon_name = 'audio-x-generic-symbolic';
+            return;
+        }
+        let path = String(artUrl);
+        if (path.startsWith('file://'))
+            path = path.slice(7);
+        // percent-decode common cases
+        try { path = decodeURI(path); } catch (e) {}
+        const file = Gio.File.new_for_path(path);
+        if (file.query_exists(null)) {
+            icon.gicon = Gio.FileIcon.new(file);
+            return;
+        }
+        // http(s) — St.TextureCache async if available
+        if (/^https?:/i.test(String(artUrl))) {
+            try {
+                const cache = St.TextureCache.get_default();
+                const tex = cache.load_uri_async(String(artUrl), 48, 48, null);
+                // Some Shell versions return a widget; ignore if not
+            } catch (e) {}
+        }
+        icon.icon_name = 'audio-x-generic-symbolic';
+    } catch (e) {
+        try { icon.icon_name = 'audio-x-generic-symbolic'; } catch (e2) {}
+    }
+}
+
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 
@@ -83,7 +117,8 @@ function bindPlayer(busName, hooks) {
                     const meta = variant.deep_unpack();
                     const title = metaField(meta, 'xesam:title') || 'Unknown';
                     const artist = metaField(meta, 'xesam:artist');
-                    hooks.onMeta?.({title, artist, busName: name});
+                    const artUrl = metaField(meta, 'mpris:artUrl');
+                    hooks.onMeta?.({title, artist, artUrl, busName: name});
                 } catch (e) {}
             };
             const applyStatus = variant => {
@@ -173,6 +208,24 @@ export function buildMediaPlayerRow() {
         y_align: Clutter.ActorAlign.CENTER,
         visible: false,
     });
+    try {
+        row.style = 'spacing: 10px; padding: 8px 10px; border-radius: 16px;';
+    } catch (e) {}
+
+    const artIcon = new St.Icon({
+        style_class: 'material-panel-qs-media-art',
+        icon_size: 40,
+        icon_name: 'audio-x-generic-symbolic',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try { artIcon.style = 'border-radius: 10px;'; } catch (e) {}
+
+    const textCol = new St.BoxLayout({
+        vertical: true,
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try { textCol.style = 'spacing: 2px;'; } catch (e) {}
     const titleLabel = new St.Label({
         text: 'No media',
         style_class: 'material-panel-qs-media-title',
@@ -186,28 +239,34 @@ export function buildMediaPlayerRow() {
         y_align: Clutter.ActorAlign.CENTER,
     });
     artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    artistLabel.visible = false; // compact: title only in QS
-    const textCol = new St.BoxLayout({vertical: false, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
     textCol.add_child(titleLabel);
+    textCol.add_child(artistLabel);
 
-    const mkBtn = (iconName) => {
+    const controls = new St.BoxLayout({
+        vertical: false,
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-qs-media-controls',
+    });
+    try { controls.style = 'spacing: 4px;'; } catch (e) {}
+    const mk = name => {
         const b = new St.Button({
             style_class: 'material-panel-qs-media-btn',
             reactive: true,
             track_hover: true,
-            y_align: Clutter.ActorAlign.CENTER,
         });
-        b.set_child(new St.Icon({icon_name: iconName, icon_size: 16}));
+        b.set_child(new St.Icon({icon_name: name, icon_size: 16}));
         return b;
     };
-    const prevBtn = mkBtn('media-skip-backward-symbolic');
-    const playPauseBtn = mkBtn('media-playback-start-symbolic');
-    const nextBtn = mkBtn('media-skip-forward-symbolic');
+    const prevBtn = mk('media-skip-backward-symbolic');
+    const playBtn = mk('media-playback-start-symbolic');
+    const nextBtn = mk('media-skip-forward-symbolic');
+    controls.add_child(prevBtn);
+    controls.add_child(playBtn);
+    controls.add_child(nextBtn);
 
+    row.add_child(artIcon);
     row.add_child(textCol);
-    row.add_child(prevBtn);
-    row.add_child(playPauseBtn);
-    row.add_child(nextBtn);
+    row.add_child(controls);
 
     let ctl = null;
     const clearCtl = () => {
@@ -218,42 +277,37 @@ export function buildMediaPlayerRow() {
     const attach = busName => {
         clearCtl();
         if (!busName) {
+            row.visible = false;
             titleLabel.text = 'No media';
             artistLabel.text = '';
-            row.visible = false;
+            setArtFromUrl(artIcon, null);
             return;
         }
         bindPlayer(busName, {
-            onMeta: ({title, artist}) => {
-                // Keep one short line in QS
-                let t = title || 'Media';
-                if (t.length > 40)
-                    t = t.slice(0, 39) + '…';
-                titleLabel.text = t;
+            onMeta: ({title, artist, artUrl}) => {
+                row.visible = true;
+                titleLabel.text = title || 'Media';
                 artistLabel.text = artist || '';
+                setArtFromUrl(artIcon, artUrl);
             },
             onStatus: playing => {
-                playPauseBtn.child.icon_name = playing
-                    ? 'media-playback-pause-symbolic'
-                    : 'media-playback-start-symbolic';
-                row.visible = !!playing;
+                row.visible = true;
+                try {
+                    playBtn.child.icon_name = playing
+                        ? 'media-playback-pause-symbolic'
+                        : 'media-playback-start-symbolic';
+                } catch (e) {}
             },
-            onReady: c => {
-                ctl = c;
-                prevBtn.connect('clicked', () => c.previous());
-                playPauseBtn.connect('clicked', () => c.playPause());
-                nextBtn.connect('clicked', () => c.next());
-            },
-            onGone: () => {
-                titleLabel.text = 'No media';
-                artistLabel.text = '';
-                row.visible = false;
-            },
+            onReady: c => { ctl = c; },
         });
     };
 
+    prevBtn.connect('clicked', () => ctl?.previous());
+    playBtn.connect('clicked', () => ctl?.playPause());
+    nextBtn.connect('clicked', () => ctl?.next());
+
     pickPreferredPlayer(attach);
-    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 4, () => {
         pickPreferredPlayer(name => {
             if (!ctl)
                 attach(name);
@@ -264,7 +318,6 @@ export function buildMediaPlayerRow() {
         clearCtl();
         try { GLib.source_remove(scanId); } catch (e) {}
     });
-
     return row;
 }
 
@@ -428,11 +481,12 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             return;
         }
         bindPlayer(busName, {
-            onMeta: ({title, artist}) => {
+            onMeta: ({title, artist, artUrl}) => {
                 const t = title || 'Media';
                 label.text = t.length > 22 ? `${t.slice(0, 20)}…` : t;
                 pTitle.text = title || 'Unknown';
                 pArtist.text = artist || '';
+                try { setArtFromUrl(art, artUrl); } catch (e) {}
             },
             onStatus: playing => setPlayingUi(!!playing),
             onReady: c => { ctl = c; },

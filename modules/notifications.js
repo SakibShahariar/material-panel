@@ -76,11 +76,17 @@ function groupByApp(items) {
     return map;
 }
 
-function destroyNotification(n) {
+export function destroyNotification(n) {
     try {
         n.destroy?.(2);
     } catch (e) {
         try { n.destroy?.(0); } catch (e2) {}
+    }
+}
+
+export function clearAllNotifications() {
+    for (const item of listNotifications()) {
+        try { destroyNotification(item.notification); } catch (e) {}
     }
 }
 

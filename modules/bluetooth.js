@@ -236,7 +236,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     devicesOuter.add_child(scroll);
     const devicesOuterItem = wrapAsMenuItem(devicesOuter);
     // Ensure popup menu has reasonable width so device rows don't stretch unbounded
-    try { menu.actor.style = 'min-width: 340px;'; } catch (e) {}
+    try { menu.actor.style = 'max-width: 360px; min-width: 260px;'; } catch (e) {}
 
     // Footer — open Settings shortcut (like Noctalia's "Open Bluetooth Settings")
     const footerBtn = new St.Button({

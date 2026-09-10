@@ -1795,18 +1795,36 @@ export function wifiQsBlock() {
     });
     getQsExpandController().register('wifi', {setExpanded});
     row.connect('destroy', () => getQsExpandController().unregister('wifi'));
+    let _wifiBusy = false;
     mainBtn.connect('clicked', () => {
+        if (_wifiBusy)
+            return Clutter.EVENT_STOP;
         try {
             let on = false;
-            if (client)
-                on = !!client.wireless_enabled;
-            // nmcli is more reliable than NM.Client.wireless_enabled alone on some setups
-            GLib.spawn_command_line_async(on ? 'nmcli radio wifi off' : 'nmcli radio wifi on');
             try {
                 if (client)
-                    client.wireless_enabled = !on;
+                    on = !!client.wireless_enabled;
             } catch (e) {}
+            // Optimistic UI so the full tile reacts immediately
+            const next = !on;
+            _wifiBusy = true;
+            try { setActive(next); } catch (e) {}
+            try { text.text = next ? 'Turning on…' : 'Turning off…'; } catch (e) {}
+            GLib.spawn_command_line_async(next ? 'nmcli radio wifi on' : 'nmcli radio wifi off');
+            try {
+                if (client)
+                    client.wireless_enabled = next;
+            } catch (e) {}
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+                _wifiBusy = false;
+                try {
+                    if (client)
+                        setActive(!!client.wireless_enabled);
+                } catch (e) {}
+                return GLib.SOURCE_REMOVE;
+            });
         } catch (e) {
+            _wifiBusy = false;
             logError(e, 'material-panel: QS Wi-Fi toggle failed');
         }
         return Clutter.EVENT_STOP;
@@ -2020,7 +2038,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                     `min-width: 380px; max-width: 400px; border-radius: 24px; padding: 14px;`);
             } catch (e) {
                 try {
-                    menu.box.style = 'min-width: 380px; border-radius: 24px; padding: 14px;';
+                    menu.box.style = 'max-width: 400px; min-width: 300px; border-radius: 24px; padding: 14px;';
                 } catch (e2) {}
             }
             // Style every tile-like button under the menu
