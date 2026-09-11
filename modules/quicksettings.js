@@ -718,14 +718,16 @@ export function bluetoothTile() {
             text.style = powered
                 ? `font-weight: 700; color: ${onP};`
                 : 'font-weight: 600;';
+            const h = globalThis._materialPanelLayoutStyle === 'end4' ? 56 : 52;
+            const rad = globalThis._materialPanelLayoutStyle === 'end4' ? 22 : 18;
             tileRow.style = powered
-                ? `border-radius: 18px; min-height: 52px; width: 100%; background-color: ${primary};`
-                : `border-radius: 18px; min-height: 52px; width: 100%; background-color: ${surface};`;
-            mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
-            dropBtn.style = 'min-height: 52px; min-width: 44px; padding: 0 12px; background-color: transparent;';
-            outer.style = 'min-height: 52px;';
-            outer.height = 52;
-            tileRow.height = 52;
+                ? `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${primary};`
+                : `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${surface};`;
+            mainBtn.style = `min-height: ${h}px; padding: 8px 12px; background-color: transparent;`;
+            dropBtn.style = `min-height: ${h}px; min-width: 44px; padding: 0 12px; background-color: transparent;`;
+            outer.style = `min-height: ${h}px;`;
+            outer.height = h;
+            tileRow.height = h;
             mainBtn.x_expand = true;
             mainBtn.y_expand = true;
         } catch (e) {}
@@ -1552,7 +1554,7 @@ export function wifiQsBlock() {
     try {
         const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
         row.style = `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
-        row.height = 52;
+        row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
     } catch (e) {}
 
     const mainBtn = new St.Button({
@@ -1660,7 +1662,7 @@ export function wifiQsBlock() {
             row.style = on
                 ? `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${primary};`
                 : `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
-            row.height = 52;
+            row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
             mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
             dropBtn.style = 'min-height: 52px; min-width: 44px; padding: 0 12px; background-color: transparent;';
             text.style = on ? `font-weight: 700; color: ${onP};` : 'font-weight: 600;';

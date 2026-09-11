@@ -27,7 +27,7 @@ import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 const UUID = 'material-panel@SakibShahariar';
-const QS_W = 360;
+const QS_W = 380;
 const QS_PAD = 12;
 const QS_INNER = QS_W - QS_PAD * 2;
 function accent() {
@@ -624,7 +624,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 1.0, St.Side.TOP);
-    menu.actor.add_style_class_name('material-panel-e4qs-menu material-panel-popup');
+    menu.actor.add_style_class_name('material-panel-e4qs-menu material-panel-popup material-panel-qs-end4');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);

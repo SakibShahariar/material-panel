@@ -1,9 +1,6 @@
 /**
- * end-4 style workspaces:
- *  - Soft chip pill background
- *  - Overlapping app icons via negative margin
- *  - Primary ring on focused app
- *  - Empty workspaces = small dots
+ * end-4 workspaces: overlapping app icons + focus ring + empty dots.
+ * Multi-app clusters use fixed width so negative margins never break allocation.
  */
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -17,8 +14,7 @@ const MAX_ICONS = 5;
 function _allMetaWindows() {
     const out = [];
     try {
-        const actors = global.get_window_actors?.() || [];
-        for (const a of actors) {
+        for (const a of global.get_window_actors?.() || []) {
             try {
                 const w = a.meta_window;
                 if (w)
@@ -31,18 +27,14 @@ function _allMetaWindows() {
 
 function _windowsOnWorkspace(ws, index) {
     const wins = [];
-    // Prefer workspace API
     try {
-        const list = ws.list_windows?.() || [];
-        for (const w of list)
+        for (const w of ws.list_windows?.() || [])
             wins.push(w);
     } catch (e) {}
-    // Fallback: scan all actors
     if (wins.length === 0) {
         for (const w of _allMetaWindows()) {
             try {
-                const wsi = w.get_workspace?.();
-                if (wsi && wsi.index() === index)
+                if (w.get_workspace?.()?.index() === index)
                     wins.push(w);
             } catch (e) {}
         }
@@ -53,35 +45,17 @@ function _windowsOnWorkspace(ws, index) {
                 return false;
         } catch (e) {}
         try {
-            if (typeof w.skip_taskbar !== 'undefined' && w.skip_taskbar)
-                return false;
-            if (typeof w.is_skip_taskbar === 'function' && w.is_skip_taskbar())
+            if (w.skip_taskbar || (typeof w.is_skip_taskbar === 'function' && w.is_skip_taskbar()))
                 return false;
         } catch (e) {}
         try {
             const t = w.get_window_type?.();
             if (t === Meta.WindowType.DESKTOP || t === Meta.WindowType.DOCK ||
-                t === Meta.WindowType.N_A || t === Meta.WindowType.UTILITY)
-                return false;
-        } catch (e) {}
-        try {
-            // Skip our own panel / shell chrome
-            if (w.is_on_all_workspaces?.() && !w.get_wm_class?.())
+                t === Meta.WindowType.N_A)
                 return false;
         } catch (e) {}
         return true;
     });
-}
-
-function _giconForApp(app) {
-    if (!app)
-        return null;
-    try {
-        const g = app.get_icon?.();
-        if (g)
-            return g;
-    } catch (e) {}
-    return null;
 }
 
 function _appsOnWorkspace(ws, index) {
@@ -97,7 +71,8 @@ function _appsOnWorkspace(ws, index) {
             if (seen.has(id))
                 continue;
             seen.add(id);
-            const gicon = _giconForApp(app);
+            let gicon = null;
+            try { gicon = app.get_icon(); } catch (e) {}
             if (!gicon)
                 continue;
             apps.push({app, gicon, id});
@@ -131,7 +106,22 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
 
     const manager = global.workspace_manager;
     const iconSize = Math.max(16, Math.round(20 * (scale || 1)));
-    const pull = Math.round(iconSize * 0.42);
+    // Overlap amount — keep modest so layout stays valid
+    const pull = Math.max(6, Math.round(iconSize * 0.38));
+    const ringPad = 4; // border + padding around icon
+
+    let rebuildTimer = 0;
+    const scheduleRebuild = () => {
+        if (rebuildTimer)
+            return;
+        rebuildTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+            rebuildTimer = 0;
+            try { rebuild(); } catch (e) {
+                logError(e, 'material-panel: workspaces rebuild');
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    };
 
     const rebuild = () => {
         box.destroy_all_children();
@@ -186,15 +176,24 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 continue;
             }
 
-            const cluster = new St.BoxLayout({
+            const slot = iconSize + ringPad * 2;
+            const count = apps.length;
+            // Fixed width so St never collapses from negative margins
+            const clusterW = slot + (count - 1) * (slot - pull) + 8;
+            const clusterH = slot + 4;
+
+            const cluster = new St.Widget({
                 style_class: active
                     ? 'material-panel-ws-cluster active'
                     : 'material-panel-ws-cluster',
-                y_align: Clutter.ActorAlign.CENTER,
                 reactive: false,
+                width: clusterW,
+                height: clusterH,
             });
             try {
-                cluster.style = 'spacing: 0; padding: 3px 6px; border-radius: 999px;';
+                cluster.style =
+                    `width: ${clusterW}px; height: ${clusterH}px; min-width: ${clusterW}px;` +
+                    'border-radius: 999px;';
             } catch (e) {}
 
             apps.forEach((entry, idx) => {
@@ -204,18 +203,22 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                         entry.app.get_id?.() === focusId ||
                         entry.app.get_name?.() === focusId)
                 );
+                const x = 4 + idx * (slot - pull);
                 const ring = new St.Bin({
                     style_class: isFocus
                         ? 'material-panel-ws-app-ring active'
                         : 'material-panel-ws-app-ring',
                     x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER,
+                    width: slot,
+                    height: slot,
                 });
                 try {
-                    const ml = idx === 0 ? 0 : -pull;
                     ring.style = isFocus
-                        ? `margin-left: ${ml}px; padding: 2px; border-radius: 999px; border: 2px solid;`
-                        : `margin-left: ${ml}px; padding: 2px; border-radius: 999px; border: 2px solid transparent;`;
+                        ? `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
+                          'border: 2px solid; padding: 2px;'
+                        : `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
+                          'border: 2px solid transparent; padding: 2px;';
                 } catch (e) {}
                 const img = new St.Icon({
                     style_class: 'material-panel-workspace-app',
@@ -224,6 +227,9 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 });
                 ring.set_child(img);
                 cluster.add_child(ring);
+                try {
+                    ring.set_position(x, Math.round((clusterH - slot) / 2));
+                } catch (e) {}
             });
 
             const btn = new St.Button({
@@ -237,7 +243,9 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             });
             try {
                 btn.style =
-                    'background-color: transparent; border: none; padding: 0; border-radius: 999px;';
+                    `background-color: transparent; border: none; padding: 0;` +
+                    `border-radius: 999px; width: ${clusterW}px; height: ${clusterH}px;` +
+                    `min-width: ${clusterW}px; min-height: ${clusterH}px;`;
             } catch (e) {}
             wirePressedClass(btn);
             btn.connect('clicked', () => ws.activate(global.get_current_time()));
@@ -247,19 +255,18 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
 
     rebuild();
     const ids = [];
-    try { ids.push(['m', manager.connect('active-workspace-changed', rebuild)]); } catch (e) {}
-    try { ids.push(['m', manager.connect('notify::n-workspaces', rebuild)]); } catch (e) {}
-    try { ids.push(['d', global.display.connect('restacked', () => rebuild())]); } catch (e) {}
-    try { ids.push(['d', global.display.connect('window-created', () => {
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-            rebuild();
-            return GLib.SOURCE_REMOVE;
-        });
-    })]); } catch (e) {}
-    try { ids.push(['d', global.display.connect('notify::focus-window', () => rebuild())]); } catch (e) {}
-    try { ids.push(['w', global.window_manager.connect('switch-workspace', () => rebuild())]); } catch (e) {}
+    try { ids.push(['m', manager.connect('active-workspace-changed', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['m', manager.connect('notify::n-workspaces', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('restacked', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('window-created', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('notify::focus-window', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['w', global.window_manager.connect('switch-workspace', scheduleRebuild)]); } catch (e) {}
 
     box.connect('destroy', () => {
+        if (rebuildTimer) {
+            try { GLib.source_remove(rebuildTimer); } catch (e) {}
+            rebuildTimer = 0;
+        }
         for (const [kind, id] of ids) {
             try {
                 if (kind === 'm')
