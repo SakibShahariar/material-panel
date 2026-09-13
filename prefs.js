@@ -528,7 +528,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const hideAllRow = new Adw.ActionRow({
             title: 'Hide all on Material Panel',
-            subtitle: 'Temporarily hide opted-in tray icons on our bar only — does not change GNOME',
+            subtitle: 'Hide AppIndicator / tray icons on our bar only — does not remove them from GNOME',
         });
         const hideAllSwitch = new Gtk.Switch({
             active: !!config.trayAllHidden,
@@ -637,7 +637,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 }
                 // Default / missing → Off (never imply Right)
                 if (!['left', 'right', 'center', 'hidden'].includes(current))
-                    current = 'hidden';
+                    current = 'right';
                 for (const opt of PLACE_OPTS)
                     buttons[opt.id].active = (opt.id === current);
                 syncingExternal = false;
