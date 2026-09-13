@@ -50,8 +50,8 @@ function _windowsOnWorkspace(ws, index) {
         } catch (e) {}
         try {
             const t = w.get_window_type?.();
-            if (t === Meta.WindowType.DESKTOP || t === Meta.WindowType.DOCK ||
-                t === Meta.WindowType.N_A)
+            const WT = Meta?.WindowType;
+            if (WT && (t === WT.DESKTOP || t === WT.DOCK || t === WT.N_A))
                 return false;
         } catch (e) {}
         return true;

@@ -128,146 +128,116 @@ function httpGet(url) {
 }
 
 /**
- * GNOME Weather stores coords in radians in GSettings.
- * libgweather get_coords() is usually degrees — normalize either way.
+ * GNOME Weather GSettings coords are radians; Open-Meteo wants degrees.
  */
 function normalizeLatLon(lat, lon) {
     lat = Number(lat);
     lon = Number(lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon))
         return null;
-    // Radians if within ±π (and not already a plausible degree pair for cities)
-    if (Math.abs(lat) <= Math.PI + 0.01 && Math.abs(lon) <= Math.PI + 0.01) {
-        // Heuristic: values like 0.42, 1.58 are radians (Dhaka); 23.8, 90.4 are degrees
-        if (Math.abs(lat) < 3.2 && Math.abs(lon) < 3.2) {
-            lat = lat * (180 / Math.PI);
-            lon = lon * (180 / Math.PI);
-        }
+    // Treat as radians when both magnitudes look like ±π range
+    if (Math.abs(lat) <= 3.2 && Math.abs(lon) <= 3.2) {
+        lat = lat * (180 / Math.PI);
+        lon = lon * (180 / Math.PI);
     }
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180)
         return null;
     return {lat, lon};
 }
 
-/** Parse first city from org.gnome.Weather locations GVariant (no GIR needed). */
-function parseGnomeWeatherLocationsVariant(value) {
-    // Shape: array of (uv = (s, s, b, a(dd), a(dd))) roughly
+/**
+ * Safe path: parse `gsettings get org.gnome.Weather locations` text.
+ * Avoids deep GVariant walks that can native-crash the Shell.
+ */
+function loadGnomeWeatherLocationFromGsettingsText() {
     try {
-        if (!value || value.n_children() < 1)
+        const [ok, stdout, _stderr, status] = GLib.spawn_command_line_sync(
+            'gsettings get org.gnome.Weather locations');
+        if (!ok || status !== 0)
             return null;
-        const child = value.get_child_value(0);
-        // Unwrap nested tuples until we find string name + (dd) coords
-        let name = '';
-        let lat = null, lon = null;
+        const text = new TextDecoder('utf-8').decode(stdout);
+        if (!text || text.includes('@as []') || text.trim() === '@as []')
+            return null;
 
-        const walk = v => {
-            if (!v)
-                return;
-            try {
-                const t = v.get_type_string?.() || '';
-                if (t === 's') {
-                    const s = v.get_string()[0];
-                    if (s && s.length > 1 && s.length < 64 && !/^[A-Z]{3,4}$/.test(s) && !name)
-                        name = s;
-                    return;
-                }
-                if (t === 'd')
-                    return;
-                if (t === '(dd)' || t === 'a(dd)') {
-                    const n = v.n_children();
-                    if (t === '(dd)' && n >= 2) {
-                        const a = v.get_child_value(0).get_double();
-                        const b = v.get_child_value(1).get_double();
-                        if (lat == null) {
-                            lat = a;
-                            lon = b;
-                        }
-                    } else if (t === 'a(dd)' && n >= 1) {
-                        const pair = v.get_child_value(0);
-                        if (pair.n_children() >= 2) {
-                            const a = pair.get_child_value(0).get_double();
-                            const b = pair.get_child_value(1).get_double();
-                            if (lat == null) {
-                                lat = a;
-                                lon = b;
-                            }
-                        }
-                    }
-                    return;
-                }
-                const n = v.n_children?.() ?? 0;
-                for (let i = 0; i < n; i++)
-                    walk(v.get_child_value(i));
-            } catch (e) {}
-        };
-        walk(child);
-        const coords = normalizeLatLon(lat, lon);
-        if (!coords)
+        // City name: first quoted string that is not a 3–4 letter ICAO-like code
+        let name = 'GNOME Weather';
+        const names = [...text.matchAll(/'([^']{2,64})'/g)].map(m => m[1]);
+        for (const n of names) {
+            if (/^[A-Z0-9]{3,4}$/.test(n))
+                continue;
+            if (/^(true|false)$/i.test(n))
+                continue;
+            name = n;
+            break;
+        }
+
+        // First coordinate pair: (0.416..., 1.577...) radians or degrees
+        const pair = text.match(/\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)/);
+        if (!pair)
             return null;
-        return {name: name || 'GNOME Weather', lat: coords.lat, lon: coords.lon, location: null};
+        const norm = normalizeLatLon(pair[1], pair[2]);
+        if (!norm)
+            return null;
+        return {location: null, name, lat: norm.lat, lon: norm.lon};
     } catch (e) {
-        logError(e, 'material-panel: parseGnomeWeatherLocationsVariant');
+        logError(e, 'material-panel: gsettings weather locations');
         return null;
     }
 }
 
 /** @returns {Promise<{location, name, lat, lon}|null>} */
 async function loadGnomeWeatherLocation() {
+    // 1) CLI parse — safest (no GVariant / GWeather native deserialize)
     try {
+        const fromText = loadGnomeWeatherLocationFromGsettingsText();
+        if (fromText) {
+            log(`material-panel: weather loc "${fromText.name}" ${fromText.lat.toFixed(2)},${fromText.lon.toFixed(2)} (gsettings)`);
+            return fromText;
+        }
+    } catch (e) {
+        logError(e, 'material-panel: weather gsettings path');
+    }
+
+    // 2) Optional libgweather — fully try/caught
+    try {
+        const GWeather = await ensureGWeather();
+        if (!GWeather)
+            return null;
         const schema = 'org.gnome.Weather';
         const source = Gio.SettingsSchemaSource.get_default();
-        if (!source.lookup(schema, true)) {
-            log('material-panel: org.gnome.Weather schema not found');
+        if (!source?.lookup?.(schema, true))
             return null;
-        }
         const settings = new Gio.Settings({schema_id: schema});
         const value = settings.get_value('locations');
-        if (!value || value.n_children() < 1) {
-            log('material-panel: GNOME Weather has no saved cities');
+        if (!value || value.n_children() < 1)
+            return null;
+        const world = GWeather.Location.get_world();
+        if (!world)
+            return null;
+        const child = value.get_child_value(0);
+        let loc = null;
+        try {
+            loc = world.deserialize(child);
+        } catch (e) {
             return null;
         }
-
-        // 1) Prefer libgweather deserialize when available
-        const GWeather = await ensureGWeather();
-        if (GWeather) {
-            try {
-                const world = GWeather.Location.get_world();
-                const child = value.get_child_value(0);
-                const loc = world?.deserialize?.(child);
-                if (loc) {
-                    let lat = null, lon = null;
-                    try {
-                        const coords = loc.get_coords();
-                        if (Array.isArray(coords)) {
-                            lat = coords[0];
-                            lon = coords[1];
-                        } else if (coords) {
-                            lat = coords[0] ?? coords.lat;
-                            lon = coords[1] ?? coords.lon;
-                        }
-                    } catch (e) {}
-                    let name = '';
-                    try {
-                        name = loc.get_city_name?.() || loc.get_name?.() || '';
-                    } catch (e) {}
-                    const norm = normalizeLatLon(lat, lon);
-                    if (norm) {
-                        log(`material-panel: GNOME Weather loc "${name}" ${norm.lat.toFixed(2)},${norm.lon.toFixed(2)}`);
-                        return {location: loc, name, lat: norm.lat, lon: norm.lon};
-                    }
-                }
-            } catch (e) {
-                logError(e, 'material-panel: GWeather deserialize');
-            }
-        }
-
-        // 2) Parse GVariant directly (works even without GWeather GIR)
-        const parsed = parseGnomeWeatherLocationsVariant(value);
-        if (parsed) {
-            log(`material-panel: GNOME Weather (variant) "${parsed.name}" ${parsed.lat.toFixed(2)},${parsed.lon.toFixed(2)}`);
-            return parsed;
-        }
-        return null;
+        if (!loc)
+            return null;
+        let lat = null, lon = null;
+        try {
+            const coords = loc.get_coords();
+            lat = Array.isArray(coords) ? coords[0] : coords?.[0];
+            lon = Array.isArray(coords) ? coords[1] : coords?.[1];
+        } catch (e) {}
+        let name = '';
+        try {
+            name = loc.get_city_name?.() || loc.get_name?.() || '';
+        } catch (e) {}
+        const norm = normalizeLatLon(lat, lon);
+        if (!norm)
+            return null;
+        log(`material-panel: weather loc "${name}" ${norm.lat.toFixed(2)},${norm.lon.toFixed(2)} (GWeather)`);
+        return {location: loc, name, lat: norm.lat, lon: norm.lon};
     } catch (e) {
         logError(e, 'material-panel: loadGnomeWeatherLocation');
         return null;
@@ -877,8 +847,6 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
     };
 
-    // Enrich GWeather path: loadGnomeWeatherLocation may not return lat/lon
-    // Keep existing loadGnomeWeatherLocation behavior
 
     button.connect('clicked', () => {
         if (menu.isOpen)
@@ -897,9 +865,15 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     try { wireFileIconPress(button, () => [{icon, key: detail?.iconKey || 'weather'}]); } catch (e) {}
 
-    fetchWeather();
+    // Defer first fetch — never block/crash enable() on network or GIR
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 400, () => {
+        try { fetchWeather(); } catch (e) {
+            logError(e, 'material-panel: deferred weather fetch');
+        }
+        return GLib.SOURCE_REMOVE;
+    });
     const refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15 * 60, () => {
-        fetchWeather();
+        try { fetchWeather(); } catch (e) {}
         return GLib.SOURCE_CONTINUE;
     });
     button.connect('destroy', () => {
