@@ -127,65 +127,147 @@ function httpGet(url) {
     });
 }
 
+/**
+ * GNOME Weather stores coords in radians in GSettings.
+ * libgweather get_coords() is usually degrees — normalize either way.
+ */
+function normalizeLatLon(lat, lon) {
+    lat = Number(lat);
+    lon = Number(lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon))
+        return null;
+    // Radians if within ±π (and not already a plausible degree pair for cities)
+    if (Math.abs(lat) <= Math.PI + 0.01 && Math.abs(lon) <= Math.PI + 0.01) {
+        // Heuristic: values like 0.42, 1.58 are radians (Dhaka); 23.8, 90.4 are degrees
+        if (Math.abs(lat) < 3.2 && Math.abs(lon) < 3.2) {
+            lat = lat * (180 / Math.PI);
+            lon = lon * (180 / Math.PI);
+        }
+    }
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180)
+        return null;
+    return {lat, lon};
+}
+
+/** Parse first city from org.gnome.Weather locations GVariant (no GIR needed). */
+function parseGnomeWeatherLocationsVariant(value) {
+    // Shape: array of (uv = (s, s, b, a(dd), a(dd))) roughly
+    try {
+        if (!value || value.n_children() < 1)
+            return null;
+        const child = value.get_child_value(0);
+        // Unwrap nested tuples until we find string name + (dd) coords
+        let name = '';
+        let lat = null, lon = null;
+
+        const walk = v => {
+            if (!v)
+                return;
+            try {
+                const t = v.get_type_string?.() || '';
+                if (t === 's') {
+                    const s = v.get_string()[0];
+                    if (s && s.length > 1 && s.length < 64 && !/^[A-Z]{3,4}$/.test(s) && !name)
+                        name = s;
+                    return;
+                }
+                if (t === 'd')
+                    return;
+                if (t === '(dd)' || t === 'a(dd)') {
+                    const n = v.n_children();
+                    if (t === '(dd)' && n >= 2) {
+                        const a = v.get_child_value(0).get_double();
+                        const b = v.get_child_value(1).get_double();
+                        if (lat == null) {
+                            lat = a;
+                            lon = b;
+                        }
+                    } else if (t === 'a(dd)' && n >= 1) {
+                        const pair = v.get_child_value(0);
+                        if (pair.n_children() >= 2) {
+                            const a = pair.get_child_value(0).get_double();
+                            const b = pair.get_child_value(1).get_double();
+                            if (lat == null) {
+                                lat = a;
+                                lon = b;
+                            }
+                        }
+                    }
+                    return;
+                }
+                const n = v.n_children?.() ?? 0;
+                for (let i = 0; i < n; i++)
+                    walk(v.get_child_value(i));
+            } catch (e) {}
+        };
+        walk(child);
+        const coords = normalizeLatLon(lat, lon);
+        if (!coords)
+            return null;
+        return {name: name || 'GNOME Weather', lat: coords.lat, lon: coords.lon, location: null};
+    } catch (e) {
+        logError(e, 'material-panel: parseGnomeWeatherLocationsVariant');
+        return null;
+    }
+}
+
 /** @returns {Promise<{location, name, lat, lon}|null>} */
 async function loadGnomeWeatherLocation() {
-    const GWeather = await ensureGWeather();
-    if (!GWeather)
-        return null;
     try {
         const schema = 'org.gnome.Weather';
         const source = Gio.SettingsSchemaSource.get_default();
         if (!source.lookup(schema, true)) {
-            log('material-panel: org.gnome.Weather schema not found (install gnome-weather?)');
+            log('material-panel: org.gnome.Weather schema not found');
             return null;
         }
         const settings = new Gio.Settings({schema_id: schema});
         const value = settings.get_value('locations');
         if (!value || value.n_children() < 1) {
-            log('material-panel: GNOME Weather has no saved cities — add one in Weather app');
+            log('material-panel: GNOME Weather has no saved cities');
             return null;
         }
 
-        const world = GWeather.Location.get_world();
-        if (!world)
-            return null;
-
-        const child = value.get_child_value(0);
-        const loc = world.deserialize(child);
-        if (!loc)
-            return null;
-
-        let lat = null, lon = null;
-        try {
-            if (typeof loc.has_coords === 'function' && loc.has_coords()) {
-                const coords = loc.get_coords();
-                if (Array.isArray(coords)) {
-                    lat = coords[0];
-                    lon = coords[1];
-                } else if (coords && typeof coords === 'object') {
-                    lat = coords[0] ?? coords.lat;
-                    lon = coords[1] ?? coords.lon;
+        // 1) Prefer libgweather deserialize when available
+        const GWeather = await ensureGWeather();
+        if (GWeather) {
+            try {
+                const world = GWeather.Location.get_world();
+                const child = value.get_child_value(0);
+                const loc = world?.deserialize?.(child);
+                if (loc) {
+                    let lat = null, lon = null;
+                    try {
+                        const coords = loc.get_coords();
+                        if (Array.isArray(coords)) {
+                            lat = coords[0];
+                            lon = coords[1];
+                        } else if (coords) {
+                            lat = coords[0] ?? coords.lat;
+                            lon = coords[1] ?? coords.lon;
+                        }
+                    } catch (e) {}
+                    let name = '';
+                    try {
+                        name = loc.get_city_name?.() || loc.get_name?.() || '';
+                    } catch (e) {}
+                    const norm = normalizeLatLon(lat, lon);
+                    if (norm) {
+                        log(`material-panel: GNOME Weather loc "${name}" ${norm.lat.toFixed(2)},${norm.lon.toFixed(2)}`);
+                        return {location: loc, name, lat: norm.lat, lon: norm.lon};
+                    }
                 }
-            } else {
-                const coords = loc.get_coords();
-                lat = coords[0];
-                lon = coords[1];
+            } catch (e) {
+                logError(e, 'material-panel: GWeather deserialize');
             }
-        } catch (e) {
-            logError(e, 'material-panel: GWeather location coords');
         }
 
-        let name = '';
-        try {
-            name = (loc.get_city_name && loc.get_city_name()) || loc.get_name() || '';
-        } catch (e) {
-            try { name = loc.get_name() || ''; } catch (e2) {}
+        // 2) Parse GVariant directly (works even without GWeather GIR)
+        const parsed = parseGnomeWeatherLocationsVariant(value);
+        if (parsed) {
+            log(`material-panel: GNOME Weather (variant) "${parsed.name}" ${parsed.lat.toFixed(2)},${parsed.lon.toFixed(2)}`);
+            return parsed;
         }
-
-        if (lat == null || lon == null || !Number.isFinite(Number(lat)))
-            return null;
-
-        return {location: loc, name, lat: Number(lat), lon: Number(lon)};
+        return null;
     } catch (e) {
         logError(e, 'material-panel: loadGnomeWeatherLocation');
         return null;
@@ -384,15 +466,52 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
 }
 
 async function resolveIpLocation() {
-    const text = await httpGet(IP_LOC);
-    const j = JSON.parse(text);
-    const lat = Number(j.latitude ?? j.lat);
-    const lon = Number(j.longitude ?? j.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon))
-        throw new Error('ipapi: no coords');
-    const place = [j.city || j.town, j.region || j.country_name || j.country]
-        .filter(Boolean).join(', ');
-    return {lat, lon, place};
+    // ipapi.co often 403/rate-limits; try a few public endpoints
+    const tries = [
+        {
+            url: 'https://ipapi.co/json/',
+            parse: j => ({
+                lat: Number(j.latitude ?? j.lat),
+                lon: Number(j.longitude ?? j.lon),
+                place: [j.city || j.town, j.region || j.country_name || j.country].filter(Boolean).join(', '),
+            }),
+        },
+        {
+            url: 'https://ipinfo.io/json',
+            parse: j => {
+                const parts = String(j.loc || '').split(',');
+                return {
+                    lat: Number(parts[0]),
+                    lon: Number(parts[1]),
+                    place: [j.city, j.region, j.country].filter(Boolean).join(', '),
+                };
+            },
+        },
+        {
+            url: 'https://geolocation-db.com/json/',
+            parse: j => ({
+                lat: Number(j.latitude),
+                lon: Number(j.longitude),
+                place: [j.city, j.state, j.country_name].filter(Boolean).join(', '),
+            }),
+        },
+    ];
+    let lastErr = null;
+    for (const t of tries) {
+        try {
+            const text = await httpGet(t.url);
+            const j = JSON.parse(text);
+            if (j.error || j.reason === 'RateLimited')
+                throw new Error(j.reason || j.message || 'rate limited');
+            const r = t.parse(j);
+            if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon))
+                throw new Error('no coords');
+            return r;
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    throw lastErr || new Error('IP location failed');
 }
 
 
