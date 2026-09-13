@@ -16,6 +16,109 @@ const ADAPTER_IFACE = 'org.bluez.Adapter1';
 const DEVICE_IFACE = 'org.bluez.Device1';
 const PROPERTIES_IFACE = 'org.freedesktop.DBus.Properties';
 
+/**
+ * Map BlueZ Icon / Class to a panel icon key (Material Symbols style names we ship).
+ * Falls back to generic bluetooth-on/off.
+ */
+function deviceIconKey(props, connected) {
+    try {
+        const icon = String(props['Icon']?.deep_unpack?.() ?? props['Icon'] ?? '').toLowerCase();
+        const name = String(
+            props['Alias']?.deep_unpack?.() ?? props['Name']?.deep_unpack?.() ?? ''
+        ).toLowerCase();
+        const cls = Number(props['Class']?.deep_unpack?.() ?? props['Class'] ?? 0);
+
+        // BlueZ Icon property (freedesktop icon names)
+        if (icon.includes('audio-headset') || icon.includes('headset'))
+            return 'headphones';
+        if (icon.includes('audio-headphones') || icon.includes('headphone'))
+            return 'headphones';
+        if (icon.includes('audio-card') || icon.includes('speaker'))
+            return 'headphones';
+        if (icon.includes('input-keyboard') || icon.includes('keyboard'))
+            return 'keyboard';
+        if (icon.includes('input-mouse') || icon.includes('mouse'))
+            return 'bluetooth-on';
+        if (icon.includes('input-gaming') || icon.includes('joystick'))
+            return 'bluetooth-on';
+        if (icon.includes('phone') || icon.includes('smartphone'))
+            return 'phone';
+        if (icon.includes('computer') || icon.includes('laptop'))
+            return 'computer';
+
+        // Name heuristics
+        if (/headphone|headset|buds|airpod|earbud|soundcore|sony|bose|jbl/.test(name))
+            return 'headphones';
+        if (/speaker|soundbar/.test(name))
+            return 'headphones';
+        if (/keyboard|keychron/.test(name))
+            return 'keyboard';
+        if (/mouse/.test(name))
+            return 'bluetooth-on';
+
+        // Major device class bits (Bluetooth Class of Device)
+        // bits 8-12 = major class
+        const major = (cls >> 8) & 0x1f;
+        if (major === 0x04) // Audio / Video
+            return 'headphones';
+        if (major === 0x01) // Computer
+            return 'computer';
+        if (major === 0x02) // Phone
+            return 'phone';
+        if (major === 0x05) // Peripheral
+            return 'keyboard';
+    } catch (e) {}
+    return connected ? 'bluetooth-on' : 'bluetooth-off';
+}
+
+function resolveDeviceGicon(key, connected) {
+    const candidates = [
+        connected ? iconPathOnAccent(key) : iconPathPrimary(key),
+        iconPathPrimary(key),
+        iconPath(key),
+        connected ? iconPathOnAccent('bluetooth-on') : iconPathPrimary('bluetooth-off'),
+        iconPath('bluetooth-on'),
+    ];
+    for (const pth of candidates) {
+        try {
+            if (pth && Gio.File.new_for_path(pth).query_exists(null))
+                return Gio.FileIcon.new(Gio.File.new_for_path(pth));
+        } catch (e) {}
+    }
+    return Gio.ThemedIcon.new(
+        connected ? 'bluetooth-active-symbolic' : 'bluetooth-disabled-symbolic');
+}
+
+/** Best-effort codec from pactl for a connected BT device name. */
+function probeBluetoothCodec(deviceName) {
+    try {
+        const [ok, out] = GLib.spawn_command_line_sync('pactl list cards');
+        if (!ok)
+            return null;
+        const text = new TextDecoder('utf-8').decode(out);
+        const blocks = text.split('Card #');
+        const needle = String(deviceName || '').toLowerCase();
+        for (const b of blocks) {
+            if (!/bluez/i.test(b))
+                continue;
+            if (needle && !b.toLowerCase().includes(needle.slice(0, Math.min(12, needle.length))))
+                continue;
+            // active profile: a2dp_sink / handsfree_head_unit / …
+            const m = b.match(/Active Profile:\s*(\S+)/i);
+            if (!m)
+                continue;
+            const profile = m[1];
+            if (/a2dp/i.test(profile))
+                return 'High fidelity';
+            if (/handsfree|headset|hfp|hsp/i.test(profile))
+                return 'Headset + mic';
+            return profile.replace(/_/g, ' ');
+        }
+    } catch (e) {}
+    return null;
+}
+
+
 // Timeout for DBus calls (ms) - prevents hanging if bluetoothd is unresponsive
 const DBUS_TIMEOUT_MS = 3000;
 
@@ -387,6 +490,10 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         const displayName = alias ?? name ?? 'Unknown device';
         const connected = props['Connected']?.deep_unpack() ?? false;
         const paired = props['Paired']?.deep_unpack() ?? false;
+        let connecting = false;
+        try {
+            connecting = !!(props['Connecting']?.deep_unpack?.() ?? false);
+        } catch (e) {}
         let batteryPct = null;
         try {
             if (props && props._mpBatteryPct != null)
@@ -395,22 +502,43 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                 batteryPct = props['Battery'].deep_unpack();
         } catch (e) {}
         const row = new St.Button({
-            style_class: `material-panel-bt-device${connected ? ' connected' : ''}${paired ? '' : ' unpaired'}`,
+            style_class: `material-panel-bt-device${connected ? ' connected' : ''}${connecting ? ' connecting' : ''}${paired ? '' : ' unpaired'}`,
             reactive: true,
+            track_hover: true,
             x_expand: true,
         });
         const rowBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-device-box'});
-        // Icon: per-device type heuristic (End4 uses headset/keyboard icons)
-        const iconName = connected ? 'bluetooth-on' : 'bluetooth-off';
-        const gicon = Gio.FileIcon.new(Gio.File.new_for_path(
-            connected ? iconPathOnAccent(iconName) : iconPathPrimary(iconName)));
-        const devIcon = new St.Icon({style_class: 'material-panel-bt-device-icon', icon_size: 16, y_align: Clutter.ActorAlign.CENTER, gicon});
+        // Icon by BlueZ type (Omarchy-style device glyphs)
+        const iconKey = deviceIconKey(props, connected || connecting);
+        const gicon = resolveDeviceGicon(iconKey, connected);
+        const devIcon = new St.Icon({
+            style_class: 'material-panel-bt-device-icon',
+            icon_size: 18,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon,
+        });
         const textBox = new St.BoxLayout({vertical: true, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-bt-device-name');
         nameLabel.x_expand = true;
-        const sub = batteryPct !== null
-            ? `${connected ? 'Connected' : paired ? 'Paired' : 'Unpaired'} · ${batteryPct}%`
-            : connected ? 'Connected — tap to disconnect' : paired ? 'Paired — tap to connect' : 'Tap to pair';
+        const codec = connected ? probeBluetoothCodec(displayName) : null;
+        const parts = [];
+        if (connecting)
+            parts.push('Connecting…');
+        else if (connected)
+            parts.push('Connected');
+        else if (paired)
+            parts.push('Paired');
+        else
+            parts.push('Available');
+        if (batteryPct !== null)
+            parts.push(`${batteryPct}%`);
+        if (codec)
+            parts.push(codec);
+        if (!connecting && !connected && paired)
+            parts.push('tap to connect');
+        else if (connected)
+            parts.push('tap to disconnect');
+        const sub = parts.join(' · ');
         const subLabel = new St.Label({text: sub, style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
         subLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(nameLabel);
