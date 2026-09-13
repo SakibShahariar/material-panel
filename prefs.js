@@ -504,6 +504,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             config.foreignRoleZones = {};
         if (config.trayAllHidden == null)
             config.trayAllHidden = false;
+        if (config.trayDrawer == null)
+            config.trayDrawer = true;
 
         // Old hide-all stamped every role "hidden" — clear so model B stays opt-in
         if (!config.trayAllHidden && config.foreignRoleZones) {
@@ -664,6 +666,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             setCombosSensitive(!config.trayAllHidden);
             store.save(config);
         });
+
+        const drawerRow = new Adw.ActionRow({
+            title: 'Collapse into drawer',
+            subtitle: 'Chevron expands tray icons (Omarchy-style)',
+        });
+        const drawerSwitch = new Gtk.Switch({
+            active: config.trayDrawer !== false,
+            valign: Gtk.Align.CENTER,
+        });
+        drawerRow.add_suffix(drawerSwitch);
+        drawerRow.activatable_widget = drawerSwitch;
+        trayActions.add(drawerRow);
+        drawerSwitch.connect('notify::active', () => {
+            config.trayDrawer = !!drawerSwitch.active;
+            store.save(config);
+        });
+
 
         // --- PAGE 3: Appearance ---
         const appearancePage = new Adw.PreferencesPage({
