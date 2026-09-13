@@ -389,7 +389,7 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
                 const h12 = hourNum % 12 || 12;
                 hh = `${h12} ${ampm}`;
             } catch (e) {}
-            const dayPart = hourNum >= 6 && hourNum < 18;
+            const dayPart = hourNum >= 6 && hourNum < 18; // 0–5, 18–23 night
             hourly.push({
                 time: hh,
                 temp: temps[i],
@@ -588,29 +588,39 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         text: 'Weather',
         style_class: 'material-panel-weather-popup-place',
         x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
     });
     try { placeLbl.style = 'font-size: 12px; font-weight: 600; opacity: 0.7; text-align: center;'; } catch (e) {}
 
+    // Hero: [ big icon ] [ temp + condition + feels ] — single column text, no float
     const hero = new St.BoxLayout({
         vertical: false,
         style_class: 'material-panel-weather-popup-hero',
         x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    try { hero.style = 'spacing: 14px; padding: 4px 0 2px 0;'; } catch (e) {}
+    try {
+        hero.style = 'spacing: 16px; padding: 6px 8px 8px 8px;';
+    } catch (e) {}
 
     const heroIcon = new St.Icon({
-        icon_size: 42,
+        icon_size: 48,
         style_class: 'material-panel-weather-popup-hero-icon',
         gicon,
+        y_align: Clutter.ActorAlign.CENTER,
     });
-    const heroText = new St.BoxLayout({vertical: true, x_expand: true});
+    const heroText = new St.BoxLayout({
+        vertical: true,
+        y_align: Clutter.ActorAlign.CENTER,
+        x_expand: false,
+    });
     try { heroText.style = 'spacing: 2px;'; } catch (e) {}
     const tempLbl = new St.Label({
         text: '—°',
         style_class: 'material-panel-weather-popup-temp',
     });
-    try { tempLbl.style = 'font-size: 32px; font-weight: 700;'; } catch (e) {}
+    try { tempLbl.style = 'font-size: 34px; font-weight: 700;'; } catch (e) {}
     const condLbl = new St.Label({
         text: '',
         style_class: 'material-panel-weather-popup-cond',
@@ -620,7 +630,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         text: '',
         style_class: 'material-panel-weather-popup-feels',
     });
-    try { feelsLbl.style = 'font-size: 11px; opacity: 0.75;'; } catch (e) {}
+    try { feelsLbl.style = 'font-size: 11px; opacity: 0.7; padding-top: 2px;'; } catch (e) {}
     heroText.add_child(tempLbl);
     heroText.add_child(condLbl);
     heroText.add_child(feelsLbl);
@@ -703,8 +713,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     const sourceLbl = new St.Label({
         text: '',
         style_class: 'material-panel-weather-popup-source',
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
     });
-    try { sourceLbl.style = 'font-size: 10px; opacity: 0.4; padding-top: 4px;'; } catch (e) {}
+    try { sourceLbl.style = 'font-size: 10px; opacity: 0.35; padding-top: 6px;'; } catch (e) {}
 
     body.add_child(placeLbl);
     body.add_child(hero);
@@ -807,27 +819,34 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             } catch (e) {}
             const name = new St.Label({
                 text: day.label || day.date,
-                x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            try { name.style = 'font-size: 12px; font-weight: 600;'; } catch (e) {}
+            try {
+                name.style = 'font-size: 12px; font-weight: 600; width: 52px; min-width: 52px;';
+            } catch (e) {}
             const ic = new St.Icon({
                 icon_size: 18,
                 gicon: iconForKey(day.iconKey),
                 y_align: Clutter.ActorAlign.CENTER,
             });
+            const spacer = new St.Widget({x_expand: true});
             const hi = new St.Label({
                 text: day.max != null ? `${Math.round(day.max)}°` : '—',
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            try { hi.style = 'font-size: 12px; font-weight: 700; min-width: 32px;'; } catch (e) {}
+            try {
+                hi.style = 'font-size: 12px; font-weight: 700; width: 36px; text-align: right;';
+            } catch (e) {}
             const lo = new St.Label({
                 text: day.min != null ? `${Math.round(day.min)}°` : '—',
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            try { lo.style = 'font-size: 12px; opacity: 0.65; min-width: 32px;'; } catch (e) {}
+            try {
+                lo.style = 'font-size: 12px; opacity: 0.6; width: 36px;';
+            } catch (e) {}
             row.add_child(name);
             row.add_child(ic);
+            row.add_child(spacer);
             row.add_child(hi);
             row.add_child(lo);
             if (day.pop != null) {
@@ -835,7 +854,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     text: `${Math.round(day.pop)}%`,
                     y_align: Clutter.ActorAlign.CENTER,
                 });
-                try { p.style = 'font-size: 11px; opacity: 0.7; min-width: 36px;'; } catch (e) {}
+                try {
+                    p.style = 'font-size: 11px; opacity: 0.65; width: 40px;';
+                } catch (e) {}
                 row.add_child(p);
             }
             dailyCol.add_child(row);
