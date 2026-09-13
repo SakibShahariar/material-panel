@@ -65,7 +65,7 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
         style_class: 'material-panel-clock-cal',
         x_expand: true,
     });
-    try { outer.style = 'spacing: 8px;'; } catch (e) {}
+    try { outer.style = 'spacing: 6px;'; } catch (e) {}
 
     const nav = new St.BoxLayout({
         vertical: false,
@@ -127,7 +127,9 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
     const todayDay = today.get_day_of_month();
     let day = 1;
 
-    for (let row = 0; row < 6; row++) {
+    const totalCells = (startDow - 1) + dim;
+    const rowsNeeded = Math.ceil(totalCells / 7);
+    for (let row = 0; row < rowsNeeded; row++) {
         for (let col = 0; col < 7; col++) {
             const cellIndex = row * 7 + col;
             const cell = new St.Button({
@@ -141,7 +143,7 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
             });
             try {
                 cell.style =
-                    `width: ${CELL}px; height: ${CELL}px; border-radius: 999px; padding: 0;`;
+                    `width: ${CELL}px; height: ${CELL}px; border-radius: 999px; padding: 0; font-size: 12px;`;
             } catch (e) {}
 
             if (cellIndex >= startDow - 1 && day <= dim) {
@@ -150,9 +152,10 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
                 cell.label = String(d);
                 cell.reactive = true;
                 const hasEvents = (eventIndex?.get(key)?.length || 0) > 0;
-                if (isThisMonth && d === todayDay)
+                const isToday = isThisMonth && d === todayDay;
+                if (isToday)
                     cell.add_style_class_name('today');
-                if (selectedKey === key)
+                else if (selectedKey === key)
                     cell.add_style_class_name('selected');
                 if (hasEvents)
                     cell.add_style_class_name('has-events');
@@ -236,7 +239,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
         x_expand: true,
     });
     try {
-        body.style = 'spacing: 10px; padding: 12px 14px; min-width: 280px; max-width: 340px;';
+        body.style = 'spacing: 8px; padding: 10px 12px 12px 12px; min-width: 268px; max-width: 320px;';
     } catch (e) {}
 
     // Next event banner
@@ -282,7 +285,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-cal-agenda-title',
     });
     try {
-        agendaTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.65; padding-top: 4px;';
+        agendaTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.6; padding-top: 2px;';
     } catch (e) {}
     body.add_child(agendaTitle);
 
@@ -319,11 +322,11 @@ export function buildClock(_extensionPath, scale = 1.0) {
         allEvents = doc?.events || [];
         eventIndex = indexEventsByDate(allEvents);
         if (doc?.source)
-            hint.text = `Events · ${doc.source}`;
+            hint.text = `Synced · ${doc.source}`;
         else if (!doc)
-            hint.text = 'Add ~/.config/material-panel/calendar-events.json';
+            hint.text = 'Sync: scripts/calendar-sync-ics.py';
         else
-            hint.text = allEvents.length ? `${allEvents.length} events` : 'No events synced';
+            hint.text = allEvents.length ? `${allEvents.length} events` : 'No events in range';
     };
 
     const fillNext = () => {
@@ -351,11 +354,11 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
         if (list.length === 0) {
             const empty = new St.Label({
-                text: 'No events',
+                text: 'No events this day',
                 style_class: 'material-panel-cal-empty',
             });
             try {
-                empty.style = 'font-size: 11px; opacity: 0.5; padding: 6px 4px;';
+                empty.style = 'font-size: 11px; opacity: 0.45; padding: 2px 4px 0 4px;';
             } catch (e) {}
             agendaBox.add_child(empty);
             return;
