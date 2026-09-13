@@ -180,7 +180,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     const isEnd4 = () => globalThis._materialPanelLayoutStyle === 'end4';
     const label = new St.Label({
-        style_class: 'material-panel-clock-label',
+        style_class: 'material-panel-clock',
         y_align: Clutter.ActorAlign.CENTER,
         text: isEnd4() ? formatEnd4(use12h) : formatNow(use12h),
     });
