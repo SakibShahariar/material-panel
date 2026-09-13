@@ -360,35 +360,49 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
         throw new Error('open-meteo: no current');
     const isDay = cur.is_day === 1;
 
-    // Hourly: next 12 from now
+    // Hourly: next 12 hours from current local hour
     const hourly = [];
     try {
         const times = json.hourly?.time || [];
         const temps = json.hourly?.temperature_2m || [];
         const codes = json.hourly?.weather_code || [];
         const pops = json.hourly?.precipitation_probability || [];
-        const nowIso = cur.time; // e.g. 2026-09-13T20:30
+        const nowLocal = GLib.DateTime.new_now_local();
+        const nowKey = nowLocal.format('%Y-%m-%dT%H') || '';
         let start = 0;
         for (let i = 0; i < times.length; i++) {
-            if (times[i] >= nowIso.slice(0, 13)) { // hour precision
+            const key = String(times[i]).slice(0, 13); // YYYY-MM-DDTHH
+            if (key >= nowKey) {
                 start = i;
                 break;
             }
+            start = i; // keep last past hour if all past
         }
         for (let i = start; i < times.length && hourly.length < 12; i++) {
-            const t = String(times[i]);
-            const hh = t.includes('T') ? t.split('T')[1].slice(0, 5) : t;
+            const ts = String(times[i]);
+            let hh = ts.includes('T') ? ts.split('T')[1].slice(0, 5) : ts;
+            // Prefer "9 PM" style short label
+            let hourNum = 0;
+            try {
+                hourNum = parseInt(hh.slice(0, 2), 10);
+                const ampm = hourNum >= 12 ? 'PM' : 'AM';
+                const h12 = hourNum % 12 || 12;
+                hh = `${h12} ${ampm}`;
+            } catch (e) {}
+            const dayPart = hourNum >= 6 && hourNum < 18;
             hourly.push({
                 time: hh,
                 temp: temps[i],
                 code: codes[i],
                 pop: pops[i],
-                iconKey: wmoToIcon(codes[i], true),
+                iconKey: wmoToIcon(codes[i], dayPart),
             });
         }
-    } catch (e) {}
+    } catch (e) {
+        logError(e, 'material-panel: weather hourly parse');
+    }
 
-    // Daily 5–6 days
+    // Daily labels: Today / weekday
     const daily = [];
     try {
         const times = json.daily?.time || [];
@@ -396,14 +410,21 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
         const mins = json.daily?.temperature_2m_min || [];
         const codes = json.daily?.weather_code || [];
         const pops = json.daily?.precipitation_probability_max || [];
-        const today = (cur.time || '').slice(0, 10);
+        const today = GLib.DateTime.new_now_local().format('%Y-%m-%d');
+        const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         for (let i = 0; i < times.length && daily.length < 6; i++) {
             const date = String(times[i]).slice(0, 10);
-            let label = date;
+            let label = date.slice(5); // MM-DD fallback
             try {
-                const dt = GLib.DateTime.new_from_iso8601(`${date}T12:00:00`, null);
-                if (dt)
-                    label = date === today ? 'Today' : (dt.format('%a') || date);
+                if (date === today) {
+                    label = 'Today';
+                } else {
+                    const [y, m, d] = date.split('-').map(Number);
+                    const dt = GLib.DateTime.new_local(y, m, d, 12, 0, 0);
+                    const dow = dt?.get_day_of_week?.() || 0; // 1=Mon … 7=Sun
+                    label = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dow - 1]
+                        || date.slice(5);
+                }
             } catch (e) {
                 label = date === today ? 'Today' : date.slice(5);
             }
@@ -560,7 +581,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         x_expand: true,
     });
     try {
-        body.style = 'spacing: 10px; padding: 12px; min-width: 320px; max-width: 380px;';
+        body.style = 'spacing: 12px; padding: 14px 16px 12px 16px; min-width: 300px; max-width: 360px;';
     } catch (e) {}
 
     const placeLbl = new St.Label({
@@ -568,7 +589,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-weather-popup-place',
         x_expand: true,
     });
-    try { placeLbl.style = 'font-size: 12px; opacity: 0.75;'; } catch (e) {}
+    try { placeLbl.style = 'font-size: 12px; font-weight: 600; opacity: 0.7; text-align: center;'; } catch (e) {}
 
     const hero = new St.BoxLayout({
         vertical: false,
@@ -576,7 +597,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    try { hero.style = 'spacing: 12px;'; } catch (e) {}
+    try { hero.style = 'spacing: 14px; padding: 4px 0 2px 0;'; } catch (e) {}
 
     const heroIcon = new St.Icon({
         icon_size: 42,
@@ -589,7 +610,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         text: '—°',
         style_class: 'material-panel-weather-popup-temp',
     });
-    try { tempLbl.style = 'font-size: 28px; font-weight: 700;'; } catch (e) {}
+    try { tempLbl.style = 'font-size: 32px; font-weight: 700;'; } catch (e) {}
     const condLbl = new St.Label({
         text: '',
         style_class: 'material-panel-weather-popup-cond',
@@ -612,7 +633,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-weather-popup-stats',
         x_expand: true,
     });
-    try { stats.style = 'spacing: 8px;'; } catch (e) {}
+    try { stats.style = 'spacing: 8px; padding: 2px 0;'; } catch (e) {}
     const mkStat = (title) => {
         const card = new St.BoxLayout({
             vertical: true,
@@ -620,7 +641,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             x_expand: true,
         });
         try {
-            card.style = 'padding: 8px 10px; border-radius: 12px; spacing: 2px;';
+            card.style = 'padding: 10px 8px; border-radius: 14px; spacing: 4px;';
         } catch (e) {}
         const t = new St.Label({text: title, style_class: 'material-panel-weather-stat-label'});
         try { t.style = 'font-size: 10px; opacity: 0.65;'; } catch (e) {}
@@ -650,15 +671,16 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         x_expand: true,
     });
     try {
+        hourlyScroll.overlay_scrollbars = true;
         if (St.PolicyType)
             hourlyScroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
-        hourlyScroll.style = 'max-height: 88px;';
+        hourlyScroll.style = 'max-height: 100px;';
     } catch (e) {}
     const hourlyRow = new St.BoxLayout({
         vertical: false,
         style_class: 'material-panel-weather-hourly-row',
     });
-    try { hourlyRow.style = 'spacing: 6px; padding: 2px 0;'; } catch (e) {}
+    try { hourlyRow.style = 'spacing: 6px; padding: 4px 2px;'; } catch (e) {}
     try {
         hourlyScroll.add_child(hourlyRow);
     } catch (e) {
@@ -682,7 +704,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         text: '',
         style_class: 'material-panel-weather-popup-source',
     });
-    try { sourceLbl.style = 'font-size: 10px; opacity: 0.5;'; } catch (e) {}
+    try { sourceLbl.style = 'font-size: 10px; opacity: 0.4; padding-top: 4px;'; } catch (e) {}
 
     body.add_child(placeLbl);
     body.add_child(hero);
