@@ -528,7 +528,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const hideAllRow = new Adw.ActionRow({
             title: 'Hide all on Material Panel',
-            subtitle: 'Hide AppIndicator / tray icons on our bar only — does not remove them from GNOME',
+            subtitle: 'Hide background-app tray icons only (Discord, etc.) — not other extensions',
         });
         const hideAllSwitch = new Gtk.Switch({
             active: !!config.trayAllHidden,
@@ -539,7 +539,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         trayActions.add(hideAllRow);
 
         const trayGroup = new Adw.PreferencesGroup({
-            title: 'Status icons',
+            title: 'Background app iconss',
             description: 'Opt-in only: Hidden = not on Material Panel (stays on GNOME bar). Left/Right/Center = show on our panel.',
         });
         trayPage.add(trayGroup);

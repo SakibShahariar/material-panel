@@ -5,6 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore, resolveColorSource} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
+import {StatusNotifierWatcher} from './lib/statusNotifierWatcher.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 
@@ -73,6 +74,22 @@ export default class MaterialPanelExtension extends Extension {
 
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
+
+        // Built-in AppIndicator / KStatusNotifier watcher (disable system AppIndicator ext)
+        this._sni = new StatusNotifierWatcher(() => {
+            try {
+                if (this._builder?._trayDrawer)
+                    return this._builder._trayDrawer;
+                return this._bridge?._trayHost ?? null;
+            } catch (e) {
+                return null;
+            }
+        });
+        try {
+            this._sni.enable();
+        } catch (e) {
+            logError(e, 'material-panel: StatusNotifierWatcher enable');
+        }
 
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
@@ -196,6 +213,13 @@ export default class MaterialPanelExtension extends Extension {
 
         this._theme.destroy();
         this._theme = null;
+
+        try {
+            this._sni?.disable?.();
+            this._sni = null;
+        } catch (e) {
+            logError(e, 'material-panel: SNI disable');
+        }
 
         // Restore tray icons to stock panel BEFORE destroying our chrome
         // (destroy used to run first and left indicators orphaned / missing).
