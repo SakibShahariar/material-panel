@@ -86,7 +86,10 @@ export default class MaterialPanelExtension extends Extension {
             }
         });
         try {
-            this._sni.enable();
+            if (this._config?.statusNotifier !== false)
+                this._sni.enable();
+            else
+                log('material-panel: StatusNotifier watcher disabled in config');
         } catch (e) {
             logError(e, 'material-panel: StatusNotifierWatcher enable');
         }
