@@ -5,7 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore, resolveColorSource} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
-import {StatusNotifierWatcher} from './lib/statusNotifierWatcher.js';
+import {MaterialSniController} from './lib/sni/index.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 
@@ -75,29 +75,53 @@ export default class MaterialPanelExtension extends Extension {
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
 
-        // Built-in AppIndicator / KStatusNotifier watcher (disable system AppIndicator ext)
-        this._sni = new StatusNotifierWatcher(() => {
+        // Full vendored AppIndicator stack (disable system AppIndicator / BetterTrayIcons)
+        this._sni = new MaterialSniController(this, () => {
             try {
-                if (this._builder?._trayDrawer)
-                    return this._builder._trayDrawer;
-                return this._bridge?._trayHost ?? null;
+                if (this._builder?._sniStrip)
+                    return this._builder._sniStrip;
+                return this._bridge?._sniStrip ?? null;
             } catch (e) {
                 return null;
             }
         });
         try {
+            // Default ON for full stack; set statusNotifier:false to use external watcher only
             if (this._config?.statusNotifier !== false)
                 this._sni.enable();
             else
-                log('material-panel: StatusNotifier watcher disabled in config');
+                log('material-panel: built-in SNI stack disabled (use system AppIndicator)');
         } catch (e) {
-            logError(e, 'material-panel: StatusNotifierWatcher enable');
+            logError(e, 'material-panel: SNI stack enable');
         }
 
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
 
         this._applyTheme({rebuildPanel: true});
+
+        // When strip is (re)created, hunt for already-running tray apps
+        globalThis._materialPanelSniStripReady = () => {
+            try {
+                log('material-panel: SNI strip ready — force seek');
+                this._sni?._syncHost?.();
+                this._sni?.forceSeek?.();
+            } catch (e) {}
+        };
+
+
+        // SNI icons often register during/after first paint — rehost a few times
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            
+            return GLib.SOURCE_REMOVE;
+        });
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+            try {
+                log('material-panel: SNI delayed rehost');
+                this._sni?.rehostAll?.();
+            } catch (e) {}
+            return GLib.SOURCE_REMOVE;
+        });
 
         Main.panel.hide();
 
@@ -169,6 +193,8 @@ export default class MaterialPanelExtension extends Extension {
             this._sizeDebounceId = 0;
             try {
                 this._builder.render(this._config);
+                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
+                
                 this._applyTrayOnly();
             } catch (e) {
                 logError(e, 'material-panel: debounced scale rebuild failed');
@@ -182,16 +208,19 @@ export default class MaterialPanelExtension extends Extension {
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
+        } catch (e) {}
         try {
             if (this._config.layoutStyle === 'end4') {
                 applyLayoutStyle(this._config, 'end4');
-                this._store.save(this._config);
+                this._configStore.save(this._config);
             }
         } catch (e) {}
-        } catch (e) {}
         this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-        if (rebuildPanel)
+        if (rebuildPanel) {
             this._builder.render(this._config);
+                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
+                
+        }
         this._applyTrayOnly();
 
         if (colorSource) {
@@ -201,12 +230,15 @@ export default class MaterialPanelExtension extends Extension {
                 const freshSource = resolveColorSource(this._config.colorSource);
                 this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default');
                 this._builder.render(this._config);
+                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
+                
                 this._applyTrayOnly();
             });
         }
     }
 
     disable() {
+
         if (this._sizeDebounceId) {
             GLib.source_remove(this._sizeDebounceId);
             this._sizeDebounceId = 0;
