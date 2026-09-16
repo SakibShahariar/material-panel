@@ -1,3 +1,7 @@
+## Tray icons
+
+Install **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). material-panel hosts those icons on the bar; it does not run its own StatusNotifier watcher.
+
 # Material Panel
 
 A custom, config-driven GNOME Shell top panel — replaces the stock panel

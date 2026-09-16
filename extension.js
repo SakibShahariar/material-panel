@@ -5,7 +5,6 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore, resolveColorSource} from './lib/configStore.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
-import {MaterialSniController} from './lib/sni/index.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 
@@ -75,39 +74,14 @@ export default class MaterialPanelExtension extends Extension {
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
 
-        // Full vendored AppIndicator stack (disable system AppIndicator / BetterTrayIcons)
-        this._sni = new MaterialSniController(this, () => {
-            try {
-                if (this._builder?._sniStrip)
-                    return this._builder._sniStrip;
-                return this._bridge?._sniStrip ?? null;
-            } catch (e) {
-                return null;
-            }
-        });
-        try {
-            // Default ON for full stack; set statusNotifier:false to use external watcher only
-            if (this._config?.statusNotifier !== false)
-                this._sni.enable();
-            else
-                log('material-panel: built-in SNI stack disabled (use system AppIndicator)');
-        } catch (e) {
-            logError(e, 'material-panel: SNI stack enable');
-        }
+        // Tray icons: use system AppIndicator / BetterTrayIcons.
+        // We only host appindicator-* roles on our bar (statusAreaBridge + SNI strip).
 
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
 
         this._applyTheme({rebuildPanel: true});
 
-        // When strip is (re)created, hunt for already-running tray apps
-        globalThis._materialPanelSniStripReady = () => {
-            try {
-                log('material-panel: SNI strip ready — force seek');
-                this._sni?._syncHost?.();
-                this._sni?.forceSeek?.();
-            } catch (e) {}
-        };
 
 
         // SNI icons often register during/after first paint — rehost a few times
@@ -118,7 +92,6 @@ export default class MaterialPanelExtension extends Extension {
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
             try {
                 log('material-panel: SNI delayed rehost');
-                this._sni?.rehostAll?.();
             } catch (e) {}
             return GLib.SOURCE_REMOVE;
         });
@@ -193,8 +166,7 @@ export default class MaterialPanelExtension extends Extension {
             this._sizeDebounceId = 0;
             try {
                 this._builder.render(this._config);
-                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
-                
+                                
                 this._applyTrayOnly();
             } catch (e) {
                 logError(e, 'material-panel: debounced scale rebuild failed');
@@ -218,8 +190,7 @@ export default class MaterialPanelExtension extends Extension {
         this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
         if (rebuildPanel) {
             this._builder.render(this._config);
-                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
-                
+                                
         }
         this._applyTrayOnly();
 
@@ -230,8 +201,7 @@ export default class MaterialPanelExtension extends Extension {
                 const freshSource = resolveColorSource(this._config.colorSource);
                 this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default');
                 this._builder.render(this._config);
-                try { this._sni?._syncHost?.(); this._sni?.forceSeek?.(); } catch (e) {}
-                
+                                
                 this._applyTrayOnly();
             });
         }
@@ -248,13 +218,6 @@ export default class MaterialPanelExtension extends Extension {
 
         this._theme.destroy();
         this._theme = null;
-
-        try {
-            this._sni?.disable?.();
-            this._sni = null;
-        } catch (e) {
-            logError(e, 'material-panel: SNI disable');
-        }
 
         // Restore tray icons to stock panel BEFORE destroying our chrome
         // (destroy used to run first and left indicators orphaned / missing).
