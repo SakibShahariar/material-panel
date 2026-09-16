@@ -1,11 +1,7 @@
 /**
- * Connected headphones / headset chip.
- * Popup is headphone-focused (Omarchy headphones / bluetooth-audio intent):
- *   - connected audio devices only (not discoverable / unpaired list)
- *   - battery when BlueZ exposes it
- *   - disconnect
- *   - open sound settings
- * Does NOT show the generic Bluetooth "available devices" browser.
+ * Connected headphones chip + headphones-focused popup.
+ * Only connected audio devices (not discoverable list). Battery on chip + popup.
+ * Colors via theme.js classes (same mapping as other dropdowns).
  */
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -24,33 +20,36 @@ const DEVICE_IFACE = 'org.bluez.Device1';
 function iconKeyFromProps(props) {
     try {
         const icon = String(props['Icon']?.deep_unpack?.() ?? '').toLowerCase();
-        if (icon.includes('headset') || icon.includes('audio-headphones') || icon.includes('audio-headset'))
-            return 'headphones';
-        if (icon.includes('audio-card') || icon.includes('audio'))
+        if (icon.includes('headset') || icon.includes('headphone') || icon.includes('audio'))
             return 'headphones';
     } catch (e) {}
     try {
-        const name = String(props['Name']?.deep_unpack?.() ?? props['Alias']?.deep_unpack?.() ?? '').toLowerCase();
+        const name = String(props['Alias']?.deep_unpack?.() ?? props['Name']?.deep_unpack?.() ?? '').toLowerCase();
         if (/headphone|headset|buds|airpod|earbud|soundcore|sony|bose|jbl|nothing|cmf|wh-|wf-/.test(name))
             return 'headphones';
     } catch (e) {}
     try {
         const cls = props['Class']?.deep_unpack?.() ?? 0;
-        if ((cls & 0x1f00) === 0x0400) // Audio/Video major
+        if ((cls & 0x1f00) === 0x0400)
             return 'headphones';
     } catch (e) {}
     return null;
 }
 
-function isAudioDevice(props) {
-    return iconKeyFromProps(props) === 'headphones';
-}
-
 function batteryPct(props) {
+    try {
+        if (props._mpBatteryPct != null && Number.isFinite(Number(props._mpBatteryPct)))
+            return Math.round(Number(props._mpBatteryPct));
+    } catch (e) {}
     try {
         const p = props['Percentage']?.deep_unpack?.();
         if (p != null && Number.isFinite(Number(p)))
             return Math.round(Number(p));
+    } catch (e) {}
+    try {
+        const bat = props['Battery']?.deep_unpack?.();
+        if (bat != null && Number.isFinite(Number(bat)))
+            return Math.round(Number(bat));
     } catch (e) {}
     return null;
 }
@@ -101,34 +100,28 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
 
     const body = new St.BoxLayout({
         vertical: true,
-        style_class: 'material-panel-headphones-popup',
-        style: 'spacing: 8px; padding: 10px 12px; min-width: 220px;',
+        style_class: 'material-panel-headphones-popup material-panel-popup',
+        style: 'spacing: 8px; padding: 10px 12px; min-width: 240px;',
     });
 
     const title = new St.Label({
         text: 'Headphones',
         style_class: 'material-panel-headphones-title',
-        style: 'font-weight: 600; font-size: 13px;',
     });
     body.add_child(title);
 
-    const listBox = new St.BoxLayout({
-        vertical: true,
-        style: 'spacing: 6px;',
-    });
+    const listBox = new St.BoxLayout({vertical: true, style: 'spacing: 6px;'});
     body.add_child(listBox);
 
     const emptyLbl = new St.Label({
         text: 'No audio headset connected',
         style_class: 'material-panel-headphones-empty',
-        style: 'opacity: 0.7; font-size: 12px;',
     });
     body.add_child(emptyLbl);
 
     const soundBtn = new St.Button({
         label: 'Sound settings',
         style_class: 'material-panel-headphones-settings',
-        style: 'padding: 6px 10px; border-radius: 8px;',
         x_expand: true,
     });
     soundBtn.connect('clicked', () => {
@@ -145,35 +138,35 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
-    let lastDevices = [];
-
     const rebuildList = devices => {
         listBox.destroy_all_children();
-        lastDevices = devices || [];
-        emptyLbl.visible = lastDevices.length === 0;
-        listBox.visible = lastDevices.length > 0;
-        for (const d of lastDevices) {
+        emptyLbl.visible = !devices.length;
+        listBox.visible = !!devices.length;
+        for (const d of devices) {
             const row = new St.BoxLayout({
                 vertical: false,
                 style_class: 'material-panel-headphones-row',
-                style: 'spacing: 8px; padding: 6px 8px; border-radius: 10px;',
+                style: 'spacing: 8px; padding: 8px 10px; border-radius: 10px;',
                 x_expand: true,
             });
             const ic = new St.Icon({
+                style_class: 'material-panel-headphones-row-icon',
                 icon_size: 18,
                 y_align: Clutter.ActorAlign.CENTER,
                 gicon: giconForKey('headphones', false) || Gio.ThemedIcon.new('audio-headphones-symbolic'),
             });
             const textCol = new St.BoxLayout({vertical: true, x_expand: true, style: 'spacing: 2px;'});
-            const nameL = new St.Label({text: d.name, style: 'font-weight: 600;'});
-            const sub = d.pct != null ? `${d.pct}% battery` : 'Connected';
-            const subL = new St.Label({text: sub, style: 'font-size: 11px; opacity: 0.75;'});
-            textCol.add_child(nameL);
-            textCol.add_child(subL);
+            textCol.add_child(new St.Label({
+                text: d.name,
+                style_class: 'material-panel-headphones-name',
+            }));
+            textCol.add_child(new St.Label({
+                text: d.pct != null ? `${d.pct}% battery` : 'Connected',
+                style_class: 'material-panel-headphones-sub',
+            }));
             const disc = new St.Button({
                 label: 'Disconnect',
                 style_class: 'material-panel-headphones-disconnect',
-                style: 'padding: 4px 8px; border-radius: 8px;',
             });
             const path = d.path;
             disc.connect('clicked', () => {
@@ -209,7 +202,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                     let best = null;
                     const devices = [];
                     for (const [path, ifaces] of Object.entries(objs)) {
-                        const props = ifaces[DEVICE_IFACE];
+                        const props = ifaces?.[DEVICE_IFACE];
                         if (!props)
                             continue;
                         let connected = false;
@@ -220,21 +213,32 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                         }
                         if (!connected)
                             continue;
-                        if (!isAudioDevice(props))
+                        if (!iconKeyFromProps(props))
                             continue;
+                        // Battery interface often on same object or Battery1
+                        let pct = batteryPct(props);
+                        if (pct == null) {
+                            try {
+                                for (const [iface, ip] of Object.entries(ifaces)) {
+                                    if (String(iface).includes('Battery') && ip?.Percentage) {
+                                        pct = Math.round(Number(ip.Percentage.deep_unpack()));
+                                        break;
+                                    }
+                                }
+                            } catch (e) {}
+                        }
                         const name = deviceName(props);
-                        const pct = batteryPct(props);
-                        const iconKey = iconKeyFromProps(props) || 'headphones';
-                        const entry = {path, name, pct, iconKey};
+                        const entry = {path, name, pct};
                         devices.push(entry);
                         if (!best || (pct != null && (best.pct == null || pct > best.pct)))
                             best = entry;
                     }
                     if (best) {
+                        // Chip text: name + battery (feature restored)
                         label.text = best.pct != null
                             ? `${best.name} · ${best.pct}%`
                             : best.name;
-                        const g = giconForKey(best.iconKey, false);
+                        const g = giconForKey('headphones', false);
                         if (g)
                             icon.gicon = g;
                         button.visible = true;
