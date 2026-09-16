@@ -914,3 +914,17 @@
 .material-panel-workspace-app {
     padding: 0;
 }
+
+
+/* Static fallback: kill BoxPointer plate under all our popups */
+.material-panel-popup.popup-menu-boxpointer,
+.material-panel-popup.popup-menu-boxpointer .bin {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    -arrow-background-color: transparent;
+    -arrow-border-color: transparent;
+    -arrow-border-width: 0;
+    -arrow-rise: 0;
+    -arrow-base: 0;
+}
