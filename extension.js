@@ -159,6 +159,11 @@ export default class MaterialPanelExtension extends Extension {
             logError(e, 'material-panel: theme apply on size change');
         }
 
+        // Chip gap must update live without requiring scale change
+        try {
+            this._builder?._applyChipGap?.(this._config);
+        } catch (e) {}
+
         if (!scaleChanged)
             return;
 
@@ -166,7 +171,6 @@ export default class MaterialPanelExtension extends Extension {
             this._sizeDebounceId = 0;
             try {
                 this._builder.render(this._config);
-                                
                 this._applyTrayOnly();
             } catch (e) {
                 logError(e, 'material-panel: debounced scale rebuild failed');
