@@ -134,7 +134,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const sel = layoutDrop.get_selected();
             const style = sel === 1 ? LAYOUT_END4 : LAYOUT_DEFAULT;
             applyLayoutStyle(config, style);
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
         layoutRow.add_suffix(layoutDrop);
         layoutRow.activatable_widget = layoutDrop;
@@ -151,7 +155,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         gapSideRow.connect('changed', () => {
             if (!config.panelSize) config.panelSize = {};
             config.panelSize.gapSide = gapSideRow.get_value();
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
         layoutGroup.add(gapSideRow);
         layoutPage.add(layoutGroup);
@@ -253,7 +261,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     GLib.source_remove(saveDebounceId);
                 saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 280, () => {
                     saveDebounceId = null;
-                    store.save(config);
+                    try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
                     return GLib.SOURCE_REMOVE;
                 });
             });
@@ -303,7 +315,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockSwitch.connect('notify::active', () => {
             if (syncingExternal) return;
             config.clockFormat = clockSwitch.active ? '12h' : '24h';
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
         clockRow.add_suffix(clockSwitch);
         clockRow.activatable_widget = clockSwitch;
@@ -352,7 +368,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const name = names[i];
             if (name === config.activePreset) return;
             config.activePreset = name;
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
         presetsGroup.add(presetRow);
 
@@ -370,7 +390,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (!current) return;
             config.presets[name] = JSON.parse(JSON.stringify(current));
             config.activePreset = name;
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
             fillPresetModel();
             duplicateRow.text = '';
         });
@@ -391,7 +415,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (name === 'default' || !config.presets[name]) return;
             delete config.presets[name];
             config.activePreset = 'default';
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
             fillPresetModel();
         });
         deleteRow.add_suffix(deleteBtn);
@@ -436,7 +464,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 } else {
                     if (!hidden.includes(module.id)) hidden.push(module.id);
                 }
-                store.save(config);
+                try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
             });
             row.add_suffix(toggle);
             row.activatable_widget = toggle;
@@ -484,7 +516,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const j = zoneList.indexOf(prevId);
                         if (i >= 0 && j >= 0) {
                             [zoneList[j], zoneList[i]] = [zoneList[i], zoneList[j]];
-                            store.save(config);
+                            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
                         }
                         window.close();
                     });
@@ -501,7 +537,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const j = zoneList.indexOf(nextId);
                         if (i >= 0 && j >= 0) {
                             [zoneList[i], zoneList[j]] = [zoneList[j], zoneList[i]];
-                            store.save(config);
+                            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
                         }
                         window.close();
                     });
@@ -515,7 +555,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const i = zoneList.indexOf(id);
                         if (i >= 0)
                             zoneList.splice(i, 1);
+                        try {
                         store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
                         window.close();
                     });
 
@@ -545,7 +589,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (vals.length && vals.every(v => v === 'hidden')) {
                 config.foreignRoleZones = {};
                 config.hiddenForeignRoles = [];
-                store.save(config);
+                try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
             }
         }
 
@@ -615,7 +663,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             try {
                 syncExtensionZone(config, role, z === 'hidden' ? 'hidden' : z);
             } catch (e) {}
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         };
 
         if (roleList.length === 0) {
@@ -696,7 +748,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     .map(([r]) => r);
             }
             setCombosSensitive(!config.trayAllHidden);
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
 
         const drawerRow = new Adw.ActionRow({
@@ -712,7 +768,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         trayActions.add(drawerRow);
         drawerSwitch.connect('notify::active', () => {
             config.trayDrawer = !!drawerSwitch.active;
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
 
 
@@ -736,7 +796,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         colorSourceRow.connect('apply', () => {
             config.colorSource = colorSourceRow.get_text() || null;
-            store.save(config);
+            try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
         });
         themeGroup.add(colorSourceRow);
 
@@ -744,7 +808,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (saveDebounceId) {
                 GLib.source_remove(saveDebounceId);
                 saveDebounceId = null;
-                store.save(config);
+                try {
+                        store.save(config);
+                    } catch (e) {
+                        console.error('material-panel prefs: save failed', e);
+                    }
             }
         };
         window.connect('close-request', () => {
