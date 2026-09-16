@@ -325,6 +325,27 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockRow.activatable_widget = clockSwitch;
         clockGroup.add(clockRow);
 
+        const activityGroup = new Adw.PreferencesGroup({
+            title: 'Activity chip',
+            description: 'What the CPU / Activity chip shows on the bar.',
+        });
+        generalPage.add(activityGroup);
+        if (!['cpu', 'cpu-ram', 'ram'].includes(config.activityChip))
+            config.activityChip = 'cpu';
+        const activityRow = new Adw.ComboRow({
+            title: 'Bar display',
+            model: Gtk.StringList.new(['CPU + temp', 'CPU + RAM', 'RAM only']),
+        });
+        const actMap = ['cpu', 'cpu-ram', 'ram'];
+        activityRow.set_selected(Math.max(0, actMap.indexOf(config.activityChip)));
+        activityRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            const i = activityRow.get_selected();
+            config.activityChip = actMap[i] ?? 'cpu';
+            try { store.save(config); } catch (e) { console.error(e); }
+        });
+        activityGroup.add(activityRow);
+
         // --- Presets ---
         if (!config.presets || typeof config.presets !== 'object')
             config.presets = {};

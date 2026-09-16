@@ -9,6 +9,7 @@ import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
+import {ConfigStore} from '../lib/configStore.js';
 
 function findTempFile() {
     const candidates = [];
@@ -294,6 +295,82 @@ function readTopProcesses(limit = 8) {
     }
 }
 
+
+function readGpuInfo() {
+    try {
+        const [, out] = GLib.spawn_command_line_sync(
+            'nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits');
+        const text = new TextDecoder('utf-8').decode(out).trim();
+        if (text && !/error|not found|failed/i.test(text)) {
+            const line = text.split('\n')[0];
+            const parts = line.split(',').map(s => s.trim());
+            if (parts.length >= 4) {
+                return {
+                    vendor: 'NVIDIA',
+                    util: parseInt(parts[0], 10),
+                    memUsed: parseInt(parts[1], 10),
+                    memTotal: parseInt(parts[2], 10),
+                    temp: parseInt(parts[3], 10),
+                };
+            }
+        }
+    } catch (e) {}
+    try {
+        const base = '/sys/class/drm/card0/device';
+        let util = null, temp = null, memUsed = null, memTotal = null;
+        try {
+            const [ok, c] = Gio.File.new_for_path(`${base}/gpu_busy_percent`).load_contents(null);
+            if (ok) util = parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+        } catch (e) {}
+        try {
+            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_used`).load_contents(null);
+            if (ok) memUsed = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
+        } catch (e) {}
+        try {
+            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_total`).load_contents(null);
+            if (ok) memTotal = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
+        } catch (e) {}
+        try {
+            const hwmon = Gio.File.new_for_path(`${base}/hwmon`);
+            if (hwmon.query_exists(null)) {
+                const en = hwmon.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+                let info;
+                while ((info = en.next_file(null)) !== null) {
+                    try {
+                        const [ok, c] = Gio.File.new_for_path(
+                            `${base}/hwmon/${info.get_name()}/temp1_input`).load_contents(null);
+                        if (ok) {
+                            temp = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / 1000);
+                            break;
+                        }
+                    } catch (e) {}
+                }
+                try { en.close(null); } catch (e) {}
+            }
+        } catch (e) {}
+        if (util != null || temp != null || memUsed != null)
+            return {vendor: 'AMD', util, memUsed, memTotal, temp};
+    } catch (e) {}
+    return null;
+}
+
+function killProcess(pid) {
+    const n = parseInt(pid, 10);
+    if (!Number.isFinite(n) || n <= 1)
+        return false;
+    try {
+        GLib.spawn_command_line_async(`kill ${n}`);
+        return true;
+    } catch (e) {
+        try {
+            GLib.spawn_command_line_async(`kill -TERM ${n}`);
+            return true;
+        } catch (e2) {
+            return false;
+        }
+    }
+}
+
 export function buildCpu(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-cpu material-panel-chip',
@@ -434,10 +511,26 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const totalPct = data.totalPct;
         let temp = readTemp(tempPath);
         if (temp === null) temp = readTempHwmon();
-        if (totalPct !== null) cpuLabel.text = `${totalPct}%`;
-        else cpuLabel.text = '—';
-        if (temp !== null) tempLabel.text = `${temp}°C`;
-        else tempLabel.text = '';
+        let mode = 'cpu';
+        try {
+            mode = globalThis._materialPanelActivityChip || 'cpu';
+        } catch (e) {}
+        const memSnap = readMemInfo();
+        if (mode === 'ram') {
+            cpuLabel.text = memSnap ? `${memSnap.usedPct}%` : '—';
+            tempLabel.text = memSnap ? 'RAM' : '';
+            try { tempIcon.visible = false; } catch (e) {}
+        } else if (mode === 'cpu-ram') {
+            cpuLabel.text = totalPct !== null ? `${totalPct}%` : '—';
+            tempLabel.text = memSnap ? `${memSnap.usedPct}%RAM` : (temp !== null ? `${temp}°C` : '');
+            try { tempIcon.visible = true; } catch (e) {}
+        } else {
+            if (totalPct !== null) cpuLabel.text = `${totalPct}%`;
+            else cpuLabel.text = '—';
+            if (temp !== null) tempLabel.text = `${temp}°C`;
+            else tempLabel.text = '';
+            try { tempIcon.visible = true; } catch (e) {}
+        }
         try {
             button.set_tooltip_text(
                 `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : '—'}`);
@@ -532,6 +625,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraSection.actor.visible = false;
     const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
     const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
+    const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-cpu-popup-value'});
     const procTitle = new St.Label({
         text: 'Top processes',
         style_class: 'material-panel-cpu-popup-section-title',
@@ -548,6 +642,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     }));
     extraBox.add_child(diskLbl);
     extraBox.add_child(netLbl);
+    extraBox.add_child(gpuLbl);
     extraBox.add_child(procTitle);
     extraBox.add_child(procBox);
     extraSection.actor.add_child(extraBox);
@@ -590,6 +685,22 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         if (now)
             lastNet = now;
 
+        const gpu = readGpuInfo();
+        if (gpu) {
+            const parts = [gpu.vendor];
+            if (gpu.util != null && Number.isFinite(gpu.util))
+                parts.push(`${gpu.util}%`);
+            if (gpu.temp != null && Number.isFinite(gpu.temp))
+                parts.push(`${gpu.temp}°C`);
+            if (gpu.memUsed != null && gpu.memTotal != null)
+                parts.push(`${gpu.memUsed}/${gpu.memTotal} MB`);
+            gpuLbl.text = `GPU  ${parts.join(' · ')}`;
+            gpuLbl.visible = true;
+        } else {
+            gpuLbl.text = 'GPU  not detected';
+            gpuLbl.visible = true;
+        }
+
         procBox.destroy_all_children();
         const procs = readTopProcesses(8);
         if (!procs.length) {
@@ -599,11 +710,48 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             }));
         } else {
             for (const p of procs) {
-                const row = new St.Label({
-                    text: `${String(p.pcpu).padStart(5)}%  ${String(p.pmem).padStart(4)}%  ${p.comm}`,
+                const row = new St.BoxLayout({
+                    vertical: false,
+                    style: 'spacing: 8px;',
+                    x_expand: true,
+                });
+                row.add_child(new St.Label({
+                    text: `${String(p.pcpu).padStart(5)}% ${String(p.pmem).padStart(4)}%  ${p.comm}`,
                     style_class: 'material-panel-cpu-popup-value',
                     style: 'font-family: monospace; font-size: 11px;',
+                    x_expand: true,
+                }));
+                const endBtn = new St.Button({
+                    label: 'End',
+                    style_class: 'material-panel-headphones-disconnect',
+                    y_align: Clutter.ActorAlign.CENTER,
                 });
+                const pid = p.pid;
+                let armed = false;
+                endBtn.connect('clicked', () => {
+                    if (!armed) {
+                        armed = true;
+                        endBtn.label = 'Confirm?';
+                        GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
+                            try {
+                                if (armed) {
+                                    armed = false;
+                                    endBtn.label = 'End';
+                                }
+                            } catch (e) {}
+                            return GLib.SOURCE_REMOVE;
+                        });
+                        return;
+                    }
+                    killProcess(pid);
+                    armed = false;
+                    endBtn.label = 'End';
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+                        try { refreshExtra(); } catch (e) {}
+                        return GLib.SOURCE_REMOVE;
+                    });
+                });
+                row.add_child(endBtn);
                 procBox.add_child(row);
             }
         }
@@ -702,6 +850,23 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             refreshExtra();
     };
 
+    const _cfgStore = new ConfigStore();
+    const _applyActivityMode = () => {
+        try {
+            const c = _cfgStore.load();
+            globalThis._materialPanelActivityChip = c.activityChip || 'cpu';
+        } catch (e) {
+            globalThis._materialPanelActivityChip = 'cpu';
+        }
+    };
+    _applyActivityMode();
+    try {
+        _cfgStore.watch(() => {
+            _applyActivityMode();
+            try { updateLabels(); } catch (e) {}
+        });
+    } catch (e) {}
+
     updateLabels();
     let timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
     let fastTimerId = 0;
@@ -728,6 +893,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     button.connect('destroy', () => {
         try { GLib.source_remove(timerId); } catch (e) {}
         try { if (fastTimerId) GLib.source_remove(fastTimerId); } catch (e) {}
+        try { _cfgStore.unwatch(); } catch (e) {}
         menu.destroy();
     });
 
