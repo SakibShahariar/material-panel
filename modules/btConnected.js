@@ -100,7 +100,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     const body = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-headphones-popup-body',
-        style: 'spacing: 10px; padding: 4px 2px; min-width: 260px;',
+        style: 'spacing: 10px; padding: 2px 0; min-width: 260px;',
     });
 
     const title = new St.Label({
@@ -147,7 +147,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
             const row = new St.BoxLayout({
                 vertical: false,
                 style_class: 'material-panel-headphones-row',
-                style: 'spacing: 10px; padding: 8px 10px; border-radius: 12px;',
+                style: 'spacing: 10px; padding: 6px 4px;',
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
             });
