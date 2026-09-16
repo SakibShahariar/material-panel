@@ -748,6 +748,25 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     procTitleRow.add_child(procTitle);
     procTitleRow.add_child(sortCpuBtn);
     procTitleRow.add_child(sortMemBtn);
+
+    let procFilter = '';
+    const procSearch = new St.Entry({
+        style_class: 'material-panel-activity-proc-search',
+        hint_text: 'Filter processes…',
+        can_focus: true,
+        x_expand: true,
+    });
+    try {
+        procSearch.clutter_text.connect('text-changed', () => {
+            try {
+                procFilter = String(procSearch.get_text() || '').trim().toLowerCase();
+            } catch (e) {
+                procFilter = '';
+            }
+            try { refreshExtra(); } catch (e) {}
+        });
+    } catch (e) {}
+
     const procBox = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-cpu-popup-procs',
@@ -762,6 +781,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraBox.add_child(netLbl);
     extraBox.add_child(gpuLbl);
     extraBox.add_child(procTitleRow);
+    extraBox.add_child(procSearch);
     extraBox.add_child(procBox);
     extraSection.actor.add_child(extraBox);
     menu.addMenuItem(extraSection);
@@ -826,10 +846,16 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             style_class: 'material-panel-cpu-popup-section-title',
             style: 'font-family: monospace; font-size: 11px;',
         }));
-        const procs = readTopProcesses(12, procSort);
+        let procs = readTopProcesses(24, procSort);
+        if (procFilter) {
+            procs = procs.filter(p =>
+                String(p.comm || '').toLowerCase().includes(procFilter) ||
+                String(p.pid || '').includes(procFilter));
+        }
+        procs = procs.slice(0, 12);
         if (!procs.length) {
             procBox.add_child(new St.Label({
-                text: 'No process data',
+                text: procFilter ? 'No matching processes' : 'No process data',
                 style_class: 'material-panel-cpu-popup-value',
             }));
         } else {
