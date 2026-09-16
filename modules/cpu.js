@@ -268,7 +268,7 @@ function readNetRates() {
     }
 }
 
-function readTopProcesses(limit = 8) {
+function readTopProcesses(limit = 12) {
     try {
         // pid, pcpu, pmem, comm — portable enough on Fedora/GNOME
         const [, out] = GLib.spawn_command_line_sync(
@@ -711,7 +711,12 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         }
 
         procBox.destroy_all_children();
-        const procs = readTopProcesses(8);
+        procBox.add_child(new St.Label({
+            text: '  CPU%  MEM%  Name',
+            style_class: 'material-panel-cpu-popup-section-title',
+            style: 'font-family: monospace; font-size: 11px;',
+        }));
+        const procs = readTopProcesses(12);
         if (!procs.length) {
             procBox.add_child(new St.Label({
                 text: 'No process data',

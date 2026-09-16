@@ -51,6 +51,7 @@ const ALL_MODULES = [
     {id: 'cpu', name: 'CPU / Activity', zone: 'left'},
     {id: 'memory', name: 'Memory', zone: 'left'},
     {id: 'disk', name: 'Disk', zone: 'left'},
+    {id: 'gpu', name: 'GPU', zone: 'left'},
     {id: 'networkSpeed', name: 'Network Speed', zone: 'right'},
     {id: 'clock', name: 'Clock', zone: 'center'},
     {id: 'weather', name: 'Weather', zone: 'center'},
