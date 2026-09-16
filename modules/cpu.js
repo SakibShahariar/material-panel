@@ -532,6 +532,15 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             try { tempIcon.visible = true; } catch (e) {}
         }
         try {
+            const hot = (totalPct != null && totalPct >= 90) ||
+                (mode === 'ram' && memSnap && memSnap.usedPct >= 90) ||
+                (mode === 'cpu-ram' && memSnap && memSnap.usedPct >= 90);
+            if (hot)
+                button.add_style_class_name('material-panel-chip-warn');
+            else
+                button.remove_style_class_name('material-panel-chip-warn');
+        } catch (e) {}
+        try {
             button.set_tooltip_text(
                 `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : '—'}`);
         } catch (e) {}
