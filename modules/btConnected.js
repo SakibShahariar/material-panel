@@ -94,6 +94,8 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     wireChipPress(button);
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name(
+        'material-panel-popup material-panel-headphones-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);

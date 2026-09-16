@@ -170,8 +170,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 return `${Math.round(v)} px`;
             };
             let initial = Number(panelSize[key]);
-            if (!Number.isFinite(initial))
-                initial = key === 'scale' ? 1.0 : (key === 'gapTop' ? 5 : 4);
+            if (!Number.isFinite(initial)) {
+                if (key === 'scale') initial = 1.0;
+                else if (key === 'gapTop') initial = 5;
+                else if (key === 'gapBottom') initial = 4;
+                else if (key === 'chipGap') initial = 4;
+                else initial = 4;
+            }
             initial = Math.max(min, Math.min(max, initial));
             panelSize[key] = initial;
 
@@ -223,6 +228,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     scale: Number(panelSize.scale),
                     gapTop: Math.round(Number(panelSize.gapTop)),
                     gapBottom: Math.round(Number(panelSize.gapBottom)),
+                    gapSide: Math.round(Number(panelSize.gapSide ?? config.panelSize?.gapSide ?? 0)),
+                    chipGap: Math.round(Number(panelSize.chipGap ?? 4)),
                 };
                 updateValueLabel();
                 if (saveDebounceId)
@@ -250,6 +257,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         makeSliderRow({
             title: 'Bottom gap',
             key: 'gapBottom', min: 0, max: 14, step: 1,
+        });
+        makeSliderRow({
+            title: 'Chip gap',
+            key: 'chipGap', min: 0, max: 16, step: 1,
         });
 
         const clockGroup = new Adw.PreferencesGroup({
