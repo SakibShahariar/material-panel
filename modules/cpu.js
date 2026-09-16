@@ -163,6 +163,137 @@ function readCpuFreq() {
     return freqs.length > 0 ? freqs : null;
 }
 
+
+function readMemInfo() {
+    try {
+        const [ok, contents] = Gio.File.new_for_path('/proc/meminfo').load_contents(null);
+        if (!ok) return null;
+        const text = new TextDecoder('utf-8').decode(contents);
+        const map = {};
+        for (const line of text.split('\n')) {
+            const m = line.match(/^(\w+):\s+(\d+)/);
+            if (m)
+                map[m[1]] = parseInt(m[2], 10); // kB
+        }
+        const total = map.MemTotal ?? 0;
+        const available = map.MemAvailable ?? map.MemFree ?? 0;
+        const free = map.MemFree ?? 0;
+        const buffers = map.Buffers ?? 0;
+        const cached = (map.Cached ?? 0) + (map.SReclaimable ?? 0);
+        const used = Math.max(0, total - available);
+        const swapTotal = map.SwapTotal ?? 0;
+        const swapFree = map.SwapFree ?? 0;
+        const swapUsed = Math.max(0, swapTotal - swapFree);
+        return {
+            totalKb: total,
+            availableKb: available,
+            usedKb: used,
+            freeKb: free,
+            cachedKb: cached,
+            buffersKb: buffers,
+            usedPct: total > 0 ? Math.round((used / total) * 100) : 0,
+            swapTotalKb: swapTotal,
+            swapUsedKb: swapUsed,
+            swapPct: swapTotal > 0 ? Math.round((swapUsed / swapTotal) * 100) : 0,
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+function formatBytesFromKb(kb) {
+    if (kb == null || !Number.isFinite(kb))
+        return '—';
+    const mb = kb / 1024;
+    if (mb < 1024)
+        return `${mb.toFixed(0)} MB`;
+    return `${(mb / 1024).toFixed(1)} GB`;
+}
+
+function readDiskRoot() {
+    try {
+        const [, out] = GLib.spawn_command_line_sync('df -B1 /');
+        const text = new TextDecoder('utf-8').decode(out);
+        const lines = text.trim().split('\n');
+        if (lines.length < 2)
+            return null;
+        const parts = lines[1].trim().split(/\s+/);
+        // Filesystem size used avail use% mount
+        if (parts.length < 6)
+            return null;
+        const size = parseInt(parts[1], 10);
+        const used = parseInt(parts[2], 10);
+        const avail = parseInt(parts[3], 10);
+        const pct = parseInt(String(parts[4]).replace('%', ''), 10);
+        return {size, used, avail, pct, mount: parts[5]};
+    } catch (e) {
+        return null;
+    }
+}
+
+function formatBytes(n) {
+    if (n == null || !Number.isFinite(n))
+        return '—';
+    if (n < 1024)
+        return `${n} B`;
+    if (n < 1024 * 1024)
+        return `${(n / 1024).toFixed(0)} KB`;
+    if (n < 1024 ** 3)
+        return `${(n / (1024 ** 2)).toFixed(1)} MB`;
+    return `${(n / (1024 ** 3)).toFixed(1)} GB`;
+}
+
+function readNetRates() {
+    // cumulative bytes; caller diffs
+    try {
+        const [ok, contents] = Gio.File.new_for_path('/proc/net/dev').load_contents(null);
+        if (!ok) return null;
+        const text = new TextDecoder('utf-8').decode(contents);
+        let rx = 0, tx = 0;
+        for (const line of text.split('\n').slice(2)) {
+            const t = line.trim();
+            if (!t) continue;
+            const [iface, rest] = t.split(':');
+            if (!rest) continue;
+            const name = iface.trim();
+            if (name === 'lo') continue;
+            const parts = rest.trim().split(/\s+/);
+            rx += parseInt(parts[0], 10) || 0;
+            tx += parseInt(parts[8], 10) || 0;
+        }
+        return {rx, tx, t: GLib.get_monotonic_time()};
+    } catch (e) {
+        return null;
+    }
+}
+
+function readTopProcesses(limit = 8) {
+    try {
+        // pid, pcpu, pmem, comm — portable enough on Fedora/GNOME
+        const [, out] = GLib.spawn_command_line_sync(
+            `ps -eo pid,pcpu,pmem,comm --sort=-pcpu --no-headers`);
+        const text = new TextDecoder('utf-8').decode(out);
+        const rows = [];
+        for (const line of text.split('\n')) {
+            const t = line.trim();
+            if (!t) continue;
+            const parts = t.split(/\s+/);
+            if (parts.length < 4) continue;
+            const pid = parts[0];
+            const pcpu = parts[1];
+            const pmem = parts[2];
+            const comm = parts.slice(3).join(' ');
+            if (comm === 'ps') continue;
+            rows.push({pid, pcpu, pmem, comm});
+            if (rows.length >= limit)
+                break;
+        }
+        return rows;
+    } catch (e) {
+        return [];
+    }
+}
+
 export function buildCpu(_extensionPath, scale = 1.0) {
     const button = new St.Button({
         style_class: 'material-panel-cpu material-panel-chip',
@@ -371,6 +502,112 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     thermalGrid.add_child(thermalCrit);
     thermalSection.actor.add_child(thermalGrid);
     menu.addMenuItem(thermalSection);
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+    // —— Memory (Activity compact) ——
+    const memSection = new PopupMenu.PopupMenuSection();
+    memSection.actor.add_child(new St.Label({
+        text: 'Memory',
+        style_class: 'material-panel-cpu-popup-section-title',
+    }));
+    const memUsedLbl = new St.Label({text: 'Used  —', style_class: 'material-panel-cpu-popup-value'});
+    const memAvailLbl = new St.Label({text: 'Available  —', style_class: 'material-panel-cpu-popup-value'});
+    const memCacheLbl = new St.Label({text: 'Cache  —', style_class: 'material-panel-cpu-popup-value'});
+    const memSwapLbl = new St.Label({text: 'Swap  —', style_class: 'material-panel-cpu-popup-value'});
+    const memBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
+    memBox.add_child(memUsedLbl);
+    memBox.add_child(memAvailLbl);
+    memBox.add_child(memCacheLbl);
+    memBox.add_child(memSwapLbl);
+    memSection.actor.add_child(memBox);
+    menu.addMenuItem(memSection);
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+    // —— Expand (disk / net / processes) ——
+    let expanded = false;
+    const expandBtn = new PopupMenu.PopupMenuItem('Show more ▸');
+    menu.addMenuItem(expandBtn);
+
+    const extraSection = new PopupMenu.PopupMenuSection();
+    extraSection.actor.visible = false;
+    const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
+    const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
+    const procTitle = new St.Label({
+        text: 'Top processes',
+        style_class: 'material-panel-cpu-popup-section-title',
+    });
+    const procBox = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-cpu-popup-procs',
+        style: 'spacing: 2px;',
+    });
+    const extraBox = new St.BoxLayout({vertical: true, style: 'spacing: 6px;'});
+    extraBox.add_child(new St.Label({
+        text: 'Storage & network',
+        style_class: 'material-panel-cpu-popup-section-title',
+    }));
+    extraBox.add_child(diskLbl);
+    extraBox.add_child(netLbl);
+    extraBox.add_child(procTitle);
+    extraBox.add_child(procBox);
+    extraSection.actor.add_child(extraBox);
+    menu.addMenuItem(extraSection);
+
+    expandBtn.connect('activate', () => {
+        expanded = !expanded;
+        extraSection.actor.visible = expanded;
+        try {
+            if (expandBtn.label && expandBtn.label.set_text)
+                expandBtn.label.set_text(expanded ? 'Show less ▾' : 'Show more ▸');
+            else if (expandBtn.label)
+                expandBtn.label.text = expanded ? 'Show less ▾' : 'Show more ▸';
+        } catch (e) {}
+        if (expanded)
+            refreshExtra();
+    });
+
+    let lastNet = null;
+    const refreshExtra = () => {
+        const disk = readDiskRoot();
+        if (disk) {
+            diskLbl.text = `Disk ${disk.mount}  ${formatBytes(disk.used)} / ${formatBytes(disk.size)}  (${disk.pct}%)`;
+        } else {
+            diskLbl.text = 'Disk  —';
+        }
+        const now = readNetRates();
+        if (now && lastNet && now.t > lastNet.t) {
+            const dt = (now.t - lastNet.t) / 1e6; // monotonic µs → s
+            if (dt > 0.05) {
+                const down = (now.rx - lastNet.rx) / dt;
+                const up = (now.tx - lastNet.tx) / dt;
+                netLbl.text = `Net  ↓ ${formatBytes(down)}/s  ↑ ${formatBytes(up)}/s`;
+            }
+        } else if (now) {
+            netLbl.text = 'Net  measuring…';
+        } else {
+            netLbl.text = 'Net  —';
+        }
+        if (now)
+            lastNet = now;
+
+        procBox.destroy_all_children();
+        const procs = readTopProcesses(8);
+        if (!procs.length) {
+            procBox.add_child(new St.Label({
+                text: 'No process data',
+                style_class: 'material-panel-cpu-popup-value',
+            }));
+        } else {
+            for (const p of procs) {
+                const row = new St.Label({
+                    text: `${String(p.pcpu).padStart(5)}%  ${String(p.pmem).padStart(4)}%  ${p.comm}`,
+                    style_class: 'material-panel-cpu-popup-value',
+                    style: 'font-family: monospace; font-size: 11px;',
+                });
+                procBox.add_child(row);
+            }
+        }
+    };
 
     const ensureCoreRows = (n) => {
         while (coreLabels.length < n) {
@@ -445,18 +682,52 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         thermalCurrent.text = `Now  ${temp !== null ? temp + '°C' : '—'}`;
         thermalHigh.text = trips.high != null ? `High  ${trips.high}°C` : '';
         thermalCrit.text = trips.critical != null ? `Crit  ${trips.critical}°C` : '';
+
+        const mem = readMemInfo();
+        if (mem) {
+            memUsedLbl.text = `Used  ${formatBytesFromKb(mem.usedKb)} / ${formatBytesFromKb(mem.totalKb)}  (${mem.usedPct}%)`;
+            memAvailLbl.text = `Available  ${formatBytesFromKb(mem.availableKb)}`;
+            memCacheLbl.text = `Cache  ${formatBytesFromKb(mem.cachedKb)}`;
+            memSwapLbl.text = mem.swapTotalKb > 0
+                ? `Swap  ${formatBytesFromKb(mem.swapUsedKb)} / ${formatBytesFromKb(mem.swapTotalKb)}  (${mem.swapPct}%)`
+                : 'Swap  none';
+        } else {
+            memUsedLbl.text = 'Used  —';
+            memAvailLbl.text = 'Available  —';
+            memCacheLbl.text = 'Cache  —';
+            memSwapLbl.text = 'Swap  —';
+        }
+
+        if (expanded)
+            refreshExtra();
     };
 
     updateLabels();
-    const timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
+    let timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
+    let fastTimerId = 0;
     menu.connect('open-state-changed', (_m, open) => {
-        if (open)
-            refreshPopup(); // may show … for one tick until next sample
+        if (open) {
+            refreshPopup();
+            if (fastTimerId)
+                return;
+            fastTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                if (!menu.isOpen) {
+                    fastTimerId = 0;
+                    return GLib.SOURCE_REMOVE;
+                }
+                refreshPopup();
+                return GLib.SOURCE_CONTINUE;
+            });
+        } else if (fastTimerId) {
+            try { GLib.source_remove(fastTimerId); } catch (e) {}
+            fastTimerId = 0;
+        }
     });
 
     button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
         try { GLib.source_remove(timerId); } catch (e) {}
+        try { if (fastTimerId) GLib.source_remove(fastTimerId); } catch (e) {}
         menu.destroy();
     });
 
