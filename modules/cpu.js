@@ -268,11 +268,11 @@ function readNetRates() {
     }
 }
 
-function readTopProcesses(limit = 12) {
+function readTopProcesses(limit = 12, sortBy = 'cpu') {
     try {
-        // pid, pcpu, pmem, comm — portable enough on Fedora/GNOME
+        const sort = sortBy === 'mem' ? '-pmem' : '-pcpu';
         const [, out] = GLib.spawn_command_line_sync(
-            `ps -eo pid,pcpu,pmem,comm --sort=-pcpu --no-headers`);
+            `ps -eo pid,pcpu,pmem,comm --sort=${sort} --no-headers`);
         const text = new TextDecoder('utf-8').decode(out);
         const rows = [];
         for (const line of text.split('\n')) {
@@ -369,6 +369,82 @@ function killProcess(pid) {
             return false;
         }
     }
+}
+
+
+function readCoreClasses() {
+    // Map cpu index → 'P' | 'E' | 'L' | null using max freq clusters or capacity.
+    const maxHz = [];
+    const capacity = [];
+    try {
+        const dir = Gio.File.new_for_path('/sys/devices/system/cpu');
+        const en = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        let info;
+        while ((info = en.next_file(null)) !== null) {
+            const name = info.get_name();
+            const m = name.match(/^cpu(\d+)$/);
+            if (!m) continue;
+            const idx = parseInt(m[1], 10);
+            try {
+                const [ok, c] = Gio.File.new_for_path(
+                    `/sys/devices/system/cpu/${name}/cpufreq/cpuinfo_max_freq`).load_contents(null);
+                if (ok)
+                    maxHz[idx] = parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+            } catch (e) {}
+            try {
+                const [ok, c] = Gio.File.new_for_path(
+                    `/sys/devices/system/cpu/${name}/cpu_capacity`).load_contents(null);
+                if (ok)
+                    capacity[idx] = parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+            } catch (e) {}
+        }
+        try { en.close(null); } catch (e) {}
+    } catch (e) {}
+
+    const n = Math.max(maxHz.length, capacity.length);
+    if (n === 0)
+        return null;
+
+    // Prefer capacity (ARM big.LITTLE / Intel on some kernels)
+    const caps = [];
+    for (let i = 0; i < n; i++) {
+        if (capacity[i] != null)
+            caps.push(capacity[i]);
+    }
+    const uniqueCap = [...new Set(caps)].sort((a, b) => a - b);
+    if (uniqueCap.length >= 2) {
+        const out = [];
+        const hi = uniqueCap[uniqueCap.length - 1];
+        const lo = uniqueCap[0];
+        for (let i = 0; i < n; i++) {
+            const c = capacity[i];
+            if (c == null) out[i] = null;
+            else if (c >= hi) out[i] = 'P';
+            else if (c <= lo) out[i] = 'E';
+            else out[i] = 'L'; // mid / low-power island
+        }
+        return out;
+    }
+
+    // Fallback: max frequency clusters
+    const freqs = [];
+    for (let i = 0; i < n; i++) {
+        if (maxHz[i] != null)
+            freqs.push(maxHz[i]);
+    }
+    const uniqueF = [...new Set(freqs)].sort((a, b) => a - b);
+    if (uniqueF.length < 2)
+        return null;
+    // Split at midpoint between min and max unique
+    const mid = (uniqueF[0] + uniqueF[uniqueF.length - 1]) / 2;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const f = maxHz[i];
+        if (f == null) out[i] = null;
+        else if (f >= mid) out[i] = 'P';
+        else out[i] = 'E';
+    }
+    return out;
 }
 
 export function buildCpu(_extensionPath, scale = 1.0) {
@@ -506,6 +582,10 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     let refreshPopup = (_data) => {}; // assigned after popup widgets exist
 
     let updateLabels = () => {
+        try {
+            if (!globalThis._materialPanelCoreClasses)
+                globalThis._materialPanelCoreClasses = readCoreClasses();
+        } catch (e) {}
         // Single sample per tick — calling readAll twice ate the delta (popup stuck ~0%)
         const data = readAll();
         const totalPct = data.totalPct;
@@ -587,6 +667,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     const coresSection = new PopupMenu.PopupMenuSection();
     const coresTitle = new St.Label({text: 'Per core', style_class: 'material-panel-cpu-popup-section-title'});
+    try {
+        const cc = readCoreClasses();
+        if (cc && cc.some(x => x === 'P' || x === 'E'))
+            coresTitle.text = 'Per core  (P = performance, E = efficiency)';
+        globalThis._materialPanelCoreClasses = cc;
+    } catch (e) {}
+
     coresSection.actor.add_child(coresTitle);
     coresSection.actor.add_child(coresGrid);
     menu.addMenuItem(coresSection);
@@ -635,10 +722,32 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
     const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
     const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-cpu-popup-value'});
+    let procSort = 'cpu'; // 'cpu' | 'mem'
+    const procTitleRow = new St.BoxLayout({vertical: false, style: 'spacing: 8px;'});
     const procTitle = new St.Label({
         text: 'Top processes',
         style_class: 'material-panel-cpu-popup-section-title',
+        x_expand: true,
     });
+    const sortCpuBtn = new St.Button({
+        label: 'CPU',
+        style_class: 'material-panel-headphones-disconnect',
+    });
+    const sortMemBtn = new St.Button({
+        label: 'MEM',
+        style_class: 'material-panel-headphones-disconnect',
+    });
+    sortCpuBtn.connect('clicked', () => {
+        procSort = 'cpu';
+        refreshExtra();
+    });
+    sortMemBtn.connect('clicked', () => {
+        procSort = 'mem';
+        refreshExtra();
+    });
+    procTitleRow.add_child(procTitle);
+    procTitleRow.add_child(sortCpuBtn);
+    procTitleRow.add_child(sortMemBtn);
     const procBox = new St.BoxLayout({
         vertical: true,
         style_class: 'material-panel-cpu-popup-procs',
@@ -652,7 +761,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraBox.add_child(diskLbl);
     extraBox.add_child(netLbl);
     extraBox.add_child(gpuLbl);
-    extraBox.add_child(procTitle);
+    extraBox.add_child(procTitleRow);
     extraBox.add_child(procBox);
     extraSection.actor.add_child(extraBox);
     menu.addMenuItem(extraSection);
@@ -711,12 +820,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         }
 
         procBox.destroy_all_children();
+        const head = procSort === 'mem' ? '  MEM%  CPU%  Name  (sort MEM)' : '  CPU%  MEM%  Name  (sort CPU)';
         procBox.add_child(new St.Label({
-            text: '  CPU%  MEM%  Name',
+            text: head,
             style_class: 'material-panel-cpu-popup-section-title',
             style: 'font-family: monospace; font-size: 11px;',
         }));
-        const procs = readTopProcesses(12);
+        const procs = readTopProcesses(12, procSort);
         if (!procs.length) {
             procBox.add_child(new St.Label({
                 text: 'No process data',
@@ -729,8 +839,11 @@ export function buildCpu(_extensionPath, scale = 1.0) {
                     style: 'spacing: 8px;',
                     x_expand: true,
                 });
+                const line = procSort === 'mem'
+                    ? `${String(p.pmem).padStart(5)}% ${String(p.pcpu).padStart(4)}%  ${p.comm}`
+                    : `${String(p.pcpu).padStart(5)}% ${String(p.pmem).padStart(4)}%  ${p.comm}`;
                 row.add_child(new St.Label({
-                    text: `${String(p.pcpu).padStart(5)}% ${String(p.pmem).padStart(4)}%  ${p.comm}`,
+                    text: line,
                     style_class: 'material-panel-cpu-popup-value',
                     style: 'font-family: monospace; font-size: 11px;',
                     x_expand: true,
@@ -775,7 +888,10 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         while (coreLabels.length < n) {
             const i = coreLabels.length;
             const row = new St.BoxLayout({style_class: 'material-panel-cpu-popup-core-row', x_expand: true});
-            row.add_child(new St.Label({text: `${i}`, style_class: 'material-panel-cpu-popup-core-name'}));
+            const coreClasses = globalThis._materialPanelCoreClasses || null;
+            const tag = coreClasses && coreClasses[i] ? coreClasses[i] : '';
+            const nameText = tag ? `${i} ${tag}` : `${i}`;
+            row.add_child(new St.Label({text: nameText, style_class: 'material-panel-cpu-popup-core-name'}));
             // simple bar + pct
             const barBg = new St.Widget({
                 style_class: 'material-panel-cpu-popup-bar-bg',
