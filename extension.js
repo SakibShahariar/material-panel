@@ -142,7 +142,7 @@ export default class MaterialPanelExtension extends Extension {
                 // modules/clock.js has its own ConfigStore.watch — no rebuild
                 return;
             case 'color':
-                this._applyTheme({rebuildPanel: true});
+                this._applyTheme({rebuildPanel: true}); // debounced inside _schedulePanelRebuild
                 return;
             default:
                 this._applyTheme({rebuildPanel: true});
@@ -219,7 +219,9 @@ export default class MaterialPanelExtension extends Extension {
 
         if (colorSource) {
             this._theme.watch(colorSource, () => {
-                log('material-panel: matugen watch — theme only (no panel rebuild)');
+                // CSS updates immediately; modules bake primary into FileIcons at
+                // build time — need a debounced rebuild so icons follow the palette.
+                log('material-panel: matugen watch — theme + debounced rebuild for icons');
                 try {
                     const freshSize = this._config.panelSize ?? {};
                     const freshSource = resolveColorSource(this._config.colorSource);
@@ -227,6 +229,7 @@ export default class MaterialPanelExtension extends Extension {
                 } catch (e) {
                     logError(e, 'material-panel: matugen theme apply');
                 }
+                this._schedulePanelRebuild('matugen');
             });
         }
     }
