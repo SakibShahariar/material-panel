@@ -119,16 +119,24 @@ export default class MaterialPanelExtension extends Extension {
             case 'tray':
                 return;
             case 'panelSize': {
+                const p = prev?.panelSize ?? {};
+                const n = newConfig?.panelSize ?? {};
                 const scaleCh = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
-                const gapCh = Number(prev?.panelSize?.chipGap) !== Number(newConfig?.panelSize?.chipGap);
-                const opCh = Number(prev?.panelSize?.popupOpacity) !== Number(newConfig?.panelSize?.popupOpacity);
-                this._schedulePanelSizeUpdate(scaleCh || gapCh);
-                if (opCh && !scaleCh && !gapCh) {
-                    try {
-                        const panelSize = this._config.panelSize ?? {};
-                        const colorSource = resolveColorSource(this._config.colorSource);
-                        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-                    } catch (e) {}
+                const layoutCh =
+                    Number(p.gapTop) !== Number(n.gapTop) ||
+                    Number(p.gapBottom) !== Number(n.gapBottom) ||
+                    Number(p.gapSide) !== Number(n.gapSide) ||
+                    Number(p.chipGap) !== Number(n.chipGap);
+                // Rebuild when scale or any gap changes; opacity is CSS-only
+                this._schedulePanelSizeUpdate(scaleCh || layoutCh);
+                try {
+                    const panelSize = this._config.panelSize ?? {};
+                    const colorSource = resolveColorSource(this._config.colorSource);
+                    this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
+                    this._builder?._applyChipGap?.(this._config);
+                    log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity}`);
+                } catch (e) {
+                    logError(e, 'material-panel: panelSize apply');
                 }
                 return;
             }

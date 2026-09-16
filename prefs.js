@@ -91,7 +91,19 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (!Number.isFinite(gapBottom))
                 gapBottom = 4;
             gapBottom = Math.max(0, Math.min(14, Math.round(gapBottom)));
-            config.panelSize = {scale, gapTop, gapBottom};
+            let gapSide = Number(raw.gapSide);
+            if (!Number.isFinite(gapSide))
+                gapSide = 0;
+            gapSide = Math.max(0, Math.min(48, Math.round(gapSide)));
+            let chipGap = Number(raw.chipGap);
+            if (!Number.isFinite(chipGap))
+                chipGap = 4;
+            chipGap = Math.max(0, Math.min(16, Math.round(chipGap)));
+            let popupOpacity = Number(raw.popupOpacity);
+            if (!Number.isFinite(popupOpacity))
+                popupOpacity = 0.92;
+            popupOpacity = Math.max(0.5, Math.min(1, popupOpacity));
+            config.panelSize = {scale, gapTop, gapBottom, gapSide, chipGap, popupOpacity};
         }
         const panelSize = config.panelSize;
 
