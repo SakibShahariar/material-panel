@@ -122,22 +122,20 @@ export default class MaterialPanelExtension extends Extension {
                 const p = prev?.panelSize ?? {};
                 const n = newConfig?.panelSize ?? {};
                 const scaleCh = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
-                const layoutCh =
-                    Number(p.gapTop) !== Number(n.gapTop) ||
-                    Number(p.gapBottom) !== Number(n.gapBottom) ||
-                    Number(p.gapSide) !== Number(n.gapSide) ||
-                    Number(p.chipGap) !== Number(n.chipGap);
-                // Rebuild when scale or any gap changes; opacity is CSS-only
-                this._schedulePanelSizeUpdate(scaleCh || layoutCh);
+                // Only scale needs destroy/recreate of panel modules (icon sizes baked in).
+                // Gaps + opacity are CSS / geometry — do NOT tear down our chips/QS.
                 try {
                     const panelSize = this._config.panelSize ?? {};
                     const colorSource = resolveColorSource(this._config.colorSource);
                     this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
                     this._builder?._applyChipGap?.(this._config);
-                    log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity}`);
+                    this._builder?._syncGeometry?.();
+                    log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=${scaleCh}`);
                 } catch (e) {
                     logError(e, 'material-panel: panelSize apply');
                 }
+                if (scaleCh)
+                    this._schedulePanelSizeUpdate(true);
                 return;
             }
             case 'clock':
@@ -169,6 +167,16 @@ export default class MaterialPanelExtension extends Extension {
             GLib.source_remove(this._sizeDebounceId);
             this._sizeDebounceId = 0;
         }
+        if (this._rebuildDebounceId) {
+            try { GLib.source_remove(this._rebuildDebounceId); } catch (e) {}
+            this._rebuildDebounceId = 0;
+        }
+        if (this._trayRescanIds) {
+            for (const id of this._trayRescanIds) {
+                try { GLib.source_remove(id); } catch (e) {}
+            }
+            this._trayRescanIds = [];
+        }
         try {
             const panelSize = this._config.panelSize ?? {};
             const colorSource = resolveColorSource(this._config.colorSource);
@@ -187,12 +195,7 @@ export default class MaterialPanelExtension extends Extension {
 
         this._sizeDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
             this._sizeDebounceId = 0;
-            try {
-                this._builder.render(this._config);
-                this._applyTrayOnly();
-            } catch (e) {
-                logError(e, 'material-panel: debounced scale rebuild failed');
-            }
+            this._schedulePanelRebuild('panelSize');
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -204,28 +207,67 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
         } catch (e) {}
         try {
-            if (this._config.layoutStyle === 'end4') {
+            // Only adjust in-memory layout placement — never save here (save → watch → rebuild loop)
+            if (this._config.layoutStyle === 'end4')
                 applyLayoutStyle(this._config, 'end4');
-                this._configStore.save(this._config);
-            }
         } catch (e) {}
         this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-        if (rebuildPanel) {
-            this._builder.render(this._config);
-                                
-        }
-        this._applyTrayOnly();
+        if (rebuildPanel)
+            this._schedulePanelRebuild('theme');
+        else
+            this._applyTrayOnly();
 
         if (colorSource) {
             this._theme.watch(colorSource, () => {
-                log('material-panel: matugen watch — theme + rebuild');
-                const freshSize = this._config.panelSize ?? {};
-                const freshSource = resolveColorSource(this._config.colorSource);
-                this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default');
-                this._builder.render(this._config);
-                                
-                this._applyTrayOnly();
+                log('material-panel: matugen watch — theme only (no panel rebuild)');
+                try {
+                    const freshSize = this._config.panelSize ?? {};
+                    const freshSource = resolveColorSource(this._config.colorSource);
+                    this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default');
+                } catch (e) {
+                    logError(e, 'material-panel: matugen theme apply');
+                }
             });
+        }
+    }
+
+    /** Coalesce rapid rebuilds (extension toggles / prefs storms) into one render. */
+    _schedulePanelRebuild(reason = '') {
+        if (this._rebuildDebounceId) {
+            try { GLib.source_remove(this._rebuildDebounceId); } catch (e) {}
+            this._rebuildDebounceId = 0;
+        }
+        log(`material-panel: panel rebuild scheduled (${reason})`);
+        this._rebuildDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
+            this._rebuildDebounceId = 0;
+            try {
+                this._builder.render(this._config);
+                this._applyTrayOnly();
+                this._scheduleTrayRescan();
+            } catch (e) {
+                logError(e, 'material-panel: debounced panel rebuild failed');
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    /** AppIndicator / foreign icons often appear after our chrome is up. */
+    _scheduleTrayRescan() {
+        if (this._trayRescanIds) {
+            for (const id of this._trayRescanIds) {
+                try { GLib.source_remove(id); } catch (e) {}
+            }
+        }
+        this._trayRescanIds = [];
+        for (const ms of [400, 1200, 2500]) {
+            const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+                try {
+                    this._bridge?.reattachAll?.();
+                    log(`material-panel: tray rescan +${ms}ms`);
+                } catch (e) {}
+                return GLib.SOURCE_REMOVE;
+            });
+            this._trayRescanIds.push(id);
         }
     }
 
@@ -234,6 +276,16 @@ export default class MaterialPanelExtension extends Extension {
         if (this._sizeDebounceId) {
             GLib.source_remove(this._sizeDebounceId);
             this._sizeDebounceId = 0;
+        }
+        if (this._rebuildDebounceId) {
+            try { GLib.source_remove(this._rebuildDebounceId); } catch (e) {}
+            this._rebuildDebounceId = 0;
+        }
+        if (this._trayRescanIds) {
+            for (const id of this._trayRescanIds) {
+                try { GLib.source_remove(id); } catch (e) {}
+            }
+            this._trayRescanIds = [];
         }
         this._configStore.unwatch();
         this._configStore = null;
