@@ -359,16 +359,25 @@ function killProcess(pid) {
     if (!Number.isFinite(n) || n <= 1)
         return false;
     try {
-        GLib.spawn_command_line_async(`kill ${n}`);
-        return true;
+        GLib.spawn_command_line_async(`kill -TERM ${n}`);
     } catch (e) {
         try {
-            GLib.spawn_command_line_async(`kill -TERM ${n}`);
-            return true;
+            GLib.spawn_command_line_async(`kill ${n}`);
         } catch (e2) {
             return false;
         }
     }
+    // Escalate if still alive after ~1.2s
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
+        try {
+            const [, out] = GLib.spawn_command_line_sync(`ps -p ${n} -o pid=`);
+            const still = new TextDecoder('utf-8').decode(out).trim();
+            if (still)
+                GLib.spawn_command_line_async(`kill -KILL ${n}`);
+        } catch (e) {}
+        return GLib.SOURCE_REMOVE;
+    });
+    return true;
 }
 
 
@@ -783,6 +792,33 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraBox.add_child(procTitleRow);
     extraBox.add_child(procSearch);
     extraBox.add_child(procBox);
+
+    const sysMonBtn = new St.Button({
+        label: 'Open System Monitor',
+        style_class: 'material-panel-headphones-settings',
+        x_expand: true,
+        style: 'margin-top: 6px;',
+    });
+    sysMonBtn.connect('clicked', () => {
+        const cmds = [
+            'gnome-system-monitor',
+            'missioncenter',
+            'plasma-systemmonitor',
+            'xfce4-taskmanager',
+        ];
+        for (const c of cmds) {
+            try {
+                GLib.spawn_command_line_async(c);
+                break;
+            } catch (e) {}
+        }
+        try {
+            if (menu.isOpen)
+                menuToggle(menu);
+        } catch (e) {}
+    });
+    extraBox.add_child(sysMonBtn);
+
     extraSection.actor.add_child(extraBox);
     menu.addMenuItem(extraSection);
 
