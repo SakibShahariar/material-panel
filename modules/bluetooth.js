@@ -205,6 +205,31 @@ function wrapAsMenuItem(actor) {
 // blocked/unblock state, paired-device list with per-device
 // connect/disconnect, battery where exposed, live refresh via
 // ObjectManager InterfacesAdded/Removed and per-device PropertiesChanged.
+
+/** Shared opener so btConnected (headphones chip) can open the same popup. */
+let _btPopupMenu = null;
+let _btPopupButton = null;
+
+export function toggleBluetoothPopup(sourceActor = null) {
+    if (!_btPopupMenu) {
+        log('material-panel: bluetooth popup not ready yet');
+        return;
+    }
+    try {
+        if (_btPopupMenu.isOpen) {
+            menuClose(_btPopupMenu);
+            return;
+        }
+        if (sourceActor)
+            _btPopupMenu.sourceActor = sourceActor;
+        else if (_btPopupButton)
+            _btPopupMenu.sourceActor = _btPopupButton;
+        menuOpen(_btPopupMenu);
+    } catch (e) {
+        logError(e, 'material-panel: toggleBluetoothPopup');
+    }
+}
+
 export function buildBluetooth(_extensionPath, scale = 1.0) {
     const buttonBox = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-chip-box'});
     const icon = new St.Icon({
@@ -236,6 +261,9 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     });
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    _btPopupMenu = menu;
+    _btPopupButton = button;
+
     menu.actor.add_style_class_name('material-panel-popup material-panel-bluetooth-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();

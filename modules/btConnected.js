@@ -1,3 +1,4 @@
+import {toggleBluetoothPopup} from './bluetooth.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -150,8 +151,15 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     button.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
     });
-    // Click is visual only (press state); do not open Settings
-    button.connect('clicked', () => Clutter.EVENT_STOP);
+    // Open the same Bluetooth device popup (Omarchy headphones chip behavior)
+    button.connect('clicked', () => {
+        try {
+            toggleBluetoothPopup(button);
+        } catch (e) {
+            logError(e, 'material-panel: btConnected open popup');
+        }
+        return Clutter.EVENT_STOP;
+    });
 
     return button;
 }
