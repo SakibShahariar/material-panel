@@ -1,73 +1,197 @@
-import {toggleBluetoothPopup} from './bluetooth.js';
+/**
+ * Connected headphones / headset chip.
+ * Popup is headphone-focused (Omarchy headphones / bluetooth-audio intent):
+ *   - connected audio devices only (not discoverable / unpaired list)
+ *   - battery when BlueZ exposes it
+ *   - disconnect
+ *   - open sound settings
+ * Does NOT show the generic Bluetooth "available devices" browser.
+ */
 import St from 'gi://St';
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Clutter from 'gi://Clutter';
-import Pango from 'gi://Pango';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {iconPath, iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
 import {wireChipPress, giconForKey} from '../lib/pressFx.js';
+import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 const BLUEZ = 'org.bluez';
-const OM = 'org.freedesktop.DBus.ObjectManager';
-const DEV = 'org.bluez.Device1';
+const DEVICE_IFACE = 'org.bluez.Device1';
 
-function pickIconKey(props) {
+function iconKeyFromProps(props) {
     try {
-        const icon = props['Icon']?.deep_unpack?.() || '';
+        const icon = String(props['Icon']?.deep_unpack?.() ?? '').toLowerCase();
         if (icon.includes('headset') || icon.includes('audio-headphones') || icon.includes('audio-headset'))
             return 'headphones';
-        if (icon.includes('phone'))
-            return 'phone';
-        if (icon.includes('keyboard'))
-            return 'keyboard';
+        if (icon.includes('audio-card') || icon.includes('audio'))
+            return 'headphones';
+    } catch (e) {}
+    try {
+        const name = String(props['Name']?.deep_unpack?.() ?? props['Alias']?.deep_unpack?.() ?? '').toLowerCase();
+        if (/headphone|headset|buds|airpod|earbud|soundcore|sony|bose|jbl|nothing|cmf|wh-|wf-/.test(name))
+            return 'headphones';
     } catch (e) {}
     try {
         const cls = props['Class']?.deep_unpack?.() ?? 0;
-        // Major device class bits for audio
-        if ((cls & 0x1f00) === 0x0400)
+        if ((cls & 0x1f00) === 0x0400) // Audio/Video major
             return 'headphones';
     } catch (e) {}
-    return 'bluetooth-on';
+    return null;
+}
+
+function isAudioDevice(props) {
+    return iconKeyFromProps(props) === 'headphones';
+}
+
+function batteryPct(props) {
+    try {
+        const p = props['Percentage']?.deep_unpack?.();
+        if (p != null && Number.isFinite(Number(p)))
+            return Math.round(Number(p));
+    } catch (e) {}
+    return null;
+}
+
+function deviceName(props) {
+    try {
+        return String(props['Alias']?.deep_unpack?.() ?? props['Name']?.deep_unpack?.() ?? 'Headphones');
+    } catch (e) {
+        return 'Headphones';
+    }
 }
 
 export function buildBtConnected(_extensionPath, scale = 1.0) {
-    let iconKey = 'headphones';
     const icon = new St.Icon({
         style_class: 'material-panel-bt-connected-icon',
         icon_size: Math.round(16 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
-        gicon: giconForKey('headphones', false) || Gio.ThemedIcon.new('audio-headset-symbolic'),
+        gicon: giconForKey('headphones', false) || Gio.ThemedIcon.new('audio-headphones-symbolic'),
     });
     const label = new St.Label({
         text: '',
         style_class: 'material-panel-bt-connected-label',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    try {
-        label.style = 'font-size: 11px; font-weight: 600;';
-    } catch (e) {}
-
     const box = new St.BoxLayout({
-        style_class: 'material-panel-bt-connected',
-        y_align: Clutter.ActorAlign.CENTER,
         vertical: false,
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-bt-connected',
+        style: 'spacing: 6px;',
     });
     box.add_child(icon);
     box.add_child(label);
 
     const button = new St.Button({
         style_class: 'material-panel-bt-connected-btn material-panel-chip',
-        reactive: true,
-        track_hover: true,
         child: box,
+        reactive: true,
+        can_focus: true,
+        track_hover: true,
         visible: false,
     });
-    wireChipPress(button, {
-        getIcons: () => [{icon, key: iconKey}],
-        stickyUntilLeave: true,
+    wireChipPress(button);
+
+    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    Main.uiGroup.add_child(menu.actor);
+    menu.actor.hide();
+    attachPopupDismiss(menu, button);
+
+    const body = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-headphones-popup',
+        style: 'spacing: 8px; padding: 10px 12px; min-width: 220px;',
     });
+
+    const title = new St.Label({
+        text: 'Headphones',
+        style_class: 'material-panel-headphones-title',
+        style: 'font-weight: 600; font-size: 13px;',
+    });
+    body.add_child(title);
+
+    const listBox = new St.BoxLayout({
+        vertical: true,
+        style: 'spacing: 6px;',
+    });
+    body.add_child(listBox);
+
+    const emptyLbl = new St.Label({
+        text: 'No audio headset connected',
+        style_class: 'material-panel-headphones-empty',
+        style: 'opacity: 0.7; font-size: 12px;',
+    });
+    body.add_child(emptyLbl);
+
+    const soundBtn = new St.Button({
+        label: 'Sound settings',
+        style_class: 'material-panel-headphones-settings',
+        style: 'padding: 6px 10px; border-radius: 8px;',
+        x_expand: true,
+    });
+    soundBtn.connect('clicked', () => {
+        try {
+            GLib.spawn_command_line_async('gnome-control-center sound');
+        } catch (e) {
+            try { GLib.spawn_command_line_async('pavucontrol'); } catch (e2) {}
+        }
+        closeAfter(menu);
+    });
+    body.add_child(soundBtn);
+
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    item.add_child(body);
+    menu.addMenuItem(item);
+
+    let lastDevices = [];
+
+    const rebuildList = devices => {
+        listBox.destroy_all_children();
+        lastDevices = devices || [];
+        emptyLbl.visible = lastDevices.length === 0;
+        listBox.visible = lastDevices.length > 0;
+        for (const d of lastDevices) {
+            const row = new St.BoxLayout({
+                vertical: false,
+                style_class: 'material-panel-headphones-row',
+                style: 'spacing: 8px; padding: 6px 8px; border-radius: 10px;',
+                x_expand: true,
+            });
+            const ic = new St.Icon({
+                icon_size: 18,
+                y_align: Clutter.ActorAlign.CENTER,
+                gicon: giconForKey('headphones', false) || Gio.ThemedIcon.new('audio-headphones-symbolic'),
+            });
+            const textCol = new St.BoxLayout({vertical: true, x_expand: true, style: 'spacing: 2px;'});
+            const nameL = new St.Label({text: d.name, style: 'font-weight: 600;'});
+            const sub = d.pct != null ? `${d.pct}% battery` : 'Connected';
+            const subL = new St.Label({text: sub, style: 'font-size: 11px; opacity: 0.75;'});
+            textCol.add_child(nameL);
+            textCol.add_child(subL);
+            const disc = new St.Button({
+                label: 'Disconnect',
+                style_class: 'material-panel-headphones-disconnect',
+                style: 'padding: 4px 8px; border-radius: 8px;',
+            });
+            const path = d.path;
+            disc.connect('clicked', () => {
+                try {
+                    Gio.DBus.system.call(
+                        BLUEZ, path, DEVICE_IFACE, 'Disconnect',
+                        null, null, Gio.DBusCallFlags.NONE, -1, null, null);
+                } catch (e) {
+                    logError(e, 'material-panel: headphones disconnect');
+                }
+                closeAfter(menu);
+            });
+            row.add_child(ic);
+            row.add_child(textCol);
+            row.add_child(disc);
+            listBox.add_child(row);
+        }
+    };
 
     const applyHidden = () => {
         button.visible = false;
@@ -75,73 +199,53 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     };
 
     const scan = () => {
-        Gio.DBusProxy.new_for_bus(
-            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-            BLUEZ, '/', OM, null,
-            (_s, res) => {
-                let mgr;
+        Gio.DBus.system.call(
+            BLUEZ, '/', 'org.freedesktop.DBus.ObjectManager', 'GetManagedObjects',
+            null, new GLib.VariantType('(a{oa{sa{sv}}})'),
+            Gio.DBusCallFlags.NONE, -1, null,
+            (_c, res) => {
                 try {
-                    mgr = Gio.DBusProxy.new_for_bus_finish(res);
-                } catch (e) {
-                    applyHidden();
-                    return;
-                }
-                mgr.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, 3000, null, (p, r) => {
-                    try {
-                        const [objects] = p.call_finish(r).deep_unpack();
-                        let best = null;
-                        for (const [, ifaces] of Object.entries(objects)) {
-                            if (!(DEV in ifaces))
-                                continue;
-                            const props = ifaces[DEV];
-                            // Strict: only real connected devices
-                            let connected = false;
-                            try {
-                                connected = props['Connected']?.deep_unpack() === true;
-                            } catch (e) {
-                                connected = false;
-                            }
-                            if (!connected)
-                                continue;
-                            const name = props['Alias']?.deep_unpack()
-                                ?? props['Name']?.deep_unpack()
-                                ?? null;
-                            if (!name)
-                                continue;
-                            let pct = null;
-                            try {
-                                const bat = ifaces['org.bluez.Battery1'];
-                                if (bat?.Percentage != null)
-                                    pct = bat.Percentage.deep_unpack();
-                            } catch (e) {}
-                            // Prefer Battery Percentage from Device1 if present (newer BlueZ)
-                            try {
-                                if (pct == null && props['Percentage'])
-                                    pct = props['Percentage'].deep_unpack();
-                            } catch (e) {}
-                            best = {
-                                name: String(name),
-                                pct,
-                                iconKey: pickIconKey(props),
-                            };
-                            break;
+                    const [objs] = Gio.DBus.system.call_finish(res).deep_unpack();
+                    let best = null;
+                    const devices = [];
+                    for (const [path, ifaces] of Object.entries(objs)) {
+                        const props = ifaces[DEVICE_IFACE];
+                        if (!props)
+                            continue;
+                        let connected = false;
+                        try {
+                            connected = props['Connected']?.deep_unpack() === true;
+                        } catch (e) {
+                            connected = false;
                         }
-                        if (best) {
-                            iconKey = best.iconKey;
-                            label.text = best.pct != null && Number.isFinite(Number(best.pct))
-                                ? `${best.name} · ${Math.round(Number(best.pct))}%`
-                                : best.name;
-                            const g = giconForKey(iconKey, false);
-                            if (g)
-                                icon.gicon = g;
-                            button.visible = true;
-                        } else {
-                            applyHidden();
-                        }
-                    } catch (e) {
+                        if (!connected)
+                            continue;
+                        if (!isAudioDevice(props))
+                            continue;
+                        const name = deviceName(props);
+                        const pct = batteryPct(props);
+                        const iconKey = iconKeyFromProps(props) || 'headphones';
+                        const entry = {path, name, pct, iconKey};
+                        devices.push(entry);
+                        if (!best || (pct != null && (best.pct == null || pct > best.pct)))
+                            best = entry;
+                    }
+                    if (best) {
+                        label.text = best.pct != null
+                            ? `${best.name} · ${best.pct}%`
+                            : best.name;
+                        const g = giconForKey(best.iconKey, false);
+                        if (g)
+                            icon.gicon = g;
+                        button.visible = true;
+                    } else {
                         applyHidden();
                     }
-                });
+                    rebuildList(devices);
+                } catch (e) {
+                    applyHidden();
+                    rebuildList([]);
+                }
             });
         return GLib.SOURCE_CONTINUE;
     };
@@ -150,15 +254,18 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, scan);
     button.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
+        try { menu.destroy(); } catch (e) {}
     });
-    // Open the same Bluetooth device popup (Omarchy headphones chip behavior)
+
     button.connect('clicked', () => {
         try {
-            const ok = toggleBluetoothPopup(button);
-            if (!ok)
-                log('material-panel: btConnected click — BT popup still missing');
+            scan();
+            if (menu.isOpen)
+                menuClose(menu);
+            else
+                menuOpen(menu);
         } catch (e) {
-            logError(e, 'material-panel: btConnected open popup');
+            logError(e, 'material-panel: headphones popup');
         }
         return Clutter.EVENT_STOP;
     });
