@@ -167,6 +167,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         const makeSliderRow = ({title, subtitle = null, key, min, max, step}) => {
             const formatValue = v => {
                 if (key === 'scale') return `${v.toFixed(2)}×`;
+                if (key === 'popupOpacity') return `${Math.round(v * 100)}%`;
                 return `${Math.round(v)} px`;
             };
             let initial = Number(panelSize[key]);
@@ -175,6 +176,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 else if (key === 'gapTop') initial = 5;
                 else if (key === 'gapBottom') initial = 4;
                 else if (key === 'chipGap') initial = 4;
+                else if (key === 'popupOpacity') initial = 0.92;
                 else initial = 4;
             }
             initial = Math.max(min, Math.min(max, initial));
@@ -221,8 +223,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 if (!Number.isFinite(v))
                     return;
                 v = Math.max(min, Math.min(max, v));
-                if (key !== 'scale')
+                if (key !== 'scale' && key !== 'popupOpacity')
                     v = Math.round(v);
+                if (key === 'popupOpacity')
+                    v = Math.round(v * 100) / 100;
                 panelSize[key] = v;
                 config.panelSize = {
                     scale: Number(panelSize.scale),
@@ -230,6 +234,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     gapBottom: Math.round(Number(panelSize.gapBottom)),
                     gapSide: Math.round(Number(panelSize.gapSide ?? config.panelSize?.gapSide ?? 0)),
                     chipGap: Math.round(Number(panelSize.chipGap ?? 4)),
+                    popupOpacity: Number(panelSize.popupOpacity ?? 0.92),
                 };
                 updateValueLabel();
                 if (saveDebounceId)
@@ -261,6 +266,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         makeSliderRow({
             title: 'Chip gap',
             key: 'chipGap', min: 0, max: 16, step: 1,
+        });
+        makeSliderRow({
+            title: 'Popup opacity',
+            key: 'popupOpacity', min: 0.5, max: 1.0, step: 0.02,
         });
 
         const clockGroup = new Adw.PreferencesGroup({

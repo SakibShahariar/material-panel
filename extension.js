@@ -118,10 +118,20 @@ export default class MaterialPanelExtension extends Extension {
             switch (kind) {
             case 'tray':
                 return;
-            case 'panelSize':
-                this._schedulePanelSizeUpdate(
-                    Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001);
+            case 'panelSize': {
+                const scaleCh = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
+                const gapCh = Number(prev?.panelSize?.chipGap) !== Number(newConfig?.panelSize?.chipGap);
+                const opCh = Number(prev?.panelSize?.popupOpacity) !== Number(newConfig?.panelSize?.popupOpacity);
+                this._schedulePanelSizeUpdate(scaleCh || gapCh);
+                if (opCh && !scaleCh && !gapCh) {
+                    try {
+                        const panelSize = this._config.panelSize ?? {};
+                        const colorSource = resolveColorSource(this._config.colorSource);
+                        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
+                    } catch (e) {}
+                }
                 return;
+            }
             case 'clock':
                 // modules/clock.js has its own ConfigStore.watch — no rebuild
                 return;
