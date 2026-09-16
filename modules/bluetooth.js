@@ -212,22 +212,29 @@ let _btPopupButton = null;
 
 export function toggleBluetoothPopup(sourceActor = null) {
     if (!_btPopupMenu) {
-        log('material-panel: bluetooth popup not ready yet');
-        return;
+        log('material-panel: bluetooth popup not ready — build Bluetooth module or wait for ensure');
+        return false;
     }
     try {
         if (_btPopupMenu.isOpen) {
             menuClose(_btPopupMenu);
-            return;
+            return true;
         }
         if (sourceActor)
             _btPopupMenu.sourceActor = sourceActor;
         else if (_btPopupButton)
             _btPopupMenu.sourceActor = _btPopupButton;
         menuOpen(_btPopupMenu);
+        return true;
     } catch (e) {
         logError(e, 'material-panel: toggleBluetoothPopup');
+        return false;
     }
+}
+
+/** True if the shared BT popup was created (chip is on the bar or ensure ran). */
+export function isBluetoothPopupReady() {
+    return !!_btPopupMenu;
 }
 
 export function buildBluetooth(_extensionPath, scale = 1.0) {
