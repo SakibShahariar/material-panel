@@ -84,18 +84,7 @@ export default class MaterialPanelExtension extends Extension {
 
 
 
-        // SNI icons often register during/after first paint — rehost a few times
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-            
-            return GLib.SOURCE_REMOVE;
-        });
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
-            try {
-                log('material-panel: SNI delayed rehost');
-            } catch (e) {}
-            return GLib.SOURCE_REMOVE;
-        });
-
+        this._panelWasVisible = Main.panel.visible;
         Main.panel.hide();
 
         this._configStore.watch(newConfig => {
@@ -312,7 +301,18 @@ export default class MaterialPanelExtension extends Extension {
         }
         this._builder = null;
 
-        Main.panel.show();
+        try {
+            if (this._panelWasVisible !== false)
+                Main.panel.show();
+        } catch (e) {
+            try { Main.panel.show(); } catch (e2) {}
+        }
+
+        // Clear shared theme globals so next enable does not paint stale palette
+        try {
+            for (const k of Object.keys(globalThis).filter(x => String(x).startsWith('_materialPanel')))
+                try { globalThis[k] = undefined; } catch (e) {}
+        } catch (e) {}
 
         this._config = null;
     }
