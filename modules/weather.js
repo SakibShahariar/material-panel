@@ -457,52 +457,9 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag) {
 }
 
 async function resolveIpLocation() {
-    // ipapi.co often 403/rate-limits; try a few public endpoints
-    const tries = [
-        {
-            url: 'https://ipapi.co/json/',
-            parse: j => ({
-                lat: Number(j.latitude ?? j.lat),
-                lon: Number(j.longitude ?? j.lon),
-                place: [j.city || j.town, j.region || j.country_name || j.country].filter(Boolean).join(', '),
-            }),
-        },
-        {
-            url: 'https://ipinfo.io/json',
-            parse: j => {
-                const parts = String(j.loc || '').split(',');
-                return {
-                    lat: Number(parts[0]),
-                    lon: Number(parts[1]),
-                    place: [j.city, j.region, j.country].filter(Boolean).join(', '),
-                };
-            },
-        },
-        {
-            url: 'https://geolocation-db.com/json/',
-            parse: j => ({
-                lat: Number(j.latitude),
-                lon: Number(j.longitude),
-                place: [j.city, j.state, j.country_name].filter(Boolean).join(', '),
-            }),
-        },
-    ];
-    let lastErr = null;
-    for (const t of tries) {
-        try {
-            const text = await httpGet(t.url);
-            const j = JSON.parse(text);
-            if (j.error || j.reason === 'RateLimited')
-                throw new Error(j.reason || j.message || 'rate limited');
-            const r = t.parse(j);
-            if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon))
-                throw new Error('no coords');
-            return r;
-        } catch (e) {
-            lastErr = e;
-        }
-    }
-    throw lastErr || new Error('IP location failed');
+    // Privacy: do not send the user's IP to third-party geolocation APIs.
+    // Use GNOME Weather locations or the fixed fallback coordinates instead.
+    throw new Error('IP geolocation disabled (privacy)');
 }
 
 
@@ -872,7 +829,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     gw.lat, gw.lon, gw.name || 'Local', 'Open-Meteo · GNOME Weather'));
                 return;
             }
-            // 2) IP geolocation
+            // 2) IP geolocation disabled — privacy (see resolveIpLocation)
             try {
                 const ip = await resolveIpLocation();
                 apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP'));

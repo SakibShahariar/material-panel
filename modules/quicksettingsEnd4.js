@@ -495,7 +495,7 @@ function buildToggleGrid() {
             try { return iface.get_string('color-scheme') === 'prefer-dark'; } catch (e) { return false; }
         },
         setOn: on => {
-            try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'prefer-light'); } catch (e) {}
+            try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
         },
     });
     row0.add_child(darkRound);
