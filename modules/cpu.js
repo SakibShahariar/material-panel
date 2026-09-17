@@ -648,112 +648,113 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    // Live-updating popup — one sample path, no second readAll()
-    const usageValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const tempValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const loadValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const thermalSensor = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalCurrent = new St.Label({text: 'Current: —', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalHigh = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalCrit = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const coresGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-cores'});
+    // —— Activity popup (dense layout) ——
+    const usageValue = new St.Label({text: '—', style_class: 'material-panel-act-hero-value'});
+    const tempValue = new St.Label({text: '—', style_class: 'material-panel-act-hero-value'});
+    const loadValue = new St.Label({text: '—', style_class: 'material-panel-act-sub'});
+    const thermalSensor = new St.Label({text: '', style_class: 'material-panel-act-sub'});
+    const thermalCurrent = new St.Label({text: '', style_class: 'material-panel-act-sub'});
+    const thermalHigh = new St.Label({text: '', style_class: 'material-panel-act-sub'});
+    const thermalCrit = new St.Label({text: '', style_class: 'material-panel-act-sub'});
+    const coresGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-act-cores', style: 'spacing: 3px;'});
     const coreLabels = [];
 
-    const header = new PopupMenu.PopupMenuSection();
-    const headerBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-header', x_expand: true});
-    headerBox.add_child(new St.Label({text: 'CPU', style_class: 'material-panel-cpu-popup-title'}));
-    const summary = new St.BoxLayout({vertical: false, style_class: 'material-panel-cpu-popup-summary', x_expand: true});
-    for (const [title, widget] of [['Usage', usageValue], ['Temp', tempValue], ['Load', loadValue]]) {
-        const col = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-stat', x_expand: true});
-        col.add_child(new St.Label({text: title, style_class: 'material-panel-cpu-popup-label'}));
-        col.add_child(widget);
-        summary.add_child(col);
-    }
-    headerBox.add_child(summary);
-    header.actor.add_child(headerBox);
-    menu.addMenuItem(header);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    const body = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-act-body',
+        style: 'spacing: 10px; padding: 2px 4px; min-width: 280px; max-width: 320px;',
+    });
 
-    const coresSection = new PopupMenu.PopupMenuSection();
-    const coresTitle = new St.Label({text: 'Per core', style_class: 'material-panel-cpu-popup-section-title'});
+    // Title + hero stats
+    body.add_child(new St.Label({text: 'Activity', style_class: 'material-panel-act-title'}));
+
+    const hero = new St.BoxLayout({
+        vertical: false,
+        style_class: 'material-panel-act-hero',
+        style: 'spacing: 12px;',
+        x_expand: true,
+    });
+    const heroCpu = new St.BoxLayout({vertical: true, x_expand: true, style: 'spacing: 2px;'});
+    heroCpu.add_child(new St.Label({text: 'CPU', style_class: 'material-panel-act-label'}));
+    heroCpu.add_child(usageValue);
+    const heroTemp = new St.BoxLayout({vertical: true, x_expand: true, style: 'spacing: 2px;'});
+    heroTemp.add_child(new St.Label({text: 'Temp', style_class: 'material-panel-act-label'}));
+    heroTemp.add_child(tempValue);
+    hero.add_child(heroCpu);
+    hero.add_child(heroTemp);
+    body.add_child(hero);
+    body.add_child(loadValue);
+
+    // Memory compact card
+    const memUsedLbl = new St.Label({text: '—', style_class: 'material-panel-act-row'});
+    const memAvailLbl = new St.Label({text: '—', style_class: 'material-panel-act-row-dim'});
+    const memCacheLbl = new St.Label({text: '—', style_class: 'material-panel-act-row-dim'});
+    const memSwapLbl = new St.Label({text: '—', style_class: 'material-panel-act-row-dim'});
+    const memCard = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-act-card',
+        style: 'spacing: 3px; padding: 8px 10px; border-radius: 12px;',
+    });
+    memCard.add_child(new St.Label({text: 'Memory', style_class: 'material-panel-act-label'}));
+    memCard.add_child(memUsedLbl);
+    memCard.add_child(memAvailLbl);
+    memCard.add_child(memCacheLbl);
+    memCard.add_child(memSwapLbl);
+    body.add_child(memCard);
+
+    // Cores
+    const coresTitle = new St.Label({text: 'Cores', style_class: 'material-panel-act-label'});
     try {
         const cc = readCoreClasses();
         if (cc && cc.some(x => x === 'P' || x === 'E'))
-            coresTitle.text = 'Per core  (P = performance, E = efficiency)';
+            coresTitle.text = 'Cores  ·  P performance  ·  E efficiency';
         globalThis._materialPanelCoreClasses = cc;
     } catch (e) {}
+    const coresWrap = new St.BoxLayout({vertical: true, style: 'spacing: 4px;'});
+    coresWrap.add_child(coresTitle);
+    coresWrap.add_child(coresGrid);
+    body.add_child(coresWrap);
 
-    coresSection.actor.add_child(coresTitle);
-    coresSection.actor.add_child(coresGrid);
-    menu.addMenuItem(coresSection);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    const thermalSection = new PopupMenu.PopupMenuSection();
-    thermalSection.actor.add_child(new St.Label({
-        text: zoneName ? `Thermal · ${zoneName}` : 'Thermal',
-        style_class: 'material-panel-cpu-popup-section-title',
-    }));
-    const thermalGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
-    thermalGrid.add_child(thermalSensor);
-    thermalGrid.add_child(thermalCurrent);
-    thermalGrid.add_child(thermalHigh);
-    thermalGrid.add_child(thermalCrit);
-    thermalSection.actor.add_child(thermalGrid);
-    menu.addMenuItem(thermalSection);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    // —— Memory (Activity compact) ——
-    const memSection = new PopupMenu.PopupMenuSection();
-    memSection.actor.add_child(new St.Label({
-        text: 'Memory',
-        style_class: 'material-panel-cpu-popup-section-title',
-    }));
-    const memUsedLbl = new St.Label({text: 'Used  —', style_class: 'material-panel-cpu-popup-value'});
-    const memAvailLbl = new St.Label({text: 'Available  —', style_class: 'material-panel-cpu-popup-value'});
-    const memCacheLbl = new St.Label({text: 'Cache  —', style_class: 'material-panel-cpu-popup-value'});
-    const memSwapLbl = new St.Label({text: 'Swap  —', style_class: 'material-panel-cpu-popup-value'});
-    const memBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal'});
-    memBox.add_child(memUsedLbl);
-    memBox.add_child(memAvailLbl);
-    memBox.add_child(memCacheLbl);
-    memBox.add_child(memSwapLbl);
-    memSection.actor.add_child(memBox);
-    menu.addMenuItem(memSection);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    // —— Expand (disk / net / processes) ——
+    // Expand toggle + extra
     let expanded = false;
-    const expandBtn = new PopupMenu.PopupMenuItem('Show more ▸');
-    menu.addMenuItem(expandBtn);
-
-    const extraSection = new PopupMenu.PopupMenuSection();
-    extraSection.actor.visible = false;
-    const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
-    const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
-    const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-cpu-popup-value'});
-    let procSort = 'cpu'; // 'cpu' | 'mem'
-    const procTitleRow = new St.BoxLayout({vertical: false, style: 'spacing: 8px;'});
-    const procTitle = new St.Label({
-        text: 'Top processes',
-        style_class: 'material-panel-cpu-popup-section-title',
+    const expandBtn = new St.Button({
+        label: 'Show more',
+        style_class: 'material-panel-act-expand',
         x_expand: true,
     });
-    const sortCpuBtn = new St.Button({
-        label: 'CPU',
-        style_class: 'material-panel-headphones-disconnect',
+    body.add_child(expandBtn);
+
+    const extraBox = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-act-extra',
+        style: 'spacing: 8px;',
+        visible: false,
     });
-    const sortMemBtn = new St.Button({
-        label: 'MEM',
-        style_class: 'material-panel-headphones-disconnect',
+    const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-act-row'});
+    const netLbl = new St.Label({text: 'Net  —', style_class: 'material-panel-act-row'});
+    const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-act-row'});
+    const ioCard = new St.BoxLayout({
+        vertical: true,
+        style_class: 'material-panel-act-card',
+        style: 'spacing: 3px; padding: 8px 10px; border-radius: 12px;',
     });
-    sortCpuBtn.connect('clicked', () => {
-        procSort = 'cpu';
-        refreshExtra();
+    ioCard.add_child(new St.Label({text: 'System', style_class: 'material-panel-act-label'}));
+    ioCard.add_child(diskLbl);
+    ioCard.add_child(netLbl);
+    ioCard.add_child(gpuLbl);
+    extraBox.add_child(ioCard);
+
+    let procSort = 'cpu';
+    const procTitleRow = new St.BoxLayout({vertical: false, style: 'spacing: 6px;'});
+    const procTitle = new St.Label({
+        text: 'Processes',
+        style_class: 'material-panel-act-label',
+        x_expand: true,
     });
-    sortMemBtn.connect('clicked', () => {
-        procSort = 'mem';
-        refreshExtra();
-    });
+    const sortCpuBtn = new St.Button({label: 'CPU', style_class: 'material-panel-act-chip-btn'});
+    const sortMemBtn = new St.Button({label: 'MEM', style_class: 'material-panel-act-chip-btn'});
+    sortCpuBtn.connect('clicked', () => { procSort = 'cpu'; refreshExtra(); });
+    sortMemBtn.connect('clicked', () => { procSort = 'mem'; refreshExtra(); });
     procTitleRow.add_child(procTitle);
     procTitleRow.add_child(sortCpuBtn);
     procTitleRow.add_child(sortMemBtn);
@@ -761,7 +762,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     let procFilter = '';
     const procSearch = new St.Entry({
         style_class: 'material-panel-activity-proc-search',
-        hint_text: 'Filter processes…',
+        hint_text: 'Filter…',
         can_focus: true,
         x_expand: true,
     });
@@ -769,9 +770,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         procSearch.clutter_text.connect('text-changed', () => {
             try {
                 procFilter = String(procSearch.get_text() || '').trim().toLowerCase();
-            } catch (e) {
-                procFilter = '';
-            }
+            } catch (e) { procFilter = ''; }
             try { refreshExtra(); } catch (e) {}
         });
     } catch (e) {}
@@ -781,199 +780,84 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-cpu-popup-procs',
         style: 'spacing: 2px;',
     });
-    const extraBox = new St.BoxLayout({vertical: true, style: 'spacing: 6px;'});
-    extraBox.add_child(new St.Label({
-        text: 'Storage & network',
-        style_class: 'material-panel-cpu-popup-section-title',
-    }));
-    extraBox.add_child(diskLbl);
-    extraBox.add_child(netLbl);
-    extraBox.add_child(gpuLbl);
+
+    const sysMonBtn = new St.Button({
+        label: 'System Monitor',
+        style_class: 'material-panel-act-expand',
+        x_expand: true,
+    });
+    sysMonBtn.connect('clicked', () => {
+        for (const c of ['gnome-system-monitor', 'missioncenter', 'plasma-systemmonitor']) {
+            try { GLib.spawn_command_line_async(c); break; } catch (e) {}
+        }
+        try { if (menu.isOpen) menuToggle(menu); } catch (e) {}
+    });
+
     extraBox.add_child(procTitleRow);
     extraBox.add_child(procSearch);
     extraBox.add_child(procBox);
-
-    const sysMonBtn = new St.Button({
-        label: 'Open System Monitor',
-        style_class: 'material-panel-headphones-settings',
-        x_expand: true,
-        style: 'margin-top: 6px;',
-    });
-    sysMonBtn.connect('clicked', () => {
-        const cmds = [
-            'gnome-system-monitor',
-            'missioncenter',
-            'plasma-systemmonitor',
-            'xfce4-taskmanager',
-        ];
-        for (const c of cmds) {
-            try {
-                GLib.spawn_command_line_async(c);
-                break;
-            } catch (e) {}
-        }
-        try {
-            if (menu.isOpen)
-                menuToggle(menu);
-        } catch (e) {}
-    });
     extraBox.add_child(sysMonBtn);
+    body.add_child(extraBox);
 
-    extraSection.actor.add_child(extraBox);
-    menu.addMenuItem(extraSection);
-
-    expandBtn.connect('activate', () => {
+    expandBtn.connect('clicked', () => {
         expanded = !expanded;
-        extraSection.actor.visible = expanded;
-        try {
-            if (expandBtn.label && expandBtn.label.set_text)
-                expandBtn.label.set_text(expanded ? 'Show less ▾' : 'Show more ▸');
-            else if (expandBtn.label)
-                expandBtn.label.text = expanded ? 'Show less ▾' : 'Show more ▸';
-        } catch (e) {}
+        extraBox.visible = expanded;
+        expandBtn.label = expanded ? 'Show less' : 'Show more';
         if (expanded)
             refreshExtra();
     });
 
-    let lastNet = null;
-    const refreshExtra = () => {
-        const disk = readDiskRoot();
-        if (disk) {
-            diskLbl.text = `Disk ${disk.mount}  ${formatBytes(disk.used)} / ${formatBytes(disk.size)}  (${disk.pct}%)`;
-        } else {
-            diskLbl.text = 'Disk  —';
-        }
-        const now = readNetRates();
-        if (now && lastNet && now.t > lastNet.t) {
-            const dt = (now.t - lastNet.t) / 1e6; // monotonic µs → s
-            if (dt > 0.05) {
-                const down = (now.rx - lastNet.rx) / dt;
-                const up = (now.tx - lastNet.tx) / dt;
-                netLbl.text = `Net  ↓ ${formatBytes(down)}/s  ↑ ${formatBytes(up)}/s`;
-            }
-        } else if (now) {
-            netLbl.text = 'Net  measuring…';
-        } else {
-            netLbl.text = 'Net  —';
-        }
-        if (now)
-            lastNet = now;
+    const bodyItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    bodyItem.add_child(body);
+    menu.addMenuItem(bodyItem);
 
-        const gpu = readGpuInfo();
-        if (gpu) {
-            const parts = [gpu.vendor];
-            if (gpu.util != null && Number.isFinite(gpu.util))
-                parts.push(`${gpu.util}%`);
-            if (gpu.temp != null && Number.isFinite(gpu.temp))
-                parts.push(`${gpu.temp}°C`);
-            if (gpu.memUsed != null && gpu.memTotal != null)
-                parts.push(`${gpu.memUsed}/${gpu.memTotal} MB`);
-            gpuLbl.text = `GPU  ${parts.join(' · ')}`;
-            gpuLbl.visible = true;
-        } else {
-            gpuLbl.text = 'GPU  not detected';
-            gpuLbl.visible = true;
-        }
-
-        procBox.destroy_all_children();
-        const head = procSort === 'mem' ? '  MEM%  CPU%  Name  (sort MEM)' : '  CPU%  MEM%  Name  (sort CPU)';
-        procBox.add_child(new St.Label({
-            text: head,
-            style_class: 'material-panel-cpu-popup-section-title',
-            style: 'font-family: monospace; font-size: 11px;',
-        }));
-        let procs = readTopProcesses(24, procSort);
-        if (procFilter) {
-            procs = procs.filter(p =>
-                String(p.comm || '').toLowerCase().includes(procFilter) ||
-                String(p.pid || '').includes(procFilter));
-        }
-        procs = procs.slice(0, 12);
-        if (!procs.length) {
-            procBox.add_child(new St.Label({
-                text: procFilter ? 'No matching processes' : 'No process data',
-                style_class: 'material-panel-cpu-popup-value',
-            }));
-        } else {
-            for (const p of procs) {
-                const row = new St.BoxLayout({
-                    vertical: false,
-                    style: 'spacing: 8px;',
-                    x_expand: true,
-                });
-                const line = procSort === 'mem'
-                    ? `${String(p.pmem).padStart(5)}% ${String(p.pcpu).padStart(4)}%  ${p.comm}`
-                    : `${String(p.pcpu).padStart(5)}% ${String(p.pmem).padStart(4)}%  ${p.comm}`;
-                row.add_child(new St.Label({
-                    text: line,
-                    style_class: 'material-panel-cpu-popup-value',
-                    style: 'font-family: monospace; font-size: 11px;',
-                    x_expand: true,
-                }));
-                const endBtn = new St.Button({
-                    label: 'End',
-                    style_class: 'material-panel-headphones-disconnect',
-                    y_align: Clutter.ActorAlign.CENTER,
-                });
-                const pid = p.pid;
-                let armed = false;
-                endBtn.connect('clicked', () => {
-                    if (!armed) {
-                        armed = true;
-                        endBtn.label = 'Confirm?';
-                        GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
-                            try {
-                                if (armed) {
-                                    armed = false;
-                                    endBtn.label = 'End';
-                                }
-                            } catch (e) {}
-                            return GLib.SOURCE_REMOVE;
-                        });
-                        return;
-                    }
-                    killProcess(pid);
-                    armed = false;
-                    endBtn.label = 'End';
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
-                        try { refreshExtra(); } catch (e) {}
-                        return GLib.SOURCE_REMOVE;
-                    });
-                });
-                row.add_child(endBtn);
-                procBox.add_child(row);
-            }
-        }
-    };
+    // legacy section refs unused
+    const extraSection = {actor: extraBox};
+    const expandBtnMenu = expandBtn;
 
     const ensureCoreRows = (n) => {
         while (coreLabels.length < n) {
             const i = coreLabels.length;
-            const row = new St.BoxLayout({style_class: 'material-panel-cpu-popup-core-row', x_expand: true});
+            const row = new St.BoxLayout({
+                style_class: 'material-panel-act-core-row',
+                style: 'spacing: 6px;',
+                x_expand: true,
+            });
             const coreClasses = globalThis._materialPanelCoreClasses || null;
             const tag = coreClasses && coreClasses[i] ? coreClasses[i] : '';
-            const nameText = tag ? `${i} ${tag}` : `${i}`;
-            row.add_child(new St.Label({text: nameText, style_class: 'material-panel-cpu-popup-core-name'}));
-            // simple bar + pct
+            const nameText = tag ? `${i}${tag}` : `${i}`;
+            row.add_child(new St.Label({
+                text: nameText,
+                style_class: 'material-panel-act-core-id',
+                style: 'min-width: 28px; font-size: 11px;',
+            }));
             const barBg = new St.Widget({
                 style_class: 'material-panel-cpu-popup-bar-bg',
                 x_expand: true,
+                height: 8,
                 y_align: Clutter.ActorAlign.CENTER,
             });
             const barFill = new St.Widget({
                 style_class: 'material-panel-cpu-popup-bar-fill',
-                height: 6,
+                height: 8,
             });
             barBg.add_child(barFill);
-            const val = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-core-value'});
+            const val = new St.Label({
+                text: '—',
+                style_class: 'material-panel-act-core-val',
+                style: 'min-width: 36px; font-size: 11px;',
+            });
             row.add_child(barBg);
             row.add_child(val);
             coresGrid.add_child(row);
             coreLabels.push({val, barFill, barBg});
         }
-        coresTitle.visible = n > 0;
-        coresGrid.visible = n > 0;
+        try {
+            coresTitle.visible = n > 0;
+            coresGrid.visible = n > 0;
+        } catch (e) {}
     };
+
 
     refreshPopup = (data = null) => {
         // Prefer data from the same tick; only sample if opened mid-cycle
@@ -992,10 +876,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
         usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
         tempValue.text = temp !== null ? `${temp}°C` : '—';
-        loadValue.text = load ? `${load.load1} / ${load.load5} / ${load.load15}` : '—';
-        try {
-            loadValue.set_tooltip_text(load ? `Load average 1 / 5 / 15 min` : '');
-        } catch (e) {}
+        // loadValue set below with thermal trips
 
         const list = Array.isArray(cores) ? cores : [];
         ensureCoreRows(list.length);
@@ -1018,10 +899,12 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             }
         }
 
-        thermalSensor.text = zoneName ? `Sensor  ${zoneName}` : (tempPath ? 'Sensor  hwmon' : 'Sensor  —');
-        thermalCurrent.text = `Now  ${temp !== null ? temp + '°C' : '—'}`;
-        thermalHigh.text = trips.high != null ? `High  ${trips.high}°C` : '';
-        thermalCrit.text = trips.critical != null ? `Crit  ${trips.critical}°C` : '';
+        // Fold thermal into load subtitle (avoid sparse sensor block)
+        const loadStr = load ? `Load  ${load.load1} · ${load.load5} · ${load.load15}` : 'Load  —';
+        const tripBits = [];
+        if (trips.high != null) tripBits.push(`high ${trips.high}°`);
+        if (trips.critical != null) tripBits.push(`crit ${trips.critical}°`);
+        loadValue.text = tripBits.length ? `${loadStr}  ·  ${tripBits.join(' ')}` : loadStr;
 
         const mem = readMemInfo();
         if (mem) {
