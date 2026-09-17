@@ -14,6 +14,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 const MAX_SHOWN = 60;
 const PANEL_MIN_W = 340;
@@ -208,7 +209,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         child: box,
     });
     try {
-        wireChipPress(button, {
+        setChipA11y(button, 'Notifications');
+    wireChipPress(button, {
             stickyUntilLeave: true,
             getIcons: () => [{icon, key: 'notifications'}],
         });

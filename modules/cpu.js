@@ -9,6 +9,7 @@ import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 import {ConfigStore} from '../lib/configStore.js';
 
 function findTempFile() {
@@ -972,6 +973,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
-    try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
+    try { setChipA11y(button, 'Activity'); } catch (e) {}
+    try { wireChipPress(button, {stickyUntilLeave: false}); } catch (e) {}
     return button;
 }

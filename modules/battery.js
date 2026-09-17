@@ -10,6 +10,7 @@ import {iconPath, iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 function formatSeconds(sec) {
     if (!sec || sec <= 0 || sec > 60 * 60 * 48)
@@ -281,6 +282,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
-    try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
+    try { setChipA11y(button, 'Battery');
+    wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
     return button;
 }
