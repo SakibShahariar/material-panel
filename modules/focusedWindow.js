@@ -161,19 +161,40 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
     refresh();
 
     const ids = [];
-    try {
-        ids.push(['display', global.display.connect('notify::focus-window', refresh)]);
-    } catch (e) {}
-    try {
-        ids.push(['wm', global.window_manager.connect('switch-workspace', refresh)]);
-    } catch (e) {}
-
-    const timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
+    let titleId = 0;
+    let titleWin = null;
+    const clearTitleWatch = () => {
+        try {
+            if (titleWin && titleId)
+                titleWin.disconnect(titleId);
+        } catch (e) {}
+        titleId = 0;
+        titleWin = null;
+    };
+    const watchFocusedTitle = () => {
+        clearTitleWatch();
+        try {
+            const win = global.display.focus_window;
+            if (!win)
+                return;
+            titleWin = win;
+            titleId = win.connect('notify::title', refresh);
+        } catch (e) {}
+    };
+    const onFocus = () => {
         refresh();
-        return GLib.SOURCE_CONTINUE;
-    });
+        watchFocusedTitle();
+    };
+    try {
+        ids.push(['display', global.display.connect('notify::focus-window', onFocus)]);
+    } catch (e) {}
+    try {
+        ids.push(['wm', global.window_manager.connect('switch-workspace', onFocus)]);
+    } catch (e) {}
+    watchFocusedTitle();
 
     button.connect('destroy', () => {
+        clearTitleWatch();
         for (const [kind, id] of ids) {
             try {
                 if (kind === 'display')
@@ -182,9 +203,6 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
                     global.window_manager.disconnect(id);
             } catch (e) {}
         }
-        try {
-            GLib.source_remove(timer);
-        } catch (e) {}
     });
 
     button.connect('clicked', () => {

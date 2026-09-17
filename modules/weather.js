@@ -105,12 +105,16 @@ function gweatherIconKey(info) {
     return 'weather';
 }
 
-function httpGet(url) {
+function httpGet(url, cancellable = null) {
     return new Promise((resolve, reject) => {
         try {
             const file = Gio.File.new_for_uri(url);
-            file.load_contents_async(null, (f, res) => {
+            file.load_contents_async(cancellable, (f, res) => {
                 try {
+                    if (cancellable?.is_cancelled?.()) {
+                        reject(new Gio.IOErrorEnum({code: Gio.IOErrorEnum.CANCELLED}));
+                        return;
+                    }
                     const [ok, contents] = f.load_contents_finish(res);
                     if (!ok || !contents) {
                         reject(new Error(`load failed ${url}`));
@@ -118,6 +122,8 @@ function httpGet(url) {
                     }
                     resolve(new TextDecoder('utf-8').decode(contents));
                 } catch (e) {
+                    if (e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        return;
                     reject(e);
                 }
             });
@@ -150,12 +156,24 @@ function normalizeLatLon(lat, lon) {
  * Avoids deep GVariant walks that can native-crash the Shell.
  */
 function loadGnomeWeatherLocationFromGsettingsText() {
+    let text = null;
     try {
-        const [ok, stdout, _stderr, status] = GLib.spawn_command_line_sync(
-            'gsettings get org.gnome.Weather locations');
-        if (!ok || status !== 0)
-            return null;
-        const text = new TextDecoder('utf-8').decode(stdout);
+        const source = Gio.SettingsSchemaSource.get_default();
+        if (source?.lookup?.('org.gnome.Weather', true)) {
+            const settings = new Gio.Settings({schema_id: 'org.gnome.Weather'});
+            const value = settings.get_value('locations');
+            if (value && value.n_children() >= 1)
+                text = value.print(true);
+        }
+    } catch (e) {}
+    try {
+        if (!text) {
+            const [ok, stdout, _stderr, status] = GLib.spawn_command_line_sync(
+                'gsettings get org.gnome.Weather locations');
+            if (!ok || status !== 0)
+                return null;
+            text = new TextDecoder('utf-8').decode(stdout);
+        }
         if (!text || text.includes('@as []') || text.trim() === '@as []')
             return null;
 
@@ -464,6 +482,8 @@ async function resolveIpLocation() {
 
 
 export function buildWeather(_extensionPath, scale = 1.0) {
+    const cancellable = new Gio.Cancellable();
+
     const box = new St.BoxLayout({
         style_class: 'material-panel-weather',
         y_align: Clutter.ActorAlign.CENTER,
@@ -860,6 +880,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
     });
     button.connect('destroy', () => {
+        try { cancellable.cancel(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
 
@@ -877,6 +898,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         return GLib.SOURCE_CONTINUE;
     });
     button.connect('destroy', () => {
+        try { cancellable.cancel(); } catch (e) {}
         try { GLib.source_remove(refreshId); } catch (e) {}
     });
 

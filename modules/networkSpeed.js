@@ -188,7 +188,13 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     };
 
     tick();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, tick);
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+        try {
+            if (Main.layoutManager.primaryMonitor?.inFullscreen)
+                return GLib.SOURCE_CONTINUE;
+        } catch (e) {}
+        return tick();
+    });
     button.connect('destroy', () => {
         try { GLib.source_remove(id); } catch (e) {}
         menu.destroy();
