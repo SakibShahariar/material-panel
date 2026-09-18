@@ -91,6 +91,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         const networksSection = new PopupMenu.PopupMenuSection();
+        try {
+            networksSection.actor.style = 'max-height: 280px;';
+        } catch (e) {}
         menu.addMenuItem(networksSection);
 
         const activate = connection => {

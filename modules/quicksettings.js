@@ -68,33 +68,6 @@ function getQsExpandController() {
 }
 const qsExpandController = getQsExpandController();
 
-function applyEnd4QsChrome(menu, dual, grid, powerSection) {
-    // Inline styles — St stylesheet cascade often ignores nested menu selectors
-    try {
-        menu.box.style = (menu.box.style || '') +
-            '; min-width: 380px; border-radius: 24px; padding: 12px;';
-    } catch (e) {}
-    try {
-        menu.actor.style = (menu.actor.style || '') + '; border-radius: 24px;';
-    } catch (e) {}
-    if (dual) {
-        try {
-            dual.style = 'background-color: rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 12px; spacing: 10px;';
-        } catch (e) {}
-    }
-    if (grid) {
-        try {
-            const n = grid.get_n_children?.() ?? 0;
-            for (let i = 0; i < n; i++) {
-                const c = grid.get_child_at_index(i);
-                if (!c) continue;
-                try {
-                    c.style = 'border-radius: 20px; min-height: 64px;';
-                } catch (e) {}
-            }
-        } catch (e) {}
-    }
-}
 
 
 
@@ -1901,22 +1874,43 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         try { menu.box.add_style_class_name('material-panel-layout-end4'); } catch (e) {}
         try { menu.actor.add_style_class_name('material-panel-qs-end4'); } catch (e) {}
     }
-    const clampQsHeight = () => {
+    const applyQsChrome = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
-            if (!mon) return;
-            const maxH = Math.floor(mon.height * (end4 ? 0.82 : 0.68));
-            const minW = end4 ? 360 : 300;
-            menu.box.style = `max-height: ${maxH}px; min-width: ${minW}px; overflow: hidden;`;
+            const maxH = mon ? Math.floor(mon.height * (end4 ? 0.82 : 0.68)) : 600;
+            const minW = end4 ? 380 : 300;
+            const pad = end4 ? 14 : 12;
+            const radius = end4 ? 24 : 16;
+            menu.box.style =
+                `max-height: ${maxH}px; min-width: ${minW}px; max-width: 400px; ` +
+                `overflow: hidden; border-radius: ${radius}px; padding: ${pad}px;`;
+            try { menu.box.clip_to_allocation = true; } catch (e) {}
+        } catch (e) {
+            logError(e, 'material-panel: applyQsChrome');
+        }
+    };
+
+    const walkAndStyleTiles = (root) => {
+        const walk = actor => {
+            if (!actor) return;
             try {
-                menu.box.clip_to_allocation = true;
+                const sc = String(actor.style_class || actor.get_style_class_name?.() || '');
+                if (sc.includes('material-panel-qs-tile'))
+                    actor.style = 'border-radius: 22px; min-height: 66px; padding: 10px;';
+                if (sc.includes('material-panel-qs-power-btn'))
+                    actor.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
+                if (sc.includes('material-panel-qs-dual-slider'))
+                    actor.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
+                if (sc.includes('material-panel-qs-slider-row'))
+                    actor.style = 'padding: 4px 6px;';
             } catch (e) {}
             try {
-                // Enable scrolling when content exceeds max height (St.BoxLayout in menu)
-                if (menu.box.set_vertical_scroll)
-                    menu.box.set_vertical_scroll(true);
+                const n = actor.get_n_children?.() ?? 0;
+                for (let i = 0; i < n; i++)
+                    walk(actor.get_child_at_index(i));
             } catch (e) {}
-        } catch (e) {}
+        };
+        try { walk(root); } catch (e) {}
     };
 
     menu.actor.add_style_class_name('material-panel-popup material-panel-qs-popup');
@@ -2033,51 +2027,11 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                 } catch (e) { return false; }
             });
         } catch (e) {}
-        // Force chrome on open every time
-        const forceChrome = () => {
-            try {
-                menu.box.set_style(
-                    `min-width: 380px; max-width: 400px; border-radius: 24px; padding: 14px;`);
-            } catch (e) {
-                try {
-                    menu.box.style = 'max-width: 400px; min-width: 300px; border-radius: 24px; padding: 14px;';
-                } catch (e2) {}
-            }
-            // Style every tile-like button under the menu
-            const walk = actor => {
-                if (!actor) return;
-                try {
-                    const sc = String(actor.style_class || actor.get_style_class_name?.() || '');
-                    if (sc.includes('material-panel-qs-tile')) {
-                        actor.style = 'border-radius: 22px; min-height: 66px; padding: 10px;';
-                    }
-                    if (sc.includes('material-panel-qs-power-btn')) {
-                        actor.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
-                    }
-                    if (sc.includes('material-panel-qs-dual-slider')) {
-                        actor.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
-                    }
-                    if (sc.includes('material-panel-qs-slider-row')) {
-                        actor.style = 'padding: 4px 6px;';
-                    }
-                } catch (e) {}
-                try {
-                    const n = actor.get_n_children?.() ?? 0;
-                    for (let i = 0; i < n; i++)
-                        walk(actor.get_child_at_index(i));
-                } catch (e) {}
-            };
-            try { walk(menu.box); } catch (e) {}
-            try { walk(menu.actor); } catch (e) {}
-        };
         menu.connect('open-state-changed', (_m, open) => {
             if (open) {
-                clampQsHeight();
-                forceChrome();
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-                    forceChrome();
-                    return GLib.SOURCE_REMOVE;
-                });
+                applyQsChrome();
+                walkAndStyleTiles(menu.box);
+                try { walkAndStyleTiles(menu.actor); } catch (e) {}
             } else {
                 getQsExpandController().expandOnly(null);
             }
@@ -2085,7 +2039,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     } else {
         menu.connect('open-state-changed', (_m, open) => {
             if (open)
-                clampQsHeight();
+                applyQsChrome();
             if (!open)
                 getQsExpandController().expandOnly(null);
         });

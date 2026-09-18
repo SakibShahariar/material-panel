@@ -786,6 +786,24 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-cpu-popup-procs',
         style: 'spacing: 2px;',
     });
+    const procScroll = new St.ScrollView({
+        style_class: 'material-panel-cpu-proc-scroll',
+        overlay_scrollbars: true,
+        x_expand: true,
+    });
+    try {
+        procScroll.hscrollbar_policy = St.PolicyType.NEVER;
+        procScroll.vscrollbar_policy = St.PolicyType.AUTOMATIC;
+    } catch (e) {}
+    try { procScroll.style = 'max-height: 240px;'; } catch (e) {}
+    try {
+        if (procScroll.set_child)
+            procScroll.set_child(procBox);
+        else
+            procScroll.add_child(procBox);
+    } catch (e) {
+        try { procScroll.add_actor?.(procBox); } catch (e2) {}
+    }
 
     const sysMonBtn = new St.Button({
         label: 'System Monitor',
@@ -801,7 +819,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     extraBox.add_child(procTitleRow);
     extraBox.add_child(procSearch);
-    extraBox.add_child(procBox);
+    extraBox.add_child(procScroll);
     extraBox.add_child(sysMonBtn);
     body.add_child(extraBox);
 
