@@ -595,16 +595,88 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
 
     rebuild();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
-        try {
-            setCount(listNotifications().length);
-            if (menu.isOpen)
-                rebuild();
-        } catch (e) {}
-        return GLib.SOURCE_CONTINUE;
-    });
+
+    // MessageTray signals — no 3s full rebuild while user is reading
+    const trayIds = [];
+    const sourceIds = new Map(); // source → [signal ids]
+    let countDebounce = 0;
+    const scheduleCount = () => {
+        if (countDebounce)
+            return;
+        countDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+            countDebounce = 0;
+            try {
+                setCount(listNotifications().length);
+            } catch (e) {}
+            // Only refresh list if popup is open — preserve scroll by not doing it every 3s
+            try {
+                if (menu.isOpen)
+                    rebuild();
+            } catch (e) {}
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    const unhookSource = (source) => {
+        const ids = sourceIds.get(source);
+        if (!ids)
+            return;
+        for (const id of ids) {
+            try { source.disconnect(id); } catch (e) {}
+        }
+        sourceIds.delete(source);
+    };
+    const hookSource = (source) => {
+        if (!source || sourceIds.has(source))
+            return;
+        const ids = [];
+        for (const sig of ['notification-added', 'notification-removed', 'destroy']) {
+            try {
+                ids.push(source.connect(sig, () => {
+                    if (sig === 'destroy')
+                        unhookSource(source);
+                    scheduleCount();
+                }));
+            } catch (e) {}
+        }
+        if (ids.length)
+            sourceIds.set(source, ids);
+    };
+    try {
+        const tray = Main.messageTray;
+        if (tray) {
+            try {
+                trayIds.push(tray.connect('source-added', (_t, source) => {
+                    hookSource(source);
+                    scheduleCount();
+                }));
+            } catch (e) {}
+            try {
+                trayIds.push(tray.connect('source-removed', (_t, source) => {
+                    unhookSource(source);
+                    scheduleCount();
+                }));
+            } catch (e) {}
+            const sources = typeof tray.getSources === 'function'
+                ? tray.getSources()
+                : (tray._sources ? [...tray._sources] : []);
+            for (const s of sources)
+                hookSource(s);
+        }
+    } catch (e) {
+        logError(e, 'material-panel: notification tray signals');
+    }
+    scheduleCount();
+
     button.connect('destroy', () => {
-        try { GLib.source_remove(id); } catch (e) {}
+        if (countDebounce) {
+            try { GLib.source_remove(countDebounce); } catch (e) {}
+            countDebounce = 0;
+        }
+        for (const source of [...sourceIds.keys()])
+            unhookSource(source);
+        for (const id of trayIds) {
+            try { Main.messageTray?.disconnect?.(id); } catch (e) {}
+        }
         try { menu.destroy(); } catch (e) {}
     });
 

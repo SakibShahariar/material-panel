@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 function readGpuInfo() {
     try {
@@ -107,6 +108,7 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         can_focus: true,
         track_hover: true,
     });
+    try { setChipA11y(button, 'GPU'); } catch (e) {}
     try { wireChipPress(button); } catch (e) {}
 
     // Hide until we detect a GPU at least once

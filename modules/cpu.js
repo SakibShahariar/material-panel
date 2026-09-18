@@ -214,20 +214,25 @@ function formatBytesFromKb(kb) {
 
 function readDiskRoot() {
     try {
-        const [, out] = GLib.spawn_command_line_sync('df -B1 /');
-        const text = new TextDecoder('utf-8').decode(out);
-        const lines = text.trim().split('\n');
-        if (lines.length < 2)
+        const file = Gio.File.new_for_path('/');
+        const info = file.query_filesystem_info(
+            'filesystem::size,filesystem::used,filesystem::free', null);
+        const size = Number(info.get_attribute_uint64('filesystem::size'));
+        const used = Number(info.get_attribute_uint64('filesystem::used'));
+        const free = Number(info.get_attribute_uint64('filesystem::free'));
+        if (!Number.isFinite(size) || size <= 0)
             return null;
-        const parts = lines[1].trim().split(/\s+/);
-        // Filesystem size used avail use% mount
-        if (parts.length < 6)
-            return null;
-        const size = parseInt(parts[1], 10);
-        const used = parseInt(parts[2], 10);
-        const avail = parseInt(parts[3], 10);
-        const pct = parseInt(String(parts[4]).replace('%', ''), 10);
-        return {size, used, avail, pct, mount: parts[5]};
+        const usedN = Number.isFinite(used) && used > 0
+            ? used
+            : Math.max(0, size - (Number.isFinite(free) ? free : 0));
+        const avail = Number.isFinite(free) ? free : Math.max(0, size - usedN);
+        return {
+            size,
+            used: usedN,
+            avail,
+            pct: Math.round((usedN / size) * 100),
+            mount: '/',
+        };
     } catch (e) {
         return null;
     }

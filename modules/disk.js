@@ -7,25 +7,44 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 function readDisk(mount = '/') {
+    // Prefer Gio filesystem info — no df subprocess on the compositor thread
     try {
-        const [, out] = GLib.spawn_command_line_sync(`df -B1 ${mount}`);
-        const text = new TextDecoder('utf-8').decode(out);
-        const lines = text.trim().split('\n');
-        if (lines.length < 2) return null;
-        const parts = lines[1].trim().split(/\s+/);
-        if (parts.length < 6) return null;
-        return {
-            size: parseInt(parts[1], 10),
-            used: parseInt(parts[2], 10),
-            avail: parseInt(parts[3], 10),
-            pct: parseInt(String(parts[4]).replace('%', ''), 10),
-            mount: parts[5],
-            fs: parts[0],
-        };
+        const file = Gio.File.new_for_path(mount);
+        const info = file.query_filesystem_info(
+            'filesystem::size,filesystem::used,filesystem::free', null);
+        const size = Number(info.get_attribute_uint64('filesystem::size'));
+        const used = Number(info.get_attribute_uint64('filesystem::used'));
+        const free = Number(info.get_attribute_uint64('filesystem::free'));
+        if (!Number.isFinite(size) || size <= 0)
+            throw new Error('no size');
+        const usedN = Number.isFinite(used) && used > 0
+            ? used
+            : Math.max(0, size - (Number.isFinite(free) ? free : 0));
+        const avail = Number.isFinite(free) ? free : Math.max(0, size - usedN);
+        const pct = Math.round((usedN / size) * 100);
+        return {size, used: usedN, avail, pct, mount, fs: mount};
     } catch (e) {
-        return null;
+        try {
+            const [, out] = GLib.spawn_command_line_sync(`df -B1 ${GLib.shell_quote?.(mount) || mount}`);
+            const text = new TextDecoder('utf-8').decode(out);
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) return null;
+            const parts = lines[1].trim().split(/\s+/);
+            if (parts.length < 6) return null;
+            return {
+                size: parseInt(parts[1], 10),
+                used: parseInt(parts[2], 10),
+                avail: parseInt(parts[3], 10),
+                pct: parseInt(String(parts[4]).replace('%', ''), 10),
+                mount: parts[5],
+                fs: parts[0],
+            };
+        } catch (e2) {
+            return null;
+        }
     }
 }
 
@@ -60,6 +79,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
         can_focus: true,
         track_hover: true,
     });
+    try { setChipA11y(button, 'Disk'); } catch (e) {}
     try { wireChipPress(button); } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);

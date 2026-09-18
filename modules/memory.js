@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 function readMemInfo() {
     try {
@@ -73,6 +74,7 @@ export function buildMemory(_extensionPath, scale = 1.0) {
         can_focus: true,
         track_hover: true,
     });
+    try { setChipA11y(button, 'Memory'); } catch (e) {}
     try { wireChipPress(button); } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
