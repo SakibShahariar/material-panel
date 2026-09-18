@@ -157,3 +157,8 @@ yay -S ttf-material-symbols-variable-git
 ```
 
 Without the font, the extension falls back to bundled SVGs.
+
+
+## Multi-monitor
+
+Material Panel currently draws on the **primary monitor only**. The stock GNOME top bar is hidden on all monitors while the extension is enabled, so secondary displays will not show a top bar. Multi-monitor panels may come later.

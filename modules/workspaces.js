@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 /**
  * end-4 workspaces: overlapping app icons + focus ring + empty dots.
  * Multi-app clusters use fixed width so negative margins never break allocation.
@@ -279,5 +280,6 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         }
     });
 
+    try { setChipA11y(box, 'Workspaces'); } catch (e) {}
     return box;
 }

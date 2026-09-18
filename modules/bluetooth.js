@@ -661,15 +661,15 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                     try { deviceProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, `material-panel: bluez device proxy failed for "${displayName}"`); return; }
                     // If not paired yet, Pair first then Connect
                     if (!paired && method === 'Connect') {
-                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p, r) => {
+                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
                             try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); return; }
-                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p2, r2) => {
+                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p2, r2) => {
                                 try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); }
                             });
                         });
                         return;
                     }
-                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (p, r) => {
+                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
                         try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); }
                     });
                 });
@@ -686,7 +686,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             try { objMgrProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, 'material-panel: bluez unavailable, bluetooth device list stays empty'); return; }
             const refresh = () => {
                 if (!objMgrProxy) return;
-                objMgrProxy.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null, (proxy, callRes) => {
+                objMgrProxy.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (proxy, callRes) => {
                     try {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);

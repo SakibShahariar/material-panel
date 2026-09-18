@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
@@ -21,5 +22,6 @@ export function buildActivities(_extensionPath, scale = 1.0) {
     });
     wireFileIconPress(button, () => [{icon, key: 'apps'}]);
     button.connect('clicked', () => Main.overview.toggle());
+    try { setChipA11y(button, 'Activities'); } catch (e) {}
     return button;
 }

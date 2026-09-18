@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 /**
  * Connected headphones chip + focused popup (not full BT device browser).
  */
@@ -268,5 +269,6 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
 
+    try { setChipA11y(button, 'Bluetooth device'); } catch (e) {}
     return button;
 }
