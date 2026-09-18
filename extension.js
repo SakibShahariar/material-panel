@@ -1,4 +1,6 @@
 import GLib from 'gi://GLib';
+import {closeMixerControl} from './lib/audio.js';
+import {clearPanelMenus} from './lib/popupDismiss.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -325,6 +327,11 @@ export default class MaterialPanelExtension extends Extension {
             logError(e, 'material-panel: bridge.disable');
         }
         this._bridge = null;
+
+        try { closeMixerControl(); } catch (e) {
+            logError(e, 'material-panel: closeMixerControl');
+        }
+        try { clearPanelMenus(); } catch (e) {}
 
         try {
             this._builder.destroy();
