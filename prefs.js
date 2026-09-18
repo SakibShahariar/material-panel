@@ -72,6 +72,53 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const store = new ConfigStore();
         const config = store.load();
+        // Header: reset to defaults
+        try {
+            const resetBtn = new Gtk.Button({
+                label: 'Reset to defaults',
+                css_classes: ['destructive-action'],
+                valign: Gtk.Align.CENTER,
+            });
+            resetBtn.connect('clicked', () => {
+                const dialog = new Adw.AlertDialog({
+                    heading: 'Reset Material Panel?',
+                    body: 'All layout, size, tray, and appearance settings will be restored to defaults. This cannot be undone.',
+                });
+                dialog.add_response('cancel', 'Cancel');
+                dialog.add_response('reset', 'Reset');
+                dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
+                dialog.connect('response', (_d, response) => {
+                    if (response !== 'reset')
+                        return;
+                    try {
+                        store.resetDefaults();
+                        // Reload window content is hard; close so user reopens fresh
+                        try {
+                            const toast = new Adw.Toast({title: 'Defaults restored — reopen settings'});
+                            window.add_toast(toast);
+                        } catch (e) {
+                            console.error('material-panel: reset toast', e);
+                        }
+                        try { window.close(); } catch (e) {}
+                    } catch (e) {
+                        console.error('material-panel: reset failed', e);
+                        try {
+                            window.add_toast(new Adw.Toast({title: 'Reset failed'}));
+                        } catch (e2) {}
+                    }
+                });
+                dialog.present(window);
+            });
+            try {
+                window.add_header_suffix?.(resetBtn);
+            } catch (e) {
+                // Fallback: not all versions have add_header_suffix
+            }
+        } catch (e) {
+            console.error('material-panel: reset button', e);
+        }
+
+
         const preset = config.presets[config.activePreset];
 
         // Migrate legacy single `gap` if present.

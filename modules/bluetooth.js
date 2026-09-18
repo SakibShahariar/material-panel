@@ -89,12 +89,44 @@ function resolveDeviceGicon(key, connected) {
         connected ? 'bluetooth-active-symbolic' : 'bluetooth-disabled-symbolic');
 }
 
+
+function spawnCaptureAsync(argv) {
+    return new Promise((resolve, reject) => {
+        try {
+            const proc = Gio.Subprocess.new(
+                argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, null, (p, res) => {
+                try {
+                    const [, stdout, stderr] = p.communicate_utf8_finish(res);
+                    if (!p.get_successful())
+                        reject(new Error(stderr || 'command failed'));
+                    else
+                        resolve(stdout || '');
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
 /** Best-effort codec from pactl for a connected BT device name. */
 function probeBluetoothCodec(deviceName) {
     try {
-        const [ok, out] = GLib.spawn_command_line_sync('pactl list cards');
-        if (!ok)
+        // Prefer async path when caller awaits; sync kept as last resort for sync callers
+        let out;
+        try {
+            // Sync fallback only — callers should migrate to async
+            const [ok, bytes] = GLib.spawn_command_line_sync('pactl list cards');
+            if (!ok)
+                return null;
+            out = bytes;
+        } catch (e) {
             return null;
+        }
         const text = new TextDecoder('utf-8').decode(out);
         const blocks = text.split('Card #');
         const needle = String(deviceName || '').toLowerCase();
@@ -165,23 +197,28 @@ function findAdapterPath(callback) {
 
 function isSoftBlocked(callback) {
     try {
-        GLib.spawn_command_line_async('rfkill list bluetooth', (_pid, _stdout, _stderr, _status) => {
-            // We can't easily get output from async spawn, so fall back to sync with a very short timeout
-            // using a helper - for now just use sync but with error handling
-            // The sync call is fast enough on most systems (<50ms)
+        const proc = Gio.Subprocess.new(
+            ['rfkill', 'list', 'bluetooth'],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+        proc.communicate_utf8_async(null, null, (p, res) => {
             try {
-                const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-                if (!ok || !out) {
-                    callback(false);
-                    return;
-                }
-                callback(new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes'));
+                const [, stdout] = p.communicate_utf8_finish(res);
+                callback(String(stdout || '').includes('Soft blocked: yes'));
             } catch (e) {
                 callback(false);
             }
         });
     } catch (e) {
-        callback(false);
+        try {
+            const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+            if (!ok || !out) {
+                callback(false);
+                return;
+            }
+            callback(new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes'));
+        } catch (e2) {
+            callback(false);
+        }
     }
 }
 
