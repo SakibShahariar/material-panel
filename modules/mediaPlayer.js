@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import St from 'gi://St';
@@ -526,5 +527,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             getIcons: () => [{icon, key: label.text === 'No media' ? 'media-play' : 'media-pause'}],
         });
     } catch (e) {}
+    try { setChipA11y(button, 'Media'); } catch (e) {}
     return button;
 }

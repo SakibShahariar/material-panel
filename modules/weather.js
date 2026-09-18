@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -902,5 +903,6 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         try { GLib.source_remove(refreshId); } catch (e) {}
     });
 
+    try { setChipA11y(button, 'Weather'); } catch (e) {}
     return button;
 }

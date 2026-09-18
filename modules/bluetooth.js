@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -113,29 +114,15 @@ function spawnCaptureAsync(argv) {
     });
 }
 
-/** Best-effort codec from pactl for a connected BT device name. */
-function probeBluetoothCodec(deviceName) {
+function codecFromPactlText(text, deviceName) {
     try {
-        // Prefer async path when caller awaits; sync kept as last resort for sync callers
-        let out;
-        try {
-            // Sync fallback only — callers should migrate to async
-            const [ok, bytes] = GLib.spawn_command_line_sync('pactl list cards');
-            if (!ok)
-                return null;
-            out = bytes;
-        } catch (e) {
-            return null;
-        }
-        const text = new TextDecoder('utf-8').decode(out);
-        const blocks = text.split('Card #');
+        const blocks = String(text || '').split('Card #');
         const needle = String(deviceName || '').toLowerCase();
         for (const b of blocks) {
             if (!/bluez/i.test(b))
                 continue;
             if (needle && !b.toLowerCase().includes(needle.slice(0, Math.min(12, needle.length))))
                 continue;
-            // active profile: a2dp_sink / handsfree_head_unit / …
             const m = b.match(/Active Profile:\s*(\S+)/i);
             if (!m)
                 continue;
@@ -150,11 +137,29 @@ function probeBluetoothCodec(deviceName) {
     return null;
 }
 
+/** Sync fallback (avoid on UI path). */
+function probeBluetoothCodec(deviceName) {
+    try {
+        const [ok, bytes] = GLib.spawn_command_line_sync('pactl list cards');
+        if (!ok || !bytes)
+            return null;
+        return codecFromPactlText(new TextDecoder('utf-8').decode(bytes), deviceName);
+    } catch (e) {
+        return null;
+    }
+}
+
+function probeBluetoothCodecAsync(deviceName) {
+    return spawnCaptureAsync(['pactl', 'list', 'cards'])
+        .then(text => codecFromPactlText(text, deviceName))
+        .catch(() => null);
+}
+
 
 // Timeout for DBus calls (ms) - prevents hanging if bluetoothd is unresponsive
 const DBUS_TIMEOUT_MS = 3000;
 
-function findAdapterPath(callback) {
+function findAdapterPath(callback, cancellable = null) {
     let timedOut = false;
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
         timedOut = true;
@@ -164,22 +169,26 @@ function findAdapterPath(callback) {
 
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-        BLUEZ_SERVICE, '/', OBJECT_MANAGER_IFACE, null,
+        BLUEZ_SERVICE, '/', OBJECT_MANAGER_IFACE, cancellable,
         (_src, res) => {
             if (timedOut) return;
-            GLib.source_remove(timeoutId);
+            try { GLib.source_remove(timeoutId); } catch (e) {}
+            if (cancellable?.is_cancelled?.()) {
+                callback(null);
+                return;
+            }
 
             let objMgr;
             try {
                 objMgr = Gio.DBusProxy.new_for_bus_finish(res);
             } catch (e) {
-                logError(e, 'material-panel: bluez unavailable (is bluetoothd running?)');
+                if (!e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    logError(e, 'material-panel: bluez unavailable (is bluetoothd running?)');
                 callback(null);
                 return;
             }
-            // Set a timeout on the GetManagedObjects call itself
             objMgr.call(
-                'GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, null,
+                'GetManagedObjects', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable,
                 (proxy, callRes) => {
                     if (timedOut) return;
                     try {
@@ -275,6 +284,7 @@ export function isBluetoothPopupReady() {
 }
 
 export function buildBluetooth(_extensionPath, scale = 1.0) {
+    const cancellable = new Gio.Cancellable();
     const buttonBox = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-chip-box'});
     const icon = new St.Icon({
         style_class: 'material-panel-bluetooth-icon',
@@ -592,7 +602,6 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         const textBox = new St.BoxLayout({vertical: true, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-bt-device-name');
         nameLabel.x_expand = true;
-        const codec = connected ? probeBluetoothCodec(displayName) : null;
         const parts = [];
         if (connecting)
             parts.push('Connecting…');
@@ -604,14 +613,23 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             parts.push('Available');
         if (batteryPct !== null)
             parts.push(`${batteryPct}%`);
-        if (codec)
-            parts.push(codec);
         if (!connecting && !connected && paired)
             parts.push('tap to connect');
         else if (connected)
             parts.push('tap to disconnect');
-        const sub = parts.join(' · ');
-        const subLabel = new St.Label({text: sub, style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
+        const subLabel = new St.Label({text: parts.join(' · '), style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
+        if (connected) {
+            probeBluetoothCodecAsync(displayName).then(codec => {
+                if (!codec)
+                    return;
+                try {
+                    const base = parts.filter(p => p !== codec);
+                    if (!base.includes(codec))
+                        base.splice(Math.min(2, base.length), 0, codec);
+                    subLabel.text = base.join(' · ');
+                } catch (e) {}
+            }).catch(() => {});
+        }
         subLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(nameLabel);
         textBox.add_child(subLabel);
@@ -815,9 +833,11 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     discover();
 
     button.connect('destroy', () => {
+        try { cancellable.cancel(); } catch (e) {}
         if (propsProxy && propsSignalId) try { propsProxy.disconnect(propsSignalId); } catch (e) {}
         menu.destroy();
     });
 
+    try { setChipA11y(button, 'Bluetooth'); } catch (e) {}
     return button;
 }

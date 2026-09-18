@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 /**
  * Clock chip + Omarchy-inspired calendar popup:
  * month grid, event dots, day agenda, next-event countdown.
@@ -486,5 +487,6 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     try { wirePressedClass(button); } catch (e) {}
 
+    try { setChipA11y(button, 'Clock'); } catch (e) {}
     return button;
 }

@@ -1,3 +1,4 @@
+import {setChipA11y} from '../lib/a11y.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
@@ -201,5 +202,6 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     });
 
     try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
+    try { setChipA11y(button, 'Network speed'); } catch (e) {}
     return button;
 }
