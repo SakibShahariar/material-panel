@@ -415,11 +415,11 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         }
         style(title, on
             ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
-            : 'font-size: 12px; font-weight: 700; color: #eee6f4;');
+            : `font-size: 12px; font-weight: 700; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
         if (subLab)
             style(subLab, on
-                ? 'font-size: 11px; color: #3a2a32;'
-                : 'font-size: 11px; opacity: 0.7; color: #c8bdd0;');
+                ? `font-size: 11px; color: ${onAccent()}; opacity: 0.85;`
+                : `font-size: 11px; opacity: 0.75; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
     };
     btn.connect('notify::hover', paint);
     btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });

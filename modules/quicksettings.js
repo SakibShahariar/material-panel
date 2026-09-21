@@ -1921,8 +1921,10 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                     actor.style = 'border-radius: 22px; min-height: 66px; padding: 10px;';
                 if (sc.includes('material-panel-qs-power-btn'))
                     actor.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
-                if (sc.includes('material-panel-qs-dual-slider'))
-                    actor.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
+                if (sc.includes('material-panel-qs-dual-slider')) {
+                    const cap = globalThis._materialPanelQsSurface ?? 'rgba(56, 59, 76, 0.9)';
+                    actor.style = `background-color: ${cap}; border-radius: 999px; padding: 8px 12px;`;
+                }
                 if (sc.includes('material-panel-qs-slider-row'))
                     actor.style = 'padding: 4px 6px;';
             } catch (e) {}
@@ -1965,7 +1967,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         dual.add_child(vol);
         dual.add_child(bri);
         try {
-            dual.style = 'background-color: rgba(255,255,255,0.10); border-radius: 999px; padding: 8px 12px;';
+            // Stronger than slider track (10% white) so unfilled range stays visible
+            const cap = globalThis._materialPanelQsSurface ?? 'rgba(56, 59, 76, 0.9)';
+            dual.style = `background-color: ${cap}; border-radius: 999px; padding: 8px 12px;`;
         } catch (e) {}
         menu.addMenuItem(wrapAsMenuItem(qsSection(
             'material-panel-qs-section-sliders material-panel-qs-section-sliders-end4',
