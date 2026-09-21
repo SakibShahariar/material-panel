@@ -17,6 +17,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
+import {fillRyokuQsMenu} from './quicksettingsRyoku.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 
@@ -1887,8 +1888,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const applyQsChrome = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
-            const maxH = mon ? Math.floor(mon.height * (end4 ? 0.82 : 0.68)) : 600;
-            const minW = end4 ? 380 : 300;
+            const ryokuLay = globalThis._materialPanelLayoutStyle === 'ryoku';
+            const maxH = mon ? Math.floor(mon.height * (end4 ? 0.82 : ryokuLay ? 0.75 : 0.68)) : 600;
+            const minW = end4 ? 380 : ryokuLay ? 380 : 300;
             const pad = end4 ? 14 : 12;
             const radius = end4 ? 24 : 16;
             // CSS max-width alone is not enough — long media/SSID still expand the box
@@ -1941,6 +1943,42 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
+
+    const ryoku = globalThis._materialPanelLayoutStyle === 'ryoku';
+    if (ryoku) {
+        try { menu.actor.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}
+        try { menu.box.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}
+        fillRyokuQsMenu(menu, {
+            volumeSliderRow,
+            brightnessSliderRow,
+            darkModeTile,
+            nightLightTile,
+            dndTile,
+            powerRow,
+            wifiQsBlock,
+            bluetoothTile,
+            openExtensionPrefs,
+        });
+        menu.connect('open-state-changed', (_m, open) => {
+            if (open)
+                applyQsChrome();
+        });
+        button.connect('clicked', () => {
+            if (menu.isOpen)
+                menuClose(menu);
+            else
+                menuOpen(menu);
+        });
+        button.connect('destroy', () => {
+            try {
+                if (globalThis._materialPanelQsRechrome)
+                    globalThis._materialPanelQsRechrome = null;
+            } catch (e) {}
+            menu.destroy();
+        });
+        try { setChipA11y(button, 'Quick Settings'); } catch (e) {}
+        return button;
+    }
 
     // Section: identity + media
     menu.addMenuItem(wrapAsMenuItem(qsSection(

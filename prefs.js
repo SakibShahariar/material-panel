@@ -4,7 +4,7 @@ import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
-import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4} from './lib/layoutPresets.js';
+import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib/layoutPresets.js';
 // Prefer moduleIds over moduleRegistry: the registry imports every panel
 // module (St, Clutter, Main, …) which only exist inside gnome-shell.
 // Preferences run in a separate GTK process and cannot load those typelibs.
@@ -176,13 +176,18 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             subtitle: 'Default keeps your classic three-zone bar. End-4 uses floating BarGroups, workspace dots, and denser QS.',
         });
         const layoutDrop = new Gtk.DropDown({
-            model: Gtk.StringList.new(['Default', 'End-4']),
+            model: Gtk.StringList.new(['Default', 'End-4', 'Ryoku']),
             valign: Gtk.Align.CENTER,
         });
-        layoutDrop.set_selected((config.layoutStyle === 'end4') ? 1 : 0);
+        layoutDrop.set_selected(
+            config.layoutStyle === 'end4' ? 1
+                : config.layoutStyle === 'ryoku' ? 2
+                    : 0);
         layoutDrop.connect('notify::selected', () => {
             const sel = layoutDrop.get_selected();
-            const style = sel === 1 ? LAYOUT_END4 : LAYOUT_DEFAULT;
+            const style = sel === 1 ? LAYOUT_END4
+                : sel === 2 ? LAYOUT_RYOKU
+                    : LAYOUT_DEFAULT;
             applyLayoutStyle(config, style);
             try {
                         store.save(config);
