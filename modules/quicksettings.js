@@ -1575,9 +1575,8 @@ export function wifiQsBlock() {
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
     });
-    // Never ellipsize — compact format must stay fully visible
     try {
-        speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        speedLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         speedLabel.clutter_text.line_wrap = false;
     } catch (e) {}
     speedLabel.visible = true;
@@ -1874,6 +1873,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         try { menu.box.add_style_class_name('material-panel-layout-end4'); } catch (e) {}
         try { menu.actor.add_style_class_name('material-panel-qs-end4'); } catch (e) {}
     }
+    const QS_MAX_W = 400;
     const applyQsChrome = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
@@ -1881,13 +1881,25 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             const minW = end4 ? 380 : 300;
             const pad = end4 ? 14 : 12;
             const radius = end4 ? 24 : 16;
+            // CSS max-width alone is not enough — long media/SSID still expand the box
             menu.box.style =
-                `max-height: ${maxH}px; min-width: ${minW}px; max-width: 400px; ` +
-                `overflow: hidden; border-radius: ${radius}px; padding: ${pad}px;`;
+                `max-height: ${maxH}px; min-width: ${minW}px; max-width: ${QS_MAX_W}px; ` +
+                `width: ${QS_MAX_W}px; overflow: hidden; border-radius: ${radius}px; padding: ${pad}px;`;
             try { menu.box.clip_to_allocation = true; } catch (e) {}
+            try {
+                menu.box.width = QS_MAX_W;
+                if (menu.actor)
+                    menu.actor.width = QS_MAX_W + 8;
+            } catch (e) {}
         } catch (e) {
             logError(e, 'material-panel: applyQsChrome');
         }
+    };
+    globalThis._materialPanelQsRechrome = () => {
+        try {
+            if (menu.isOpen)
+                applyQsChrome();
+        } catch (e) {}
     };
 
     const walkAndStyleTiles = (root) => {
@@ -2051,7 +2063,13 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         else
             menuOpen(menu);
     });
-    button.connect('destroy', () => menu.destroy());
+    button.connect('destroy', () => {
+        try {
+            if (globalThis._materialPanelQsRechrome)
+                globalThis._materialPanelQsRechrome = null;
+        } catch (e) {}
+        menu.destroy();
+    });
 
     return button;
 }

@@ -210,7 +210,8 @@ export function buildMediaPlayerRow() {
         visible: false,
     });
     try {
-        row.style = 'spacing: 10px; padding: 8px 10px; border-radius: 16px;';
+        // Cap width so long titles cannot stretch the QS menu
+        row.style = 'spacing: 10px; padding: 8px 10px; border-radius: 16px; max-width: 360px;';
     } catch (e) {}
 
     const artIcon = new St.Icon({
@@ -234,12 +235,21 @@ export function buildMediaPlayerRow() {
         y_align: Clutter.ActorAlign.CENTER,
     });
     titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    try {
+        titleLabel.clutter_text.max_width_chars = 28;
+        titleLabel.style = 'max-width: 180px;';
+    } catch (e) {}
     const artistLabel = new St.Label({
         text: '',
         style_class: 'material-panel-qs-media-artist',
         y_align: Clutter.ActorAlign.CENTER,
+        x_expand: true,
     });
     artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    try {
+        artistLabel.clutter_text.max_width_chars = 28;
+        artistLabel.style = 'max-width: 180px;';
+    } catch (e) {}
     textCol.add_child(titleLabel);
     textCol.add_child(artistLabel);
 
@@ -279,6 +289,7 @@ export function buildMediaPlayerRow() {
         clearCtl();
         if (!busName) {
             row.visible = false;
+            try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
             titleLabel.text = 'No media';
             artistLabel.text = '';
             setArtFromUrl(artIcon, null);
@@ -287,6 +298,7 @@ export function buildMediaPlayerRow() {
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
+            try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
                 titleLabel.text = title || 'Media';
                 artistLabel.text = artist || '';
                 setArtFromUrl(artIcon, artUrl);
