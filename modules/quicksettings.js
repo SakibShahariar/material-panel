@@ -143,12 +143,13 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
                 p = iconPath(iconKey);
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         } catch (e) {}
-        // Force readable label on active (St CSS often fails in popups)
+        // Do not bake primary into label color — inline beats CSS hover/pressed (vanishes on press).
+        // Active: onAccent for contrast on primary fill. Idle: clear color so stylesheet drives states.
         try {
             if (on)
                 text.style = `color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; font-weight: 700;`;
             else
-                text.style = `color: ${globalThis._materialPanelPrimary ?? '#cdd6f4'}; font-weight: 600;`;
+                text.style = 'font-weight: 600;'; // color from theme .qs-tile-label / :hover / .pressed
         } catch (e) {}
         if (globalThis._materialPanelLayoutStyle === 'end4') {
             try {
@@ -1466,21 +1467,30 @@ export function powerRow(menu = null) {
     const row = new St.BoxLayout({style_class: 'material-panel-qs-power-row', x_expand: true});
 
     for (const {iconKey, command} of POWER_ACTIONS) {
+        const icon = new St.Icon({
+            icon_size: 18,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKey))),
+        });
         const btn = new St.Button({
             style_class: 'material-panel-qs-power-btn',
             reactive: true,
+            track_hover: true,
+            can_focus: true,
             x_expand: true,
-            child: new St.Icon({
-                icon_size: 18,
-                y_align: Clutter.ActorAlign.CENTER,
-                gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath(iconKey))),
-            }),
+            child: icon,
         });
         if (globalThis._materialPanelLayoutStyle === 'end4') {
             try {
                 btn.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
             } catch (e) {}
         }
+        try {
+            wireChipPress(btn, {
+                stickyUntilLeave: false,
+                getIcons: () => [{icon, key: iconKey}],
+            });
+        } catch (e) {}
         btn.connect('clicked', () => {
             if (menu) {
                 try { menuClose(menu); } catch (e) {}
