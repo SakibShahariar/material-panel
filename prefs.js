@@ -883,9 +883,12 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const sliderStyleRow = new Adw.ActionRow({
             title: 'Quick Settings Slider Style',
-            subtitle: 'Visual style for the volume & brightness sliders. Changes apply on the next rebuild.',
+            subtitle: 'Volume & brightness. Tall styles (rails/arc) use a vertical row; End-4 dual falls back to Classic. Applies on rebuild.',
         });
-        const sliderStyleLabels = Gtk.StringList.new(SLIDER_STYLES.map(s => s.label));
+        const sliderStyleLabels = Gtk.StringList.new(SLIDER_STYLES.map(s => {
+            const tag = s.tier === 'Experimental' ? ' ⚠' : '';
+            return `${s.label}${tag}`;
+        }));
         const sliderStyleDrop = new Gtk.DropDown({
             model: sliderStyleLabels,
             valign: Gtk.Align.CENTER,

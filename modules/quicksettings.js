@@ -288,10 +288,21 @@ export function volumeSliderRow() {
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
     const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
+    // Tall styles need a vertical row so they don't crush icon/% in one line
+    if (volStyle.id === 'rails' || volStyle.id === 'arc') {
+        try {
+            row.vertical = true;
+            row.style = 'spacing: 8px; padding: 4px 0;';
+            icon.x_align = Clutter.ActorAlign.CENTER;
+            pctLabel.x_align = Clutter.ActorAlign.CENTER;
+            pctLabel.visible = true;
+        } catch (e) {}
+    }
     const slider = createSlider({
         initialValue: 0,
         style: volStyle.id,
         accent: volStyle.accent,
+        width: (volStyle.id === 'arc') ? 96 : (volStyle.id === 'rails') ? 28 : 200,
         onChange: value => {
             const pct = Math.round(value * 100);
             if (sink && control) {
@@ -477,7 +488,14 @@ export function brightnessSliderRow() {
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
+    if (briStyle.id === 'rails' || briStyle.id === 'arc') {
+        try {
+            row.vertical = true;
+            row.style = 'spacing: 8px; padding: 4px 0;';
+        } catch (e) {}
+    }
     const slider = createSlider({
+        width: (briStyle.id === 'arc') ? 96 : (briStyle.id === 'rails') ? 28 : 200,
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         style: briStyle.id,
         accent: briStyle.accent,
