@@ -34,7 +34,9 @@ function wireQsInteractive(actor) {
         actor.track_hover = true;
         actor.can_focus = true;
     } catch (e) {}
-    wireChipPress(actor, {stickyUntilLeave: true});
+    // false = clear pressed on release; sticky 'true' kept onAccent colors
+    // (and latched labels/icons) until cursor left the tile after a toggle.
+    wireChipPress(actor, {stickyUntilLeave: false});
     // Extra enter/leave in case child actors steal hover
     actor.connect('enter-event', () => {
         try { actor.add_style_class_name('hover'); } catch (e) {}
@@ -162,7 +164,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     };
     wireChipPress(tile, {
         getIcons: () => [{icon, key: iconKey}],
-        stickyUntilLeave: true,
+        stickyUntilLeave: false,
         // Active tiles keep on-primary icons at rest
         restingIcon: () => isOn(),
     });
@@ -638,17 +640,15 @@ export function bluetoothTile() {
         y_expand: true,
         y_align: Clutter.ActorAlign.FILL,
     });
-    try {
-        dropBtn.style = 'min-height: 52px; min-width: 40px; padding: 0 10px; border-radius: 0 18px 18px 0;';
-    } catch (e) {}
+
     const dropIcon = new St.Icon({
         icon_name: 'pan-down-symbolic',
         icon_size: 14,
+        x_align: Clutter.ActorAlign.CENTER,
         y_align: Clutter.ActorAlign.CENTER,
-        style_class: 'material-panel-qs-bt-drop-icon',
+        style_class: 'material-panel-qs-bt-drop-icon material-panel-drop-chevron',
     });
     dropBtn.set_child(dropIcon);
-
     tileRow.add_child(mainBtn);
     tileRow.add_child(dropBtn);
     outer.add_child(tileRow);
@@ -705,7 +705,7 @@ export function bluetoothTile() {
                 ? `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${primary};`
                 : `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${surface};`;
             mainBtn.style = `min-height: ${h}px; padding: 8px 12px; background-color: transparent;`;
-            dropBtn.style = `min-height: ${h}px; min-width: 44px; padding: 0 12px; background-color: transparent;`;
+
             outer.style = `min-height: ${h}px;`;
             outer.height = h;
             tileRow.height = h;
@@ -841,6 +841,9 @@ export function bluetoothTile() {
                     logError(e, 'material-panel: bluez Set Powered failed');
                 }
             });
+        // Optimistic UI, mirroring the Wi-Fi tile: flip the visuals instantly;
+        // the async PropertiesChanged signal re-confirms the same state.
+        try { setPowered(!currentlyPowered); } catch (e) {}
     };
 
     mainBtn.connect('clicked', () => {
@@ -1615,13 +1618,17 @@ export function wifiQsBlock() {
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-drop',
         reactive: true,
+        x_expand: false,
         y_expand: true,
         y_align: Clutter.ActorAlign.FILL,
     });
+
     const dropIcon = new St.Icon({
         icon_name: 'pan-down-symbolic',
         icon_size: 14,
+        x_align: Clutter.ActorAlign.CENTER,
         y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-drop-chevron',
     });
     dropBtn.set_child(dropIcon);
     row.add_child(mainBtn);
@@ -1653,7 +1660,7 @@ export function wifiQsBlock() {
                 : `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
             row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
             mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
-            dropBtn.style = 'min-height: 52px; min-width: 44px; padding: 0 12px; background-color: transparent;';
+
             text.style = on ? `font-weight: 700; color: ${onP};` : 'font-weight: 600;';
         } catch (e) {}
         try {
@@ -1809,8 +1816,12 @@ export function wifiQsBlock() {
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
                 _wifiBusy = false;
                 try {
-                    if (client)
-                        setActive(!!client.wireless_enabled);
+                    if (client) {
+                        const t = !!client.wireless_enabled;
+                        // Never re-activate on a stale read while NM is mid-flip;
+                        // the truth lands via notify::wireless-enabled.
+                        setActive(t === next ? t : next);
+                    }
                 } catch (e) {}
                 return GLib.SOURCE_REMOVE;
             });
@@ -1908,6 +1919,15 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                 menu.box.width = QS_MAX_W;
                 if (menu.actor)
                     menu.actor.width = QS_MAX_W + 8;
+            } catch (e) {}
+            // Icon glyphs (icon_name) can load after the first layout and leave
+            // children like the tile chevrons in a stale slot until the next
+            // restyle. Force one relayout right after the QS opens.
+            try {
+                GLib.idle_add(() => {
+                    try { menu.box.queue_relayout(); } catch (e) {}
+                    return GLib.SOURCE_REMOVE;
+                });
             } catch (e) {}
         } catch (e) {
             logError(e, 'material-panel: applyQsChrome');

@@ -80,7 +80,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
         track_hover: true,
     });
     try { setChipA11y(button, 'Disk'); } catch (e) {}
-    try { wireChipPress(button); } catch (e) {}
+    try { wireChipPress(button, {getIcons: () => [{icon, key: 'disk'}]}); } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-disk-popup');

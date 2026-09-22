@@ -109,7 +109,7 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         track_hover: true,
     });
     try { setChipA11y(button, 'GPU'); } catch (e) {}
-    try { wireChipPress(button); } catch (e) {}
+    try { wireChipPress(button, {getIcons: () => [{icon, key: 'gpu'}]}); } catch (e) {}
 
     // Hide until we detect a GPU at least once
     button.visible = false;
