@@ -17,7 +17,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
-import {createSlider} from '../lib/simpleSlider.js';
+import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
@@ -251,9 +251,12 @@ function buildDualSliders() {
     let sink = null;
     let control = null;
     const volIconKeys = ['volume-high', 'volume-medium', 'volume-low', 'volume-muted'];
+    const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
     const volSlider = createSlider({
         initialValue: 0.7,
         width: trackW,
+        style: volStyle.id,
+        accent: volStyle.accent,
         onChange: value => {
             try {
                 if (sink && control) {
@@ -310,9 +313,12 @@ function buildDualSliders() {
             curB = parseInt(new TextDecoder().decode(out).trim(), 10) || 50;
     } catch (e) {}
 
+    const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
     const briSlider = createSlider({
         initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
         width: trackW,
+        style: briStyle.id,
+        accent: briStyle.accent,
         onChange: value => {
             try {
                 GLib.spawn_command_line_async(`brightnessctl set ${Math.max(1, Math.round(value * 100))}%`);

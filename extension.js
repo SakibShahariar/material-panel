@@ -228,6 +228,7 @@ export default class MaterialPanelExtension extends Extension {
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
+            globalThis._materialPanelSliderStyle = this._config.sliderStyle ?? 'classic';
         } catch (e) {}
         try {
             // Only adjust in-memory layout placement — never save here (save → watch → rebuild loop)

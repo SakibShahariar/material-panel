@@ -8,7 +8,7 @@ import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
-import {createSlider} from '../lib/simpleSlider.js';
+import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
@@ -285,8 +285,11 @@ export function volumeSliderRow() {
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
+    const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
     const slider = createSlider({
         initialValue: 0,
+        style: volStyle.id,
+        accent: volStyle.accent,
         onChange: value => {
             const pct = Math.round(value * 100);
             if (sink && control) {
@@ -471,8 +474,11 @@ export function brightnessSliderRow() {
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
+    const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
     const slider = createSlider({
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
+        style: briStyle.id,
+        accent: briStyle.accent,
         onChange: value => {
             const pct = Math.max(1, Math.round(value * 100));
             pctLabel.text = `${pct}%`;

@@ -10,6 +10,7 @@ import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib
 // Preferences run in a separate GTK process and cannot load those typelibs.
 import {hasBuiltin} from './lib/moduleIds.js';
 import {readStatusRolesFile} from './lib/statusRolesFile.js';
+import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const EXT_PREFIX = 'extension:';
@@ -879,6 +880,34 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     }
         });
         themeGroup.add(colorSourceRow);
+
+        const sliderStyleRow = new Adw.ActionRow({
+            title: 'Quick Settings Slider Style',
+            subtitle: 'Visual style for the volume & brightness sliders. Changes apply on the next rebuild.',
+        });
+        const sliderStyleLabels = Gtk.StringList.new(SLIDER_STYLES.map(s => s.label));
+        const sliderStyleDrop = new Gtk.DropDown({
+            model: sliderStyleLabels,
+            valign: Gtk.Align.CENTER,
+        });
+        const currentSliderStyle = config.sliderStyle ?? SLIDER_STYLE_DEFAULT;
+        const currentStyleIndex = Math.max(0, SLIDER_STYLES.findIndex(s => s.id === currentSliderStyle));
+        sliderStyleDrop.set_selected(currentStyleIndex);
+        sliderStyleDrop.connect('notify::selected', () => {
+            const sel = Math.max(0, sliderStyleDrop.get_selected());
+            const s = SLIDER_STYLES[sel];
+            if (s) {
+                config.sliderStyle = s.id;
+                try {
+                            store.save(config);
+                        } catch (e) {
+                            console.error('material-panel prefs: save failed', e);
+                        }
+            }
+        });
+        sliderStyleRow.add_suffix(sliderStyleDrop);
+        sliderStyleRow.activatable_widget = sliderStyleDrop;
+        themeGroup.add(sliderStyleRow);
 
         const flushPendingSave = () => {
             if (saveDebounceId) {
