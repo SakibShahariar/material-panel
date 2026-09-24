@@ -2070,11 +2070,40 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             dual,
         )));
     } else {
-        menu.addMenuItem(wrapAsMenuItem(qsSection(
-            'material-panel-qs-section-sliders',
-            volumeSliderRow(),
-            brightnessSliderRow(),
-        )));
+        // Default layout: tall styles (arc / rails) sit side-by-side as a pair
+        const styleId = globalThis._materialPanelSliderStyle ?? 'classic';
+        const tall = styleId === 'rails' || styleId === 'arc';
+        if (tall) {
+            const dual = new St.BoxLayout({
+                style_class: 'material-panel-qs-dual-slider material-panel-qs-dual-slider-tall',
+                vertical: false,
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+            });
+            try {
+                dual.style = 'spacing: 28px; padding: 10px 8px;';
+            } catch (e) {}
+            const vol = volumeSliderRow();
+            const bri = brightnessSliderRow();
+            try {
+                vol.x_expand = true;
+                bri.x_expand = true;
+                vol.x_align = Clutter.ActorAlign.CENTER;
+                bri.x_align = Clutter.ActorAlign.CENTER;
+            } catch (e) {}
+            dual.add_child(vol);
+            dual.add_child(bri);
+            menu.addMenuItem(wrapAsMenuItem(qsSection(
+                'material-panel-qs-section-sliders material-panel-qs-section-sliders-tall',
+                dual,
+            )));
+        } else {
+            menu.addMenuItem(wrapAsMenuItem(qsSection(
+                'material-panel-qs-section-sliders',
+                volumeSliderRow(),
+                brightnessSliderRow(),
+            )));
+        }
     }
 
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
