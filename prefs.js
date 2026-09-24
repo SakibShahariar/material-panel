@@ -928,8 +928,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         tileStyleDrop.connect('notify::selected', () => {
             const sel = Math.max(0, tileStyleDrop.get_selected());
             const s = TILE_STYLES[sel] || TILE_STYLES[0];
-            config.qsTileStyle = s.id;
-            saveConfig();
+            if (s) {
+                config.qsTileStyle = s.id;
+                try {
+                    store.save(config);
+                } catch (e) {
+                    console.error('material-panel prefs: qsTileStyle save failed', e);
+                }
+            }
         });
         tileStyleRow.add_suffix(tileStyleDrop);
         tileStyleRow.activatable_widget = tileStyleDrop;

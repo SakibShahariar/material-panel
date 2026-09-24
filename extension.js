@@ -96,6 +96,10 @@ function classifyConfigChange(prev, next) {
     if (sameExcept(prev, next, ['colorSource']))
         return 'color';
 
+    // slider / tile visual styles rebuild QS chrome
+    if (sameExcept(prev, next, ['sliderStyle', 'qsTileStyle']))
+        return 'full';
+
     return 'full';
 }
 
@@ -134,6 +138,11 @@ export default class MaterialPanelExtension extends Extension {
                 log(`material-panel: tray keys changed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
                 this._applyTrayOnly();
             }
+
+            try {
+                globalThis._materialPanelSliderStyle = newConfig.sliderStyle ?? 'classic';
+                globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
+            } catch (e) {}
 
             const kind = classifyConfigChange(prev, newConfig);
             log(`material-panel: config change classified as "${kind}"`);
