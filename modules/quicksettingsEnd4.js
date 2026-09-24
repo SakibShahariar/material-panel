@@ -252,9 +252,10 @@ function buildDualSliders() {
     let control = null;
     const volIconKeys = ['volume-high', 'volume-medium', 'volume-low', 'volume-muted'];
     const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
+    const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
     const volSlider = createSlider({
         initialValue: 0.7,
-        width: trackW,
+        width: volW,
         style: volStyle.id,
         accent: volStyle.accent,
         onChange: value => {
@@ -314,9 +315,10 @@ function buildDualSliders() {
     } catch (e) {}
 
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
+    const briW = briStyle.id === 'arc' ? 112 : (briStyle.id === 'rails' ? 28 : trackW);
     const briSlider = createSlider({
         initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
-        width: trackW,
+        width: briW,
         style: briStyle.id,
         accent: briStyle.accent,
         onChange: value => {
