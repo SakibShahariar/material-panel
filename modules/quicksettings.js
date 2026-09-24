@@ -90,12 +90,16 @@ function makeWrappingLabel(text, styleClass) {
 }
 
 
+
 function isQuietTileStyle(id) {
-    // No solid primary fill when active — labels/icons stay light/accent
     return [
         'minimal', 'tonal', 'glass', 'ambient', 'aurora', 'indicator',
         'recessed', 'eq', 'donut', 'dotmatrix', 'icon-top', 'spotlight',
     ].includes(id);
+}
+
+function isSolidFillTileStyle(id) {
+    return ['classic', 'graphite', 'squiggle', 'icon-only'].includes(id);
 }
 
 function currentTileStyleId() {
@@ -103,28 +107,29 @@ function currentTileStyleId() {
     return isValidTileStyle(id) ? id : 'classic';
 }
 
-/** Tag a tile/row with style-specific extras (underline, groove, eq, …). */
+/** Decorative extras for styles that need real actors (not CSS-only). */
 function attachTileExtras(host, contentBox) {
     const meta = tileStyleMeta(currentTileStyleId());
     const extras = meta.extras || [];
     if (!extras.length || !contentBox)
-        return;
+        return null;
+
+    const bag = {};
 
     if (extras.includes('underline')) {
-        // Prefer a vertical host so the bar sits under icon+label
-        try {
-            if (!contentBox.vertical) {
-                // Keep horizontal content; bar as last sibling spanning width
-            }
-        } catch (e) {}
+        // Bottom bar: use a wrapper if content is horizontal
         const u = new St.Widget({
             style_class: 'material-panel-qs-tile-underline',
             x_expand: true,
             height: 3,
             y_align: Clutter.ActorAlign.END,
         });
-        try { contentBox.add_child(u); } catch (e) {}
+        try {
+            contentBox.add_child(u);
+        } catch (e) {}
+        bag.underline = u;
     }
+
     if (extras.includes('groove')) {
         const g = new St.Widget({
             style_class: 'material-panel-qs-tile-groove',
@@ -133,58 +138,139 @@ function attachTileExtras(host, contentBox) {
         });
         const fill = new St.Widget({
             style_class: 'material-panel-qs-tile-groove-fill',
-            x_expand: true,
             height: 6,
+            width: 0,
+            x_expand: false,
         });
         try {
-            // width driven by active class CSS; expand on active via parent
             g.add_child(fill);
             contentBox.add_child(g);
         } catch (e) {}
+        bag.groove = g;
+        bag.grooveFill = fill;
     }
+
     if (extras.includes('eq')) {
         const eq = new St.BoxLayout({
             style_class: 'material-panel-qs-tile-eq',
             vertical: false,
             y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.END,
         });
+        const bars = [];
+        const heights = [8, 14, 10, 16];
         for (let i = 0; i < 4; i++) {
-            const h = 6 + (i % 3) * 4;
             const bar = new St.Widget({
                 style_class: 'material-panel-qs-tile-eq-bar',
                 width: 3,
-                height: h,
+                height: heights[i],
             });
             eq.add_child(bar);
+            bars.push(bar);
         }
         try { contentBox.add_child(eq); } catch (e) {}
+        bag.eq = eq;
+        bag.eqBars = bars;
+        bag.eqTimer = 0;
+        bag.eqTick = () => {
+            if (!bars.length)
+                return;
+            for (let i = 0; i < bars.length; i++) {
+                const h = 6 + Math.floor(Math.random() * 12);
+                try { bars[i].height = h; } catch (e) {}
+            }
+            return GLib.SOURCE_CONTINUE;
+        };
     }
+
     if (extras.includes('ring')) {
-        // Wrap icon later if needed — ring as sibling marker
-        const ring = new St.Widget({
+        const ring = new St.Bin({
             style_class: 'material-panel-qs-tile-ring',
-            width: 28,
-            height: 28,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
         });
-        try { contentBox.insert_child_at_index(ring, 0); } catch (e) {
+        try {
+            // Prefer wrapping the first icon child
+            const kids = contentBox.get_children();
+            let icon = null;
+            for (const k of kids) {
+                if (k instanceof St.Icon) {
+                    icon = k;
+                    break;
+                }
+            }
+            if (icon) {
+                contentBox.remove_child(icon);
+                ring.set_child(icon);
+                contentBox.insert_child_at_index(ring, 0);
+            } else {
+                contentBox.insert_child_at_index(ring, 0);
+            }
+        } catch (e) {
             try { contentBox.add_child(ring); } catch (e2) {}
         }
+        bag.ring = ring;
     }
+
     if (extras.includes('dots')) {
         const dots = new St.BoxLayout({
             style_class: 'material-panel-qs-tile-dots',
             vertical: false,
             y_align: Clutter.ActorAlign.CENTER,
         });
+        const cells = [];
         for (let i = 0; i < 6; i++) {
-            dots.add_child(new St.Widget({
+            const d = new St.Widget({
                 style_class: 'material-panel-qs-tile-dot',
-                width: 5,
-                height: 5,
-            }));
+                width: 6,
+                height: 6,
+            });
+            dots.add_child(d);
+            cells.push(d);
         }
         try { contentBox.add_child(dots); } catch (e) {}
+        bag.dots = cells;
     }
+
+    if (host)
+        host._tileExtras = bag;
+    return bag;
+}
+
+function syncTileExtras(host, on) {
+    const bag = host?._tileExtras;
+    if (!bag)
+        return;
+    try {
+        if (bag.grooveFill) {
+            // Approximate fill width by expanding
+            bag.grooveFill.width = on ? 120 : 0;
+            bag.grooveFill.x_expand = !!on;
+        }
+    } catch (e) {}
+    try {
+        if (bag.eqBars) {
+            if (on && !bag.eqTimer) {
+                bag.eqTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, bag.eqTick);
+            } else if (!on && bag.eqTimer) {
+                try { GLib.source_remove(bag.eqTimer); } catch (e) {}
+                bag.eqTimer = 0;
+                // reset short
+                bag.eqBars.forEach((b, i) => {
+                    try { b.height = 6 + (i % 3) * 3; } catch (e) {}
+                });
+            }
+        }
+    } catch (e) {}
+    try {
+        if (bag.dots) {
+            bag.dots.forEach((d, i) => {
+                d.style = on
+                    ? `background-color: ${globalThis._materialPanelPrimary ?? '#cba6f7'}; width: 6px; height: 6px; border-radius: 50%;`
+                    : 'width: 6px; height: 6px; border-radius: 50%;';
+            });
+        }
+    } catch (e) {}
 }
 
 function buildTile({iconKey, label, isOn, onToggle, watch}) {
@@ -233,44 +319,83 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         text.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         text.clutter_text.line_wrap = false;
     }
-    box.add_child(icon);
+    const sid0 = currentTileStyleId();
+    let iconHost = icon;
+    if (sid0 === 'icon-top') {
+        // Circular chip behind icon (demo: 38px circle)
+        const chip = new St.Bin({
+            style_class: 'material-panel-qs-tile-chip',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: icon,
+        });
+        try {
+            chip.style = 'width: 38px; height: 38px; border-radius: 19px;';
+        } catch (e) {}
+        iconHost = chip;
+        box.vertical = true;
+        box.style = 'spacing: 6px; padding: 8px 4px;';
+        text.x_align = Clutter.ActorAlign.CENTER;
+        try { text.style = 'font-size: 11px; font-weight: 600;'; } catch (e) {}
+        try { tile.style = 'min-height: 86px;'; } catch (e) {}
+    } else if (sid0 === 'glass' || sid0 === 'recessed') {
+        box.vertical = true;
+        box.style = 'spacing: 6px; padding: 8px 8px;';
+        icon.x_align = Clutter.ActorAlign.CENTER;
+        text.x_align = Clutter.ActorAlign.CENTER;
+        try { text.style = 'font-size: 11.5px; font-weight: 600;'; } catch (e) {}
+        try { tile.style = 'min-height: 72px;'; } catch (e) {}
+    } else if (sid0 === 'icon-only') {
+        try { text.visible = false; } catch (e) {}
+        box.style = 'spacing: 0; padding: 0;';
+        icon.x_align = Clutter.ActorAlign.CENTER;
+        try {
+            tile.style = 'width: 42px; height: 42px; min-width: 42px; min-height: 42px; padding: 0; border-radius: 999px;';
+        } catch (e) {}
+    } else if (sid0 === 'indicator') {
+        box.vertical = true;
+        box.style = 'spacing: 4px; padding: 8px 10px 4px;';
+    }
+
+    box.add_child(iconHost);
     box.add_child(text);
     tile.set_child(box);
     attachTileExtras(tile, box);
+    // Do NOT bake inline background — CSS + grid style class own the look
     try {
-        const sid = currentTileStyleId();
-        if (sid === 'icon-top') {
-            box.vertical = true;
-            box.style = 'spacing: 6px; padding: 8px 6px;';
-            icon.x_align = Clutter.ActorAlign.CENTER;
-            text.x_align = Clutter.ActorAlign.CENTER;
-            try { tile.style = 'min-height: 80px;'; } catch (e) {}
-        } else if (sid === 'icon-only') {
-            try { text.visible = false; } catch (e) {}
-            try { tile.style = 'width: 44px; height: 44px; padding: 0;'; } catch (e) {}
-            box.style = 'spacing: 0; padding: 0;';
-            icon.x_align = Clutter.ActorAlign.CENTER;
-        }
+        if (sid0 !== 'icon-only' && sid0 !== 'classic')
+            tile.style = (tile.style || '').replace(/background-color:[^;]+;?/g, '');
     } catch (e) {}
+
     const refresh = () => {
         const on = isOn();
+        const sid = currentTileStyleId();
+        const quiet = isQuietTileStyle(sid);
+        const solid = isSolidFillTileStyle(sid);
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
         try {
-            const quiet = isQuietTileStyle(currentTileStyleId());
-            // Quiet styles: keep normal (light) icon; fill styles: on-primary when active
-            let p = (on && !quiet) ? iconPathOnAccent(iconKey) : iconPath(iconKey);
+            let p = (on && solid) ? iconPathOnAccent(iconKey) : iconPath(iconKey);
             if (!Gio.File.new_for_path(p).query_exists(null))
                 p = iconPath(iconKey);
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         } catch (e) {}
-        // Inline label color only for solid-fill active (onAccent). Quiet styles leave color to CSS.
         try {
-            const quiet = isQuietTileStyle(currentTileStyleId());
-            if (on && !quiet)
+            if (on && solid)
                 text.style = `color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; font-weight: 700;`;
+            else if (sid === 'icon-top' || sid === 'glass' || sid === 'recessed')
+                text.style = 'font-size: 11.5px; font-weight: 600;';
             else
                 text.style = 'font-weight: 600;';
         } catch (e) {}
+        // icon-top chip fill when on
+        try {
+            if (sid === 'icon-top' && iconHost !== icon) {
+                const a = globalThis._materialPanelPrimary ?? '#cba6f7';
+                const chipBg = on ? a : (globalThis._materialPanelQsSurface ?? 'rgba(58,60,78,0.9)');
+                iconHost.style = `width: 38px; height: 38px; border-radius: 19px; background-color: ${chipBg};`;
+            }
+        } catch (e) {}
+        try { syncTileExtras(tile, on); } catch (e) {}
         if (globalThis._materialPanelLayoutStyle === 'end4') {
             try {
                 tile.style = on
@@ -856,9 +981,8 @@ export function bluetoothTile() {
                 : 'font-weight: 600;';
             const h = globalThis._materialPanelLayoutStyle === 'end4' ? 56 : 52;
             const rad = globalThis._materialPanelLayoutStyle === 'end4' ? 22 : 18;
-            tileRow.style = powered
-                ? `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${primary};`
-                : `border-radius: ${rad}px; min-height: ${h}px; width: 100%; background-color: ${surface};`;
+            // Geometry only — fill/colors come from .active + qs tile style CSS
+            tileRow.style = `border-radius: ${rad}px; min-height: ${h}px; width: 100%;`;
             mainBtn.style = `min-height: ${h}px; padding: 8px 12px; background-color: transparent;`;
 
             outer.style = `min-height: ${h}px;`;
@@ -1701,7 +1825,7 @@ export function wifiQsBlock() {
     });
     try {
         const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
-        row.style = `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
+        row.style = 'border-radius: 18px; min-height: 52px; height: 52px;'; // bg from CSS tile style
         row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
     } catch (e) {}
 
@@ -1819,8 +1943,8 @@ export function wifiQsBlock() {
             row.remove_style_class_name('active');
         try {
             row.style = on
-                ? `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${primary};`
-                : `border-radius: 18px; min-height: 52px; height: 52px; background-color: ${surface};`;
+                ? 'border-radius: 18px; min-height: 52px; height: 52px;'
+                : 'border-radius: 18px; min-height: 52px; height: 52px;';
             row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
             mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
 
