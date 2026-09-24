@@ -90,6 +90,14 @@ function makeWrappingLabel(text, styleClass) {
 }
 
 
+function isQuietTileStyle(id) {
+    // No solid primary fill when active — labels/icons stay light/accent
+    return [
+        'minimal', 'tonal', 'glass', 'ambient', 'aurora', 'indicator',
+        'recessed', 'eq', 'donut', 'dotmatrix', 'icon-top', 'spotlight',
+    ].includes(id);
+}
+
 function currentTileStyleId() {
     const id = globalThis._materialPanelTileStyle ?? 'classic';
     return isValidTileStyle(id) ? id : 'classic';
@@ -103,10 +111,17 @@ function attachTileExtras(host, contentBox) {
         return;
 
     if (extras.includes('underline')) {
+        // Prefer a vertical host so the bar sits under icon+label
+        try {
+            if (!contentBox.vertical) {
+                // Keep horizontal content; bar as last sibling spanning width
+            }
+        } catch (e) {}
         const u = new St.Widget({
             style_class: 'material-panel-qs-tile-underline',
             x_expand: true,
             height: 3,
+            y_align: Clutter.ActorAlign.END,
         });
         try { contentBox.add_child(u); } catch (e) {}
     }
@@ -241,18 +256,20 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
         try {
-            let p = on ? iconPathOnAccent(iconKey) : iconPath(iconKey);
+            const quiet = isQuietTileStyle(currentTileStyleId());
+            // Quiet styles: keep normal (light) icon; fill styles: on-primary when active
+            let p = (on && !quiet) ? iconPathOnAccent(iconKey) : iconPath(iconKey);
             if (!Gio.File.new_for_path(p).query_exists(null))
                 p = iconPath(iconKey);
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(p));
         } catch (e) {}
-        // Do not bake primary into label color — inline beats CSS hover/pressed (vanishes on press).
-        // Active: onAccent for contrast on primary fill. Idle: clear color so stylesheet drives states.
+        // Inline label color only for solid-fill active (onAccent). Quiet styles leave color to CSS.
         try {
-            if (on)
+            const quiet = isQuietTileStyle(currentTileStyleId());
+            if (on && !quiet)
                 text.style = `color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; font-weight: 700;`;
             else
-                text.style = 'font-weight: 600;'; // color from theme .qs-tile-label / :hover / .pressed
+                text.style = 'font-weight: 600;';
         } catch (e) {}
         if (globalThis._materialPanelLayoutStyle === 'end4') {
             try {
@@ -757,7 +774,15 @@ export function bluetoothTile() {
     text.clutter_text.line_wrap = false;
     mainBox.add_child(icon);
     mainBox.add_child(text);
+    try { attachTileExtras(tileRow, mainBox); } catch (e) {}
     mainBtn.set_child(mainBox);
+    try {
+        if (currentTileStyleId() === 'icon-only') {
+            text.visible = false;
+            tileRow.style = 'width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 999px;';
+            try { dropBtn.style = 'width: 16px; height: 16px; padding: 0;'; } catch (e2) {}
+        }
+    } catch (e) {}
     try {
         mainBtn.x_expand = true;
         mainBtn.y_expand = true;
@@ -1734,7 +1759,15 @@ export function wifiQsBlock() {
     textCol.add_child(speedLabel);
     mainBox.add_child(icon);
     mainBox.add_child(textCol);
+    try { attachTileExtras(row, mainBox); } catch (e) {}
     mainBtn.set_child(mainBox);
+    try {
+        if (currentTileStyleId() === 'icon-only') {
+            textCol.visible = false;
+            row.style = 'width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 999px;';
+            try { dropBtn.style = 'width: 16px; height: 16px; padding: 0;'; } catch (e2) {}
+        }
+    } catch (e) {}
 
     let _ssid = 'Wi-Fi';
     const stopNet = startNetSpeedMonitor(({downShort, upShort}) => {
