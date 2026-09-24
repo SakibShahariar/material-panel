@@ -11,6 +11,7 @@ import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib
 import {hasBuiltin} from './lib/moduleIds.js';
 import {readStatusRolesFile} from './lib/statusRolesFile.js';
 import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
+import {TILE_STYLES, TILE_STYLE_DEFAULT} from './lib/tileStyleMeta.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const EXT_PREFIX = 'extension:';
@@ -911,6 +912,28 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         sliderStyleRow.add_suffix(sliderStyleDrop);
         sliderStyleRow.activatable_widget = sliderStyleDrop;
         themeGroup.add(sliderStyleRow);
+
+        const tileStyleRow = new Adw.ActionRow({
+            title: 'QS tile style',
+            subtitle: 'Look of Quick Settings tiles (default layout)',
+        });
+        const tileStyleLabels = Gtk.StringList.new(TILE_STYLES.map(s => {
+            const sub = s.tier ? ` — ${s.tier}` : '';
+            return `${s.label}${sub}`;
+        }));
+        const tileStyleDrop = new Gtk.DropDown({model: tileStyleLabels});
+        const currentTileStyle = config.qsTileStyle ?? TILE_STYLE_DEFAULT;
+        const tileIdx = Math.max(0, TILE_STYLES.findIndex(s => s.id === currentTileStyle));
+        tileStyleDrop.set_selected(tileIdx);
+        tileStyleDrop.connect('notify::selected', () => {
+            const sel = Math.max(0, tileStyleDrop.get_selected());
+            const s = TILE_STYLES[sel] || TILE_STYLES[0];
+            config.qsTileStyle = s.id;
+            saveConfig();
+        });
+        tileStyleRow.add_suffix(tileStyleDrop);
+        tileStyleRow.activatable_widget = tileStyleDrop;
+        themeGroup.add(tileStyleRow);
 
         const flushPendingSave = () => {
             if (saveDebounceId) {

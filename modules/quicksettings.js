@@ -9,6 +9,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
+import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
@@ -88,6 +89,89 @@ function makeWrappingLabel(text, styleClass) {
     return label;
 }
 
+
+function currentTileStyleId() {
+    const id = globalThis._materialPanelTileStyle ?? 'classic';
+    return isValidTileStyle(id) ? id : 'classic';
+}
+
+/** Tag a tile/row with style-specific extras (underline, groove, eq, …). */
+function attachTileExtras(host, contentBox) {
+    const meta = tileStyleMeta(currentTileStyleId());
+    const extras = meta.extras || [];
+    if (!extras.length || !contentBox)
+        return;
+
+    if (extras.includes('underline')) {
+        const u = new St.Widget({
+            style_class: 'material-panel-qs-tile-underline',
+            x_expand: true,
+            height: 3,
+        });
+        try { contentBox.add_child(u); } catch (e) {}
+    }
+    if (extras.includes('groove')) {
+        const g = new St.Widget({
+            style_class: 'material-panel-qs-tile-groove',
+            x_expand: true,
+            height: 6,
+        });
+        const fill = new St.Widget({
+            style_class: 'material-panel-qs-tile-groove-fill',
+            x_expand: true,
+            height: 6,
+        });
+        try {
+            // width driven by active class CSS; expand on active via parent
+            g.add_child(fill);
+            contentBox.add_child(g);
+        } catch (e) {}
+    }
+    if (extras.includes('eq')) {
+        const eq = new St.BoxLayout({
+            style_class: 'material-panel-qs-tile-eq',
+            vertical: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        for (let i = 0; i < 4; i++) {
+            const h = 6 + (i % 3) * 4;
+            const bar = new St.Widget({
+                style_class: 'material-panel-qs-tile-eq-bar',
+                width: 3,
+                height: h,
+            });
+            eq.add_child(bar);
+        }
+        try { contentBox.add_child(eq); } catch (e) {}
+    }
+    if (extras.includes('ring')) {
+        // Wrap icon later if needed — ring as sibling marker
+        const ring = new St.Widget({
+            style_class: 'material-panel-qs-tile-ring',
+            width: 28,
+            height: 28,
+        });
+        try { contentBox.insert_child_at_index(ring, 0); } catch (e) {
+            try { contentBox.add_child(ring); } catch (e2) {}
+        }
+    }
+    if (extras.includes('dots')) {
+        const dots = new St.BoxLayout({
+            style_class: 'material-panel-qs-tile-dots',
+            vertical: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        for (let i = 0; i < 6; i++) {
+            dots.add_child(new St.Widget({
+                style_class: 'material-panel-qs-tile-dot',
+                width: 5,
+                height: 5,
+            }));
+        }
+        try { contentBox.add_child(dots); } catch (e) {}
+    }
+}
+
 function buildTile({iconKey, label, isOn, onToggle, watch}) {
     // Equal share of the row width; fixed height so active/inactive match.
     const tile = new St.Button({
@@ -137,6 +221,22 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     box.add_child(icon);
     box.add_child(text);
     tile.set_child(box);
+    attachTileExtras(tile, box);
+    try {
+        const sid = currentTileStyleId();
+        if (sid === 'icon-top') {
+            box.vertical = true;
+            box.style = 'spacing: 6px; padding: 8px 6px;';
+            icon.x_align = Clutter.ActorAlign.CENTER;
+            text.x_align = Clutter.ActorAlign.CENTER;
+            try { tile.style = 'min-height: 80px;'; } catch (e) {}
+        } else if (sid === 'icon-only') {
+            try { text.visible = false; } catch (e) {}
+            try { tile.style = 'width: 44px; height: 44px; padding: 0;'; } catch (e) {}
+            box.style = 'spacing: 0; padding: 0;';
+            icon.x_align = Clutter.ActorAlign.CENTER;
+        }
+    } catch (e) {}
     const refresh = () => {
         const on = isOn();
         tile.set_style_class_name(`material-panel-qs-tile${on ? ' active' : ''}`);
@@ -2112,12 +2212,14 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     //   [ Dark ] [ DND  ]
     //   [ Night] [ BT   ]
     //   [ Wi-Fi] [      ]  ← empty cell ok; Wi-Fi same footprint as others
+    const tileStyleId = currentTileStyleId();
+    const iconOnly = !end4 && tileStyleId === 'icon-only';
     const grid = new St.Widget({
-        style_class: 'material-panel-qs-grid',
+        style_class: `material-panel-qs-grid material-panel-qs-tiles--${tileStyleId}`,
         x_expand: true,
         layout_manager: new Clutter.GridLayout({
             column_homogeneous: true,
-            row_homogeneous: true,
+            row_homogeneous: !iconOnly,
             column_spacing: end4 ? 10 : 8,
             row_spacing: end4 ? 10 : 8,
         }),
@@ -2133,7 +2235,16 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const btTile = tiles[3];
     const wifiRow = tiles[4];
     tiles.forEach((tile, i) => {
-        gl.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
+        if (iconOnly) {
+            // Single row of circles
+            gl.attach(tile, i, 0, 1, 1);
+            try {
+                // hide text-ish children on chevron rows best-effort
+                tile.get_children?.()?.forEach?.(c => {});
+            } catch (e) {}
+        } else {
+            gl.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
+        }
     });
 
     menu.addMenuItem(wrapAsMenuItem(qsSection(null, grid)));
