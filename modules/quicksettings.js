@@ -302,7 +302,7 @@ export function volumeSliderRow() {
         initialValue: 0,
         style: volStyle.id,
         accent: volStyle.accent,
-        width: (volStyle.id === 'arc') ? 96 : (volStyle.id === 'rails') ? 28 : 200,
+        width: (volStyle.id === 'arc') ? 100 : (volStyle.id === 'rails') ? 48 : 200,
         onChange: value => {
             const pct = Math.round(value * 100);
             if (sink && control) {
@@ -325,6 +325,10 @@ export function volumeSliderRow() {
     });
     row.add_child(slider.actor);
     row.add_child(pctLabel);
+    try {
+        if (slider.hideExternalValue)
+            pctLabel.visible = false;
+    } catch (e) {}
 
     control = getMixerControl();
     if (!control) {
@@ -495,7 +499,7 @@ export function brightnessSliderRow() {
         } catch (e) {}
     }
     const slider = createSlider({
-        width: (briStyle.id === 'arc') ? 96 : (briStyle.id === 'rails') ? 28 : 200,
+        width: (briStyle.id === 'arc') ? 100 : (briStyle.id === 'rails') ? 48 : 200,
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         style: briStyle.id,
         accent: briStyle.accent,
@@ -511,6 +515,10 @@ export function brightnessSliderRow() {
     });
     row.add_child(slider.actor);
     row.add_child(pctLabel);
+    try {
+        if (slider.hideExternalValue)
+            pctLabel.visible = false;
+    } catch (e) {}
 
     // Best-effort live sync if brightness changes externally (hardware
     // keys, another app). sysfs doesn't always support inotify-style
