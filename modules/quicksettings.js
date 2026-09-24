@@ -295,14 +295,18 @@ export function volumeSliderRow() {
             row.style = 'spacing: 8px; padding: 4px 0;';
             icon.x_align = Clutter.ActorAlign.CENTER;
             pctLabel.x_align = Clutter.ActorAlign.CENTER;
-            pctLabel.visible = true;
+            // arc has its own center % — keep row % hidden
+            pctLabel.visible = volStyle.id !== 'arc';
         } catch (e) {}
+    }
+    if (volStyle.id === 'snap') {
+        try { pctLabel.visible = false; } catch (e) {}
     }
     const slider = createSlider({
         initialValue: 0,
         style: volStyle.id,
         accent: volStyle.accent,
-        width: (volStyle.id === 'arc') ? 100 : (volStyle.id === 'rails') ? 48 : 200,
+        width: (volStyle.id === 'arc') ? 108 : (volStyle.id === 'rails') ? 28 : 200,
         onChange: value => {
             const pct = Math.round(value * 100);
             if (sink && control) {
@@ -499,7 +503,7 @@ export function brightnessSliderRow() {
         } catch (e) {}
     }
     const slider = createSlider({
-        width: (briStyle.id === 'arc') ? 100 : (briStyle.id === 'rails') ? 48 : 200,
+        width: (briStyle.id === 'arc') ? 108 : (briStyle.id === 'rails') ? 28 : 200,
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         style: briStyle.id,
         accent: briStyle.accent,
