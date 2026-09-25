@@ -57,7 +57,7 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
 
     const box = new St.BoxLayout({
         style_class: 'material-panel-focused material-panel-chip',
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
     });
     box.add_child(iconWell);

@@ -88,7 +88,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    const body = new St.BoxLayout({vertical: true, style: 'spacing: 6px; padding: 4px; min-width: 220px;'});
+    const body = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style: 'spacing: 6px; padding: 4px; min-width: 220px;'});
     const title = new St.Label({text: 'Storage', style_class: 'material-panel-cpu-popup-title'});
     const rootL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const homeL = new St.Label({style_class: 'material-panel-cpu-popup-value'});

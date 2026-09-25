@@ -521,7 +521,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     const box = new St.BoxLayout({
         y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
     });
     box.add_child(cpuIcon);
     box.add_child(cpuLabel);
@@ -662,25 +662,25 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const thermalCurrent = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalHigh = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const thermalCrit = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const coresGrid = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-cores'});
+    const coresGrid = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-cores'});
     const coreLabels = [];
 
     const header = new PopupMenu.PopupMenuSection();
     const headerBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-cpu-popup-header',
         x_expand: true,
         style: 'spacing: 8px; padding: 4px 2px; min-width: 260px;',
     });
     headerBox.add_child(new St.Label({text: 'Activity', style_class: 'material-panel-cpu-popup-title'}));
     const summary = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-cpu-popup-summary',
         x_expand: true,
         style: 'spacing: 12px;',
     });
     for (const [title, widget] of [['Usage', usageValue], ['Temp', tempValue], ['Load', loadValue]]) {
-        const col = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-stat', x_expand: true});
+        const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-stat', x_expand: true});
         col.add_child(new St.Label({text: title, style_class: 'material-panel-cpu-popup-label'}));
         col.add_child(widget);
         summary.add_child(col);
@@ -713,7 +713,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         text: 'Memory',
         style_class: 'material-panel-cpu-popup-section-title',
     }));
-    const memBox = new St.BoxLayout({vertical: true, style_class: 'material-panel-cpu-popup-thermal', style: 'spacing: 2px;'});
+    const memBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-thermal', style: 'spacing: 2px;'});
     memBox.add_child(memUsedLbl);
     memBox.add_child(memAvailLbl);
     memBox.add_child(memCacheLbl);
@@ -732,7 +732,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
     const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
     const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-cpu-popup-value'});
-    const ioBox = new St.BoxLayout({vertical: true, style: 'spacing: 3px; padding: 2px 0;'});
+    const ioBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style: 'spacing: 3px; padding: 2px 0;'});
     ioBox.add_child(new St.Label({text: 'System', style_class: 'material-panel-cpu-popup-section-title'}));
     ioBox.add_child(diskLbl);
     ioBox.add_child(netLbl);
@@ -740,7 +740,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraSection.actor.add_child(ioBox);
 
     let procSort = 'cpu';
-    const procTitleRow = new St.BoxLayout({vertical: false, style: 'spacing: 8px;'});
+    const procTitleRow = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, style: 'spacing: 8px;'});
     const procTitle = new St.Label({
         text: 'Top processes',
         style_class: 'material-panel-cpu-popup-section-title',
@@ -773,7 +773,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const procBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-cpu-popup-procs',
         style: 'spacing: 2px;',
     });

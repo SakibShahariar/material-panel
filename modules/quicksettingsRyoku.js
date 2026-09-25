@@ -35,7 +35,7 @@ export function fillRyokuQsMenu(menu, api) {
     } = api;
 
     const root = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-ryoku-qs',
         x_expand: true,
         style: 'spacing: 10px; min-width: 360px; max-width: 400px;',
@@ -50,18 +50,18 @@ export function fillRyokuQsMenu(menu, api) {
     root.add_child(buildMediaPlayerRow());
 
     const body = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-ryoku-body',
         x_expand: true,
         style: 'spacing: 10px;',
     });
     const rail = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-ryoku-rail',
         style: 'spacing: 4px; min-width: 72px;',
     });
     const stageHost = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-ryoku-stage',
         x_expand: true,
         style: 'spacing: 8px; min-width: 260px;',
@@ -70,7 +70,7 @@ export function fillRyokuQsMenu(menu, api) {
     const stages = {};
     const mk = (id, title, fill) => {
         const box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             style: 'spacing: 8px;',
             visible: false,

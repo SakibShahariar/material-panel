@@ -108,7 +108,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-net-speed-popup-body',
     });
     body.add_child(new St.Label({

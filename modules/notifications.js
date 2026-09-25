@@ -233,7 +233,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     const section = new PopupMenu.PopupMenuSection();
     const root = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-nc-body',
         x_expand: true,
     });
@@ -317,7 +317,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const listBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-nc-list',
         x_expand: true,
     });
@@ -364,7 +364,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     const makeCard = item => {
         const card = new St.BoxLayout({
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             style_class: 'material-panel-nc-card',
             x_expand: true,
             reactive: true,
@@ -393,7 +393,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
         // Text column
         const mid = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'material-panel-nc-mid',
@@ -401,7 +401,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         try { mid.style = 'spacing: 2px;'; } catch (e) {}
 
         const topRow = new St.BoxLayout({
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             x_expand: true,
         });
         try { topRow.style = 'spacing: 6px;'; } catch (e) {}

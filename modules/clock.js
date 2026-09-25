@@ -62,14 +62,14 @@ function daysInMonth(year, month) {
  */
 function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, onPrev, onNext) {
     const outer = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-clock-cal',
         x_expand: true,
     });
     try { outer.style = 'spacing: 6px;'; } catch (e) {}
 
     const nav = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-clock-cal-nav',
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
@@ -235,7 +235,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-clock-popup-body',
         x_expand: true,
     });
@@ -245,7 +245,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     // Next event banner
     const nextBanner = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-cal-next',
         x_expand: true,
         visible: false,
@@ -274,7 +274,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     // Calendar host (rebuilt on nav)
     const calHost = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-cal-host',
         x_expand: true,
     });
@@ -291,7 +291,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     body.add_child(agendaTitle);
 
     const agendaBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-cal-agenda',
         x_expand: true,
     });
@@ -377,11 +377,11 @@ export function buildClock(_extensionPath, scale = 1.0) {
                     'padding: 8px 10px; border-radius: 12px;';
             } catch (e) {}
             const col = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
             });
             try { col.style = 'spacing: 2px;'; } catch (e) {}
-            const top = new St.BoxLayout({vertical: false, x_expand: true});
+            const top = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
             const t = new St.Label({
                 text: String(ev.title || 'Event'),
                 style_class: 'material-panel-cal-event-title',

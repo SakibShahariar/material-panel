@@ -36,7 +36,7 @@ function stateLabel(state) {
 
 function makeStat(title) {
     const col = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-popup-stat',
         x_expand: true,
     });
@@ -77,7 +77,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
     const box = new St.BoxLayout({
         style_class: 'material-panel-battery',
         y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
     });
 
     let currentKey = 'battery-full';
@@ -235,10 +235,10 @@ export function buildBattery(extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const section = new PopupMenu.PopupMenuSection();
-    const wrap = new St.BoxLayout({vertical: true, style_class: 'material-panel-battery-popup-body'});
+    const wrap = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-battery-popup-body'});
 
     const hero = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-popup-card material-panel-battery-popup-hero',
     });
     hero.add_child(pctHero);
@@ -248,12 +248,12 @@ export function buildBattery(extensionPath, scale = 1.0) {
     wrap.add_child(hero);
 
     const grid = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-popup-card material-panel-popup-stats',
         x_expand: true,
     });
-    const colA = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-stats-col', x_expand: true});
-    const colB = new St.BoxLayout({vertical: true, style_class: 'material-panel-popup-stats-col', x_expand: true});
+    const colA = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-popup-stats-col', x_expand: true});
+    const colB = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-popup-stats-col', x_expand: true});
     colA.add_child(sTime.col);
     colA.add_child(sEnergy.col);
     colB.add_child(sRate.col);

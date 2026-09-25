@@ -113,11 +113,11 @@ function confirmPower(action) {
 // ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
 
 function buildHeader(menu) {
-    const row = new St.BoxLayout({vertical: false, x_expand: true});
+    const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
     style(row, 'spacing: 6px;');
 
     const uptimePill = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
     });
     style(uptimePill, `background-color: ${surface()}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
@@ -233,12 +233,12 @@ function buildDualSliders() {
     // end-4-inspired: two full-width slider rows (not side-by-side)
     const trackW = QS_INNER - 28 - 16; // padding + icon
 
-    const col = new St.BoxLayout({vertical: true, x_expand: false});
+    const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: false});
     style(col, `spacing: 8px; width: ${QS_INNER}px;`);
     try { col.width = QS_INNER; } catch (e) {}
 
     const mkRow = (iconKeys, symbolic, slider) => {
-        const row = new St.BoxLayout({vertical: false, x_expand: false});
+        const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: false});
         style(row, `background-color: ${surface()}; border-radius: 999px; padding: 10px 14px; spacing: 12px; width: ${QS_INNER}px;`);
         try { row.width = QS_INNER; } catch (e) {}
         const ic = makeIcon(iconKeys, 18, false, symbolic);
@@ -383,11 +383,11 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
 
 function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
     const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
-    const box = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    const box = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
     style(box, 'spacing: 10px; padding: 0 4px;');
     const ic = makeIcon(iconKeys, 18, false, symbolic);
     box.add_child(ic);
-    const col = new St.BoxLayout({vertical: true, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+    const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
     const title = new St.Label({text: label});
     style(title, 'font-size: 12px; font-weight: 700;');
     col.add_child(title);
@@ -444,7 +444,7 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
 }
 
 function buildToggleGrid() {
-    const root = new St.BoxLayout({vertical: true, x_expand: false});
+    const root = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: false});
     style(root, `spacing: 8px; width: ${QS_INNER}px;`);
     try { root.width = QS_INNER; } catch (e) {}
 
@@ -473,7 +473,7 @@ function buildToggleGrid() {
         wifi.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px; border-radius: 18px;`;
     } catch (e) {}
 
-    const netCol = new St.BoxLayout({vertical: true, x_expand: true});
+    const netCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
     style(netCol, `spacing: 8px; width: ${QS_INNER}px;`);
     netCol.add_child(wifi);
     netCol.add_child(bt);
@@ -494,7 +494,7 @@ function buildToggleGrid() {
     } catch (e) { logError(e, 'e4 qs wifi panel'); }
 
     // Row of round toggles: dark / dnd / night (former third slot + rest)
-    const row0 = new St.BoxLayout({vertical: false});
+    const row0 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row0, 'spacing: 8px;');
     const darkRound = makeRoundToggle({
         iconKeys: ['dark-mode', 'light-mode'],
@@ -511,7 +511,7 @@ function buildToggleGrid() {
     root.add_child(row0);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
-    const row1 = new St.BoxLayout({vertical: false});
+    const row1 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row1, 'spacing: 8px;');
     const night = makeRoundToggle({
         iconKeys: ['night-light'],
@@ -560,7 +560,7 @@ function buildToggleGrid() {
 // ── Power strip (compact, under toggles — end-4 puts some in header; keep reboot/power) ──
 
 function buildPowerStrip(menu) {
-    const row = new St.BoxLayout({vertical: false, x_expand: false});
+    const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: false});
     const gap = 8;
     const n = 3;
     const btnW = Math.floor((QS_INNER - gap * (n - 1)) / n);
@@ -638,7 +638,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const shell = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: false,
         style_class: 'material-panel-e4qs-shell',
     });

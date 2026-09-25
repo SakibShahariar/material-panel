@@ -81,7 +81,7 @@ export function buildProfileCard({onPrefs = null} = {}) {
 
     const avatar = buildAvatar(initial);
 
-    const textBox = new St.BoxLayout({vertical: true, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    const textBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
     const displayName = realName !== username ? realName : username;
     const nameLabel = new St.Label({
         text: `${displayName}@${hostname}`,

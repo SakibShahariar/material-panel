@@ -488,7 +488,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     const box = new St.BoxLayout({
         style_class: 'material-panel-weather',
         y_align: Clutter.ActorAlign.CENTER,
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
     });
 
     let gicon;
@@ -554,7 +554,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-weather-popup-body',
         x_expand: true,
     });
@@ -572,7 +572,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     // Hero: [ big icon ] [ temp + condition + feels ] — single column text, no float
     const hero = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-weather-popup-hero',
         x_expand: true,
         x_align: Clutter.ActorAlign.CENTER,
@@ -589,7 +589,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     const heroText = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: false,
     });
@@ -617,14 +617,14 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     // Stats row
     const stats = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-weather-popup-stats',
         x_expand: true,
     });
     try { stats.style = 'spacing: 8px; padding: 2px 0;'; } catch (e) {}
     const mkStat = (title) => {
         const card = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'material-panel-weather-stat-card',
             x_expand: true,
         });
@@ -665,7 +665,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         hourlyScroll.style = 'max-height: 100px;';
     } catch (e) {}
     const hourlyRow = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-weather-hourly-row',
     });
     try { hourlyRow.style = 'spacing: 6px; padding: 4px 2px;'; } catch (e) {}
@@ -682,7 +682,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
     try { dailyTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.7;'; } catch (e) {}
     const dailyCol = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-weather-daily-col',
         x_expand: true,
     });
@@ -745,7 +745,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         hourlyRow.destroy_all_children();
         for (const h of d.hourly || []) {
             const cell = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 style_class: 'material-panel-weather-hour-cell',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -786,7 +786,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         dailyCol.destroy_all_children();
         for (const day of d.daily || []) {
             const row = new St.BoxLayout({
-                vertical: false,
+                orientation: Clutter.Orientation.HORIZONTAL,
                 style_class: 'material-panel-weather-day-row',
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,

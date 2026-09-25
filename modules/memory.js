@@ -84,7 +84,7 @@ export function buildMemory(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style: 'spacing: 6px; padding: 4px; min-width: 200px;',
     });
     const title = new St.Label({text: 'Memory', style_class: 'material-panel-cpu-popup-title'});

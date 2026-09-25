@@ -94,12 +94,12 @@ function makeWrappingLabel(text, styleClass) {
 function isQuietTileStyle(id) {
     return [
         'minimal', 'tonal', 'glass', 'ambient', 'aurora', 'indicator',
-        'recessed', 'eq', 'donut', 'dotmatrix', 'icon-top', 'spotlight',
+        'recessed', 'eq', 'donut', 'icon-top',
     ].includes(id);
 }
 
 function isSolidFillTileStyle(id) {
-    return ['classic', 'graphite', 'squiggle', 'icon-only'].includes(id);
+    return ['classic', 'graphite', 'squiggle', 'icon-only', 'dotmatrix'].includes(id);
 }
 
 function currentTileStyleId() {
@@ -117,7 +117,8 @@ function attachTileExtras(host, contentBox) {
     const bag = {};
 
     if (extras.includes('underline')) {
-        // Bottom bar: use a wrapper if content is horizontal
+        // Bottom bar: push content up with an expanding spacer
+        const spacer = new St.Widget({y_expand: true});
         const u = new St.Widget({
             style_class: 'material-panel-qs-tile-underline',
             x_expand: true,
@@ -125,6 +126,7 @@ function attachTileExtras(host, contentBox) {
             y_align: Clutter.ActorAlign.END,
         });
         try {
+            contentBox.add_child(spacer);
             contentBox.add_child(u);
         } catch (e) {}
         bag.underline = u;
@@ -153,9 +155,11 @@ function attachTileExtras(host, contentBox) {
     if (extras.includes('eq')) {
         const eq = new St.BoxLayout({
             style_class: 'material-panel-qs-tile-eq',
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             y_align: Clutter.ActorAlign.CENTER,
             x_align: Clutter.ActorAlign.END,
+            x_expand: false,
+            style: 'spacing: 3px;',
         });
         const bars = [];
         const heights = [8, 14, 10, 16];
@@ -168,13 +172,28 @@ function attachTileExtras(host, contentBox) {
             eq.add_child(bar);
             bars.push(bar);
         }
-        try { contentBox.add_child(eq); } catch (e) {}
+        try {
+            contentBox.add_child(new St.Widget({x_expand: true}));
+            contentBox.add_child(eq);
+            // keep it from stretching inside vertical content boxes
+            eq.width = 38;
+        } catch (e) {}
+        contentBox.connect('destroy', () => {
+            if (bag.eqTimer) {
+                try { GLib.source_remove(bag.eqTimer); } catch (e2) {}
+                bag.eqTimer = 0;
+            }
+            bag.eqBars = null;
+            bag.eq = null;
+        });
         bag.eq = eq;
         bag.eqBars = bars;
         bag.eqTimer = 0;
         bag.eqTick = () => {
             if (!bars.length)
-                return;
+                return GLib.SOURCE_CONTINUE;
+            if (!bars[0].is_mapped) // destroyed or hidden after menu close
+                return GLib.SOURCE_CONTINUE;
             for (let i = 0; i < bars.length; i++) {
                 const h = 6 + Math.floor(Math.random() * 12);
                 try { bars[i].height = h; } catch (e) {}
@@ -215,20 +234,34 @@ function attachTileExtras(host, contentBox) {
     if (extras.includes('dots')) {
         const dots = new St.BoxLayout({
             style_class: 'material-panel-qs-tile-dots',
-            vertical: false,
+            orientation: Clutter.Orientation.VERTICAL,
             y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.END,
+            x_expand: false,
+            style: 'spacing: 3px;',
         });
         const cells = [];
-        for (let i = 0; i < 6; i++) {
-            const d = new St.Widget({
-                style_class: 'material-panel-qs-tile-dot',
-                width: 6,
-                height: 6,
+        for (let rowI = 0; rowI < 2; rowI++) {
+            const dotRow = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                style: 'spacing: 3px;',
             });
-            dots.add_child(d);
-            cells.push(d);
+            for (let colI = 0; colI < 3; colI++) {
+                const d = new St.Widget({
+                    style_class: 'material-panel-qs-tile-dot',
+                    width: 5,
+                    height: 5,
+                });
+                dotRow.add_child(d);
+                cells.push(d);
+            }
+            dots.add_child(dotRow);
         }
-        try { contentBox.add_child(dots); } catch (e) {}
+        try {
+            contentBox.add_child(new St.Widget({x_expand: true}));
+            contentBox.add_child(dots);
+            dots.width = 26;
+        } catch (e) {}
         bag.dots = cells;
     }
 
@@ -266,10 +299,105 @@ function syncTileExtras(host, on) {
         if (bag.dots) {
             bag.dots.forEach((d, i) => {
                 d.style = on
-                    ? `background-color: ${globalThis._materialPanelPrimary ?? '#cba6f7'}; width: 6px; height: 6px; border-radius: 50%;`
-                    : 'width: 6px; height: 6px; border-radius: 50%;';
+                    ? `background-color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; width: 5px; height: 5px; border-radius: 50%;`
+                    : 'width: 5px; height: 5px; border-radius: 50%;';
             });
         }
+    } catch (e) {}
+}
+
+function rowGeometryFor(sid) {
+    switch (sid) {
+        case 'glass': return {h: 76, rad: 22, mainRad: 22};
+        case 'recessed': return {h: 64, rad: 16, mainRad: 16};
+        case 'indicator': return {h: 56, rad: 14, mainRad: 14};
+        case 'icon-top': return {h: 86, rad: 16, mainRad: 16};
+        case 'squiggle': return {h: 62, rad: 18, mainRad: 18};
+        case 'aurora': return {h: 54, rad: 15, mainRad: 15};
+        case 'eq': return {h: 56, rad: 16, mainRad: 16};
+        case 'donut': return {h: 58, rad: 16, mainRad: 16};
+        case 'dotmatrix': return {h: 54, rad: 14, mainRad: 14};
+        case 'ambient': return {h: 52, rad: 16, mainRad: 16};
+        case 'graphite': return {h: 52, rad: 18, mainRad: 18};
+        case 'icon-only': return {h: 42, rad: 999, mainRad: 999};
+        default: return {h: 52, rad: 18, mainRad: 18};
+    }
+}
+
+/**
+ * Rows (BT / Wi-Fi) must follow the tile style the same way the simple pills
+ * do: chip layout for icon-top, vertical/centered content for glass/recessed/
+ * indicator, and clean circles for icon-only. Returns nothing; mutates actors.
+ */
+function fitRowContentToStyle(sid, mainBox, icon, text, opts = {}) {
+    const textCol = opts.textCol;
+    const speedLabel = opts.speedLabel;
+
+    if (sid === 'icon-only') {
+        try { text.visible = false; } catch (e) {}
+        try { if (textCol) textCol.visible = false; } catch (e) {}
+        try { if (speedLabel) speedLabel.visible = false; } catch (e) {}
+        try { if (opts.mainBtn) opts.mainBtn.set_child(icon); } catch (e) {}
+        icon.x_align = Clutter.ActorAlign.CENTER;
+        icon.y_align = Clutter.ActorAlign.CENTER;
+        return;
+    }
+
+    if (sid === 'glass' || sid === 'recessed' || sid === 'indicator') {
+        try {
+            mainBox.vertical = true;
+            mainBox.y_align = Clutter.ActorAlign.CENTER;
+            mainBox.style = 'spacing: 6px; padding: 8px 10px;';
+            icon.x_align = Clutter.ActorAlign.CENTER;
+            text.x_align = Clutter.ActorAlign.CENTER;
+            if (textCol) textCol.x_align = Clutter.ActorAlign.CENTER;
+            if (speedLabel) speedLabel.x_align = Clutter.ActorAlign.CENTER;
+            try { text.style = 'font-size: 11.5px; font-weight: 600; text-align: center;'; } catch (e) {}
+        } catch (e) {}
+        return;
+    }
+
+    if (sid === 'icon-top') {
+        const chip = new St.Bin({
+            style_class: 'material-panel-qs-tile-chip',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: icon,
+        });
+        try {
+            mainBox.remove_child(icon);
+            mainBox.vertical = true;
+            mainBox.y_align = Clutter.ActorAlign.CENTER;
+            mainBox.style = 'spacing: 6px; padding: 10px 4px;';
+            mainBox.insert_child_at_index(chip, 0);
+            icon.x_align = Clutter.ActorAlign.CENTER;
+            text.x_align = Clutter.ActorAlign.CENTER;
+            if (textCol) textCol.x_align = Clutter.ActorAlign.CENTER;
+            try { text.style = 'font-size: 11px; font-weight: 600; text-align: center;'; } catch (e) {}
+        } catch (e) {}
+    }
+}
+
+/** Applies per-style circles/ruling geometry to a BT/Wi-Fi row. */
+function fitRowGeometryToStyle(sid, tileRow, mainBtn, dropBtn) {
+    const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+    let {h, rad, mainRad} = rowGeometryFor(sid);
+    if (end4) {
+        h = sid === 'icon-only' ? 42 : (sid === 'glass' || sid === 'icon-top') ? 66 : 56;
+        rad = sid === 'glass' ? 22 : 18;
+        mainRad = rad;
+    }
+    try {
+        if (sid === 'icon-only') {
+            tileRow.style = 'width: 42px; height: 42px; min-width: 42px; min-height: 42px; max-height: 42px; padding: 0; border-radius: 999px;';
+            tileRow.height = 42;
+            mainBtn.style = 'min-height: 42px; max-height: 42px; min-width: 42px; width: 42px; padding: 0; border-radius: 999px; background-color: transparent;';
+            if (dropBtn) dropBtn.visible = false;
+            return;
+        }
+        tileRow.style = `border-radius: ${rad}px; min-height: ${h}px; height: ${h}px;`;
+        tileRow.height = h;
+        mainBtn.style = `min-height: ${h}px; padding: 7px 12px; background-color: transparent; border-radius: ${mainRad}px 0 0 ${mainRad}px;`;
     } catch (e) {}
 }
 
@@ -292,7 +420,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         } catch (e) {}
     }
     const box = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-qs-tile-content',
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
@@ -472,7 +600,7 @@ function wrapAsMenuItem(actor) {
 /** Vertical stack used as a QS section (consistent 8px spacing). */
 function qsSection(styleExtra, ...children) {
     const box = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         style_class: `material-panel-qs-section${styleExtra ? ' ' + styleExtra : ''}`,
     });
@@ -852,14 +980,14 @@ export function bluetoothTile() {
     // full-width panel below the 2-col grid (attached as outer.devicePanel)
     // so expanding devices never stretches the right column wider than left.
     const outer = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         x_expand: true,
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
         style_class: 'material-panel-qs-bt-tile-outer',
     });
-    try { outer.style = 'min-height: 52px; width: 100%;'; } catch (e) {}
+    try { outer.style = 'min-height: 52px;'; outer.x_expand = true; } catch (e) {}
     const tileRow = new St.BoxLayout({
         style_class: 'material-panel-qs-tile material-panel-qs-bt-tile-row',
         x_expand: true,
@@ -877,7 +1005,7 @@ export function bluetoothTile() {
         y_align: Clutter.ActorAlign.FILL,
     });
     const mainBox = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-qs-tile-content',
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
@@ -902,16 +1030,8 @@ export function bluetoothTile() {
     try { attachTileExtras(tileRow, mainBox); } catch (e) {}
     mainBtn.set_child(mainBox);
     try {
-        if (currentTileStyleId() === 'icon-only') {
-            text.visible = false;
-            tileRow.style = 'width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 999px;';
-            try { dropBtn.style = 'width: 16px; height: 16px; padding: 0;'; } catch (e2) {}
-        }
-    } catch (e) {}
-    try {
         mainBtn.x_expand = true;
         mainBtn.y_expand = true;
-        mainBtn.style = 'min-height: 52px; padding: 8px 12px; border-radius: 18px 0 0 18px;';
     } catch (e) {}
 
     const dropBtn = new St.Button({
@@ -935,9 +1055,13 @@ export function bluetoothTile() {
     wireQsInteractive(mainBtn);
     wireQsInteractive(dropBtn);
 
+    const rowSid = currentTileStyleId();
+    try { fitRowContentToStyle(rowSid, mainBox, icon, text, {mainBtn}); } catch (e) {}
+    try { fitRowGeometryToStyle(rowSid, tileRow, mainBtn, dropBtn); } catch (e) {}
+
     // Full-width device panel — parented under the QS menu, not this column
     const deviceContainer = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         style_class: 'material-panel-qs-bt-devices material-panel-qs-bt-devices-panel',
     });
@@ -979,18 +1103,15 @@ export function bluetoothTile() {
             text.style = powered
                 ? `font-weight: 700; color: ${onP};`
                 : 'font-weight: 600;';
-            const h = globalThis._materialPanelLayoutStyle === 'end4' ? 56 : 52;
-            const rad = globalThis._materialPanelLayoutStyle === 'end4' ? 22 : 18;
-            // Geometry only — fill/colors come from .active + qs tile style CSS
-            tileRow.style = `border-radius: ${rad}px; min-height: ${h}px; width: 100%;`;
-            mainBtn.style = `min-height: ${h}px; padding: 8px 12px; background-color: transparent;`;
-
+            const {h} = rowGeometryFor(currentTileStyleId());
+            fitRowGeometryToStyle(currentTileStyleId(), tileRow, mainBtn, dropBtn);
             outer.style = `min-height: ${h}px;`;
             outer.height = h;
             tileRow.height = h;
             mainBtn.x_expand = true;
             mainBtn.y_expand = true;
         } catch (e) {}
+        try { syncTileExtras(tileRow, powered); } catch (e) {}
         if (_refreshDevices) _refreshDevices();
     };
 
@@ -1219,7 +1340,7 @@ export function bluetoothTile() {
         else
             stopPulse(path);
 
-        const textBox = new St.BoxLayout({vertical: true, x_expand: true});
+        const textBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-qs-bt-device-name' + (connected ? ' is-connected' : ''));
         nameLabel.x_expand = true;
 
@@ -1523,7 +1644,7 @@ export function bluetoothTile() {
 // list, as requested).
 function buildBluetoothDeviceList() {
     const outer = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         style_class: 'material-panel-qs-bt-dropdown',
     });
@@ -1554,7 +1675,7 @@ function buildBluetoothDeviceList() {
         headerArrow.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
     };
     const container = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-qs-bt-devices',
         x_expand: true,
     });
@@ -1843,7 +1964,7 @@ export function wifiQsBlock() {
         mainBtn.style = 'min-height: 48px; padding: 8px 12px;';
     } catch (e) {}
     const mainBox = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
         y_expand: true,
@@ -1856,7 +1977,7 @@ export function wifiQsBlock() {
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('network-offline'))),
     });
     const textCol = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: 'material-panel-qs-wifi-text',
@@ -1885,13 +2006,6 @@ export function wifiQsBlock() {
     mainBox.add_child(textCol);
     try { attachTileExtras(row, mainBox); } catch (e) {}
     mainBtn.set_child(mainBox);
-    try {
-        if (currentTileStyleId() === 'icon-only') {
-            textCol.visible = false;
-            row.style = 'width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 999px;';
-            try { dropBtn.style = 'width: 16px; height: 16px; padding: 0;'; } catch (e2) {}
-        }
-    } catch (e) {}
 
     let _ssid = 'Wi-Fi';
     const stopNet = startNetSpeedMonitor(({downShort, upShort}) => {
@@ -1923,8 +2037,12 @@ export function wifiQsBlock() {
     wireQsInteractive(mainBtn);
     wireQsInteractive(dropBtn);
 
+    const rowSid = currentTileStyleId();
+    try { fitRowContentToStyle(rowSid, mainBox, icon, text, {textCol, speedLabel, mainBtn}); } catch (e) {}
+    try { fitRowGeometryToStyle(rowSid, row, mainBtn, dropBtn); } catch (e) {}
+
     const listPanel = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         style_class: 'material-panel-qs-wifi-panel',
     });
@@ -1942,11 +2060,9 @@ export function wifiQsBlock() {
         else
             row.remove_style_class_name('active');
         try {
-            row.style = on
-                ? 'border-radius: 18px; min-height: 52px; height: 52px;'
-                : 'border-radius: 18px; min-height: 52px; height: 52px;';
-            row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
-            mainBtn.style = 'min-height: 52px; padding: 8px 12px; background-color: transparent;';
+            const {h} = rowGeometryFor(currentTileStyleId());
+            fitRowGeometryToStyle(currentTileStyleId(), row, mainBtn, dropBtn);
+            row.height = h;
 
             text.style = on ? `font-weight: 700; color: ${onP};` : 'font-weight: 600;';
         } catch (e) {}
@@ -1968,6 +2084,7 @@ export function wifiQsBlock() {
                 dropIcon.remove_style_class_name('on-accent');
             }
         } catch (e) {}
+        try { syncTileExtras(row, on); } catch (e) {}
     };
 
     const rebuildList = () => {
@@ -2309,7 +2426,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     if (end4) {
         const dual = new St.BoxLayout({
             style_class: 'material-panel-qs-dual-slider',
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             x_expand: true,
         });
         const vol = volumeSliderRow();
@@ -2333,7 +2450,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         if (tall) {
             const dual = new St.BoxLayout({
                 style_class: 'material-panel-qs-dual-slider material-panel-qs-dual-slider-tall',
-                vertical: false,
+                orientation: Clutter.Orientation.HORIZONTAL,
                 x_expand: true,
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -2372,7 +2489,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const tileStyleId = currentTileStyleId();
     const iconOnly = !end4 && tileStyleId === 'icon-only';
     const grid = new St.Widget({
-        style_class: `material-panel-qs-grid material-panel-qs-tiles--${tileStyleId}`,
+        style_class: `material-panel-qs-grid material-panel-qs-tiles--${tileStyleId}${isQuietTileStyle(tileStyleId) ? ' material-panel-qs-tiles--quiet' : ''}`,
         x_expand: true,
         layout_manager: new Clutter.GridLayout({
             column_homogeneous: true,

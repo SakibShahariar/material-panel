@@ -204,7 +204,7 @@ function pickPreferredPlayer(callback) {
 export function buildMediaPlayerRow() {
     const row = new St.BoxLayout({
         style_class: 'material-panel-qs-media',
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
         visible: false,
@@ -223,7 +223,7 @@ export function buildMediaPlayerRow() {
     try { artIcon.style = 'border-radius: 10px;'; } catch (e) {}
 
     const textCol = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
@@ -254,7 +254,7 @@ export function buildMediaPlayerRow() {
     textCol.add_child(artistLabel);
 
     const controls = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: 'material-panel-qs-media-controls',
     });
@@ -385,13 +385,13 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-media-popup-body',
     });
     try { body.style = 'spacing: 10px; padding: 4px; min-width: 220px;'; } catch (e) {}
 
     const head = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-popup-card',
         y_align: Clutter.ActorAlign.CENTER,
     });
@@ -402,7 +402,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         style_class: 'material-panel-media-popup-art',
         icon_name: 'audio-x-generic-symbolic',
     });
-    const textCol = new St.BoxLayout({vertical: true, x_expand: true});
+    const textCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
     try { textCol.style = 'spacing: 4px;'; } catch (e) {}
     const pTitle = new St.Label({
         text: 'No media',

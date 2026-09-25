@@ -285,7 +285,7 @@ export function isBluetoothPopupReady() {
 
 export function buildBluetooth(_extensionPath, scale = 1.0) {
     const cancellable = new Gio.Cancellable();
-    const buttonBox = new St.BoxLayout({vertical: false, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-chip-box'});
+    const buttonBox = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-chip-box'});
     const icon = new St.Icon({
         style_class: 'material-panel-bluetooth-icon',
         icon_size: Math.round(17 * (scale || 1.0)),
@@ -400,7 +400,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     // Device list section — scrollable vertical box, like Noctalia's ListView
     // and End4's ScrollView of Material cards. Uses St.ScrollView to avoid
     // unbounded menu height with many paired devices.
-    const devicesOuter = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-bt-outer'});
+    const devicesOuter = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'material-panel-bt-outer'});
     const devicesHeader = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-devices-header'});
     const devicesHeaderLabel = new St.Label({text: 'Paired devices', style_class: 'material-panel-bt-header-label', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
     const devicesHeaderCount = new St.Label({text: '', style_class: 'material-panel-bt-header-count', y_align: Clutter.ActorAlign.CENTER, style: 'font-size: 11px; opacity: 0.7;'});
@@ -416,7 +416,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         vscrollbar_policy: St.PolicyType.AUTOMATIC,
     });
     // Use CSS max-height (.material-panel-bt-scroll { max-height: 260px }) not inline style, and ensure scroll is constrained
-    const devicesBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'material-panel-bt-devices', style: 'min-width: 280px;'});
+    const devicesBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'material-panel-bt-devices', style: 'min-width: 280px;'});
     scroll.set_child(devicesBox);
     devicesOuter.add_child(scroll);
     const devicesOuterItem = wrapAsMenuItem(devicesOuter);
@@ -599,7 +599,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             y_align: Clutter.ActorAlign.CENTER,
             gicon,
         });
-        const textBox = new St.BoxLayout({vertical: true, x_expand: true});
+        const textBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         const nameLabel = makeWrappingLabel(displayName, 'material-panel-bt-device-name');
         nameLabel.x_expand = true;
         const parts = [];

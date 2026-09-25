@@ -74,7 +74,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     const box = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: 'material-panel-bt-connected',
         style: 'spacing: 6px;',
@@ -99,7 +99,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const body = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-headphones-popup-body',
         style: 'spacing: 10px; padding: 2px 0; min-width: 260px;',
     });
@@ -111,7 +111,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     body.add_child(title);
 
     const listBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-headphones-list',
         style: 'spacing: 8px;',
     });
@@ -146,7 +146,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         listBox.visible = !!devices.length;
         for (const d of devices) {
             const row = new St.BoxLayout({
-                vertical: false,
+                orientation: Clutter.Orientation.HORIZONTAL,
                 style_class: 'material-panel-headphones-row',
                 style: 'spacing: 10px; padding: 6px 4px;',
                 x_expand: true,
@@ -159,7 +159,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                 gicon: giconForKey('headphones', false) || Gio.ThemedIcon.new('audio-headphones-symbolic'),
             });
             const textCol = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
                 style: 'spacing: 2px;',
