@@ -699,6 +699,13 @@ export function volumeSliderRow() {
     });
     row.add_child(slider.actor);
     row.add_child(pctLabel);
+    row.connect('destroy', () => {
+        if (brightnessWriteId) {
+            try { GLib.source_remove(brightnessWriteId); } catch (e) {}
+            brightnessWriteId = 0;
+        }
+        pendingBrightnessPct = null;
+    });
     try {
         if (slider.hideExternalValue)
             pctLabel.visible = false;
@@ -866,6 +873,8 @@ export function brightnessSliderRow() {
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
+    let brightnessWriteId = 0;
+    let pendingBrightnessPct = null;
     if (briStyle.id === 'rails' || briStyle.id === 'arc') {
         try {
             row.orientation = Clutter.Orientation.VERTICAL;
@@ -880,11 +889,26 @@ export function brightnessSliderRow() {
         onChange: value => {
             const pct = Math.max(1, Math.round(value * 100));
             pctLabel.text = `${pct}%`;
-            try {
-                GLib.spawn_command_line_async(`brightnessctl set ${pct}%`);
-            } catch (e) {
-                logError(e, 'material-panel: brightnessctl set failed');
+            pendingBrightnessPct = pct;
+            if (brightnessWriteId) {
+                try { GLib.source_remove(brightnessWriteId); } catch (e) {}
             }
+            // Slider motion can emit many changes per second. Apply only the
+            // latest value after a short quiet period instead of spawning a
+            // brightnessctl process for every pointer-motion event.
+            brightnessWriteId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+                brightnessWriteId = 0;
+                const nextPct = pendingBrightnessPct;
+                pendingBrightnessPct = null;
+                if (nextPct === null || !row.get_stage())
+                    return GLib.SOURCE_REMOVE;
+                try {
+                    GLib.spawn_command_line_async(`brightnessctl set ${nextPct}%`);
+                } catch (e) {
+                    logError(e, 'material-panel: brightnessctl set failed');
+                }
+                return GLib.SOURCE_REMOVE;
+            });
         },
     });
     row.add_child(slider.actor);
