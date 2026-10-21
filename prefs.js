@@ -75,7 +75,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         const store = new ConfigStore();
         const config = store.load();
         const saveConfig = () => {
-            saveConfig()
+            try {
+                store.save(config);
+            } catch (e) {
+                console.error('material-panel prefs: save failed', e);
+            }
         };
         // Header: reset to defaults
         try {
