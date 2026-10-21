@@ -29,6 +29,7 @@ import json
 import os
 import re
 import ssl
+import subprocess
 import sys
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -48,6 +49,12 @@ def load_url() -> str:
     if env:
         url = env
     elif URL_FILE.is_file():
+        # A secret iCalendar URL is a bearer token. Tighten permissions on
+        # existing files too, not only on files created from the README command.
+        try:
+            URL_FILE.chmod(0o600)
+        except OSError as exc:
+            print(f"WARN: could not restrict permissions on {URL_FILE}: {exc}", file=sys.stderr)
         lines = URL_FILE.read_text(encoding="utf-8").splitlines()
         url = next((line.strip() for line in lines if line.strip()), "")
     else:
@@ -258,8 +265,25 @@ def write_json(events: list[dict], source: str) -> None:
         "events": events,
     }
     tmp = OUT.with_suffix(".tmp")
-    tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    tmp.replace(OUT)
+    payload = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+    try:
+        # Create/restrict the temporary file before writing event titles,
+        # locations, and meeting links, then atomically replace the cache.
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                fd = -1
+                handle.write(payload)
+        finally:
+            if fd >= 0:
+                os.close(fd)
+        tmp.replace(OUT)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def install_timer() -> None:
@@ -290,8 +314,14 @@ Persistent=true
 WantedBy=timers.target
 """
     )
-    os.system("systemctl --user daemon-reload")
-    os.system("systemctl --user enable --now material-panel-calendar-sync.timer")
+    try:
+        subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+        subprocess.run(
+            ["systemctl", "--user", "enable", "--now", "material-panel-calendar-sync.timer"],
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(f"Failed to install calendar sync timer: {exc}") from exc
     print("Timer installed: material-panel-calendar-sync.timer (every 15 min)")
     print("  systemctl --user status material-panel-calendar-sync.timer")
 
