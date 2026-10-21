@@ -33,6 +33,7 @@ import sys
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 HOME = Path.home()
 CFG = HOME / ".config" / "material-panel"
@@ -44,14 +45,24 @@ URL_ENV = "MATERIAL_PANEL_ICS_URL"
 def load_url() -> str:
     env = os.environ.get(URL_ENV, "").strip()
     if env:
-        return env
-    if URL_FILE.is_file():
-        return URL_FILE.read_text(encoding="utf-8").strip().splitlines()[0].strip()
-    raise SystemExit(
-        f"No ICS URL.\n"
-        f"  echo 'https://calendar.google.com/calendar/ical/…/basic.ics' > {URL_FILE}\n"
-        f"  or: export {URL_ENV}=…"
-    )
+        url = env
+    elif URL_FILE.is_file():
+        lines = URL_FILE.read_text(encoding="utf-8").splitlines()
+        url = next((line.strip() for line in lines if line.strip()), "")
+    else:
+        url = ""
+
+    if not url:
+        raise SystemExit(
+            f"No ICS URL configured (the URL file may be empty).\n"
+            f"  echo 'https://calendar.google.com/calendar/ical/…/basic.ics' > {URL_FILE}\n"
+            f"  or: export {URL_ENV}=…"
+        )
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise SystemExit(f"Invalid ICS URL: expected an http(s) URL, got {url!r}")
+    return url
 
 
 def fetch(url: str) -> str:
