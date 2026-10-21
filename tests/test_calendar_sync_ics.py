@@ -126,14 +126,14 @@ class LoadUrlTests(unittest.TestCase):
 class IcsTextHelpersTests(unittest.TestCase):
     def test_folded_lines_are_unfolded(self):
         self.assertEqual(
-            calendar_sync_ics.unfold("SUMMARY:An example\\r\\n with continuation\\r\\n"),
-            "SUMMARY:An examplewith continuation\\n",
+            calendar_sync_ics.unfold("SUMMARY:An example\r\n with continuation\r\n"),
+            "SUMMARY:An examplewith continuation\n",
         )
 
     def test_text_escapes_are_decoded(self):
         self.assertEqual(
-            calendar_sync_ics.unescape(r"Comma\\, semi\\; line\\nnext slash\\\\"),
-            "Comma, semi; line\\nnext slash\\",
+            calendar_sync_ics.unescape(r"Comma\, semi\; line\nnext slash\\"),
+            "Comma, semi; line\nnext slash\\",
         )
 
 
