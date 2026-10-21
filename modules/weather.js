@@ -547,6 +547,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
 
     let detail = null;
+    let lastSuccessAt = 0;
     let destroyed = false;
     let initialFetchId = 0;
     let fetchInFlight = false;
@@ -567,6 +568,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         if (destroyed)
             return;
         detail = data;
+        if (data?.temp != null)
+            lastSuccessAt = GLib.get_monotonic_time();
         if (data?.temp != null)
             label.text = `${Math.round(data.temp)}°`;
         else
@@ -767,7 +770,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         windStat.value.text = d.wind != null ? `${Math.round(d.wind)} km/h` : '—';
         const todayPop = d.daily?.[0]?.pop;
         rainStat.value.text = todayPop != null ? `${Math.round(todayPop)}%` : '—';
-        sourceLbl.text = d.source || '';
+        let ageLabel = '';
+        if (lastSuccessAt > 0) {
+            const ageMinutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - lastSuccessAt) / 60000000));
+            ageLabel = ageMinutes < 1 ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
+        }
+        sourceLbl.text = [d.source, ageLabel].filter(Boolean).join(' · ');
 
         // Hourly
         hourlyRow.destroy_all_children();
@@ -926,6 +934,15 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
 
+    const networkMonitor = Gio.NetworkMonitor.get_default();
+    let networkChangedId = 0;
+    try {
+        networkChangedId = networkMonitor.connect('network-changed', (_monitor, available) => {
+            if (available && !destroyed && (!detail || detail.source === 'Error'))
+                fetchWeather();
+        });
+    } catch (e) {}
+
     button.connect('clicked', () => {
         if (menu.isOpen)
             menuClose(menu);
@@ -941,6 +958,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
+        if (networkChangedId) {
+            try { networkMonitor.disconnect(networkChangedId); } catch (e) {}
+            networkChangedId = 0;
+        }
         if (initialFetchId) {
             try { GLib.source_remove(initialFetchId); } catch (e) {}
             initialFetchId = 0;
