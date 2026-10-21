@@ -390,7 +390,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (syncingExternal) return;
             const i = activityRow.get_selected();
             config.activityChip = actMap[i] ?? 'cpu';
-            try { store.save(config); } catch (e) { console.error(e); }
+            saveConfig();
         });
         activityGroup.add(activityRow);
 
