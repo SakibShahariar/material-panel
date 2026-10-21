@@ -16,6 +16,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 // "secret agent" D-Bus flow, which is a separate, more involved feature -
 // not attempted here.
 export function buildNetwork(_extensionPath, scale = 1.0) {
+    let destroyed = false;
     const button = new St.Button({
         style_class: 'material-panel-network material-panel-chip',
         reactive: true,
@@ -36,16 +37,24 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
     button.connect('clicked', () => menuToggle(menu));
-    button.connect('destroy', () => menu.destroy());
+    button.connect('destroy', () => {
+        destroyed = true;
+        menu.destroy();
+    });
 
     NM.Client.new_async(null, (_obj, res) => {
         let client;
         try {
             client = NM.Client.new_finish(res);
         } catch (e) {
-            logError(e, 'material-panel: NetworkManager unavailable');
+            if (!destroyed)
+                logError(e, 'material-panel: NetworkManager unavailable');
             return;
         }
+        // The panel may have been rebuilt while NetworkManager initialized.
+        // Finish the async operation, but don't attach UI or signals to a dead chip.
+        if (destroyed)
+            return;
 
         const setIcon = key => {
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
