@@ -869,7 +869,12 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const trips = zoneName ? readTripPoints(zoneName) : {high: null, critical: null};
 
         usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
-        tempValue.text = temp !== null ? `${temp}°C` : '—';
+        tempValue.text = temp !== null ? `${temp}°C` : 'N/A';
+        try {
+            tempValue.set_tooltip_text(temp !== null
+                ? 'CPU temperature from available thermal sensors'
+                : 'CPU temperature unavailable: no readable CPU thermal sensor was found');
+        } catch (e) {}
 
         const list = Array.isArray(cores) ? cores : [];
         ensureCoreRows(list.length);
