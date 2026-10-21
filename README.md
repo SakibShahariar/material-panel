@@ -95,15 +95,17 @@ re-enable needed.
 
 ## Tests
 
-Run the standard-library Python regression tests from the repository root:
+Run the regression tests from the repository root:
 
 ```sh
 python3 -m unittest discover -s tests
+node --experimental-default-type=module --test tests/*.test.mjs
 ```
 
-These tests cover ICS timestamp/time-zone parsing and multi-day all-day event
-indexing. They do not replace GNOME Shell runtime checks for panel widgets,
-NetworkManager callbacks, or desktop interactions.
+The same commands run in GitHub Actions. The tests cover ICS timestamp/time-zone
+parsing, multi-day all-day event indexing, layout snapshot restoration, and
+network byte-rate calculations. They do not replace GNOME Shell runtime checks
+for panel widgets, NetworkManager callbacks, or desktop interactions.
 
 ## Icons
 
