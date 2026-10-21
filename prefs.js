@@ -952,12 +952,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     }
             }
         };
-        window.connect('close-request', () => {
+        let cleanedUp = false;
+        const cleanup = () => {
             flushPendingSave();
+            if (cleanedUp)
+                return;
+            cleanedUp = true;
+            try {
+                store.unwatch();
+            } catch (e) {
+                console.error('material-panel prefs: config watcher cleanup failed', e);
+            }
+        };
+        window.connect('close-request', () => {
+            cleanup();
             return false;
         });
-        window.connect('destroy', flushPendingSave);
-        window.connect('unrealize', flushPendingSave);
+        window.connect('destroy', cleanup);
+        window.connect('unrealize', cleanup);
 
         try {
             store.watch(newConfig => {
