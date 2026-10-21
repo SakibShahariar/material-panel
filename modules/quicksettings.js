@@ -2164,9 +2164,11 @@ export function wifiQsBlock() {
                         return Clutter.EVENT_STOP;
                     client.activate_connection_async(conn, device, null, null, (c, res) => {
                         try { client.activate_connection_finish(res); } catch (e) {
-                            logError(e, 'material-panel: QS Wi-Fi activate failed');
+                            if (!destroyed)
+                                logError(e, 'material-panel: QS Wi-Fi activate failed');
                         }
-                        rebuildList();
+                        if (!destroyed)
+                            rebuildList();
                     });
                     return Clutter.EVENT_STOP;
                 });
