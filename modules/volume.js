@@ -23,6 +23,8 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
         reactive: true,
         track_hover: true,
+        can_focus: true,
+        accessible_role: St.AccessibleRole.BUTTON,
     });
     const iconSize = Math.round(17 * scale);
     let symbol = createMaterialSymbol('volume-high', iconSize, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
@@ -103,6 +105,10 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         ? [{symbol, key: currentKey}]
         : [{icon, key: currentKey}]);
 
+    const toggleMute = () => {
+        if (sink)
+            sink.change_is_muted(!sink.is_muted);
+    };
     box.connect('button-press-event', (_actor, event) => {
         // Only the primary click toggles mute; let secondary clicks propagate.
         try {
@@ -111,8 +117,16 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         } catch (e) {
             return Clutter.EVENT_PROPAGATE;
         }
-        if (sink)
-            sink.change_is_muted(!sink.is_muted);
+        toggleMute();
+        return Clutter.EVENT_STOP;
+    });
+    box.connect('key-press-event', (_actor, event) => {
+        let key;
+        try { key = event.get_key_symbol(); } catch (e) { return Clutter.EVENT_PROPAGATE; }
+        if (key !== Clutter.KEY_Return && key !== Clutter.KEY_KP_Enter &&
+            key !== Clutter.KEY_space && key !== Clutter.KEY_KP_Space)
+            return Clutter.EVENT_PROPAGATE;
+        toggleMute();
         return Clutter.EVENT_STOP;
     });
 
