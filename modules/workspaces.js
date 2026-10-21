@@ -106,6 +106,31 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const manager = global.workspace_manager;
+
+    // Scroll over the workspace chip to switch workspaces. Keep the range
+    // bounded; unlike app windows, the panel should not create new workspaces.
+    box.connect('scroll-event', (_actor, event) => {
+        try {
+            const direction = event.get_scroll_direction();
+            let delta = 0;
+            if (direction === Clutter.ScrollDirection.UP)
+                delta = -1;
+            else if (direction === Clutter.ScrollDirection.DOWN)
+                delta = 1;
+            if (!delta)
+                return Clutter.EVENT_PROPAGATE;
+            const current = manager.get_active_workspace_index();
+            const next = current + delta;
+            if (next < 0 || next >= manager.get_n_workspaces())
+                return Clutter.EVENT_STOP;
+            const workspace = manager.get_workspace_by_index(next);
+            workspace?.activate(global.get_current_time());
+            return Clutter.EVENT_STOP;
+        } catch (e) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+    });
+
     const iconSize = Math.max(16, Math.round(20 * (scale || 1)));
     // Overlap amount — keep modest so layout stays valid
     const pull = Math.max(6, Math.round(iconSize * 0.38));
