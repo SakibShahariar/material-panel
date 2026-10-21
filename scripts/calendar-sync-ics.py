@@ -10,7 +10,7 @@ Setup (Google Calendar):
   3. Save the secret URL with private permissions:
        umask 077
        mkdir -p ~/.config/material-panel
-       printf '%s\\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
+       printf '%s\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
        chmod 600 ~/.config/material-panel/calendar-ics.url
   4. Run:
        python3 ~/.local/share/gnome-shell/extensions/material-panel@SakibShahariar/scripts/calendar-sync-ics.py
