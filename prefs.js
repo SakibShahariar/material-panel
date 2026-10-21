@@ -230,6 +230,35 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         window.add(generalPage);
 
+        if (store.invalidConfigBackupPath) {
+            const recoveryGroup = new Adw.PreferencesGroup({
+                title: 'Configuration recovery',
+                description: 'The saved config could not be read. Material Panel is using defaults, and the original file was preserved for recovery.',
+            });
+            generalPage.add(recoveryGroup);
+            const recoveryRow = new Adw.ActionRow({
+                title: 'Invalid configuration preserved',
+                subtitle: store.invalidConfigBackupPath,
+            });
+            const openFolderButton = new Gtk.Button({
+                label: 'Open folder',
+                valign: Gtk.Align.CENTER,
+            });
+            openFolderButton.connect('clicked', () => {
+                try {
+                    const folder = GLib.build_filenamev([
+                        GLib.get_home_dir(), '.config', 'material-panel',
+                    ]);
+                    Gio.AppInfo.launch_default_for_uri(
+                        Gio.File.new_for_path(folder).get_uri(), null);
+                } catch (e) {
+                    logError(e, 'material-panel prefs: open config folder');
+                }
+            });
+            recoveryRow.add_suffix(openFolderButton);
+            recoveryGroup.add(recoveryRow);
+        }
+
         const sizeGroup = new Adw.PreferencesGroup({
             title: 'Panel Size',
             description: '',
