@@ -47,8 +47,24 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         try {
             client = NM.Client.new_finish(res);
         } catch (e) {
-            if (!destroyed)
+            if (!destroyed) {
                 logError(e, 'material-panel: NetworkManager unavailable');
+                // An empty popup looks like there are simply no networks.
+                // Surface the actual failure so users can distinguish it.
+                menu.addMenuItem(new PopupMenu.PopupMenuItem(
+                    'NetworkManager unavailable',
+                    {reactive: false},
+                ));
+                const settingsItem = new PopupMenu.PopupMenuItem('Network settings…');
+                settingsItem.connect('activate', closeAfter(menu, () => {
+                    try {
+                        GLib.spawn_command_line_async('gnome-control-center network');
+                    } catch (launchError) {
+                        logError(launchError, 'material-panel: open network settings failed');
+                    }
+                }));
+                menu.addMenuItem(settingsItem);
+            }
             return;
         }
         // The panel may have been rebuilt while NetworkManager initialized.
