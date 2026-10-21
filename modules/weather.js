@@ -865,7 +865,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 logError(e, 'material-panel: IP weather failed');
             }
             // 3) Default (Dhaka)
-            apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka', 'Open-Meteo · default'));
+            apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location'));
         } catch (e) {
             if (destroyed)
                 return;
