@@ -87,45 +87,36 @@ ln -s "$(pwd)" ~/.local/share/gnome-shell/extensions/material-panel@SakibShahari
 dbus-run-session -- gnome-shell --nested --wayland
 
 # Enable the extension
-gnome-extensions enable material-panel@you
+gnome-extensions enable material-panel@SakibShahariar
 
 # Watch logs while developing
 journalctl -f -o cat /usr/bin/gnome-shell
 ```
 
 Edit `~/.config/material-panel/config.json` directly, or use
-`gnome-extensions prefs material-panel@you` — both are watched live, no
+`gnome-extensions prefs material-panel@SakibShahariar` — both are watched live, no
 re-enable needed.
 
 ## Icons
 
-Icon-bearing modules (activities, battery, volume, network) don't use
-system icon-theme lookups (`icon_name`) - that would mean icons look
-different depending on whatever icon theme happens to be installed, and
-plain system symbolic icons don't recolor against matugen output the way
-we'd want (GNOME's symbolic recoloring uses a specific encoding Google's
-Material Symbols source files don't use).
+Icon-bearing modules use bundled Material Symbols SVGs rather than relying
+on the installed system icon theme. `assets/icons-src/*.svg` contains the
+source SVGs; `lib/iconTheme.js` recolors them at theme-apply time and writes
+the generated copies to `~/.config/material-panel/icons/`. Modules load
+those generated files with `Gio.FileIcon`/`gicon`.
 
-Instead: `assets/icons-src/*.svg` holds single-fill-color Material Symbols
-source files (empty until you run the fetch script below), and `lib/iconTheme.js` regex-substitutes the fill color
-at theme-apply time, writing recolored copies to
-`~/.config/material-panel/icons/`. Modules load those via
-`Gio.FileIcon`/`gicon`, not `icon_name`. This runs every time `theme.js`
-applies - alongside CSS generation - so icons stay in sync with matugen
-automatically.
-
-Run once after cloning, before enabling the extension:
+The source SVGs are committed, so a fresh checkout does not need to download
+them before enabling the extension. To refresh the sources from Google's
+`google/material-design-icons` repository (Apache 2.0), run:
 
 ```sh
 bash scripts/fetch-icons.sh
 ```
 
-This sparse-clones just the needed folders from
-`google/material-design-icons` (Apache 2.0 licensed) and copies ~13 SVGs
-into `assets/icons-src/`. If Google's internal file-naming has changed
-since this was written, the script logs a `WARN` per missing icon rather
-than failing outright - that module just renders without an icon until
-you fix the mapping in the script.
+The fetch script tries filled and regular variants, validates the downloaded
+SVG, and leaves an existing icon untouched if both downloads fail or the
+response is invalid. Review the resulting asset changes before committing
+them.
 
 ## Known limitations
 
