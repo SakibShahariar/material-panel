@@ -105,11 +105,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     if (response !== 'reset')
                         return;
                     try {
-                        store.resetDefaults();
-
-                        // Stop the old config watcher before rebuilding controls
-                        // from the newly restored defaults.
+                        // Flush pending edits and stop the old watcher before
+                        // resetting, or its final save could overwrite defaults.
                         cleanup();
+                        store.resetDefaults();
                         for (const page of preferencePages)
                             window.remove(page);
                         const header = resetBtn.get_parent?.();
