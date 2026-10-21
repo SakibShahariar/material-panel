@@ -9,7 +9,7 @@ SRC_ICONS=(
   wifi settings_ethernet wifi_off
   apps
   dark_mode light_mode nightlight
-  do_not_disturb_on notifications
+  do_not_disturb_on do_not_disturb_off notifications_active
   lock bedtime restart_alt power_settings_new
   bluetooth bluetooth_disabled
   settings
@@ -35,7 +35,8 @@ declare -A MAP=(
   [light_mode]=light-mode
   [nightlight]=night-light
   [do_not_disturb_on]=dnd-active
-  [notifications]=dnd-inactive
+  [do_not_disturb_off]=dnd-inactive
+  [notifications_active]=notifications
   [lock]=lock
   [bedtime]=suspend
   [restart_alt]=restart
