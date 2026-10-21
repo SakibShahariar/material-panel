@@ -108,28 +108,40 @@ function gweatherIconKey(info) {
 
 function httpGet(url, cancellable = null) {
     return new Promise((resolve, reject) => {
+        const requestCancellable = cancellable || new Gio.Cancellable();
+        let settled = false;
+        let timeoutId = 0;
+        const finish = (callback, value) => {
+            if (settled)
+                return;
+            settled = true;
+            if (timeoutId) {
+                try { GLib.source_remove(timeoutId); } catch (e) {}
+                timeoutId = 0;
+            }
+            callback(value);
+        };
+        timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 20, () => {
+            requestCancellable.cancel();
+            finish(reject, new Error('Weather request timed out after 20 seconds'));
+            return GLib.SOURCE_REMOVE;
+        });
         try {
             const file = Gio.File.new_for_uri(url);
-            file.load_contents_async(cancellable, (f, res) => {
+            file.load_contents_async(requestCancellable, (f, res) => {
                 try {
-                    if (cancellable?.is_cancelled?.()) {
-                        reject(new Gio.IOErrorEnum({code: Gio.IOErrorEnum.CANCELLED}));
-                        return;
-                    }
                     const [ok, contents] = f.load_contents_finish(res);
                     if (!ok || !contents) {
-                        reject(new Error(`load failed ${url}`));
+                        finish(reject, new Error(`load failed ${url}`));
                         return;
                     }
-                    resolve(new TextDecoder('utf-8').decode(contents));
+                    finish(resolve, new TextDecoder('utf-8').decode(contents));
                 } catch (e) {
-                    if (e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                        return;
-                    reject(e);
+                    finish(reject, e);
                 }
             });
         } catch (e) {
-            reject(e);
+            finish(reject, e);
         }
     });
 }
@@ -370,9 +382,9 @@ function fetchViaGWeatherInfo(GWeather, gwLoc, placeName) {
     });
 }
 
-async function fetchOpenMeteo(lat, lon, place, sourceTag) {
+async function fetchOpenMeteo(lat, lon, place, sourceTag, cancellable = null) {
     const url = OPEN_METEO.replace('%LAT%', lat).replace('%LON%', lon);
-    const text = await httpGet(url);
+    const text = await httpGet(url, cancellable);
     const json = JSON.parse(text);
     const cur = json.current;
     if (!cur)
@@ -528,6 +540,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     let detail = null;
     let destroyed = false;
     let initialFetchId = 0;
+    let fetchInFlight = false;
 
     const setChipIcon = key => {
         try {
@@ -846,26 +859,27 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     const fetchWeather = async () => {
-        if (destroyed)
+        if (destroyed || fetchInFlight)
             return;
+        fetchInFlight = true;
         try {
             // 1) GNOME Weather city → Open-Meteo (full current + hourly + daily)
             const gw = await loadGnomeWeatherLocation();
             if (gw?.lat != null && gw?.lon != null) {
                 apply(await fetchOpenMeteo(
-                    gw.lat, gw.lon, gw.name || 'Local', 'Open-Meteo · GNOME Weather'));
+                    gw.lat, gw.lon, gw.name || 'Local', 'Open-Meteo · GNOME Weather', cancellable));
                 return;
             }
             // 2) IP geolocation disabled — privacy (see resolveIpLocation)
             try {
                 const ip = await resolveIpLocation();
-                apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP'));
+                apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP', cancellable));
                 return;
             } catch (e) {
                 logError(e, 'material-panel: IP weather failed');
             }
             // 3) Default (Dhaka)
-            apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location'));
+            apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location', cancellable));
         } catch (e) {
             if (destroyed)
                 return;
@@ -877,6 +891,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
             }
             fillPopup();
+        } finally {
+            fetchInFlight = false;
         }
     };
 
