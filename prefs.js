@@ -502,7 +502,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         modulesPage.add(visibilityGroup);
 
         const createModuleToggle = (module) => {
-            const isHidden = config.hiddenModules.includes(module.id);
+            const activePreset = config.presets?.[config.activePreset];
+            const zones = activePreset?.zones ?? {};
+            const isPlaced = ZONE_NAMES.some(zone => (zones[zone] ?? []).includes(module.id));
+            const isHidden = config.hiddenModules.includes(module.id) || !isPlaced;
             const row = new Adw.ActionRow({
                 title: module.name,
                 subtitle: `Zone: ${module.zone} • ${hasBuiltin(module.id) ? 'Built-in' : 'External'}`,
@@ -518,6 +521,19 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 if (toggle.active) {
                     const idx = hidden.indexOf(module.id);
                     if (idx > -1) hidden.splice(idx, 1);
+                    // Visibility alone cannot restore a module removed from every
+                    // zone. Put it back in its documented default zone in that case.
+                    const active = config.presets?.[config.activePreset];
+                    if (active?.zones) {
+                        const placed = ZONE_NAMES.some(zone =>
+                            (active.zones[zone] ?? []).includes(module.id));
+                        if (!placed) {
+                            const target = ZONE_NAMES.includes(module.zone) ? module.zone : 'right';
+                            if (!Array.isArray(active.zones[target]))
+                                active.zones[target] = [];
+                            active.zones[target].push(module.id);
+                        }
+                    }
                 } else {
                     if (!hidden.includes(module.id)) hidden.push(module.id);
                 }
