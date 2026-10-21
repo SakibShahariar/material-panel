@@ -869,11 +869,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const s = TILE_STYLES[sel] || TILE_STYLES[0];
             if (s) {
                 config.qsTileStyle = s.id;
-                try {
-                    store.save(config);
-                } catch (e) {
-                    console.error('material-panel prefs: qsTileStyle save failed', e);
-                }
+                saveConfig();
             }
         });
         tileStyleRow.add_suffix(tileStyleDrop);
