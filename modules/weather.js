@@ -526,6 +526,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
 
     let detail = null;
+    let destroyed = false;
+    let initialFetchId = 0;
 
     const setChipIcon = key => {
         try {
@@ -538,6 +540,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     const apply = data => {
+        if (destroyed)
+            return;
         detail = data;
         if (data?.temp != null)
             label.text = `${Math.round(data.temp)}°`;
@@ -842,6 +846,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     const fetchWeather = async () => {
+        if (destroyed)
+            return;
         try {
             // 1) GNOME Weather city → Open-Meteo (full current + hourly + daily)
             const gw = await loadGnomeWeatherLocation();
@@ -861,6 +867,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             // 3) Default (Dhaka)
             apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka', 'Open-Meteo · default'));
         } catch (e) {
+            if (destroyed)
+                return;
             logError(e, 'material-panel: weather fetch');
             label.text = '—°';
             detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
@@ -881,6 +889,11 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
     });
     button.connect('destroy', () => {
+        destroyed = true;
+        if (initialFetchId) {
+            try { GLib.source_remove(initialFetchId); } catch (e) {}
+            initialFetchId = 0;
+        }
         try { cancellable.cancel(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
@@ -888,9 +901,13 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     try { wireFileIconPress(button, () => [{icon, key: detail?.iconKey || 'weather'}]); } catch (e) {}
 
     // Defer first fetch — never block/crash enable() on network or GIR
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 400, () => {
+    initialFetchId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 400, () => {
+        initialFetchId = 0;
+        if (destroyed)
+            return GLib.SOURCE_REMOVE;
         try { fetchWeather(); } catch (e) {
-            logError(e, 'material-panel: deferred weather fetch');
+            if (!destroyed)
+                logError(e, 'material-panel: deferred weather fetch');
         }
         return GLib.SOURCE_REMOVE;
     });
