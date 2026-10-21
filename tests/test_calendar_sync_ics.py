@@ -100,3 +100,28 @@ class AllDayEventTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LoadUrlTests(unittest.TestCase):
+    def test_environment_url_is_accepted(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"MATERIAL_PANEL_ICS_URL": "https://example.com/calendar.ics"}):
+            self.assertEqual(
+                calendar_sync_ics.load_url(),
+                "https://example.com/calendar.ics",
+            )
+
+    def test_non_http_url_is_rejected(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"MATERIAL_PANEL_ICS_URL": "file:///tmp/calendar.ics"}):
+            with self.assertRaises(SystemExit) as error:
+                calendar_sync_ics.load_url()
+        self.assertIn("expected an http(s) URL", str(error.exception))
+
+    def test_empty_environment_url_is_rejected_without_config_file(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"MATERIAL_PANEL_ICS_URL": ""}), \
+             patch.object(calendar_sync_ics, "URL_FILE", Path("/nonexistent/material-panel-test-url")):
+            with self.assertRaises(SystemExit) as error:
+                calendar_sync_ics.load_url()
+        self.assertIn("No ICS URL configured", str(error.exception))
