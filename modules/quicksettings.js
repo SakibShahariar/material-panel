@@ -345,7 +345,7 @@ function fitRowContentToStyle(sid, mainBox, icon, text, opts = {}) {
 
     if (sid === 'glass' || sid === 'recessed' || sid === 'indicator') {
         try {
-            mainBox.vertical = true;
+            mainBox.orientation = Clutter.Orientation.VERTICAL;
             mainBox.y_align = Clutter.ActorAlign.CENTER;
             mainBox.style = 'spacing: 6px; padding: 8px 10px;';
             icon.x_align = Clutter.ActorAlign.CENTER;
@@ -366,7 +366,7 @@ function fitRowContentToStyle(sid, mainBox, icon, text, opts = {}) {
         });
         try {
             mainBox.remove_child(icon);
-            mainBox.vertical = true;
+            mainBox.orientation = Clutter.Orientation.VERTICAL;
             mainBox.y_align = Clutter.ActorAlign.CENTER;
             mainBox.style = 'spacing: 6px; padding: 10px 4px;';
             mainBox.insert_child_at_index(chip, 0);
@@ -461,13 +461,13 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
             chip.style = 'width: 38px; height: 38px; border-radius: 19px;';
         } catch (e) {}
         iconHost = chip;
-        box.vertical = true;
+        box.orientation = Clutter.Orientation.VERTICAL;
         box.style = 'spacing: 6px; padding: 8px 4px;';
         text.x_align = Clutter.ActorAlign.CENTER;
         try { text.style = 'font-size: 11px; font-weight: 600;'; } catch (e) {}
         try { tile.style = 'min-height: 86px;'; } catch (e) {}
     } else if (sid0 === 'glass' || sid0 === 'recessed') {
-        box.vertical = true;
+        box.orientation = Clutter.Orientation.VERTICAL;
         box.style = 'spacing: 6px; padding: 8px 8px;';
         icon.x_align = Clutter.ActorAlign.CENTER;
         text.x_align = Clutter.ActorAlign.CENTER;
@@ -481,7 +481,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
             tile.style = 'width: 42px; height: 42px; min-width: 42px; min-height: 42px; padding: 0; border-radius: 999px;';
         } catch (e) {}
     } else if (sid0 === 'indicator') {
-        box.vertical = true;
+        box.orientation = Clutter.Orientation.VERTICAL;
         box.style = 'spacing: 4px; padding: 8px 10px 4px;';
     }
 
@@ -661,7 +661,7 @@ export function volumeSliderRow() {
     // Tall styles need a vertical row so they don't crush icon/% in one line
     if (volStyle.id === 'rails' || volStyle.id === 'arc') {
         try {
-            row.vertical = true;
+            row.orientation = Clutter.Orientation.VERTICAL;
             row.style = 'spacing: 8px; padding: 4px 0;';
             icon.x_align = Clutter.ActorAlign.CENTER;
             pctLabel.x_align = Clutter.ActorAlign.CENTER;
@@ -868,7 +868,7 @@ export function brightnessSliderRow() {
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
     if (briStyle.id === 'rails' || briStyle.id === 'arc') {
         try {
-            row.vertical = true;
+            row.orientation = Clutter.Orientation.VERTICAL;
             row.style = 'spacing: 8px; padding: 4px 0;';
         } catch (e) {}
     }
