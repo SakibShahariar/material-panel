@@ -2148,6 +2148,15 @@ export function wifiQsBlock() {
         try { syncTileExtras(row, on); } catch (e) {}
     };
 
+    const activeWifiConnection = () => {
+        try {
+            return client?.get_active_connections?.().find(active =>
+                active.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME) ?? null;
+        } catch (e) {
+            return null;
+        }
+    };
+
     const rebuildList = () => {
         listPanel.destroy_all_children();
         if (!client) {
@@ -2164,7 +2173,7 @@ export function wifiQsBlock() {
             }));
             return;
         }
-        const activeId = client.get_primary_connection()?.get_uuid?.() ?? null;
+        const activeId = activeWifiConnection()?.get_uuid?.() ?? null;
         const wifiConnections = client.get_connections()
             .filter(c => c.get_connection_type() === NM.SETTING_WIRELESS_SETTING_NAME);
         if (wifiConnections.length === 0) {
@@ -2319,7 +2328,7 @@ export function wifiQsBlock() {
                 return;
             const on = !!client.wireless_enabled;
             setActive(on);
-            const conn = client.get_primary_connection();
+            const conn = activeWifiConnection();
             if (on) {
                 if (conn?.get_connection_type?.() === NM.SETTING_WIRELESS_SETTING_NAME)
                     _ssid = conn.get_id?.() || 'Wi-Fi';
