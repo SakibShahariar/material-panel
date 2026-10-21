@@ -896,7 +896,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             // 3) Default (Dhaka)
             apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location', cancellable));
             retryDelaySeconds = 60;
-            if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0;
+            if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
         } catch (e) {
             if (destroyed)
                 return;
