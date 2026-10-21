@@ -183,23 +183,44 @@ function attachTileExtras(host, contentBox) {
                 try { GLib.source_remove(bag.eqTimer); } catch (e2) {}
                 bag.eqTimer = 0;
             }
+            bag.eqTimer = 0;
+            bag.eqOn = false;
             bag.eqBars = null;
             bag.eq = null;
         });
         bag.eq = eq;
         bag.eqBars = bars;
         bag.eqTimer = 0;
+        bag.eqOn = false;
         bag.eqTick = () => {
-            if (!bars.length)
-                return GLib.SOURCE_CONTINUE;
-            if (!bars[0].is_mapped) // destroyed or hidden after menu close
-                return GLib.SOURCE_CONTINUE;
+            if (!bars.length || !bars[0].is_mapped) {
+                // Stop waking the main loop while the popup is hidden. The
+                // mapped notification below restarts animation when visible.
+                bag.eqTimer = 0;
+                return GLib.SOURCE_REMOVE;
+            }
             for (let i = 0; i < bars.length; i++) {
                 const h = 6 + Math.floor(Math.random() * 12);
                 try { bars[i].height = h; } catch (e) {}
             }
             return GLib.SOURCE_CONTINUE;
         };
+        bag.startEq = () => {
+            if (bag.eqOn && bars[0]?.is_mapped && !bag.eqTimer)
+                bag.eqTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, bag.eqTick);
+        };
+        bag.stopEq = () => {
+            if (bag.eqTimer) {
+                try { GLib.source_remove(bag.eqTimer); } catch (e) {}
+                bag.eqTimer = 0;
+            }
+        };
+        bars[0].connect('notify::mapped', () => {
+            if (bars[0].is_mapped)
+                bag.startEq();
+            else
+                bag.stopEq();
+        });
     }
 
     if (extras.includes('ring')) {
@@ -283,11 +304,11 @@ function syncTileExtras(host, on) {
     } catch (e) {}
     try {
         if (bag.eqBars) {
-            if (on && !bag.eqTimer) {
-                bag.eqTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, bag.eqTick);
-            } else if (!on && bag.eqTimer) {
-                try { GLib.source_remove(bag.eqTimer); } catch (e) {}
-                bag.eqTimer = 0;
+            bag.eqOn = !!on;
+            if (on) {
+                bag.startEq?.();
+            } else {
+                bag.stopEq?.();
                 // reset short
                 bag.eqBars.forEach((b, i) => {
                     try { b.height = 6 + (i % 3) * 3; } catch (e) {}
