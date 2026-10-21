@@ -90,27 +90,47 @@ function readTempHwmon() {
 
 function readTripPoints(zoneName) {
     const trips = {high: null, critical: null};
+    const candidates = [];
     try {
         const dir = Gio.File.new_for_path(`/sys/class/thermal/${zoneName}`);
         const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
         let info;
         while ((info = enumerator.next_file(null)) !== null) {
-            const name = info.get_name();
-            if (name.startsWith('trip_point_') && name.endsWith('_temp')) {
-                const [ok, contents] = Gio.File.new_for_path(`/sys/class/thermal/${zoneName}/${name}`).load_contents(null);
-                if (ok) {
-                    const raw = parseInt(new TextDecoder('utf-8').decode(contents).trim(), 10);
-                    const deg = raw > 1000 ? raw / 1000 : raw;
-                    if (name.includes('trip_point_0') || name.includes('trip_point_1')) {
-                        trips.high = Math.round(deg);
-                    } else if (name.includes('trip_point_2') || name.includes('trip_point_3')) {
-                        trips.critical = Math.round(deg);
-                    }
-                }
+            const match = info.get_name().match(/^trip_point_(\d+)_temp$/);
+            if (!match)
+                continue;
+            const index = Number(match[1]);
+            try {
+                const basePath = `/sys/class/thermal/${zoneName}/trip_point_${index}`;
+                const [okTemp, tempContents] = Gio.File.new_for_path(`${basePath}_temp`).load_contents(null);
+                const [okType, typeContents] = Gio.File.new_for_path(`${basePath}_type`).load_contents(null);
+                if (!okTemp || !okType)
+                    continue;
+                const raw = Number.parseInt(new TextDecoder('utf-8').decode(tempContents).trim(), 10);
+                if (!Number.isFinite(raw))
+                    continue;
+                const deg = raw > 1000 ? raw / 1000 : raw;
+                const type = new TextDecoder('utf-8').decode(typeContents).trim().toLowerCase();
+                candidates.push({index, type, temperature: Math.round(deg)});
+            } catch (e) {
+                // Some thermal zones expose incomplete trip-point metadata.
             }
         }
         enumerator.close(null);
     } catch (e) {}
+    candidates.sort((a, b) => a.index - b.index);
+
+    // Linux thermal trip points are typed (active/passive/hot/critical);
+    // their numeric indices do not have a fixed meaning across devices.
+    const hot = candidates.find(trip => trip.type === 'hot');
+    const passive = candidates.find(trip => trip.type === 'passive');
+    const critical = candidates.find(trip => trip.type === 'critical');
+    if (hot)
+        trips.high = hot.temperature;
+    else if (passive)
+        trips.high = passive.temperature;
+    if (critical)
+        trips.critical = critical.temperature;
     return trips;
 }
 
