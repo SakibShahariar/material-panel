@@ -217,9 +217,7 @@ function buildHeader(menu) {
         return b;
     };
     row.add_child(mkBtn('document-edit-symbolic', openPrefs));
-    row.add_child(mkBtn('view-refresh-symbolic', () => {
-        try { Main.notify('material-panel', 'Quick Settings refreshed'); } catch (e) {}
-    }));
+    // Don't present a refresh control until it has a real refresh operation.
     row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
     row.add_child(mkBtn('system-shutdown-symbolic', () => {
         try { menuClose(menu); } catch (e) {}
