@@ -135,11 +135,11 @@ function relativeTime(unix) {
 }
 
 function dayKey(unix) {
+    if (!unix)
+        return {key: 'unknown', label: 'Date unknown'};
     try {
         const now = GLib.DateTime.new_now_local();
-        const dt = unix
-            ? GLib.DateTime.new_from_unix_local(unix)
-            : now;
+        const dt = GLib.DateTime.new_from_unix_local(unix);
         const today = now.format('%F');
         const yest = now.add_days(-1).format('%F');
         const key = dt.format('%F');
