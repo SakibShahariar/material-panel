@@ -112,6 +112,19 @@ function confirmPower(action) {
 
 // ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
 
+function isFedoraHost() {
+    try {
+        const [ok, bytes] = Gio.File.new_for_path('/etc/os-release').load_contents(null);
+        if (!ok)
+            return false;
+        const text = new TextDecoder('utf-8').decode(bytes);
+        const match = text.match(/^ID=(?:"([^"]+)"|'([^']+)'|([^\r\n]+))$/m);
+        return (match?.[1] || match?.[2] || match?.[3] || '').trim().toLowerCase() === 'fedora';
+    } catch (e) {
+        return false;
+    }
+}
+
 function buildHeader(menu) {
     const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
     style(row, 'spacing: 6px;');
@@ -122,19 +135,20 @@ function buildHeader(menu) {
     });
     style(uptimePill, `background-color: ${surface()}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
 
-    // Fedora logo (falls back to symbolic / os-release brand)
+    // Only show Fedora branding on Fedora; use a neutral computer icon elsewhere.
     const logo = new St.Icon({
         icon_size: 16,
         y_align: Clutter.ActorAlign.CENTER,
     });
     try {
-        const g = loadGicon(['fedora-logo'], false);
+        const isFedora = isFedoraHost();
+        const g = loadGicon(isFedora ? ['fedora-logo'] : ['computer'], false);
         if (g)
             logo.gicon = g;
         else
-            logo.icon_name = 'fedora-logo-icon';
+            logo.icon_name = 'computer-symbolic';
     } catch (e) {
-        try { logo.icon_name = 'fedora-logo-icon'; } catch (e2) {}
+        try { logo.icon_name = 'computer-symbolic'; } catch (e2) {}
     }
     uptimePill.add_child(logo);
 
