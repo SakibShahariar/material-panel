@@ -304,6 +304,9 @@ Description=Sync ICS calendar into material-panel
 
 [Service]
 Type=oneshot
+# Retry promptly when the network is not ready at boot.
+Restart=on-failure
+RestartSec=2min
 ExecStart={sys.executable} {script}
 """
     )
