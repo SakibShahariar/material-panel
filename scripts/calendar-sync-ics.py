@@ -40,11 +40,14 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from scripts.calendar_sync_http import fetch_conditional, save_validators
+
 HOME = Path.home()
 CFG = HOME / ".config" / "material-panel"
 OUT = CFG / "calendar-events.json"
 URL_FILE = CFG / "calendar-ics.url"
 URL_ENV = "MATERIAL_PANEL_ICS_URL"
+HTTP_STATE = CFG / "calendar-ics.http.json"
 
 
 def load_url() -> str:
@@ -343,7 +346,7 @@ def main() -> None:
     url = (args.url or "").strip() or load_url()
     print("Fetching ICS…", file=sys.stderr)
     try:
-        ics = fetch(url)
+        ics, validators = fetch_conditional(url, HTTP_STATE)
     except urllib.error.HTTPError as exc:
         print(f"ERROR: calendar sync failed (HTTP {exc.code})", file=sys.stderr)
         raise SystemExit(2) from exc
@@ -351,8 +354,12 @@ def main() -> None:
         reason = getattr(exc, "reason", "network error")
         print(f"ERROR: calendar sync failed (network error: {reason})", file=sys.stderr)
         raise SystemExit(3) from exc
+    if ics is None:
+        print("Calendar unchanged (HTTP 304); keeping cached events.", file=sys.stderr)
+        return
     events = parse_events(ics, horizon_days=args.days)
     write_json(events, source="ics")
+    save_validators(HTTP_STATE, validators)
     print(f"Wrote {len(events)} events → {OUT}")
 
 
