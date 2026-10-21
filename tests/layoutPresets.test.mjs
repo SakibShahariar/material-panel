@@ -55,5 +55,5 @@ test('restores the preset associated with a saved layout snapshot', () => {
 
     assert.equal(config.activePreset, 'custom');
     assert.deepEqual(config.presets.custom.zones, customZones);
-    assert.deepEqual(config.presets.default.zones, END4_ZONES);
+    assert.deepEqual(config.presets.default.zones, DEFAULT_ZONES);
 });
