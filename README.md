@@ -114,6 +114,28 @@ SVG, and leaves an existing icon untouched if both downloads fail or the
 response is invalid. Review the resulting asset changes before committing
 them.
 
+## Optional ICS calendar sync
+
+The optional `scripts/calendar-sync-ics.py` script imports events from an ICS
+feed into `~/.config/material-panel/calendar-events.json`. A calendar's
+secret iCalendar URL acts like a password, so store it with private file
+permissions:
+
+```sh
+umask 077
+mkdir -p ~/.config/material-panel
+printf '%s\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
+chmod 600 ~/.config/material-panel/calendar-ics.url
+python3 scripts/calendar-sync-ics.py
+```
+
+The script also accepts `MATERIAL_PANEL_ICS_URL` in the environment. The
+generated event cache is written with mode `0600` because it may contain
+event titles, locations, and meeting links. To install a systemd user timer
+that syncs every 15 minutes, run `python3 scripts/calendar-sync-ics.py
+--install-timer`. Recurring-event expansion and exclusions are not yet
+implemented.
+
 ## Known limitations
 
 - Weather uses the location configured in GNOME Weather when available. If that location cannot be read, the fallback is explicitly labeled **Dhaka (default location)**; a separate manual-location setting is not implemented yet.
