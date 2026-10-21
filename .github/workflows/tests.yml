@@ -22,5 +22,7 @@ jobs:
           find . -name '*.js' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' file; do
             node --input-type=module --check < "$file" || exit 1
           done
+      - name: Run JavaScript regression tests
+        run: node --experimental-default-type=module --test tests/*.test.mjs
       - name: Run calendar regression tests
         run: python -m unittest discover -s tests -v
