@@ -24,11 +24,25 @@ function findActiveInterface() {
     try {
         const [okR, routeBytes] = Gio.File.new_for_path('/proc/net/route').load_contents(null);
         if (okR) {
+            let bestIface = null;
+            let bestMetric = Infinity;
             for (const line of decodeBytes(routeBytes).split('\n')) {
                 const p = line.trim().split(/\s+/);
-                if (p.length >= 2 && p[0] !== 'Iface' && p[1] === '00000000' && p[0] !== 'lo')
-                    return p[0];
+                if (p.length < 7 || p[0] === 'Iface' || p[0] === 'lo')
+                    continue;
+                if (p[1] !== '00000000')
+                    continue;
+                const flags = Number.parseInt(p[3], 16) || 0;
+                const metric = Number.parseInt(p[6], 10);
+                if (!(flags & 0x1) || !Number.isFinite(metric))
+                    continue;
+                if (metric < bestMetric) {
+                    bestMetric = metric;
+                    bestIface = p[0];
+                }
             }
+            if (bestIface)
+                return bestIface;
         }
     } catch (e) {}
     try {
