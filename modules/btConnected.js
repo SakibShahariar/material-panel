@@ -178,7 +178,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                 y_align: Clutter.ActorAlign.CENTER,
             });
             const path = d.path;
-            disc.connect('clicked', () => {
+            disc.connect('clicked', closeAfter(menu, () => {
                 try {
                     Gio.DBus.system.call(
                         BLUEZ, path, DEVICE_IFACE, 'Disconnect',
@@ -186,8 +186,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                 } catch (e) {
                     logError(e, 'material-panel: headphones disconnect');
                 }
-                closeAfter(menu);
-            });
+            }));
             row.add_child(ic);
             row.add_child(textCol);
             row.add_child(disc);
