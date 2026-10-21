@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {calculateRates} from '../lib/netSpeedMath.js';
+import {calculateRates, hasInterfaceChanged} from '../lib/netSpeedMath.js';
 
 test('calculates receive and transmit byte deltas independently', () => {
     assert.deepEqual(
@@ -23,4 +23,12 @@ test('returns zero rates when samples are missing or invalid', () => {
         calculateRates({rx: 1, tx: 2}, {rx: 'invalid', tx: 3}),
         {down: 0, up: 0},
     );
+});
+
+
+test('detects interface changes but ignores a missing current interface', () => {
+    assert.equal(hasInterfaceChanged('wlan0', 'eth0'), true);
+    assert.equal(hasInterfaceChanged('wlan0', 'wlan0'), false);
+    assert.equal(hasInterfaceChanged('wlan0', null), false);
+    assert.equal(hasInterfaceChanged(null, 'wlan0'), true);
 });
