@@ -183,7 +183,10 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         }
         button.visible = true;
         const util = g.util != null && Number.isFinite(g.util) ? g.util : null;
-        label.text = util != null ? `${util}%` : (g.temp != null ? `${g.temp}°C` : g.vendor);
+        const temp = g.temp != null && Number.isFinite(g.temp) ? g.temp : null;
+        const memUsed = g.memUsed != null && Number.isFinite(g.memUsed) ? g.memUsed : null;
+        const memTotal = g.memTotal != null && Number.isFinite(g.memTotal) ? g.memTotal : null;
+        label.text = util != null ? `${util}%` : (temp != null ? `${temp}°C` : g.vendor);
         try {
             if (util != null && util >= 90)
                 button.add_style_class_name('material-panel-chip-warn');
@@ -192,10 +195,10 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         } catch (e) {}
         nameL.text = g.name || g.vendor || 'GPU';
         utilL.text = util != null ? `Usage  ${util}%` : 'Usage  —';
-        memL.text = (g.memUsed != null && g.memTotal != null)
-            ? `VRAM  ${g.memUsed} / ${g.memTotal} MB`
+        memL.text = (memUsed != null && memTotal != null)
+            ? `VRAM  ${memUsed} / ${memTotal} MB`
             : 'VRAM  —';
-        tempL.text = g.temp != null && Number.isFinite(g.temp) ? `Temp  ${g.temp}°C` : 'Temp  —';
+        tempL.text = temp != null ? `Temp  ${temp}°C` : 'Temp  —';
         return GLib.SOURCE_CONTINUE;
     };
 
