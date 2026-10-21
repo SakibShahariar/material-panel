@@ -610,13 +610,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             try { tempIcon.visible = false; } catch (e) {}
         } else if (mode === 'cpu-ram') {
             cpuLabel.text = totalPct !== null ? `${totalPct}%` : '—';
-            tempLabel.text = memSnap ? `${memSnap.usedPct}%RAM` : (temp !== null ? `${temp}°C` : '');
+            tempLabel.text = memSnap ? `${memSnap.usedPct}%RAM` : (temp !== null ? `${temp}°C` : 'N/A');
             try { tempIcon.visible = true; } catch (e) {}
         } else {
             if (totalPct !== null) cpuLabel.text = `${totalPct}%`;
             else cpuLabel.text = '—';
             if (temp !== null) tempLabel.text = `${temp}°C`;
-            else tempLabel.text = '';
+            else tempLabel.text = 'N/A';
             try { tempIcon.visible = true; } catch (e) {}
         }
         try {
@@ -630,7 +630,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         } catch (e) {}
         try {
             button.set_tooltip_text(
-                `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : '—'}`);
+                `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : 'unavailable (no readable sensor detected)'}`);
         } catch (e) {}
         try {
             if (menu && menu.isOpen)
