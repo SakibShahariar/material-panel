@@ -74,6 +74,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const store = new ConfigStore();
         const config = store.load();
+        const preferencePages = [];
+        const addPreferencesPage = page => {
+            preferencePages.push(page);
+            window.add(page);
+        };
         const saveConfig = () => {
             try {
                 store.save(config);
@@ -105,12 +110,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         // Stop the old config watcher before rebuilding controls
                         // from the newly restored defaults.
                         cleanup();
-                        const pages = window.get_pages?.();
-                        if (!pages || typeof window.remove !== 'function')
-                            throw new Error('Preferences window cannot rebuild its pages');
-                        while (pages.get_n_items() > 0)
-                            window.remove(pages.get_item(0));
-                        window.remove_header_suffix?.(resetBtn);
+                        for (const page of preferencePages)
+                            window.remove(page);
+                        const header = resetBtn.get_parent?.();
+                        header?.remove?.(resetBtn);
                         this.fillPreferencesWindow(window);
                         window.add_toast(new Adw.Toast({title: 'Defaults restored'}));
                     } catch (e) {
@@ -223,7 +226,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         layoutGroup.add(gapSideRow);
         layoutPage.add(layoutGroup);
-        window.add(layoutPage);
+        addPreferencesPage(layoutPage);
 
         // TabView / set_title_widget are for Adw.ApplicationWindow — not available here.
 
@@ -232,7 +235,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'General',
             icon_name: 'preferences-system-symbolic',
         });
-        window.add(generalPage);
+        addPreferencesPage(generalPage);
 
         if (store.invalidConfigBackupPath) {
             const recoveryGroup = new Adw.PreferencesGroup({
@@ -551,7 +554,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'Modules',
             icon_name: 'view-grid-symbolic',
         });
-        window.add(modulesPage);
+        addPreferencesPage(modulesPage);
 
         const infoGroup = new Adw.PreferencesGroup({
             description: `Preset: ${config.activePreset}`,
@@ -727,7 +730,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'Tray',
             icon_name: 'view-list-symbolic',
         });
-        window.add(trayPage);
+        addPreferencesPage(trayPage);
 
         const trayActions = new Adw.PreferencesGroup({title: 'Actions'});
         trayPage.add(trayActions);
@@ -895,7 +898,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'Appearance',
             icon_name: 'applications-graphics-symbolic',
         });
-        window.add(appearancePage);
+        addPreferencesPage(appearancePage);
 
         const themeGroup = new Adw.PreferencesGroup({
             title: 'Color Source',
