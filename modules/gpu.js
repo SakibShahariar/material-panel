@@ -111,8 +111,8 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     try { setChipA11y(button, 'GPU'); } catch (e) {}
     try { wireChipPress(button, {getIcons: () => [{icon, key: 'gpu'}]}); } catch (e) {}
 
-    // Hide until we detect a GPU at least once
-    button.visible = false;
+    // Keep the chip available so unsupported/unavailable metrics can be explained.
+    button.visible = true;
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-gpu-popup');
@@ -138,12 +138,16 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     const refresh = () => {
         const g = readGpuInfo();
         if (!g) {
-            button.visible = false;
+            button.visible = true;
             label.text = '—';
-            nameL.text = 'No GPU metrics available';
-            utilL.text = '';
+            nameL.text = 'GPU metrics unavailable';
+            utilL.text = 'Check supported hardware and GPU driver/tools';
             memL.text = '';
             tempL.text = '';
+            try {
+                button.set_tooltip_text(
+                    'GPU metrics unavailable — hardware may be unsupported or its driver/tool may be missing');
+            } catch (e) {}
             return GLib.SOURCE_CONTINUE;
         }
         button.visible = true;
