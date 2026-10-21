@@ -84,7 +84,8 @@ def unfold(ics: str) -> str:
 def parse_ics_time(value: str, params: str) -> tuple[datetime | date, bool]:
     """Return (datetime|date, all_day)."""
     value = value.strip()
-    is_date = "VALUE=DATE" in params.upper() or (
+    # VALUE=DATE-TIME must not be mistaken for the shorter VALUE=DATE.
+    is_date = any(part.strip().upper() == "VALUE=DATE" for part in params.split(";")) or (
         len(value) == 8 and value.isdigit()
     )
     if is_date:
