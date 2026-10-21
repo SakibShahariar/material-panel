@@ -102,9 +102,9 @@ python3 -m unittest discover -s tests
 node --experimental-default-type=module --test tests/*.test.mjs
 ```
 
-The same commands run in GitHub Actions. The tests cover ICS timestamp/time-zone
-parsing, multi-day all-day event indexing, layout snapshot restoration, and
-network byte-rate calculations. They do not replace GNOME Shell runtime checks
+The same commands run in GitHub Actions. The tests cover ICS timestamp/time-zone parsing, multi-day all-day event
+indexing, panel-size config migration and clamping, layout snapshot restoration,
+and network byte-rate calculations. They do not replace GNOME Shell runtime checks
 for panel widgets, NetworkManager callbacks, or desktop interactions.
 
 ## Icons
