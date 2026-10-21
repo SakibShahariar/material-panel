@@ -93,6 +93,18 @@ Edit `~/.config/material-panel/config.json` directly, or use
 `gnome-extensions prefs material-panel@SakibShahariar` — both are watched live, no
 re-enable needed.
 
+## Tests
+
+Run the standard-library Python regression tests from the repository root:
+
+```sh
+python3 -m unittest discover -s tests
+```
+
+These tests cover ICS timestamp/time-zone parsing and multi-day all-day event
+indexing. They do not replace GNOME Shell runtime checks for panel widgets,
+NetworkManager callbacks, or desktop interactions.
+
 ## Icons
 
 Icon-bearing modules use bundled Material Symbols SVGs rather than relying
