@@ -33,6 +33,7 @@ import re
 import ssl
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -340,8 +341,16 @@ def main() -> None:
         return
 
     url = (args.url or "").strip() or load_url()
-    print(f"Fetching ICS…", file=sys.stderr)
-    ics = fetch(url)
+    print("Fetching ICS…", file=sys.stderr)
+    try:
+        ics = fetch(url)
+    except urllib.error.HTTPError as exc:
+        print(f"ERROR: calendar sync failed (HTTP {exc.code})", file=sys.stderr)
+        raise SystemExit(2) from exc
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", "network error")
+        print(f"ERROR: calendar sync failed (network error: {reason})", file=sys.stderr)
+        raise SystemExit(3) from exc
     events = parse_events(ics, horizon_days=args.days)
     write_json(events, source="ics")
     print(f"Wrote {len(events)} events → {OUT}")
