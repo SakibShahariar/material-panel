@@ -386,7 +386,7 @@ function buildDualSliders() {
 
 // ── Toggles (end-4 style: round + labeled wide) ──
 
-function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
+function makeRoundToggle({iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
     const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const ic = makeIcon(iconKeys, 20, false, symbolic);
     btn.set_child(ic);
@@ -428,10 +428,20 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn}) {
         });
     });
     paint();
+    let settingsSignalId = 0;
+    if (settings && settingKey) {
+        try { settingsSignalId = settings.connect(`changed::${settingKey}`, paint); } catch (e) {}
+    }
+    btn.connect('destroy', () => {
+        if (settings && settingsSignalId) {
+            try { settings.disconnect(settingsSignalId); } catch (e) {}
+            settingsSignalId = 0;
+        }
+    });
     return btn;
 }
 
-function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
+function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, settings = null, settingKey = null}) {
     const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const box = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
     style(box, 'spacing: 10px; padding: 0 4px;');
@@ -490,6 +500,16 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width}) {
         });
     });
     paint();
+    let settingsSignalId = 0;
+    if (settings && settingKey) {
+        try { settingsSignalId = settings.connect(`changed::${settingKey}`, paint); } catch (e) {}
+    }
+    btn.connect('destroy', () => {
+        if (settings && settingsSignalId) {
+            try { settings.disconnect(settingsSignalId); } catch (e) {}
+            settingsSignalId = 0;
+        }
+    });
     return btn;
 }
 
@@ -549,6 +569,8 @@ function buildToggleGrid() {
     const darkRound = makeRoundToggle({
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
+        settings: iface,
+        settingKey: 'color-scheme',
         getOn: () => {
             try { return iface.get_string('color-scheme') === 'prefer-dark'; } catch (e) { return false; }
         },
@@ -566,6 +588,8 @@ function buildToggleGrid() {
     const night = makeRoundToggle({
         iconKeys: ['night-light'],
         symbolic: 'night-light-symbolic',
+        settings: nlSettings,
+        settingKey: 'night-light-enabled',
         getOn: () => {
             try { return nlSettings?.get_boolean('night-light-enabled') ?? false; } catch (e) { return false; }
         },
@@ -580,6 +604,8 @@ function buildToggleGrid() {
         width: Math.max(120, dndW),
         iconKeys: ['dnd-active', 'dnd-inactive'],
         symbolic: 'notifications-disabled-symbolic',
+        settings: dndSettings,
+        settingKey: 'show-banners',
         getOn: () => {
             try { return dndSettings ? !dndSettings.get_boolean('show-banners') : false; } catch (e) { return false; }
         },
