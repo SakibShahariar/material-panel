@@ -77,14 +77,15 @@ export function buildProfileCard({onPrefs = null} = {}) {
     const username = GLib.get_user_name() || 'user';
     const hostname = GLib.get_host_name() || 'localhost';
     const realName = (() => { try { const rn = GLib.get_real_name(); if (rn && rn !== username && rn.trim()) return rn; } catch (e) {} return username; })();
-    const initial = (realName || username).charAt(0).toUpperCase();
+    const hideIdentity = globalThis._materialPanelHideProfileIdentity === true;
+    const initial = hideIdentity ? 'U' : (realName || username).charAt(0).toUpperCase();
 
     const avatar = buildAvatar(initial);
 
     const textBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
     const displayName = realName !== username ? realName : username;
     const nameLabel = new St.Label({
-        text: `${displayName}@${hostname}`,
+        text: hideIdentity ? 'User' : `${displayName}@${hostname}`,
         style_class: 'material-panel-qs-profile-name',
     });
     const uptimeLabel = new St.Label({style_class: 'material-panel-qs-profile-sub'});
