@@ -159,7 +159,7 @@ function buildHeader(menu) {
 
     const refreshUptime = () => {
         try {
-            const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
+            const [ok, out] = Gio.File.new_for_path('/proc/uptime').load_contents(null);
             if (!ok)
                 return;
             const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
@@ -173,7 +173,7 @@ function buildHeader(menu) {
     const refreshBattery = () => {
         for (const bat of ['BAT0', 'BAT1']) {
             try {
-                const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
+                const [ok, out] = Gio.File.new_for_path(`/sys/class/power_supply/${bat}/capacity`).load_contents(null);
                 if (ok) {
                     const value = Number.parseInt(new TextDecoder().decode(out).trim(), 10);
                     if (Number.isFinite(value) && value >= 0 && value <= 100) {
