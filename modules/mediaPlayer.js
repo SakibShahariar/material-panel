@@ -464,9 +464,11 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     menu.addMenuItem(item);
 
     let ctl = null;
+    let attachedBusName = null;
     const clearCtl = () => {
         try { ctl?.destroy(); } catch (e) {}
         ctl = null;
+        attachedBusName = null;
     };
 
     const setPlayingUi = playing => {
@@ -489,6 +491,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
 
     const attach = busName => {
         clearCtl();
+        attachedBusName = busName || null;
         if (!busName) {
             label.text = 'No media';
             pTitle.text = 'No media';
