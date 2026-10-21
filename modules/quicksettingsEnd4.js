@@ -157,15 +157,35 @@ function buildHeader(menu) {
     uptimePill.add_child(uptime);
     row.add_child(uptimePill);
 
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
-        if (ok) {
+    const refreshUptime = () => {
+        try {
+            const [ok, out] = GLib.spawn_command_line_sync('cat /proc/uptime');
+            if (!ok)
+                return;
             const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
+            if (!Number.isFinite(secs))
+                return;
             const h = Math.floor(secs / 3600);
             const m = Math.floor((secs % 3600) / 60);
             uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
+        } catch (e) {}
+    };
+    const refreshBattery = () => {
+        for (const bat of ['BAT0', 'BAT1']) {
+            try {
+                const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
+                if (ok) {
+                    const value = Number.parseInt(new TextDecoder().decode(out).trim(), 10);
+                    if (Number.isFinite(value) && value >= 0 && value <= 100) {
+                        batt.text = `${value}%`;
+                        return;
+                    }
+                }
+            } catch (e) {}
         }
-    } catch (e) {}
+        batt.text = '—%';
+    };
+    refreshUptime();
 
     row.add_child(new St.Widget({x_expand: true}));
 
@@ -227,15 +247,22 @@ function buildHeader(menu) {
     const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
     style(batt, `background-color: ${surface()}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
     row.add_child(batt);
-    for (const bat of ['BAT0', 'BAT1']) {
+    refreshBattery();
+    let refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
         try {
-            const [ok, out] = GLib.spawn_command_line_sync(`cat /sys/class/power_supply/${bat}/capacity`);
-            if (ok) {
-                batt.text = `${new TextDecoder().decode(out).trim()}%`;
-                break;
-            }
+            if (!row.get_stage())
+                return GLib.SOURCE_CONTINUE;
+            refreshUptime();
+            refreshBattery();
         } catch (e) {}
-    }
+        return GLib.SOURCE_CONTINUE;
+    });
+    row.connect('destroy', () => {
+        if (refreshId) {
+            try { GLib.source_remove(refreshId); } catch (e) {}
+            refreshId = 0;
+        }
+    });
     return row;
 }
 
