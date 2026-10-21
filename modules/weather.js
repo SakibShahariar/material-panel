@@ -108,9 +108,14 @@ function gweatherIconKey(info) {
 
 function httpGet(url, cancellable = null) {
     return new Promise((resolve, reject) => {
-        const requestCancellable = cancellable || new Gio.Cancellable();
+        const requestCancellable = new Gio.Cancellable();
         let settled = false;
         let timeoutId = 0;
+        let outerCancelId = 0;
+        try {
+            if (cancellable)
+                outerCancelId = cancellable.connect(() => requestCancellable.cancel());
+        } catch (e) {}
         const finish = (callback, value) => {
             if (settled)
                 return;
@@ -118,6 +123,10 @@ function httpGet(url, cancellable = null) {
             if (timeoutId) {
                 try { GLib.source_remove(timeoutId); } catch (e) {}
                 timeoutId = 0;
+            }
+            if (outerCancelId) {
+                try { cancellable.disconnect(outerCancelId); } catch (e) {}
+                outerCancelId = 0;
             }
             callback(value);
         };
