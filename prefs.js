@@ -394,6 +394,28 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         activityGroup.add(activityRow);
 
+        const privacyGroup = new Adw.PreferencesGroup({
+            title: 'Privacy',
+            description: 'Control personal details shown in Quick Settings.',
+        });
+        generalPage.add(privacyGroup);
+        const privacyRow = new Adw.ActionRow({
+            title: 'Hide profile name and hostname',
+            subtitle: 'Show a generic “User” profile instead.',
+        });
+        const privacySwitch = new Gtk.Switch({
+            active: config.hideProfileIdentity === true,
+            valign: Gtk.Align.CENTER,
+        });
+        privacySwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.hideProfileIdentity = privacySwitch.active;
+            saveConfig();
+        });
+        privacyRow.add_suffix(privacySwitch);
+        privacyRow.activatable_widget = privacySwitch;
+        privacyGroup.add(privacyRow);
+
         // --- Presets ---
         if (!config.presets || typeof config.presets !== 'object')
             config.presets = {};
