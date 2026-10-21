@@ -380,33 +380,6 @@ function readGpuInfo() {
     return null;
 }
 
-function killProcess(pid) {
-    const n = parseInt(pid, 10);
-    if (!Number.isFinite(n) || n <= 1)
-        return false;
-    try {
-        GLib.spawn_command_line_async(`kill -TERM ${n}`);
-    } catch (e) {
-        try {
-            GLib.spawn_command_line_async(`kill ${n}`);
-        } catch (e2) {
-            return false;
-        }
-    }
-    // Escalate if still alive after ~1.2s
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
-        try {
-            const [, out] = GLib.spawn_command_line_sync(`ps -p ${n} -o pid=`);
-            const still = new TextDecoder('utf-8').decode(out).trim();
-            if (still)
-                GLib.spawn_command_line_async(`kill -KILL ${n}`);
-        } catch (e) {}
-        return GLib.SOURCE_REMOVE;
-    });
-    return true;
-}
-
-
 function readCoreClasses() {
     // Map cpu index → 'P' | 'E' | 'L' | null using max freq clusters or capacity.
     const maxHz = [];
