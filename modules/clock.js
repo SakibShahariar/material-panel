@@ -322,12 +322,33 @@ export function buildClock(_extensionPath, scale = 1.0) {
         const doc = loadCalendarDocument();
         allEvents = doc?.events || [];
         eventIndex = indexEventsByDate(allEvents);
+
+        let syncAge = '';
+        if (doc?.syncedAt) {
+            try {
+                const synced = GLib.DateTime.new_from_iso8601(String(doc.syncedAt), null);
+                if (synced) {
+                    const ageSeconds = Math.max(0,
+                        GLib.DateTime.new_now_utc().to_unix() - synced.to_unix());
+                    if (ageSeconds >= 86400)
+                        syncAge = `synced ${Math.floor(ageSeconds / 86400)} day${Math.floor(ageSeconds / 86400) === 1 ? '' : 's'} ago`;
+                    else if (ageSeconds >= 3600)
+                        syncAge = `synced ${Math.floor(ageSeconds / 3600)}h ago`;
+                    else if (ageSeconds >= 60)
+                        syncAge = `synced ${Math.floor(ageSeconds / 60)}m ago`;
+                    else
+                        syncAge = 'synced just now';
+                }
+            } catch (e) {}
+        }
+
         if (doc?.source)
-            hint.text = `Synced · ${doc.source}`;
+            hint.text = [syncAge, doc.source].filter(Boolean).join(' · ');
         else if (!doc)
             hint.text = 'Sync: scripts/calendar-sync-ics.py';
         else
-            hint.text = allEvents.length ? `${allEvents.length} events` : 'No events in range';
+            hint.text = [syncAge, allEvents.length ? `${allEvents.length} events` : 'No events in range']
+                .filter(Boolean).join(' · ');
     };
 
     const fillNext = () => {
