@@ -467,6 +467,13 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             label.text = `${Math.round(data.temp)}°`;
         else
             label.text = '—°';
+        // Make fallback location explicit even when the popup is closed.
+        try {
+            const fallback = data?.source === 'Open-Meteo · default location';
+            button.set_tooltip_text(fallback
+                ? `Weather: ${data.place} — default fallback, not your detected location`
+                : `Weather: ${data?.place || 'Location unavailable'}`);
+        } catch (e) {}
         if (data?.iconKey)
             setChipIcon(data.iconKey);
         try { fillPopup(); } catch (e) {}
