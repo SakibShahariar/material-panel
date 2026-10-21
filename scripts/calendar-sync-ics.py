@@ -34,6 +34,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 HOME = Path.home()
 CFG = HOME / ".config" / "material-panel"
@@ -98,6 +99,23 @@ def parse_ics_time(value: str, params: str) -> tuple[datetime | date, bool]:
     dt = datetime.strptime(raw[:15], "%Y%m%dT%H%M%S")
     if z:
         dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        # TZID is a parameter on DTSTART/DTEND, e.g.
+        # DTSTART;TZID=Asia/Dhaka:20261021T090000. Preserve its actual
+        # offset in the output instead of letting the host timezone decide.
+        match = re.search(r'(?:^|;)TZID=(?:"([^"]+)"|([^;]+))', params, re.I)
+        if match:
+            tzid = (match.group(1) or match.group(2) or "").strip()
+            try:
+                dt = dt.replace(tzinfo=ZoneInfo(tzid))
+            except ZoneInfoNotFoundError:
+                # Unknown TZIDs are not silently treated as UTC. Keep the
+                # wall-clock time floating and make the fallback visible.
+                print(
+                    f"WARN: unknown TZID {tzid!r}; preserving {value!r} "
+                    "as a floating local time",
+                    file=sys.stderr,
+                )
     return dt, False
 
 
