@@ -116,6 +116,8 @@ them.
 
 ## Known limitations
 
+- Weather uses the location configured in GNOME Weather when available. If that location cannot be read, the fallback is explicitly labeled **Dhaka (default location)**; a separate manual-location setting is not implemented yet.
+
 - Third-party tray icons require **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). Material Panel hosts those icons on the bar; it does not run its own StatusNotifier watcher.
 
 - Brightness slider requires `brightnessctl` to be installed (handles
