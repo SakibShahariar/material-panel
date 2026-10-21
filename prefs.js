@@ -969,7 +969,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             return false;
         });
         window.connect('destroy', cleanup);
-        window.connect('unrealize', cleanup);
+        // Unrealize can occur without closing the window; flush saves but keep
+        // the watcher alive until close-request/destroy actually tears it down.
+        window.connect('unrealize', flushPendingSave);
 
         try {
             store.watch(newConfig => {
