@@ -8,6 +8,7 @@ import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath} from '../lib/iconTheme.js';
+import {confirmAndRun} from '../lib/powerConfirm.js';
 
 // Uses loginctl/systemctl via spawn rather than talking to logind's D-Bus
 // interface directly - much less risk of a subtly wrong method signature,
@@ -40,6 +41,15 @@ export function buildPowerMenu() {
     for (const {label, command} of ACTIONS) {
         const item = new PopupMenu.PopupMenuItem(label);
         item.connect('activate', closeAfter(menu, () => {
+            if (command === 'systemctl reboot' || command === 'systemctl poweroff') {
+                const isRestart = command === 'systemctl reboot';
+                confirmAndRun(
+                    isRestart ? 'Restart' : 'Shut Down',
+                    isRestart ? 'Restart this system now?' : 'Shut down this system now?',
+                    isRestart ? 'Restart' : 'Shut Down',
+                    command);
+                return;
+            }
             try {
                 GLib.spawn_command_line_async(command);
             } catch (e) {
