@@ -154,6 +154,13 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let prevRx = 0, prevTx = 0, primed = false;
 
     const tick = () => {
+        // Re-check the selected route every poll. Counters belong to a single
+        // interface, so a route change must start a fresh measurement baseline.
+        const activeIface = findActiveInterface();
+        if (activeIface && activeIface !== iface) {
+            iface = activeIface;
+            primed = false;
+        }
         if (!iface)
             iface = findActiveInterface();
         const stats = readStats(iface);
