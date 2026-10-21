@@ -12,43 +12,53 @@ Targets GNOME Shell 50.
 
 ## Status
 
-Early scaffold. Working:
+Material Panel is an actively developed GNOME Shell extension. It replaces the
+stock top panel with a configurable panel and built-in status modules. Feature
+completeness varies by module; check the [open issues](https://github.com/SakibShahariar/material-panel/issues)
+for known bugs, limitations, and planned work.
 
-- Custom panel actor with `left` / `center` / `right` zones, rendered from
-  `~/.config/material-panel/config.json`
-- Built-in modules: clock (with weekday/date), workspace switcher, activities toggle, battery (UPower), volume (Gvc, click to mute), network (NetworkManager, dropdown with Wi-Fi toggle + reconnect to known networks), dark mode toggle, night light toggle, do-not-disturb toggle, power menu (lock/suspend/restart/shutdown via loginctl/systemctl), bluetooth power toggle
-- Bundled Material Symbols icons, recolored at runtime to match the active
-  palette (matugen or fixed) - see "Icons" below. Run `scripts/fetch-icons.sh`
-  once before first use.
-- Bridge that intercepts `Main.panel.addToStatusArea` so other extensions'
-  buttons can be claimed into any zone via `"extension:<uuid-or-role>"` in
-  the config, without destroying their actors on panel rebuild
-- Basic prefs window (reorder/remove modules per zone, panel size preset:
-  Compact/Normal/Large - scales the top bar's height/padding/icon sizes,
-  not the quick settings popup)
-- Fixed color palette in `stylesheet.css`
+Implemented in the current codebase:
 
-Not yet built (see project notes / conversation history for the plan):
+- Zone-based panel layout (left, center, and right) loaded from
+  `~/.config/material-panel/config.json`, with a preferences window for common
+  layout and appearance settings.
+- Built-in modules for activities, workspaces, clock, weather, notifications,
+  CPU, memory, GPU, disk, battery, volume, network/Wi-Fi, network speed,
+  Bluetooth, media playback, focused-window information, dark mode, night
+  light, Do Not Disturb, and power actions.
+- Quick Settings popup implementations, including the default and optional
+  End-4/Ryoku variants, with configurable visual styles for sliders and tiles.
+- Palette generation from a Matugen CSS file when available, with a bundled
+  fixed-palette stylesheet as fallback. The default configuration auto-detects
+  `~/.config/matugen/matugen-colors.css`; set `colorSource` in the config to
+  override the path or use an empty string to force the fixed palette.
+- Runtime-recolored Material Symbols SVGs, extension status-area bridging, and
+  an optional tray drawer for supported third-party status icons.
+- An optional ICS calendar-sync script that writes event data for the panel's
+  calendar integrations.
 
-- matugen wallpaper-adaptive theming — deliberately deferred; the seam is
-  the color values in `stylesheet.css`, nothing else needs to change
-- Multiple presets / preset switching UI
-- Live drag-and-drop editing directly on the panel (edit-mode input
-  handling, click-vs-drag disambiguation)
-- Full Quick Settings (wifi/bluetooth/power submenu) — not reimplemented
+This is not a claim that every module is fully polished or runtime-tested on
+every supported GNOME version. Multi-monitor support, full Wi-Fi scanning and
+joining of new networks, recurring calendar expansion, and other unfinished
+items remain tracked in the issue list.
 
 ## Architecture
 
 ```
-extension.js          enable()/disable() — hides stock panel, builds ours
-lib/configStore.js     load/save/watch config.json (single source of truth)
-lib/panelBuilder.js    render(config) -> full teardown + rebuild of actors
-lib/zone.js            one ordered row within the panel
-lib/statusAreaBridge.js reparents other extensions' buttons, never destroys them
-lib/moduleRegistry.js  id -> built-in widget factory lookup
-modules/*.js           built-in widgets (clock, workspaces, activities)
-prefs.js               GTK4/Adwaita settings window
-stylesheet.css          panel styling — fixed palette for now
+extension.js                 enable()/disable() and panel lifecycle
+lib/configStore.js            load/save/watch config.json
+lib/panelBuilder.js           render config into panel actors
+lib/zone.js                   ordered panel zones
+lib/statusAreaBridge.js       reparent third-party status-area actors
+lib/moduleRegistry.js         built-in module factory registry
+lib/theme.js                  palette resolution and generated stylesheet
+lib/iconTheme.js              runtime SVG recoloring
+lib/simpleSlider.js           shared slider interaction
+lib/trayDrawer.js             third-party tray icon drawer
+modules/*.js                  built-in panel and Quick Settings modules
+scripts/calendar-sync-ics.py  optional ICS-to-JSON calendar sync
+prefs.js                      GTK4/Adwaita preferences window
+stylesheet.css                bundled fallback styling
 ```
 
 Key design decision: `panelBuilder.render(config)` always does a full
@@ -66,9 +76,9 @@ preset switches and config reloads.
 ## Install (dev loop)
 
 ```sh
-# Symlink into GNOME's extensions directory. Replace `you` in metadata.json's
-# uuid first if you haven't already — it should be your GitHub username.
-ln -s "$(pwd)" ~/.local/share/gnome-shell/extensions/material-panel@you
+# Symlink into GNOME's extensions directory using the UUID in metadata.json.
+mkdir -p ~/.local/share/gnome-shell/extensions
+ln -s "$(pwd)" ~/.local/share/gnome-shell/extensions/material-panel@SakibShahariar
 
 # On Wayland you can't reload gnome-shell without logging out. Easiest loop:
 #   - log into an Xorg session while developing (Alt+F2, 'r', Enter reloads
