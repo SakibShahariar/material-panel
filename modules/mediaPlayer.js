@@ -280,13 +280,16 @@ export function buildMediaPlayerRow() {
     row.add_child(controls);
 
     let ctl = null;
+    let attachedBusName = null;
     const clearCtl = () => {
         try { ctl?.destroy(); } catch (e) {}
         ctl = null;
+        attachedBusName = null;
     };
 
     const attach = busName => {
         clearCtl();
+        attachedBusName = busName || null;
         if (!busName) {
             row.visible = false;
             try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
@@ -513,7 +516,9 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     pickPreferredPlayer(attach);
     const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 4, () => {
         pickPreferredPlayer(name => {
-            if (!ctl || !name)
+            // The preferred MPRIS player can change while the current
+            // controller remains valid. Rebind only when the bus name changes.
+            if (name !== attachedBusName)
                 attach(name);
         });
         return GLib.SOURCE_CONTINUE;
