@@ -55,7 +55,8 @@ DEST="$SCRIPT_DIR/../assets/icons-src"
 mkdir -p "$DEST"
 
 TMPJSON="$(mktemp)"
-trap 'rm -f "$TMPJSON"' EXIT
+TMP_SVG=""
+trap 'rm -f "$TMPJSON" "${TMP_SVG:-}"' EXIT
 
 for src in "${SRC_ICONS[@]}"; do
   key="${MAP[$src]}"
@@ -67,7 +68,10 @@ for src in "${SRC_ICONS[@]}"; do
 
   api_url="https://api.github.com/repos/google/material-design-icons/contents/symbols/web/$src/materialsymbolsrounded"
 
-  curl -s "$api_url" > "$TMPJSON"
+  if ! curl -fsS "$api_url" > "$TMPJSON"; then
+    echo "WARN: failed to fetch icon metadata for $src (skipping $key)" >&2
+    continue
+  fi
 
   download_url=$(python3 - "$TMPJSON" <<'PYEOF'
 import json, sys
@@ -102,7 +106,39 @@ PYEOF
     continue
   fi
 
-  curl -s -o "$DEST/$key.svg" "$download_url"
+  # Download beside the destination so the final rename is atomic and a
+  # failed request can never replace an existing valid icon.
+  TMP_SVG="$(mktemp "$DEST/.${key}.XXXXXX")"
+  if ! curl -fsSL -o "$TMP_SVG" "$download_url"; then
+    echo "WARN: failed to download SVG for $src (skipping $key)" >&2
+    rm -f "$TMP_SVG"
+    TMP_SVG=""
+    continue
+  fi
+
+  if ! python3 - "$TMP_SVG" <<'PYEOF'
+import sys
+import xml.etree.ElementTree as ET
+
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except (ET.ParseError, OSError) as e:
+    print(f"INVALID SVG: {e}", file=sys.stderr)
+    sys.exit(1)
+
+if root.tag.rsplit("}", 1)[-1] != "svg":
+    print(f"INVALID SVG root element: {root.tag}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+  then
+    echo "WARN: downloaded response for $src is not a valid SVG (skipping $key)" >&2
+    rm -f "$TMP_SVG"
+    TMP_SVG=""
+    continue
+  fi
+
+  mv -f "$TMP_SVG" "$DEST/$key.svg"
+  TMP_SVG=""
   echo "OK: $src -> $key.svg"
 done
 
