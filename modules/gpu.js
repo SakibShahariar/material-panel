@@ -36,49 +36,80 @@ function readGpuInfo() {
         }
     } catch (e) {}
 
+    // Enumerate DRM cards instead of assuming the active GPU is card0.
+    // Connector entries (card0-DP-1, etc.) are ignored.
     try {
-        const base = '/sys/class/drm/card0/device';
-        let util = null, temp = null, memUsed = null, memTotal = null, name = 'AMD';
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/gpu_busy_percent`).load_contents(null);
-            if (ok) util = parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
-        } catch (e) {}
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_used`).load_contents(null);
-            if (ok) memUsed = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
-        } catch (e) {}
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_total`).load_contents(null);
-            if (ok) memTotal = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
-        } catch (e) {}
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/vendor`).load_contents(null);
-            if (ok) {
-                const v = new TextDecoder('utf-8').decode(c).trim().toLowerCase();
-                if (v.includes('0x1002') || v.includes('amd')) name = 'AMD';
-                else if (v.includes('0x8086') || v.includes('intel')) name = 'Intel';
-            }
-        } catch (e) {}
-        try {
-            const hwmon = Gio.File.new_for_path(`${base}/hwmon`);
-            if (hwmon.query_exists(null)) {
-                const en = hwmon.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
-                let info;
-                while ((info = en.next_file(null)) !== null) {
-                    try {
-                        const [ok, c] = Gio.File.new_for_path(
-                            `${base}/hwmon/${info.get_name()}/temp1_input`).load_contents(null);
-                        if (ok) {
-                            temp = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / 1000);
-                            break;
-                        }
-                    } catch (e) {}
+        const drmDir = Gio.File.new_for_path('/sys/class/drm');
+        const en = drmDir.enumerate_children(
+            'standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        const cards = [];
+        let info;
+        while ((info = en.next_file(null)) !== null) {
+            const name = info.get_name();
+            if (/^card\\d+$/.test(name))
+                cards.push(name);
+        }
+        try { en.close(null); } catch (e) {}
+
+        cards.sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+        for (const card of cards) {
+            const base = `/sys/class/drm/${card}/device`;
+            let util = null, temp = null, memUsed = null, memTotal = null, name = 'GPU';
+            try {
+                const [ok, c] = Gio.File.new_for_path(`${base}/gpu_busy_percent`).load_contents(null);
+                if (ok) {
+                    const value = Number.parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+                    if (Number.isFinite(value)) util = value;
                 }
-                try { en.close(null); } catch (e) {}
-            }
-        } catch (e) {}
-        if (util != null || temp != null || memUsed != null)
-            return {vendor: name, name, util, memUsed, memTotal, temp};
+            } catch (e) {}
+            try {
+                const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_used`).load_contents(null);
+                if (ok) {
+                    const value = Number.parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+                    if (Number.isFinite(value)) memUsed = Math.round(value / (1024 * 1024));
+                }
+            } catch (e) {}
+            try {
+                const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_total`).load_contents(null);
+                if (ok) {
+                    const value = Number.parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+                    if (Number.isFinite(value)) memTotal = Math.round(value / (1024 * 1024));
+                }
+            } catch (e) {}
+            try {
+                const [ok, c] = Gio.File.new_for_path(`${base}/vendor`).load_contents(null);
+                if (ok) {
+                    const vendor = new TextDecoder('utf-8').decode(c).trim().toLowerCase();
+                    if (vendor.includes('0x1002') || vendor.includes('amd')) name = 'AMD';
+                    else if (vendor.includes('0x8086') || vendor.includes('intel')) name = 'Intel';
+                    else if (vendor.includes('0x10de') || vendor.includes('nvidia')) name = 'NVIDIA';
+                }
+            } catch (e) {}
+            try {
+                const hwmon = Gio.File.new_for_path(`${base}/hwmon`);
+                if (hwmon.query_exists(null)) {
+                    const hwmonEn = hwmon.enumerate_children(
+                        'standard::name', Gio.FileQueryInfoFlags.NONE, null);
+                    let hwmonInfo;
+                    while ((hwmonInfo = hwmonEn.next_file(null)) !== null) {
+                        try {
+                            const [ok, c] = Gio.File.new_for_path(
+                                `${base}/hwmon/${hwmonInfo.get_name()}/temp1_input`).load_contents(null);
+                            if (ok) {
+                                const value = Number.parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
+                                if (Number.isFinite(value)) {
+                                    temp = Math.round(value / 1000);
+                                    break;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                    try { hwmonEn.close(null); } catch (e) {}
+                }
+            } catch (e) {}
+            if (util != null || temp != null || memUsed != null)
+                return {vendor: name, name: `${name} (${card})`, util, memUsed, memTotal, temp};
+        }
     } catch (e) {}
     return null;
 }
