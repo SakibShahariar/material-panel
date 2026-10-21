@@ -74,6 +74,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const store = new ConfigStore();
         const config = store.load();
+        const saveConfig = () => {
+            saveConfig()
+        };
         // Header: reset to defaults
         try {
             const resetBtn = new Gtk.Button({
@@ -191,11 +194,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 : sel === 2 ? LAYOUT_RYOKU
                     : LAYOUT_DEFAULT;
             applyLayoutStyle(config, style);
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
         layoutRow.add_suffix(layoutDrop);
         layoutRow.activatable_widget = layoutDrop;
@@ -212,11 +211,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         gapSideRow.connect('changed', () => {
             if (!config.panelSize) config.panelSize = {};
             config.panelSize.gapSide = gapSideRow.get_value();
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
         layoutGroup.add(gapSideRow);
         layoutPage.add(layoutGroup);
@@ -318,11 +313,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     GLib.source_remove(saveDebounceId);
                 saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 280, () => {
                     saveDebounceId = null;
-                    try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                    saveConfig()
                     return GLib.SOURCE_REMOVE;
                 });
             });
@@ -372,11 +363,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockSwitch.connect('notify::active', () => {
             if (syncingExternal) return;
             config.clockFormat = clockSwitch.active ? '12h' : '24h';
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
         clockRow.add_suffix(clockSwitch);
         clockRow.activatable_widget = clockSwitch;
@@ -446,11 +433,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const name = names[i];
             if (name === config.activePreset) return;
             config.activePreset = name;
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
         presetsGroup.add(presetRow);
 
@@ -468,11 +451,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (!current) return;
             config.presets[name] = JSON.parse(JSON.stringify(current));
             config.activePreset = name;
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
             fillPresetModel();
             duplicateRow.text = '';
         });
@@ -493,11 +472,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (name === 'default' || !config.presets[name]) return;
             delete config.presets[name];
             config.activePreset = 'default';
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
             fillPresetModel();
         });
         deleteRow.add_suffix(deleteBtn);
@@ -542,11 +517,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 } else {
                     if (!hidden.includes(module.id)) hidden.push(module.id);
                 }
-                try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                saveConfig()
             });
             row.add_suffix(toggle);
             row.activatable_widget = toggle;
@@ -594,11 +565,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const j = zoneList.indexOf(prevId);
                         if (i >= 0 && j >= 0) {
                             [zoneList[j], zoneList[i]] = [zoneList[i], zoneList[j]];
-                            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                            saveConfig()
                         }
                         window.close();
                     });
@@ -615,11 +582,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const j = zoneList.indexOf(nextId);
                         if (i >= 0 && j >= 0) {
                             [zoneList[i], zoneList[j]] = [zoneList[j], zoneList[i]];
-                            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                            saveConfig()
                         }
                         window.close();
                     });
@@ -633,11 +596,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         const i = zoneList.indexOf(id);
                         if (i >= 0)
                             zoneList.splice(i, 1);
-                        try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                        saveConfig()
                         window.close();
                     });
 
@@ -667,11 +626,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (vals.length && vals.every(v => v === 'hidden')) {
                 config.foreignRoleZones = {};
                 config.hiddenForeignRoles = [];
-                try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                saveConfig()
             }
         }
 
@@ -741,11 +696,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             try {
                 syncExtensionZone(config, role, z === 'hidden' ? 'hidden' : z);
             } catch (e) {}
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         };
 
         if (roleList.length === 0) {
@@ -826,11 +777,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     .map(([r]) => r);
             }
             setCombosSensitive(!config.trayAllHidden);
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
 
         const drawerRow = new Adw.ActionRow({
@@ -846,11 +793,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         trayActions.add(drawerRow);
         drawerSwitch.connect('notify::active', () => {
             config.trayDrawer = !!drawerSwitch.active;
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
 
 
@@ -874,11 +817,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         colorSourceRow.connect('apply', () => {
             config.colorSource = colorSourceRow.get_text() || null;
-            try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+            saveConfig()
         });
         themeGroup.add(colorSourceRow);
 
@@ -902,11 +841,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const s = SLIDER_STYLES[sel];
             if (s) {
                 config.sliderStyle = s.id;
-                try {
-                            store.save(config);
-                        } catch (e) {
-                            console.error('material-panel prefs: save failed', e);
-                        }
+                saveConfig()
             }
         });
         sliderStyleRow.add_suffix(sliderStyleDrop);
@@ -945,11 +880,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (saveDebounceId) {
                 GLib.source_remove(saveDebounceId);
                 saveDebounceId = null;
-                try {
-                        store.save(config);
-                    } catch (e) {
-                        console.error('material-panel prefs: save failed', e);
-                    }
+                saveConfig()
             }
         };
         let cleanedUp = false;
