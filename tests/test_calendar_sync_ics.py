@@ -98,10 +98,6 @@ class AllDayEventTests(unittest.TestCase):
         self.assertEqual(events[0]["dateKey"], start.isoformat())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class LoadUrlTests(unittest.TestCase):
     def test_environment_url_is_accepted(self):
         from unittest.mock import patch
@@ -139,3 +135,7 @@ class IcsTextHelpersTests(unittest.TestCase):
             calendar_sync_ics.unescape(r"Comma\\, semi\\; line\\nnext slash\\\\"),
             "Comma, semi; line\\nnext slash\\",
         )
+
+
+if __name__ == "__main__":
+    unittest.main()
