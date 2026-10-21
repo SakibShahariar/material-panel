@@ -153,7 +153,13 @@ def parse_events(ics: str, horizon_days: int = 90) -> list[dict]:
 
         try:
             start, all_day = parse_ics_time(*fields["DTSTART"])
-        except Exception:
+        except Exception as exc:
+            raw_start, _params = fields["DTSTART"]
+            print(
+                f"WARN: skipping ICS event uid={uid!r} summary={summary!r}: "
+                f"unsupported DTSTART {raw_start!r} ({exc})",
+                file=sys.stderr,
+            )
             continue
         end = None
         if "DTEND" in fields:
