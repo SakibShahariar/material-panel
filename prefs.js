@@ -175,7 +175,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         const layoutRow = new Adw.ActionRow({
             title: 'Style',
-            subtitle: 'Default keeps your classic three-zone bar. End-4 uses floating BarGroups, workspace dots, and denser QS.',
+            subtitle: 'Default keeps the classic three-zone bar. End-4 uses floating BarGroups and denser Quick Settings; Ryoku uses a rail-and-stage Quick Settings layout.',
         });
         const layoutDrop = new Gtk.DropDown({
             model: Gtk.StringList.new(['Default', 'End-4', 'Ryoku']),
