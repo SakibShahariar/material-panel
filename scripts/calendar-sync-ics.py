@@ -109,7 +109,7 @@ def parse_ics_time(value: str, params: str) -> tuple[datetime | date, bool]:
             tzid = (match.group(1) or match.group(2) or "").strip()
             try:
                 dt = dt.replace(tzinfo=ZoneInfo(tzid))
-            except ZoneInfoNotFoundError:
+            except (ZoneInfoNotFoundError, ValueError):
                 # Unknown TZIDs are not silently treated as UTC. Keep the
                 # wall-clock time floating and make the fallback visible.
                 print(
