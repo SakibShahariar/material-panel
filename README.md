@@ -1,14 +1,10 @@
-## Tray icons
-
-Install **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). material-panel hosts those icons on the bar; it does not run its own StatusNotifier watcher.
-
 # Material Panel
 
 A custom, config-driven GNOME Shell top panel — replaces the stock panel
 rather than restyling it, while still letting other extensions' status area
 buttons (wifi, bluetooth, tray icons, etc.) be placed wherever you want.
 
-Targets GNOME Shell 50.
+Targets GNOME Shell 49, 50, and 51, as declared in `metadata.json`.
 
 ## Status
 
@@ -119,6 +115,8 @@ response is invalid. Review the resulting asset changes before committing
 them.
 
 ## Known limitations
+
+- Third-party tray icons require **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). Material Panel hosts those icons on the bar; it does not run its own StatusNotifier watcher.
 
 - Brightness slider requires `brightnessctl` to be installed (handles
   device detection and write permissions itself). If it's missing, or if
