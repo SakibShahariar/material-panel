@@ -45,6 +45,31 @@ function findActiveInterface() {
                 return bestIface;
         }
     } catch (e) {}
+    // IPv6 default routes live in /proc/net/ipv6_route, not /proc/net/route.
+    // Prefer their lowest-metric usable route before falling back to traffic
+    // totals, which can select an unrelated interface on IPv6-only systems.
+    try {
+        const [ok6, route6Bytes] = Gio.File.new_for_path('/proc/net/ipv6_route').load_contents(null);
+        if (ok6) {
+            let bestIface6 = null;
+            let bestMetric6 = Infinity;
+            for (const line of decodeBytes(route6Bytes).split('\n')) {
+                const p = line.trim().split(/\s+/);
+                if (p.length < 10 || !/^0{32}$/i.test(p[0]) || p[1] !== '00')
+                    continue;
+                const metric = Number.parseInt(p[5], 16);
+                const flags = Number.parseInt(p[8], 16) || 0;
+                if (!(flags & 0x1) || !Number.isFinite(metric) || !p[9])
+                    continue;
+                if (metric < bestMetric6) {
+                    bestMetric6 = metric;
+                    bestIface6 = p[9];
+                }
+            }
+            if (bestIface6)
+                return bestIface6;
+        }
+    } catch (e) {}
     try {
         const [ok, contents] = Gio.File.new_for_path('/proc/net/dev').load_contents(null);
         if (!ok)
