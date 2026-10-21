@@ -187,10 +187,31 @@ def parse_events(ics: str, horizon_days: int = 90) -> list[dict]:
             except Exception:
                 end = None
 
-        # Filter horizon by start date
         start_d = start if isinstance(start, date) and not isinstance(start, datetime) else start.date()
-        if start_d < start_horizon or start_d > end_horizon:
-            continue
+        if all_day:
+            # RFC 5545 defines DTEND for DATE-valued all-day events as
+            # exclusive. Index the event on every covered date, not just DTSTART.
+            if isinstance(end, date) and not isinstance(end, datetime):
+                end_exclusive = end
+            elif isinstance(end, datetime):
+                end_exclusive = end.date()
+            else:
+                # A missing/invalid DTEND still renders as a single-day event.
+                end_exclusive = start_d + timedelta(days=1)
+            if end_exclusive <= start_d:
+                end_exclusive = start_d + timedelta(days=1)
+            if end_exclusive <= start_horizon or start_d > end_horizon:
+                continue
+            visible_start = max(start_d, start_horizon)
+            visible_end = min(end_exclusive, end_horizon + timedelta(days=1))
+            event_dates = [
+                visible_start + timedelta(days=offset)
+                for offset in range((visible_end - visible_start).days)
+            ]
+        else:
+            if start_d < start_horizon or start_d > end_horizon:
+                continue
+            event_dates = [start_d]
 
         def iso(x):
             if isinstance(x, datetime):
@@ -217,7 +238,12 @@ def parse_events(ics: str, horizon_days: int = 90) -> list[dict]:
             ev["htmlLink"] = url
         if meet:
             ev["meetingUrl"] = meet
-        events.append(ev)
+        for event_date in event_dates:
+            indexed_event = dict(ev)
+            indexed_event["dateKey"] = event_date.isoformat()
+            if all_day and event_date != start_d:
+                indexed_event["id"] = f"{uid}:{event_date.isoformat()}"
+            events.append(indexed_event)
 
     events.sort(key=lambda e: e["start"])
     return events
