@@ -46,7 +46,7 @@ function readGpuInfo() {
         let info;
         while ((info = en.next_file(null)) !== null) {
             const name = info.get_name();
-            if (/^card\\d+$/.test(name))
+            if (/^card\d+$/.test(name))
                 cards.push(name);
         }
         try { en.close(null); } catch (e) {}
