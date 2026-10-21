@@ -103,7 +103,14 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         ? [{symbol, key: currentKey}]
         : [{icon, key: currentKey}]);
 
-    box.connect('button-press-event', () => {
+    box.connect('button-press-event', (_actor, event) => {
+        // Only the primary click toggles mute; let secondary clicks propagate.
+        try {
+            if (event.get_button() !== 1)
+                return Clutter.EVENT_PROPAGATE;
+        } catch (e) {
+            return Clutter.EVENT_PROPAGATE;
+        }
         if (sink)
             sink.change_is_muted(!sink.is_muted);
         return Clutter.EVENT_STOP;
