@@ -550,6 +550,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     let destroyed = false;
     let initialFetchId = 0;
     let fetchInFlight = false;
+    let retryId = 0;
+    let retryDelaySeconds = 60;
 
     const setChipIcon = key => {
         try {
@@ -877,18 +879,24 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             if (gw?.lat != null && gw?.lon != null) {
                 apply(await fetchOpenMeteo(
                     gw.lat, gw.lon, gw.name || 'Local', 'Open-Meteo · GNOME Weather', cancellable));
+                retryDelaySeconds = 60;
+                if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
             }
             // 2) IP geolocation disabled — privacy (see resolveIpLocation)
             try {
                 const ip = await resolveIpLocation();
                 apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP', cancellable));
+                retryDelaySeconds = 60;
+                if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
             } catch (e) {
                 logError(e, 'material-panel: IP weather failed');
             }
             // 3) Default (Dhaka)
             apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location', cancellable));
+            retryDelaySeconds = 60;
+            if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0;
         } catch (e) {
             if (destroyed)
                 return;
@@ -900,6 +908,18 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
             }
             fillPopup();
+            // Retry failed startup/offline requests sooner than the 15-minute
+            // normal refresh, with a capped exponential backoff.
+            if (!destroyed && !retryId) {
+                const delay = retryDelaySeconds;
+                retryDelaySeconds = Math.min(retryDelaySeconds * 2, 15 * 60);
+                retryId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, delay, () => {
+                    retryId = 0;
+                    if (!destroyed)
+                        fetchWeather();
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
         } finally {
             fetchInFlight = false;
         }
@@ -924,6 +944,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         if (initialFetchId) {
             try { GLib.source_remove(initialFetchId); } catch (e) {}
             initialFetchId = 0;
+        }
+        if (retryId) {
+            try { GLib.source_remove(retryId); } catch (e) {}
+            retryId = 0;
         }
         try { cancellable.cancel(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
