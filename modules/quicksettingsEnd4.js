@@ -289,6 +289,7 @@ function buildDualSliders() {
 
     let sink = null;
     let control = null;
+    const controlSignalIds = [];
     const volIconKeys = ['volume-high', 'volume-medium', 'volume-low', 'volume-muted'];
     const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
     const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
@@ -335,8 +336,8 @@ function buildDualSliders() {
             } catch (e) {}
         };
         if (control) {
-            try { control.connect('state-changed', bind); } catch (e) {}
-            try { control.connect('default-sink-changed', bind); } catch (e) {}
+            try { controlSignalIds.push(control.connect('state-changed', bind)); } catch (e) {}
+            try { controlSignalIds.push(control.connect('default-sink-changed', bind)); } catch (e) {}
             bind();
         }
     } catch (e) {}
@@ -370,6 +371,16 @@ function buildDualSliders() {
 
     col.add_child(volRow);
     col.add_child(briRow);
+    col.connect('destroy', () => {
+        if (control) {
+            for (const id of controlSignalIds) {
+                try { control.disconnect(id); } catch (e) {}
+            }
+        }
+        controlSignalIds.length = 0;
+        sink = null;
+        control = null;
+    });
     return col;
 }
 
