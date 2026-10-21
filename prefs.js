@@ -128,7 +128,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         }
 
 
-        const preset = config.presets[config.activePreset];
+        let preset = config.presets[config.activePreset];
 
         // Migrate legacy single `gap` if present.
         if (config.panelSize?.gap != null && config.panelSize?.gapTop == null) {
@@ -488,7 +488,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const name = names[i];
             if (name === config.activePreset) return;
             config.activePreset = name;
-            saveConfig()
+            preset = config.presets[config.activePreset];
+            saveConfig();
+            refreshZoneEditor();
+            infoGroup.description = `Preset: ${config.activePreset}`;
         });
         presetsGroup.add(presetRow);
 
@@ -506,8 +509,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (!current) return;
             config.presets[name] = JSON.parse(JSON.stringify(current));
             config.activePreset = name;
-            saveConfig()
+            saveConfig();
             fillPresetModel();
+            preset = config.presets[config.activePreset];
+            refreshZoneEditor();
+            infoGroup.description = `Preset: ${config.activePreset}`;
             duplicateRow.text = '';
         });
         presetsGroup.add(duplicateRow);
@@ -527,8 +533,11 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (name === 'default' || !config.presets[name]) return;
             delete config.presets[name];
             config.activePreset = 'default';
-            saveConfig()
+            saveConfig();
             fillPresetModel();
+            preset = config.presets.default;
+            refreshZoneEditor();
+            infoGroup.description = `Preset: ${config.activePreset}`;
         });
         deleteRow.add_suffix(deleteBtn);
         presetsGroup.add(deleteRow);
@@ -600,12 +609,19 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             createModuleToggle(module);
         }
 
-        // Zone reordering
-        for (const zoneName of ZONE_NAMES) {
+        // Zone reordering: rebuild these groups whenever the active preset changes.
+        const zoneGroups = [];
+        const refreshZoneEditor = () => {
+            for (const group of zoneGroups)
+                modulesPage.remove(group);
+            zoneGroups.length = 0;
+            preset = config.presets?.[config.activePreset] ?? config.presets.default;
+            for (const zoneName of ZONE_NAMES) {
             const group = new Adw.PreferencesGroup({
                 title: `${zoneName[0].toUpperCase()}${zoneName.slice(1)} Zone`,
             });
             modulesPage.add(group);
+            zoneGroups.push(group);
 
             // Foreign tray icons (extension:) are managed on the Tray page only for now
             const moduleIds = (preset.zones[zoneName] ?? []).filter(id =>
@@ -677,7 +693,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     group.add(row);
                 });
             }
-        }
+            }
+        };
+        refreshZoneEditor();
 
 
         // --- PAGE: Tray / foreign indicators ---
