@@ -938,7 +938,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     let networkChangedId = 0;
     try {
         networkChangedId = networkMonitor.connect('network-changed', (_monitor, available) => {
-            if (available && !destroyed && (!detail || detail.source === 'Error'))
+            if (available && !destroyed && (!detail || detail.source === 'Error' ||
+                (lastSuccessAt > 0 && GLib.get_monotonic_time() - lastSuccessAt >= 15 * 60 * 1000000)))
                 fetchWeather();
         });
     } catch (e) {}
