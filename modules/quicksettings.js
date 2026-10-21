@@ -2008,13 +2008,30 @@ export function wifiQsBlock() {
     mainBtn.set_child(mainBox);
 
     let _ssid = 'Wi-Fi';
+    let destroyed = false;
+    let client = null;
+    let nmSignalIds = [];
+    let toggleTimeoutId = 0;
     const stopNet = startNetSpeedMonitor(({downShort, upShort}) => {
         const d = downShort || '—';
         const u = upShort || '—';
         // Tight: "↓16K ↑2K" fits the tile without clipping
         speedLabel.text = `↓${d} ↑${u}`;
     });
-    row.connect('destroy', () => { try { stopNet(); } catch (e) {} });
+    row.connect('destroy', () => {
+        destroyed = true;
+        if (toggleTimeoutId) {
+            try { GLib.source_remove(toggleTimeoutId); } catch (e) {}
+            toggleTimeoutId = 0;
+        }
+        if (client) {
+            for (const id of nmSignalIds) {
+                try { client.disconnect(id); } catch (e) {}
+            }
+        }
+        nmSignalIds = [];
+        try { stopNet(); } catch (e) {}
+    });
 
     const dropBtn = new St.Button({
         style_class: 'material-panel-qs-wifi-drop',
@@ -2049,7 +2066,6 @@ export function wifiQsBlock() {
     listPanel.visible = false;
 
     let expanded = false;
-    let client = null;
 
     const setActive = on => {
         const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
@@ -2217,7 +2233,10 @@ export function wifiQsBlock() {
                 if (client)
                     client.wireless_enabled = next;
             } catch (e) {}
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+            toggleTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+                toggleTimeoutId = 0;
+                if (destroyed)
+                    return GLib.SOURCE_REMOVE;
                 _wifiBusy = false;
                 try {
                     if (client) {
@@ -2240,11 +2259,17 @@ export function wifiQsBlock() {
         try {
             client = NM.Client.new_finish(res);
         } catch (e) {
-            logError(e, 'material-panel: QS NM unavailable');
-            text.text = 'No Wi-Fi';
+            if (!destroyed) {
+                logError(e, 'material-panel: QS NM unavailable');
+                text.text = 'No Wi-Fi';
+            }
             return;
         }
+        if (destroyed)
+            return;
         const sync = () => {
+            if (destroyed)
+                return;
             const on = !!client.wireless_enabled;
             setActive(on);
             const conn = client.get_primary_connection();
@@ -2267,10 +2292,16 @@ export function wifiQsBlock() {
                 rebuildList();
         };
         sync();
-        client.connect('notify::wireless-enabled', sync);
-        client.connect('notify::primary-connection', sync);
-        client.connect('connection-added', () => { if (expanded) rebuildList(); });
-        client.connect('connection-removed', () => { if (expanded) rebuildList(); });
+        nmSignalIds = [
+            client.connect('notify::wireless-enabled', sync),
+            client.connect('notify::primary-connection', sync),
+            client.connect('connection-added', () => {
+                if (!destroyed && expanded) rebuildList();
+            }),
+            client.connect('connection-removed', () => {
+                if (!destroyed && expanded) rebuildList();
+            }),
+        ];
     });
 
     row.listPanel = listPanel;
