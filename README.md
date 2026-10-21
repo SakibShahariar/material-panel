@@ -147,8 +147,10 @@ The script also accepts `MATERIAL_PANEL_ICS_URL` in the environment. The
 generated event cache is written with mode `0600` because it may contain
 event titles, locations, and meeting links. To install a systemd user timer
 that syncs every 15 minutes, run `python3 scripts/calendar-sync-ics.py
---install-timer`. Recurring-event expansion and exclusions are not yet
-implemented.
+--install-timer`. The current parser does not expand `RRULE` recurrence sets or apply
+`EXDATE` exclusions: a recurring `VEVENT` is shown only at its original
+`DTSTART`. This is a known limitation; running the sync timer more often does
+not expand recurring instances.
 
 ## Known limitations
 
