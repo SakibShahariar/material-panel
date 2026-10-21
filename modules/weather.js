@@ -870,8 +870,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             if (destroyed)
                 return;
             logError(e, 'material-panel: weather fetch');
-            label.text = '—°';
-            detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
+            // Preserve the last successful forecast when a refresh fails.
+            // Only show the unavailable state when we have no good data yet.
+            if (!detail || detail.source === 'Error') {
+                label.text = '—°';
+                detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
+            }
             fillPopup();
         }
     };
@@ -881,7 +885,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         if (menu.isOpen)
             menuClose(menu);
         else {
-            if (!detail)
+            // An initial failure should be retryable on the next click;
+            // successful data remains visible while a background refresh runs.
+            if (!detail || detail.source === 'Error')
                 fetchWeather();
             else
                 fillPopup();
