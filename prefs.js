@@ -101,14 +101,18 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         return;
                     try {
                         store.resetDefaults();
-                        // Reload window content is hard; close so user reopens fresh
-                        try {
-                            const toast = new Adw.Toast({title: 'Defaults restored — reopen settings'});
-                            window.add_toast(toast);
-                        } catch (e) {
-                            console.error('material-panel: reset toast', e);
-                        }
-                        try { window.close(); } catch (e) {}
+
+                        // Stop the old config watcher before rebuilding controls
+                        // from the newly restored defaults.
+                        cleanup();
+                        const pages = window.get_pages?.();
+                        if (!pages || typeof window.remove !== 'function')
+                            throw new Error('Preferences window cannot rebuild its pages');
+                        while (pages.get_n_items() > 0)
+                            window.remove(pages.get_item(0));
+                        window.remove_header_suffix?.(resetBtn);
+                        this.fillPreferencesWindow(window);
+                        window.add_toast(new Adw.Toast({title: 'Defaults restored'}));
                     } catch (e) {
                         console.error('material-panel: reset failed', e);
                         try {
