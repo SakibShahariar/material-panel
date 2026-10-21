@@ -9,117 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
-
-function decodeBytes(bytes) {
-    try {
-        if (bytes instanceof Uint8Array)
-            return new TextDecoder('utf-8').decode(bytes);
-        return String(bytes);
-    } catch (e) {
-        return '';
-    }
-}
-
-function findActiveInterface() {
-    try {
-        const [okR, routeBytes] = Gio.File.new_for_path('/proc/net/route').load_contents(null);
-        if (okR) {
-            let bestIface = null;
-            let bestMetric = Infinity;
-            for (const line of decodeBytes(routeBytes).split('\n')) {
-                const p = line.trim().split(/\s+/);
-                if (p.length < 7 || p[0] === 'Iface' || p[0] === 'lo')
-                    continue;
-                if (p[1] !== '00000000')
-                    continue;
-                const flags = Number.parseInt(p[3], 16) || 0;
-                const metric = Number.parseInt(p[6], 10);
-                if (!(flags & 0x1) || !Number.isFinite(metric))
-                    continue;
-                if (metric < bestMetric) {
-                    bestMetric = metric;
-                    bestIface = p[0];
-                }
-            }
-            if (bestIface)
-                return bestIface;
-        }
-    } catch (e) {}
-    // IPv6 default routes live in /proc/net/ipv6_route, not /proc/net/route.
-    // Prefer their lowest-metric usable route before falling back to traffic
-    // totals, which can select an unrelated interface on IPv6-only systems.
-    try {
-        const [ok6, route6Bytes] = Gio.File.new_for_path('/proc/net/ipv6_route').load_contents(null);
-        if (ok6) {
-            let bestIface6 = null;
-            let bestMetric6 = Infinity;
-            for (const line of decodeBytes(route6Bytes).split('\n')) {
-                const p = line.trim().split(/\s+/);
-                if (p.length < 10 || !/^0{32}$/i.test(p[0]) || p[1] !== '00')
-                    continue;
-                const metric = Number.parseInt(p[5], 16);
-                const flags = Number.parseInt(p[8], 16) || 0;
-                if (!(flags & 0x1) || !Number.isFinite(metric) || !p[9])
-                    continue;
-                if (metric < bestMetric6) {
-                    bestMetric6 = metric;
-                    bestIface6 = p[9];
-                }
-            }
-            if (bestIface6)
-                return bestIface6;
-        }
-    } catch (e) {}
-    try {
-        const [ok, contents] = Gio.File.new_for_path('/proc/net/dev').load_contents(null);
-        if (!ok)
-            return null;
-        let best = null, bestT = -1;
-        for (const line of decodeBytes(contents).split('\n')) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 10)
-                continue;
-            const iface = parts[0].replace(':', '');
-            if (!iface || iface === 'lo')
-                continue;
-            const t = (parseInt(parts[1], 10) || 0) + (parseInt(parts[9], 10) || 0);
-            if (t > bestT) {
-                bestT = t;
-                best = iface;
-            }
-        }
-        return best;
-    } catch (e) {}
-    return null;
-}
-
-function formatSpeed(n) {
-    n = Math.max(0, Number(n) || 0);
-    if (n < 1024)
-        return `${Math.round(n)} B/s`;
-    if (n < 1024 * 1024)
-        return `${(n / 1024).toFixed(1)} KB/s`;
-    return `${(n / (1024 * 1024)).toFixed(1)} MB/s`;
-}
-
-function readStats(iface) {
-    if (!iface)
-        return null;
-    try {
-        const [ok, contents] = Gio.File.new_for_path('/proc/net/dev').load_contents(null);
-        if (!ok)
-            return null;
-        for (const line of decodeBytes(contents).split('\n')) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 10)
-                continue;
-            if (parts[0].replace(':', '') !== iface)
-                continue;
-            return {rx: parseInt(parts[1], 10) || 0, tx: parseInt(parts[9], 10) || 0};
-        }
-    } catch (e) {}
-    return null;
-}
+import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
@@ -189,61 +79,30 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         }
     });
 
-    let iface = findActiveInterface();
-    let prevRx = 0, prevTx = 0, primed = false;
-
-    const tick = () => {
-        // Re-check the selected route every poll. Counters belong to a single
-        // interface, so a route change must start a fresh measurement baseline.
-        const activeIface = findActiveInterface();
-        if (activeIface && activeIface !== iface) {
-            iface = activeIface;
-            primed = false;
-        }
-        if (!iface)
-            iface = findActiveInterface();
-        const stats = readStats(iface);
-        if (!stats) {
-            iface = findActiveInterface();
-            primed = false;
-            last = {down: 0, up: 0, downText: '—', upText: '—', iface};
-            try { button.set_tooltip_text('Network speed'); } catch (e) {}
-            if (menu.isOpen)
-                refreshPopup();
-            return GLib.SOURCE_CONTINUE;
-        }
-        if (!primed) {
-            prevRx = stats.rx;
-            prevTx = stats.tx;
-            primed = true;
-            last = {down: 0, up: 0, downText: '0 B/s', upText: '0 B/s', iface};
-            return GLib.SOURCE_CONTINUE;
-        }
-        const down = Math.max(0, stats.rx - prevRx);
-        const up = Math.max(0, stats.tx - prevTx);
-        prevRx = stats.rx;
-        prevTx = stats.tx;
-        sessionRx += down;
-        sessionTx += up;
-        last = {down, up, downText: formatSpeed(down), upText: formatSpeed(up), iface};
+    const stopMonitor = startNetSpeedMonitor(sample => {
+        sessionRx += sample.down;
+        sessionTx += sample.up;
+        last = {
+            down: sample.down,
+            up: sample.up,
+            downText: sample.downText,
+            upText: sample.upText,
+            iface: sample.iface,
+        };
         try {
-            button.set_tooltip_text(`${iface}\n↓ ${last.downText}\n↑ ${last.upText}`);
+            button.set_tooltip_text(sample.iface
+                ? `${sample.iface}\\n↓ ${sample.downText}\\n↑ ${sample.upText}`
+                : 'Network speed unavailable');
         } catch (e) {}
         if (menu.isOpen)
             refreshPopup();
-        return GLib.SOURCE_CONTINUE;
-    };
-
-    tick();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-        try {
-            if (Main.layoutManager.primaryMonitor?.inFullscreen)
-                return GLib.SOURCE_CONTINUE;
-        } catch (e) {}
-        return tick();
+    }, 1, () => {
+        try { return Boolean(Main.layoutManager.primaryMonitor?.inFullscreen); }
+        catch (e) { return false; }
     });
+
     button.connect('destroy', () => {
-        try { GLib.source_remove(id); } catch (e) {}
+        try { stopMonitor(); } catch (e) {}
         menu.destroy();
     });
 
