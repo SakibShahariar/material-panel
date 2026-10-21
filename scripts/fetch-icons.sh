@@ -39,7 +39,7 @@ declare -A MAP=(
   [device_thermostat]=cpu-temp
   [upload]=network-up
   [download]=network-down
-  [cloud]=weather
+  [partly_cloudy_day]=weather
   [wb_sunny]=weather-sunny
   [cloud_queue]=weather-partly-cloudy
   [cloud]=weather-cloudy
@@ -65,21 +65,51 @@ BASE_URL="https://raw.githubusercontent.com/google/material-design-icons/master/
 for src in "${!MAP[@]}"; do
   key="${MAP[$src]}"
   dest="$DEST/$key.svg"
-  # Prefer filled variant
+  tmp="$(mktemp "$DEST/.${key}.XXXXXX")"
+  # Always remove an unfinished download; keep any existing icon intact.
+  trap 'rm -f "${tmp:-}"' EXIT
+
+  # Prefer filled variant.
   url="$BASE_URL/$src/materialsymbolsrounded/${src}_fill1_24px.svg"
   echo -n "Fetching $src -> $key ... "
-  if curl -fsSL "$url" -o "$dest" 2>/dev/null; then
-    echo "OK"
+  if ! curl -fsSL "$url" -o "$tmp" 2>/dev/null; then
+    # Fall back to plain 24px without touching the current destination.
+    url2="$BASE_URL/$src/materialsymbolsrounded/${src}_24px.svg"
+    if ! curl -fsSL "$url2" -o "$tmp" 2>/dev/null; then
+      echo "WARN: failed to fetch $src (tried filled and plain variants)" >&2
+      rm -f "$tmp"
+      tmp=""
+      continue
+    fi
+    result="OK (fallback 24px)"
+  else
+    result="OK"
+  fi
+
+  if ! python3 - "$tmp" <<'PYEOF'
+import sys
+import xml.etree.ElementTree as ET
+
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except (ET.ParseError, OSError) as exc:
+    print(f"INVALID SVG: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+if root.tag.rsplit("}", 1)[-1] != "svg":
+    print(f"INVALID SVG root element: {root.tag}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+  then
+    echo "WARN: invalid SVG for $src (leaving existing $key.svg untouched)" >&2
+    rm -f "$tmp"
+    tmp=""
     continue
   fi
-  # fallback to plain 24px
-  url2="$BASE_URL/$src/materialsymbolsrounded/${src}_24px.svg"
-  if curl -fsSL "$url2" -o "$dest" 2>/dev/null; then
-    echo "OK (fallback 24px)"
-    continue
-  fi
-  echo "WARN: failed to fetch $src (tried $url)" >&2
-  rm -f "$dest"
+
+  mv -f "$tmp" "$dest"
+  tmp=""
+  echo "$result"
 done
 
 echo "Done. Icons written to $DEST"
