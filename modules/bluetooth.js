@@ -115,18 +115,6 @@ function spawnCaptureAsync(argv) {
     });
 }
 
-/** Sync fallback (avoid on UI path). */
-function probeBluetoothCodec(deviceAddress) {
-    try {
-        const [ok, bytes] = GLib.spawn_command_line_sync('env LC_ALL=C pactl list cards');
-        if (!ok || !bytes)
-            return null;
-        return codecFromPactlText(new TextDecoder('utf-8').decode(bytes), deviceAddress);
-    } catch (e) {
-        return null;
-    }
-}
-
 function probeBluetoothCodecAsync(deviceAddress) {
     return spawnCaptureAsync(['env', 'LC_ALL=C', 'pactl', 'list', 'cards'])
         .then(text => codecFromPactlText(text, deviceAddress))
@@ -196,16 +184,8 @@ function isSoftBlocked(callback) {
             }
         });
     } catch (e) {
-        try {
-            const [ok, out] = GLib.spawn_command_line_sync('env LC_ALL=C rfkill list bluetooth');
-            if (!ok || !out) {
-                callback(false);
-                return;
-            }
-            callback(new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes'));
-        } catch (e2) {
-            callback(false);
-        }
+        // Do not fall back to a blocking subprocess on the Shell thread.
+        callback(false);
     }
 }
 

@@ -869,15 +869,9 @@ export function brightnessSliderRow() {
         return row;
     }
 
-    // Confirm brightnessctl is actually installed before wiring up the
-    // slider - a quick synchronous version check, not on the drag hot path.
-    let hasBrightnessctl = false;
-    try {
-        const [ok] = GLib.spawn_command_line_sync('brightnessctl --version');
-        hasBrightnessctl = !!ok;
-    } catch (e) {
-        hasBrightnessctl = false;
-    }
+    // PATH lookup is immediate and avoids spawning a blocking child process
+    // while constructing the Quick Settings panel.
+    const hasBrightnessctl = !!GLib.find_program_in_path('brightnessctl');
     if (!hasBrightnessctl) {
         logError(new Error('material-panel: brightnessctl not installed, hiding brightness slider'));
         row.visible = false;
