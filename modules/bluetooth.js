@@ -40,23 +40,25 @@ function deviceIconKey(props, connected) {
         if (icon.includes('input-keyboard') || icon.includes('keyboard'))
             return 'keyboard';
         if (icon.includes('input-mouse') || icon.includes('mouse'))
-            return 'bluetooth-on';
-        if (icon.includes('input-gaming') || icon.includes('joystick'))
-            return 'bluetooth-on';
+            return 'mouse';
+        if (icon.includes('input-gaming') || icon.includes('joystick') || icon.includes('gamepad'))
+            return 'gamepad';
         if (icon.includes('phone') || icon.includes('smartphone'))
             return 'phone';
         if (icon.includes('computer') || icon.includes('laptop'))
             return 'computer';
 
         // Name heuristics
-        if (/headphone|headset|buds|airpod|earbud|soundcore|sony|bose|jbl/.test(name))
+        if (/headphone|headset|buds|airpod|earbud|earphone/.test(name))
             return 'headphones';
         if (/speaker|soundbar/.test(name))
             return 'headphones';
         if (/keyboard|keychron/.test(name))
             return 'keyboard';
-        if (/mouse/.test(name))
-            return 'bluetooth-on';
+        if (/mouse|trackball|trackpad/.test(name))
+            return 'mouse';
+        if (/gamepad|game controller|controller|joystick/.test(name))
+            return 'gamepad';
 
         // Major device class bits (Bluetooth Class of Device)
         // bits 8-12 = major class
@@ -67,8 +69,14 @@ function deviceIconKey(props, connected) {
             return 'computer';
         if (major === 0x02) // Phone
             return 'phone';
-        if (major === 0x05) // Peripheral
+        if (major === 0x05) { // Peripheral; minor class distinguishes input devices
+            const minor = (cls >> 4) & 0x0f;
+            if (minor === 0x02)
+                return 'mouse';
+            if (minor === 0x03 || minor === 0x04)
+                return 'gamepad';
             return 'keyboard';
+        }
     } catch (e) {}
     return connected ? 'bluetooth-on' : 'bluetooth-off';
 }
@@ -87,6 +95,16 @@ function resolveDeviceGicon(key, connected) {
                 return Gio.FileIcon.new(Gio.File.new_for_path(pth));
         } catch (e) {}
     }
+    const themedFallbacks = {
+        mouse: 'input-mouse-symbolic',
+        gamepad: 'input-gaming-symbolic',
+        keyboard: 'input-keyboard-symbolic',
+        headphones: 'audio-headphones-symbolic',
+        phone: 'phone-symbolic',
+        computer: 'computer-symbolic',
+    };
+    if (themedFallbacks[key])
+        return Gio.ThemedIcon.new(themedFallbacks[key]);
     return Gio.ThemedIcon.new(
         connected ? 'bluetooth-active-symbolic' : 'bluetooth-disabled-symbolic');
 }
