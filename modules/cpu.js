@@ -11,6 +11,7 @@ import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {ConfigStore} from '../lib/configStore.js';
+import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
 
 function findTempFile() {
     const candidates = [];
@@ -293,34 +294,6 @@ function readNetRates() {
         return null;
     }
 }
-
-function readTopProcesses(limit = 12, sortBy = 'cpu') {
-    try {
-        const sort = sortBy === 'mem' ? '-pmem' : '-pcpu';
-        const [, out] = GLib.spawn_command_line_sync(
-            `ps -eo pid,pcpu,pmem,comm --sort=${sort} --no-headers`);
-        const text = new TextDecoder('utf-8').decode(out);
-        const rows = [];
-        for (const line of text.split('\n')) {
-            const t = line.trim();
-            if (!t) continue;
-            const parts = t.split(/\s+/);
-            if (parts.length < 4) continue;
-            const pid = parts[0];
-            const pcpu = parts[1];
-            const pmem = parts[2];
-            const comm = parts.slice(3).join(' ');
-            if (comm === 'ps') continue;
-            rows.push({pid, pcpu, pmem, comm});
-            if (rows.length >= limit)
-                break;
-        }
-        return rows;
-    } catch (e) {
-        return [];
-    }
-}
-
 
 function readGpuInfo() {
     try {
@@ -748,6 +721,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     procTitleRow.add_child(sortMemBtn);
 
     let procFilter = '';
+    let processSnapshot = null;
+    let processError = false;
+    let processRefreshInFlight = false;
+    let processCancellable = null;
+    let processLastRefresh = 0;
+    let processDestroyed = false;
+    let processSearchDebounceId = 0;
     const procSearch = new St.Entry({
         style_class: 'material-panel-activity-proc-search',
         hint_text: 'Filter processes…',
@@ -761,7 +741,16 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             } catch (e) {
                 procFilter = '';
             }
-            try { refreshExtra(); } catch (e) {}
+            if (processSearchDebounceId) {
+                GLib.source_remove(processSearchDebounceId);
+                processSearchDebounceId = 0;
+            }
+            processSearchDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                processSearchDebounceId = 0;
+                if (!processDestroyed)
+                    renderProcesses();
+                return GLib.SOURCE_REMOVE;
+            });
         });
     } catch (e) {}
 
@@ -806,6 +795,93 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     extraSection.actor.add_child(procScroll);
     extraSection.actor.add_child(sysMonBtn);
     menu.addMenuItem(extraSection);
+
+    const renderProcesses = () => {
+        if (processDestroyed)
+            return;
+        procBox.destroy_all_children();
+        if (processSnapshot === null) {
+            procBox.add_child(new St.Label({
+                text: processError ? 'Process list unavailable' : 'Loading processes…',
+                style_class: 'material-panel-cpu-popup-value',
+            }));
+            return;
+        }
+        const rows = filterAndSortProcesses(processSnapshot, procFilter, procSort, 12);
+        if (rows.length === 0) {
+            procBox.add_child(new St.Label({
+                text: 'No matching processes',
+                style_class: 'material-panel-cpu-popup-value',
+            }));
+            return;
+        }
+        for (const process of rows) {
+            const row = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+                style_class: 'material-panel-cpu-proc-row',
+            });
+            row.add_child(new St.Label({
+                text: process.comm,
+                x_expand: true,
+                style_class: 'material-panel-cpu-popup-value',
+            }));
+            row.add_child(new St.Label({
+                text: `PID ${process.pid} · ${process.pcpu}% CPU · ${process.pmem}% MEM`,
+                style_class: 'material-panel-cpu-popup-value',
+            }));
+            procBox.add_child(row);
+        }
+    };
+
+    const requestProcessSnapshot = () => {
+        if (processRefreshInFlight || processDestroyed)
+            return;
+        processRefreshInFlight = true;
+        processCancellable = new Gio.Cancellable();
+        try {
+            const proc = Gio.Subprocess.new(
+                ['env', 'LC_ALL=C', 'ps', '-eo', 'pid,pcpu,pmem,comm', '--no-headers'],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, processCancellable, (p, res) => {
+                try {
+                    const [, stdout, stderr] = p.communicate_utf8_finish(res);
+                    if (!p.get_successful())
+                        throw new Error(stderr || 'ps command failed');
+                    processSnapshot = parseProcessSnapshot(stdout || '');
+                    processError = false;
+                    processLastRefresh = GLib.get_monotonic_time();
+                } catch (e) {
+                    if (!processCancellable?.is_cancelled?.()) {
+                        processError = true;
+                        processSnapshot = null;
+                        logError(e, 'material-panel: process snapshot failed');
+                    }
+                } finally {
+                    processRefreshInFlight = false;
+                    processCancellable = null;
+                    if (!processDestroyed)
+                        renderProcesses();
+                }
+            });
+        } catch (e) {
+            processRefreshInFlight = false;
+            processCancellable = null;
+            processError = true;
+            processSnapshot = null;
+            if (!processDestroyed)
+                renderProcesses();
+            logError(e, 'material-panel: unable to start process snapshot');
+        }
+    };
+
+    const refreshExtra = () => {
+        renderProcesses();
+        const now = GLib.get_monotonic_time();
+        if (!processRefreshInFlight &&
+            (processLastRefresh === 0 || now - processLastRefresh >= 5 * 1000 * 1000))
+            requestProcessSnapshot();
+    };
 
     expandBtn.connect('activate', () => {
         expanded = !expanded;
@@ -962,6 +1038,12 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
+        processDestroyed = true;
+        if (processSearchDebounceId) {
+            try { GLib.source_remove(processSearchDebounceId); } catch (e) {}
+            processSearchDebounceId = 0;
+        }
+        try { processCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(timerId); } catch (e) {}
         try { if (fastTimerId) GLib.source_remove(fastTimerId); } catch (e) {}
         try { _cfgStore.unwatch(); } catch (e) {}
