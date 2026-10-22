@@ -801,10 +801,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             } catch (e) {
                 logError(e, 'material-panel: IP weather failed');
             }
-            // 3) Default (Dhaka)
-            apply(await fetchOpenMeteo(23.81, 90.41, 'Dhaka (default location)', 'Open-Meteo · default location', cancellable));
-            retryDelaySeconds = 60;
-            if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+            // No location was configured or detected. Never show a plausible
+            // forecast for an unrelated city as if it were local weather.
+            throw new Error('No weather location configured; set a city in GNOME Weather');
         } catch (e) {
             if (destroyed)
                 return;
@@ -813,7 +812,14 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             // Only show the unavailable state when we have no good data yet.
             if (!detail || detail.source === 'Error') {
                 label.text = '—°';
-                detail = {condition: 'Unavailable', place: 'Weather', source: 'Error'};
+                detail = {
+                    condition: 'Unavailable',
+                    place: 'Location unavailable',
+                    source: 'Error',
+                };
+                try {
+                    button.set_tooltip_text('Weather unavailable — configure a location in GNOME Weather');
+                } catch (e2) {}
             }
             fillPopup();
             // Retry failed startup/offline requests sooner than the 15-minute
