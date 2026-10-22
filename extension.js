@@ -107,6 +107,7 @@ export default class MaterialPanelExtension extends Extension {
     enable() {
         this._configStore = new ConfigStore();
         this._config = this._configStore.load();
+        globalThis._materialPanelWeatherLocation = this._config.weatherLocation ?? {};
         this._sizeDebounceId = 0;
 
         this._bridge = new StatusAreaBridge();
@@ -128,6 +129,7 @@ export default class MaterialPanelExtension extends Extension {
         this._configStore.watch(newConfig => {
             const prev = this._config;
             this._config = newConfig;
+            globalThis._materialPanelWeatherLocation = newConfig.weatherLocation ?? {};
 
             // Apply tray BEFORE classify so L/R/C never depends on classification
             const trayChanged = !prev ||

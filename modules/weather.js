@@ -780,7 +780,24 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             return;
         fetchInFlight = true;
         try {
-            // 1) GNOME Weather city → Open-Meteo (full current + hourly + daily)
+            // 1) An explicit manual location takes precedence over GNOME Weather.
+            const manual = globalThis._materialPanelWeatherLocation ?? {};
+            const manualLatText = String(manual.latitude ?? '').trim();
+            const manualLonText = String(manual.longitude ?? '').trim();
+            if (manualLatText || manualLonText) {
+                const lat = Number(manualLatText);
+                const lon = Number(manualLonText);
+                if (!manualLatText || !manualLonText ||
+                    !Number.isFinite(lat) || !Number.isFinite(lon) ||
+                    lat < -90 || lat > 90 || lon < -180 || lon > 180)
+                    throw new Error('Manual weather coordinates are invalid; check Preferences');
+                const place = String(manual.name ?? '').trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+                apply(await fetchOpenMeteo(lat, lon, place, 'Open-Meteo · manual location', cancellable));
+                retryDelaySeconds = 60;
+                if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+                return;
+            }
+            // 2) GNOME Weather city → Open-Meteo (full current + hourly + daily)
             const gw = await loadGnomeWeatherLocation();
             if (gw?.lat != null && gw?.lon != null) {
                 apply(await fetchOpenMeteo(
@@ -816,7 +833,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     source: 'Error',
                 };
                 try {
-                    button.set_tooltip_text('Weather unavailable — configure a location in GNOME Weather');
+                    button.set_tooltip_text('Weather unavailable — configure coordinates in Preferences or set a location in GNOME Weather');
                 } catch (e2) {}
             }
             fillPopup();

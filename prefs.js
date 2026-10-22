@@ -416,6 +416,59 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockRow.activatable_widget = clockSwitch;
         clockGroup.add(clockRow);
 
+        const weatherGroup = new Adw.PreferencesGroup({
+            title: 'Weather location',
+            description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. No IP geolocation is used.',
+        });
+        generalPage.add(weatherGroup);
+        config.weatherLocation ??= {name: '', latitude: '', longitude: ''};
+        const weatherName = new Adw.EntryRow({
+            title: 'City or location name',
+            text: String(config.weatherLocation.name ?? ''),
+        });
+        const weatherLatitude = new Adw.EntryRow({
+            title: 'Latitude',
+            text: String(config.weatherLocation.latitude ?? ''),
+        });
+        const weatherLongitude = new Adw.EntryRow({
+            title: 'Longitude',
+            text: String(config.weatherLocation.longitude ?? ''),
+        });
+        weatherGroup.add(weatherName);
+        weatherGroup.add(weatherLatitude);
+        weatherGroup.add(weatherLongitude);
+        const weatherActions = new Adw.ActionRow({
+            title: 'Manual location',
+            subtitle: 'Save coordinates to use this location instead of GNOME Weather.',
+        });
+        const weatherSave = new Gtk.Button({
+            label: 'Save',
+            valign: Gtk.Align.CENTER,
+        });
+        weatherSave.connect('clicked', () => {
+            if (syncingExternal) return;
+            const latitude = weatherLatitude.text.trim();
+            const longitude = weatherLongitude.text.trim();
+            const name = weatherName.text.trim();
+            if (latitude || longitude) {
+                const lat = Number(latitude);
+                const lon = Number(longitude);
+                if (!latitude || !longitude || !Number.isFinite(lat) || !Number.isFinite(lon) ||
+                    lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    window.add_toast(new Adw.Toast({title: 'Enter valid latitude and longitude'}));
+                    return;
+                }
+            }
+            config.weatherLocation = {name, latitude, longitude};
+            saveConfig();
+            window.add_toast(new Adw.Toast({
+                title: latitude && longitude ? 'Manual weather location saved' : 'Using GNOME Weather location',
+            }));
+        });
+        weatherActions.add_suffix(weatherSave);
+        weatherActions.activatable_widget = weatherSave;
+        weatherGroup.add(weatherActions);
+
         const activityGroup = new Adw.PreferencesGroup({
             title: 'Activity chip',
             description: 'What the CPU / Activity chip shows on the bar.',
