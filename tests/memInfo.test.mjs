@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseMemInfoText} from '../lib/memInfo.js';
+import {parseMemInfoText} from '../lib/memInfoParser.js';
 
 test('parses memory and swap values from proc meminfo', () => {
     const result = parseMemInfoText([
