@@ -146,7 +146,7 @@ function probeBluetoothCodecAsync(deviceAddress) {
 // Timeout for DBus calls (ms) - prevents hanging if bluetoothd is unresponsive
 const DBUS_TIMEOUT_MS = 3000;
 
-function findAdapterPath(callback, cancellable = null) {
+function findAdapterPaths(callback, cancellable = null) {
     let timedOut = false;
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
         timedOut = true;
@@ -181,8 +181,20 @@ function findAdapterPath(callback, cancellable = null) {
                     try {
                         const result = proxy.call_finish(callRes);
                         const [objects] = result.deep_unpack();
-                        const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
-                        callback(path ?? null);
+                        const adapters = Object.keys(objects)
+                            .filter(path => ADAPTER_IFACE in objects[path])
+                            .map(path => {
+                                const props = objects[path][ADAPTER_IFACE] || {};
+                                const unpack = key => {
+                                    try { return props[key]?.deep_unpack?.() ?? props[key] ?? null; }
+                                    catch (e) { return null; }
+                                };
+                                const alias = unpack('Alias');
+                                const address = unpack('Address');
+                                return {path, name: String(alias || address || path.split('/').pop() || path), powered: unpack('Powered') === true};
+                            })
+                            .sort((a, b) => Number(b.powered) - Number(a.powered));
+                        callback(adapters);
                     } catch (e) {
                         logError(e, 'material-panel: bluez GetManagedObjects failed');
                         callback(null);
@@ -298,9 +310,31 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let currentlyPowered = false;
     let isBlocked = false;
     let discovering = false;
+    let preferredAdapterPath = null;
+    let adapterMenuItems = [];
 
-    // Header — bluetooth power switch (PopupSwitchMenuItem) + status label
+    // Header — Bluetooth power switch and adapter chooser.
     const btSwitch = new PopupMenu.PopupSwitchMenuItem('Bluetooth', false);
+    const adapterMenu = new PopupMenu.PopupSubMenuMenuItem('Bluetooth adapter', false);
+    adapterMenu.visible = false;
+    const refreshAdapterMenu = adapters => {
+        for (const item of adapterMenuItems) {
+            try { adapterMenu.menu.removeMenuItem(item); } catch (e) {}
+        }
+        adapterMenuItems = [];
+        adapterMenu.visible = adapters.length > 1;
+        for (const adapter of adapters) {
+            const label = (adapter.path === adapterPath ? '✓ ' : '') + adapter.name;
+            const item = new PopupMenu.PopupMenuItem(label);
+            item.connect('activate', () => {
+                preferredAdapterPath = adapter.path;
+                bindAdapter(adapter.path);
+                refreshAdapterMenu(adapters);
+            });
+            adapterMenu.menu.addMenuItem(item);
+            adapterMenuItems.push(item);
+        }
+    };
     // Replace switch's icon row styling to match Noctalia header: keep switch widget
     btSwitch.connect('toggled', () => {
         if (isBlocked) {
@@ -403,6 +437,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const footerItem = wrapAsMenuItem(footerBtn);
 
     menu.addMenuItem(btSwitch);
+    menu.addMenuItem(adapterMenu);
     menu.addMenuItem(blockedItem);
     menu.addMenuItem(scanSwitch);
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -456,7 +491,12 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     };
 
     const bindAdapter = path => {
+        if (propsProxy && propsSignalId) {
+            try { propsProxy.disconnect(propsSignalId); } catch (e) {}
+            propsSignalId = 0;
+        }
         adapterPath = path;
+        preferredAdapterPath = path;
         let timedOut = false;
         const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
             timedOut = true;
@@ -511,8 +551,9 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const discover = () => {
         if (discoverAttempts > 6) return;
         discoverAttempts++;
-        findAdapterPath(path => {
-            if (!path) {
+        findAdapterPaths(adapters => {
+            refreshAdapterMenu(adapters);
+            if (!adapters.length) {
                 isSoftBlocked(blocked => {
                     if (blocked) setBlockedState();
                     else setNoAdapterState();
@@ -520,7 +561,11 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                 return;
             }
             discoverAttempts = 0;
-            bindAdapter(path);
+            const selected = adapters.find(adapter => adapter.path === preferredAdapterPath) ||
+                adapters.find(adapter => adapter.path === adapterPath) ||
+                adapters.find(adapter => adapter.powered) || adapters[0];
+            if (selected.path !== adapterPath || !propsProxy)
+                bindAdapter(selected.path);
         });
     };
 
