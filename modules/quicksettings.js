@@ -2028,7 +2028,7 @@ export function wifiQsBlock() {
         style_class: 'material-panel-qs-wifi-text',
     });
     const text = new St.Label({
-        text: 'Wi-Fi',
+        text: 'Checking Wi-Fi…',
         style_class: 'material-panel-qs-tile-label',
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
@@ -2160,7 +2160,7 @@ export function wifiQsBlock() {
 
     const rebuildList = () => {
         listPanel.destroy_all_children();
-        if (!client) {
+        if (!client || client.get_nm_running?.() === false) {
             listPanel.add_child(new St.Label({
                 text: 'NetworkManager unavailable',
                 style_class: 'material-panel-qs-bt-empty',
@@ -2320,7 +2320,10 @@ export function wifiQsBlock() {
         } catch (e) {
             if (!destroyed) {
                 logError(e, 'material-panel: QS NM unavailable');
-                text.text = 'No Wi-Fi';
+                connectivityHint = 'NetworkManager unavailable';
+                text.text = 'NetworkManager unavailable';
+                speedLabel.visible = true;
+                speedLabel.text = 'Service unavailable';
             }
             return;
         }
@@ -2329,6 +2332,16 @@ export function wifiQsBlock() {
         const sync = () => {
             if (destroyed)
                 return;
+            if (client.get_nm_running?.() === false) {
+                connectivityHint = 'NetworkManager unavailable';
+                setActive(false);
+                text.text = 'NetworkManager unavailable';
+                speedLabel.visible = true;
+                speedLabel.text = 'Service unavailable';
+                if (expanded)
+                    rebuildList();
+                return;
+            }
             const on = !!client.wireless_enabled;
             setActive(on);
             const conn = activeWifiConnection();
