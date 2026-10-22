@@ -189,13 +189,11 @@ function loadGnomeWeatherLocationFromGsettingsText() {
         }
     } catch (e) {}
     try {
-        if (!text) {
-            const [ok, stdout, _stderr, status] = GLib.spawn_command_line_sync(
-                'gsettings get org.gnome.Weather locations');
-            if (!ok || status !== 0)
-                return null;
-            text = new TextDecoder('utf-8').decode(stdout);
-        }
+        // GSettings is the non-blocking-in-spirit in-process source of truth;
+        // if the schema is unavailable, report no configured location rather
+        // than launching a synchronous gsettings subprocess on the Shell thread.
+        if (!text)
+            return null;
         if (!text || text.includes('@as []') || text.trim() === '@as []')
             return null;
 
