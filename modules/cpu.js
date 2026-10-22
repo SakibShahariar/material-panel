@@ -12,6 +12,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
+import {readMemInfo} from '../lib/memInfo.js';
 
 function findTempFile() {
     const candidates = [];
@@ -186,43 +187,6 @@ function readCpuFreq() {
     return freqs.length > 0 ? freqs : null;
 }
 
-
-function readMemInfo() {
-    try {
-        const [ok, contents] = Gio.File.new_for_path('/proc/meminfo').load_contents(null);
-        if (!ok) return null;
-        const text = new TextDecoder('utf-8').decode(contents);
-        const map = {};
-        for (const line of text.split('\n')) {
-            const m = line.match(/^(\w+):\s+(\d+)/);
-            if (m)
-                map[m[1]] = parseInt(m[2], 10); // kB
-        }
-        const total = map.MemTotal ?? 0;
-        const available = map.MemAvailable ?? map.MemFree ?? 0;
-        const free = map.MemFree ?? 0;
-        const buffers = map.Buffers ?? 0;
-        const cached = (map.Cached ?? 0) + (map.SReclaimable ?? 0);
-        const used = Math.max(0, total - available);
-        const swapTotal = map.SwapTotal ?? 0;
-        const swapFree = map.SwapFree ?? 0;
-        const swapUsed = Math.max(0, swapTotal - swapFree);
-        return {
-            totalKb: total,
-            availableKb: available,
-            usedKb: used,
-            freeKb: free,
-            cachedKb: cached,
-            buffersKb: buffers,
-            usedPct: total > 0 ? Math.round((used / total) * 100) : 0,
-            swapTotalKb: swapTotal,
-            swapUsedKb: swapUsed,
-            swapPct: swapTotal > 0 ? Math.round((swapUsed / swapTotal) * 100) : 0,
-        };
-    } catch (e) {
-        return null;
-    }
-}
 
 function formatBytesFromKb(kb) {
     if (kb == null || !Number.isFinite(kb))
