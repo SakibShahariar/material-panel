@@ -69,22 +69,6 @@ function setArtFromUrl(container, artUrl, size = 48) {
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 
-function listMprisNames(callback) {
-    const dbus = Gio.DBus.session;
-    // Never block the compositor while enumerating session-bus names.
-    dbus.call(
-        'org.freedesktop.DBus', '/', 'org.freedesktop.DBus',
-        'ListNames', null, null, Gio.DBusCallFlags.NONE, 5000, null,
-        (_connection, result) => {
-            try {
-                const [names] = dbus.call_finish(result).deep_unpack();
-                callback(names.filter(n => n.startsWith(MPRIS_PREFIX)));
-            } catch (e) {
-                callback([]);
-            }
-        });
-}
-
 function makePlayerProxy(busName, callback) {
     Gio.DBusProxy.new_for_bus(
         Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, null,
@@ -192,36 +176,119 @@ function bindPlayer(busName, hooks) {
     });
 }
 
-function pickPreferredPlayer(callback) {
-    listMprisNames(names => {
-        if (names.length === 0) {
+function watchPreferredPlayer(callback) {
+    const dbus = Gio.DBus.session;
+    const names = new Set();
+    const changesDuringInitialScan = new Map();
+    let initialized = false;
+    let destroyed = false;
+    let selectionRevision = 0;
+
+    const choose = () => {
+        if (destroyed)
+            return;
+        const revision = ++selectionRevision;
+        const candidates = [...names];
+        if (candidates.length === 0) {
             callback(null);
             return;
         }
-        // Prefer one that is Playing
-        let pending = names.length;
+
+        let pending = candidates.length;
         let playing = null;
-        let fallback = names[0];
-        for (const name of names) {
+        const fallback = candidates[0];
+        for (const name of candidates) {
             makePropsProxy(name, props => {
-                if (!props) {
-                    if (--pending === 0)
+                if (destroyed || revision !== selectionRevision)
+                    return;
+                const finishOne = () => {
+                    pending--;
+                    if (pending === 0 && !destroyed && revision === selectionRevision)
                         callback(playing || fallback);
+                };
+                if (!props) {
+                    finishOne();
                     return;
                 }
                 props.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
-                    Gio.DBusCallFlags.NONE, 5000, null, (p, r) => {
+                    Gio.DBusCallFlags.NONE, 5000, null, (proxy, result) => {
+                        if (destroyed || revision !== selectionRevision)
+                            return;
                         try {
-                            const [v] = p.call_finish(r).deep_unpack();
-                            if (v.deep_unpack() === 'Playing')
+                            const [value] = proxy.call_finish(result).deep_unpack();
+                            if (value.deep_unpack() === 'Playing')
                                 playing = name;
                         } catch (e) {}
-                        if (--pending === 0)
-                            callback(playing || fallback);
+                        finishOne();
                     });
             });
         }
-    });
+    };
+
+    // Subscribe before ListNames and replay changes observed during that scan.
+    const ownerSignalId = dbus.signal_subscribe(
+        'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
+        '/org/freedesktop/DBus', null, Gio.DBusSignalFlags.NONE,
+        (_connection, _sender, _path, _iface, _signal, parameters) => {
+            const [name, _oldOwner, newOwner] = parameters.deep_unpack();
+            if (!name.startsWith(MPRIS_PREFIX))
+                return;
+            if (!initialized) {
+                changesDuringInitialScan.set(name, Boolean(newOwner));
+                return;
+            }
+            if (newOwner)
+                names.add(name);
+            else
+                names.delete(name);
+            choose();
+        });
+
+    const statusSignalId = dbus.signal_subscribe(
+        null, 'org.freedesktop.DBus.Properties', 'PropertiesChanged',
+        '/org/mpris/MediaPlayer2', PLAYER_IFACE, Gio.DBusSignalFlags.NONE,
+        (_connection, _sender, _path, _iface, _signal, parameters) => {
+            try {
+                const [iface, changed] = parameters.deep_unpack();
+                if (iface === PLAYER_IFACE && 'PlaybackStatus' in changed)
+                    choose();
+            } catch (e) {}
+        });
+
+    dbus.call(
+        'org.freedesktop.DBus', '/', 'org.freedesktop.DBus', 'ListNames',
+        null, null, Gio.DBusCallFlags.NONE, 5000, null,
+        (_connection, result) => {
+            if (destroyed)
+                return;
+            try {
+                const [busNames] = dbus.call_finish(result).deep_unpack();
+                for (const name of busNames) {
+                    if (name.startsWith(MPRIS_PREFIX))
+                        names.add(name);
+                }
+            } catch (e) {
+                // Stay subscribed so NameOwnerChanged can recover later.
+            }
+            for (const [name, owned] of changesDuringInitialScan) {
+                if (owned)
+                    names.add(name);
+                else
+                    names.delete(name);
+            }
+            changesDuringInitialScan.clear();
+            initialized = true;
+            choose();
+        });
+
+    return () => {
+        if (destroyed)
+            return;
+        destroyed = true;
+        selectionRevision++;
+        dbus.signal_unsubscribe(ownerSignalId);
+        dbus.signal_unsubscribe(statusSignalId);
+    };
 }
 
 /** QS media card */
@@ -346,17 +413,13 @@ export function buildMediaPlayerRow() {
     playBtn.connect('clicked', () => ctl?.playPause());
     nextBtn.connect('clicked', () => ctl?.next());
 
-    pickPreferredPlayer(attach);
-    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 4, () => {
-        pickPreferredPlayer(name => {
-            if (!ctl)
-                attach(name);
-        });
-        return GLib.SOURCE_CONTINUE;
+    const stopWatching = watchPreferredPlayer(name => {
+        if (name !== attachedBusName)
+            attach(name);
     });
     row.connect('destroy', () => {
+        stopWatching();
         clearCtl();
-        try { GLib.source_remove(scanId); } catch (e) {}
     });
     return row;
 }
@@ -540,28 +603,21 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     playBtn.connect('clicked', () => ctl?.playPause());
     nextBtn.connect('clicked', () => ctl?.next());
 
-    pickPreferredPlayer(attach);
-    const scanId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 4, () => {
-        pickPreferredPlayer(name => {
-            // The preferred MPRIS player can change while the current
-            // controller remains valid. Rebind only when the bus name changes.
-            if (name !== attachedBusName)
-                attach(name);
-        });
-        return GLib.SOURCE_CONTINUE;
+    const stopWatching = watchPreferredPlayer(name => {
+        if (name !== attachedBusName)
+            attach(name);
     });
 
     button.connect('clicked', () => {
         if (menu.isOpen)
             menuClose(menu);
         else {
-            pickPreferredPlayer(attach);
             menuOpen(menu);
         }
     });
     button.connect('destroy', () => {
+        stopWatching();
         clearCtl();
-        try { GLib.source_remove(scanId); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
 
