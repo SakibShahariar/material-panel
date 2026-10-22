@@ -2391,6 +2391,7 @@ export function wifiQsBlock() {
         };
         sync();
         nmSignalIds = [
+            client.connect('notify::nm-running', sync),
             client.connect('notify::wireless-enabled', sync),
             client.connect('notify::primary-connection', () => {
                 sync();
