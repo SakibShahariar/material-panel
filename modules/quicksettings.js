@@ -1003,16 +1003,6 @@ export function dndTile() {
 
 // Bluetooth tile is async (D-Bus discovery) so it can't use the synchronous
 // buildTile() helper directly - built inline, same visual shape.
-function isBluetoothSoftBlocked() {
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-        if (!ok || !out) return false;
-        const text = new TextDecoder('utf-8').decode(out);
-        return text.includes('Soft blocked: yes');
-    } catch (e) {
-        return false;
-    }
-}
 
 export function bluetoothTile() {
     // Grid cell only: power toggle + chevron. Device list is a SEPARATE
@@ -1184,8 +1174,7 @@ export function bluetoothTile() {
                     objMgr = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
                     logError(e, 'material-panel: bluez unavailable');
-                    if (isBluetoothSoftBlocked()) setBlockedState();
-                    else setNoAdapterState();
+                    setNoAdapterState();
                     return;
                 }
                 objMgrProxy = objMgr;
@@ -1194,13 +1183,8 @@ export function bluetoothTile() {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
                         if (!path) {
-                            if (isBluetoothSoftBlocked()) {
-                                log('material-panel: bluez no adapter — rfkill soft blocked, showing unblock UI');
-                                setBlockedState();
-                            } else {
-                                logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
-                                setNoAdapterState();
-                            }
+                            logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
+                            setNoAdapterState();
                             return;
                         }
                         Gio.DBusProxy.new_for_bus(
@@ -1242,8 +1226,7 @@ export function bluetoothTile() {
                             });
                     } catch (e) {
                         logError(e, 'material-panel: bluez GetManagedObjects failed');
-                        if (isBluetoothSoftBlocked()) setBlockedState();
-                        else setNoAdapterState();
+                        setNoAdapterState();
                     }
                 });
             });
@@ -1528,17 +1511,6 @@ export function bluetoothTile() {
                             deviceContainer.destroy_all_children();
                             const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                             if (!hasAdapter) {
-                                try {
-                                    const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-                                    const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
-                                    if (blocked) {
-                                        const hint = new St.Label({text: 'Blocked — tap main area to unblock', style_class: 'material-panel-qs-bt-empty'});
-                                        hint.style = 'font-style: italic; padding: 4px 8px;';
-                                        deviceContainer.add_child(hint);
-                                        deviceContainer.visible = expanded;
-                                        return;
-                                    }
-                                } catch (e) {}
                                 const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-empty'});
                                 hint.style = 'font-style: italic; padding: 4px 8px;';
                                 deviceContainer.add_child(hint);
@@ -1817,20 +1789,6 @@ function buildBluetoothDeviceList() {
                         const ADAPTER_IFACE_LOCAL = 'org.bluez.Adapter1';
                         const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE_LOCAL in ifaces);
                         if (!hasAdapter) {
-                            // No adapter at all — likely rfkill blocked; show hint instead of empty
-                            try {
-                                const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
-                                const blocked = ok && out && new TextDecoder('utf-8').decode(out).includes('Soft blocked: yes');
-                                if (blocked) {
-                                    const hint = new St.Label({text: 'Bluetooth blocked — tap tile above to unblock', style_class: 'material-panel-qs-bt-empty'});
-                                    hint.style = 'font-style: italic; padding: 4px 8px;';
-                                    container.add_child(hint);
-                                    headerLabel.text = 'Paired devices — blocked';
-                                    // keep collapsed state; only show if already expanded
-                                    container.visible = expanded;
-                                    return;
-                                }
-                            } catch (e) {}
                             headerLabel.text = 'Paired devices — no adapter';
                             container.visible = false;
                             return;
