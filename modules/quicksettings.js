@@ -21,6 +21,7 @@ import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtra
 import {fillRyokuQsMenu} from './quicksettingsRyoku.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
+import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
