@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
+import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
 import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib/layoutPresets.js';
 // Prefer moduleIds over moduleRegistry: the registry imports every panel
 // module (St, Clutter, Main, …) which only exist inside gnome-shell.
@@ -74,6 +75,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const store = new ConfigStore();
         const config = store.load();
+        let baseline = JSON.parse(JSON.stringify(config));
         const preferencePages = [];
         const addPreferencesPage = page => {
             preferencePages.push(page);
@@ -81,7 +83,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         };
         const saveConfig = () => {
             try {
-                store.save(config);
+                // Merge local edits over the latest disk state to preserve unrelated external edits.
+                const latest = store.load();
+                const merged = mergeConfigChanges(baseline, config, latest);
+                store.save(merged);
+                const saved = store.load();
+                syncObjectInPlace(config, saved);
+                baseline = JSON.parse(JSON.stringify(saved));
             } catch (e) {
                 console.error('material-panel prefs: save failed', e);
             }
@@ -997,7 +1005,13 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         try {
             store.watch(newConfig => {
-                const newSize = newConfig.panelSize ?? {};
+                // Apply external edits to untouched settings without discarding
+                // any local preference changes still being edited.
+                const merged = mergeConfigChanges(baseline, config, newConfig);
+                syncObjectInPlace(config, merged);
+                baseline = JSON.parse(JSON.stringify(newConfig));
+
+                const newSize = config.panelSize ?? {};
                 syncingExternal = true;
                 for (const k of ['scale', 'gapTop', 'gapBottom']) {
                     const entry = sliderMap[k];
@@ -1015,13 +1029,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         entry.updateValueLabel();
                     }
                 }
-                if (newConfig.hiddenModules)
-                    config.hiddenModules = newConfig.hiddenModules;
-                if (newConfig.foreignRoleZones)
-                    config.foreignRoleZones = newConfig.foreignRoleZones;
-                if (newConfig.trayAllHidden != null)
-                    config.trayAllHidden = newConfig.trayAllHidden;
-                config.panelSize = {...panelSize};
                 syncingExternal = false;
             });
         } catch (e) {
