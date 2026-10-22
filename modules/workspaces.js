@@ -159,6 +159,20 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     };
 
     let lastSnapshotKey = null;
+    let focusRings = [];
+    const updateFocusRings = (focusId, activeIndex) => {
+        for (const entry of focusRings) {
+            const focused = entry.workspaceIndex === activeIndex && !!focusId &&
+                (entry.id === focusId || entry.appId === focusId || entry.appName === focusId);
+            try {
+                entry.ring.style_class = focused
+                    ? 'material-panel-ws-app-ring active'
+                    : 'material-panel-ws-app-ring';
+                entry.ring.style = `width: ${entry.slot}px; height: ${entry.slot}px; border-radius: 999px;` +
+                    (focused ? 'border: 2px solid; padding: 2px;' : 'border: 2px solid transparent; padding: 2px;');
+            } catch (e) {}
+        }
+    };
     const rebuild = () => {
         const end4 = globalThis._materialPanelLayoutStyle === 'end4';
         const activeIndex = manager.get_active_workspace_index();
@@ -183,10 +197,13 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             });
             workspaceWindows.push(windows);
         }
-        const snapshotKey = JSON.stringify([end4, activeIndex, n, focusId, workspaceWindows]);
-        if (snapshotKey === lastSnapshotKey)
+        const snapshotKey = JSON.stringify([end4, activeIndex, n, workspaceWindows]);
+        if (snapshotKey === lastSnapshotKey) {
+            updateFocusRings(focusId, activeIndex);
             return;
+        }
         lastSnapshotKey = snapshotKey;
+        focusRings = [];
         box.destroy_all_children();
 
         if (!end4) {
@@ -256,29 +273,22 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             } catch (e) {}
 
             apps.forEach((entry, idx) => {
-                const isFocus = !!(
-                    active && focusId &&
-                    (entry.id === focusId ||
-                        entry.app.get_id?.() === focusId ||
-                        entry.app.get_name?.() === focusId)
-                );
                 const x = 4 + idx * (slot - pull);
                 const ring = new St.Bin({
-                    style_class: isFocus
-                        ? 'material-panel-ws-app-ring active'
-                        : 'material-panel-ws-app-ring',
+                    style_class: 'material-panel-ws-app-ring',
                     x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER,
                     width: slot,
                     height: slot,
                 });
                 try {
-                    ring.style = isFocus
-                        ? `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
-                          'border: 2px solid; padding: 2px;'
-                        : `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
-                          'border: 2px solid transparent; padding: 2px;';
+                    ring.style = `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
+                        'border: 2px solid transparent; padding: 2px;';
                 } catch (e) {}
+                focusRings.push({
+                    ring, id: entry.id, appId: entry.app.get_id?.() || null,
+                    appName: entry.app.get_name?.() || null, workspaceIndex: i, slot,
+                });
                 const img = new St.Icon({
                     style_class: 'material-panel-workspace-app',
                     gicon: entry.gicon,
@@ -310,6 +320,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             btn.connect('clicked', () => ws.activate(global.get_current_time()));
             box.add_child(btn);
         }
+        updateFocusRings(focusId, activeIndex);
     };
 
     rebuild();
