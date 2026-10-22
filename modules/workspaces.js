@@ -11,6 +11,10 @@ import GLib from 'gi://GLib';
 import {wirePressedClass} from '../lib/pressFx.js';
 
 const MAX_ICONS = 5;
+// App icon GIcons are stable for the lifetime of a Shell.App object; cache
+// them across workspace snapshots instead of resolving each icon on every
+// focus/restack notification.
+const _appIconCache = new WeakMap();
 
 function _allMetaWindows() {
     const out = [];
@@ -72,8 +76,13 @@ function _appsOnWorkspace(ws, index) {
             if (seen.has(id))
                 continue;
             seen.add(id);
-            let gicon = null;
-            try { gicon = app.get_icon(); } catch (e) {}
+            let gicon;
+            if (_appIconCache.has(app)) {
+                gicon = _appIconCache.get(app);
+            } else {
+                try { gicon = app.get_icon(); } catch (e) { gicon = null; }
+                _appIconCache.set(app, gicon ?? null);
+            }
             if (!gicon)
                 continue;
             apps.push({app, gicon, id});
