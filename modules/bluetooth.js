@@ -10,6 +10,7 @@ import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {codecFromPactlText} from '../lib/bluetoothCodec.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -114,44 +115,21 @@ function spawnCaptureAsync(argv) {
     });
 }
 
-function codecFromPactlText(text, deviceName) {
-    try {
-        const blocks = String(text || '').split('Card #');
-        const needle = String(deviceName || '').toLowerCase();
-        for (const b of blocks) {
-            if (!/bluez/i.test(b))
-                continue;
-            if (needle && !b.toLowerCase().includes(needle.slice(0, Math.min(12, needle.length))))
-                continue;
-            const m = b.match(/Active Profile:\s*(\S+)/i);
-            if (!m)
-                continue;
-            const profile = m[1];
-            if (/a2dp/i.test(profile))
-                return 'High fidelity';
-            if (/handsfree|headset|hfp|hsp/i.test(profile))
-                return 'Headset + mic';
-            return profile.replace(/_/g, ' ');
-        }
-    } catch (e) {}
-    return null;
-}
-
 /** Sync fallback (avoid on UI path). */
-function probeBluetoothCodec(deviceName) {
+function probeBluetoothCodec(deviceAddress) {
     try {
-        const [ok, bytes] = GLib.spawn_command_line_sync('pactl list cards');
+        const [ok, bytes] = GLib.spawn_command_line_sync('env LC_ALL=C pactl list cards');
         if (!ok || !bytes)
             return null;
-        return codecFromPactlText(new TextDecoder('utf-8').decode(bytes), deviceName);
+        return codecFromPactlText(new TextDecoder('utf-8').decode(bytes), deviceAddress);
     } catch (e) {
         return null;
     }
 }
 
-function probeBluetoothCodecAsync(deviceName) {
-    return spawnCaptureAsync(['pactl', 'list', 'cards'])
-        .then(text => codecFromPactlText(text, deviceName))
+function probeBluetoothCodecAsync(deviceAddress) {
+    return spawnCaptureAsync(['env', 'LC_ALL=C', 'pactl', 'list', 'cards'])
+        .then(text => codecFromPactlText(text, deviceAddress))
         .catch(() => null);
 }
 
@@ -207,7 +185,7 @@ function findAdapterPath(callback, cancellable = null) {
 function isSoftBlocked(callback) {
     try {
         const proc = Gio.Subprocess.new(
-            ['rfkill', 'list', 'bluetooth'],
+            ['env', 'LC_ALL=C', 'rfkill', 'list', 'bluetooth'],
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
         proc.communicate_utf8_async(null, null, (p, res) => {
             try {
@@ -219,7 +197,7 @@ function isSoftBlocked(callback) {
         });
     } catch (e) {
         try {
-            const [ok, out] = GLib.spawn_command_line_sync('rfkill list bluetooth');
+            const [ok, out] = GLib.spawn_command_line_sync('env LC_ALL=C rfkill list bluetooth');
             if (!ok || !out) {
                 callback(false);
                 return;
@@ -619,7 +597,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             parts.push('tap to disconnect');
         const subLabel = new St.Label({text: parts.join(' · '), style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
         if (connected) {
-            probeBluetoothCodecAsync(displayName).then(codec => {
+            probeBluetoothCodecAsync(props['Address']?.deep_unpack?.() ?? props['Address']).then(codec => {
                 if (!codec)
                     return;
                 try {
