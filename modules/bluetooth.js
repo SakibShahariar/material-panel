@@ -70,10 +70,12 @@ function deviceIconKey(props, connected) {
         if (major === 0x02) // Phone
             return 'phone';
         if (major === 0x05) { // Peripheral; minor class distinguishes input devices
-            const minor = (cls >> 4) & 0x0f;
-            if (minor === 0x02)
+            const minor = (cls >> 2) & 0x3f;
+            if (minor & 0x20)
                 return 'mouse';
-            if (minor === 0x03 || minor === 0x04)
+            if (minor & 0x10)
+                return 'keyboard';
+            if (minor === 0x04 || minor === 0x08)
                 return 'gamepad';
             return 'keyboard';
         }
