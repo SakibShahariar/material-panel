@@ -13,36 +13,56 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
 
-function setArtFromUrl(icon, artUrl) {
-    if (!icon)
+function setArtFromUrl(container, artUrl, size = 48) {
+    if (!container)
         return;
+
+    const setChild = child => {
+        const previous = container.get_child();
+        if (previous) {
+            container.set_child(null);
+            if (previous !== child)
+                previous.destroy();
+        }
+        if (child)
+            container.set_child(child);
+    };
+    const showFallback = () => setChild(new St.Icon({
+        icon_name: 'audio-x-generic-symbolic',
+        icon_size: size,
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+
+    if (!artUrl) {
+        showFallback();
+        return;
+    }
+
     try {
-        if (!artUrl) {
-            icon.gicon = null;
-            icon.icon_name = 'audio-x-generic-symbolic';
+        const value = String(artUrl);
+        let uri;
+        if (/^https?:\/\//i.test(value) || value.startsWith('file://')) {
+            uri = value;
+        } else if (value.startsWith('/')) {
+            // Convert local paths to file URIs without blocking on query_exists().
+            uri = Gio.File.new_for_path(value).get_uri();
+        } else {
+            showFallback();
             return;
         }
-        let path = String(artUrl);
-        if (path.startsWith('file://'))
-            path = path.slice(7);
-        // percent-decode common cases
-        try { path = decodeURI(path); } catch (e) {}
-        const file = Gio.File.new_for_path(path);
-        if (file.query_exists(null)) {
-            icon.gicon = Gio.FileIcon.new(file);
+
+        // This returns a Clutter actor that fills in asynchronously. Keep it as
+        // the bin's child so remote artwork is actually displayed when loaded.
+        const texture = St.TextureCache.get_default().load_uri_async(
+            uri, size, size, 1);
+        if (!texture) {
+            showFallback();
             return;
         }
-        // http(s) — St.TextureCache async if available
-        if (/^https?:/i.test(String(artUrl))) {
-            try {
-                const cache = St.TextureCache.get_default();
-                const tex = cache.load_uri_async(String(artUrl), 48, 48, null);
-                // Some Shell versions return a widget; ignore if not
-            } catch (e) {}
-        }
-        icon.icon_name = 'audio-x-generic-symbolic';
+        texture.set_size(size, size);
+        setChild(texture);
     } catch (e) {
-        try { icon.icon_name = 'audio-x-generic-symbolic'; } catch (e2) {}
+        showFallback();
     }
 }
 
@@ -218,10 +238,10 @@ export function buildMediaPlayerRow() {
         row.style = 'spacing: 10px; padding: 8px 10px; border-radius: 16px; max-width: 360px;';
     } catch (e) {}
 
-    const artIcon = new St.Icon({
+    const artIcon = new St.Bin({
         style_class: 'material-panel-qs-media-art',
-        icon_size: 40,
-        icon_name: 'audio-x-generic-symbolic',
+        width: 40,
+        height: 40,
         y_align: Clutter.ActorAlign.CENTER,
     });
     try { artIcon.style = 'border-radius: 10px;'; } catch (e) {}
@@ -299,7 +319,7 @@ export function buildMediaPlayerRow() {
             try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
             titleLabel.text = 'No media';
             artistLabel.text = '';
-            setArtFromUrl(artIcon, null);
+            setArtFromUrl(artIcon, null, 40);
             return;
         }
         bindPlayer(busName, {
@@ -308,7 +328,7 @@ export function buildMediaPlayerRow() {
             try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
                 titleLabel.text = title || 'Media';
                 artistLabel.text = artist || '';
-                setArtFromUrl(artIcon, artUrl);
+                setArtFromUrl(artIcon, artUrl, 40);
             },
             onStatus: playing => {
                 row.visible = true;
@@ -404,10 +424,10 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     });
     try { head.style = 'spacing: 12px; padding: 10px 12px;'; } catch (e) {}
 
-    const art = new St.Icon({
-        icon_size: 48,
+    const art = new St.Bin({
+        width: 48,
+        height: 48,
         style_class: 'material-panel-media-popup-art',
-        icon_name: 'audio-x-generic-symbolic',
     });
     const textCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
     try { textCol.style = 'spacing: 4px;'; } catch (e) {}
