@@ -150,7 +150,7 @@ function findAdapterPaths(callback, cancellable = null) {
     let timedOut = false;
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
         timedOut = true;
-        callback(null);
+        callback([]);
         return GLib.SOURCE_REMOVE;
     });
 
@@ -161,7 +161,7 @@ function findAdapterPaths(callback, cancellable = null) {
             if (timedOut) return;
             try { GLib.source_remove(timeoutId); } catch (e) {}
             if (cancellable?.is_cancelled?.()) {
-                callback(null);
+                callback([]);
                 return;
             }
 
@@ -171,7 +171,7 @@ function findAdapterPaths(callback, cancellable = null) {
             } catch (e) {
                 if (!e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                     logError(e, 'material-panel: bluez unavailable (is bluetoothd running?)');
-                callback(null);
+                callback([]);
                 return;
             }
             objMgr.call(
@@ -197,7 +197,7 @@ function findAdapterPaths(callback, cancellable = null) {
                         callback(adapters);
                     } catch (e) {
                         logError(e, 'material-panel: bluez GetManagedObjects failed');
-                        callback(null);
+                        callback([]);
                     }
                 });
         });
