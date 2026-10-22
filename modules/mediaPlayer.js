@@ -49,17 +49,20 @@ function setArtFromUrl(icon, artUrl) {
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 
-function listMprisNames() {
-    try {
-        const dbus = Gio.DBus.session;
-        const reply = dbus.call_sync(
-            'org.freedesktop.DBus', '/', 'org.freedesktop.DBus',
-            'ListNames', null, null, Gio.DBusCallFlags.NONE, -1, null);
-        const [names] = reply.deep_unpack();
-        return names.filter(n => n.startsWith(MPRIS_PREFIX));
-    } catch (e) {
-        return [];
-    }
+function listMprisNames(callback) {
+    const dbus = Gio.DBus.session;
+    // Never block the compositor while enumerating session-bus names.
+    dbus.call(
+        'org.freedesktop.DBus', '/', 'org.freedesktop.DBus',
+        'ListNames', null, null, Gio.DBusCallFlags.NONE, 5000, null,
+        (_connection, result) => {
+            try {
+                const [names] = dbus.call_finish(result).deep_unpack();
+                callback(names.filter(n => n.startsWith(MPRIS_PREFIX)));
+            } catch (e) {
+                callback([]);
+            }
+        });
 }
 
 function makePlayerProxy(busName, callback) {
@@ -170,34 +173,35 @@ function bindPlayer(busName, hooks) {
 }
 
 function pickPreferredPlayer(callback) {
-    const names = listMprisNames();
-    if (names.length === 0) {
-        callback(null);
-        return;
-    }
-    // Prefer one that is Playing
-    let pending = names.length;
-    let playing = null;
-    let fallback = names[0];
-    for (const name of names) {
-        makePropsProxy(name, props => {
-            if (!props) {
-                if (--pending === 0)
-                    callback(playing || fallback);
-                return;
-            }
-            props.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
-                Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                    try {
-                        const [v] = p.call_finish(r).deep_unpack();
-                        if (v.deep_unpack() === 'Playing')
-                            playing = name;
-                    } catch (e) {}
+    listMprisNames(names => {
+        if (names.length === 0) {
+            callback(null);
+            return;
+        }
+        // Prefer one that is Playing
+        let pending = names.length;
+        let playing = null;
+        let fallback = names[0];
+        for (const name of names) {
+            makePropsProxy(name, props => {
+                if (!props) {
                     if (--pending === 0)
                         callback(playing || fallback);
-                });
-        });
-    }
+                    return;
+                }
+                props.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'PlaybackStatus']),
+                    Gio.DBusCallFlags.NONE, 5000, null, (p, r) => {
+                        try {
+                            const [v] = p.call_finish(r).deep_unpack();
+                            if (v.deep_unpack() === 'Playing')
+                                playing = name;
+                        } catch (e) {}
+                        if (--pending === 0)
+                            callback(playing || fallback);
+                    });
+            });
+        }
+    });
 }
 
 /** QS media card */
