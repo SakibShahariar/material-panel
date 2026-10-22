@@ -79,18 +79,6 @@ const qsExpandController = getQsExpandController();
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
 
-function makeWrappingLabel(text, styleClass) {
-    const label = new St.Label({text, style_class: styleClass, y_align: Clutter.ActorAlign.CENTER});
-    // Longer labels ("Do not disturb") don't fit a compact tile on one
-    // line - wrap instead of the default single-line ellipsis truncation.
-    label.clutter_text.line_wrap = true;
-    label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-    label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-    return label;
-}
-
-
-
 function isQuietTileStyle(id) {
     return [
         'minimal', 'tonal', 'glass', 'ambient', 'aurora', 'indicator',
@@ -610,12 +598,6 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
     }
 
     return tile;
-}
-
-function wrapAsMenuItem(actor) {
-    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-    item.add_child(actor);
-    return item;
 }
 
 /** Vertical stack used as a QS section (consistent 8px spacing). */

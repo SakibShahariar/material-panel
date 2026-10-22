@@ -11,6 +11,7 @@ import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {codecFromPactlText} from '../lib/bluetoothCodec.js';
+import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -209,19 +210,6 @@ function isSoftBlocked(callback) {
     }
 }
 
-function makeWrappingLabel(text, styleClass) {
-    const label = new St.Label({text, style_class: styleClass, y_align: Clutter.ActorAlign.CENTER});
-    label.clutter_text.line_wrap = true;
-    label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-    label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-    return label;
-}
-
-function wrapAsMenuItem(actor) {
-    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-    item.add_child(actor);
-    return item;
-}
 
 
 // Modern bluetooth popup — inspired by Noctalia v5 Control Center and
