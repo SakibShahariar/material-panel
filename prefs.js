@@ -421,7 +421,30 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. No IP geolocation is used.',
         });
         generalPage.add(weatherGroup);
-        config.weatherLocation ??= {name: '', latitude: '', longitude: ''};
+        config.weatherLocation ??= {mode: 'gnome', name: '', latitude: '', longitude: ''};
+        const weatherModeMap = ['gnome', 'manual', 'disabled'];
+        const weatherModeRow = new Adw.ComboRow({
+            title: 'Location source',
+            subtitle: 'No IP-based geolocation requests are made.',
+            model: Gtk.StringList.new([
+                'GNOME Weather location',
+                'Manual coordinates',
+                'Disabled (no automatic lookup)',
+            ]),
+        });
+        const initialWeatherMode = config.weatherLocation.mode ??
+            (String(config.weatherLocation.latitude ?? '').trim() &&
+             String(config.weatherLocation.longitude ?? '').trim() ? 'manual' : 'gnome');
+        weatherModeRow.set_selected(Math.max(0, weatherModeMap.indexOf(initialWeatherMode)));
+        weatherModeRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            config.weatherLocation = {
+                ...config.weatherLocation,
+                mode: weatherModeMap[weatherModeRow.get_selected()] ?? 'gnome',
+            };
+            saveConfig();
+        });
+        weatherGroup.add(weatherModeRow);
         const weatherName = new Adw.EntryRow({
             title: 'City or location name',
             text: String(config.weatherLocation.name ?? ''),
@@ -459,7 +482,12 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     return;
                 }
             }
-            config.weatherLocation = {name, latitude, longitude};
+            config.weatherLocation = {
+                ...config.weatherLocation,
+                mode: latitude && longitude ? 'manual' : 'gnome',
+                name, latitude, longitude,
+            };
+            weatherModeRow.set_selected(latitude && longitude ? 1 : 0);
             saveConfig();
             window.add_toast(new Adw.Toast({
                 title: latitude && longitude ? 'Manual weather location saved' : 'Using GNOME Weather location',

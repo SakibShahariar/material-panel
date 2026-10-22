@@ -782,9 +782,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         try {
             // 1) An explicit manual location takes precedence over GNOME Weather.
             const manual = globalThis._materialPanelWeatherLocation ?? {};
+            // Old saved configurations with coordinates should keep using them;
+            // otherwise default to GNOME Weather. IP geolocation is never used.
+            const mode = String(manual.mode ??
+                (String(manual.latitude ?? '').trim() || String(manual.longitude ?? '').trim()
+                    ? 'manual' : 'gnome'));
+            if (mode === 'disabled') {
+                throw new Error('Weather location lookup is disabled in Preferences');
+            }
             const manualLatText = String(manual.latitude ?? '').trim();
             const manualLonText = String(manual.longitude ?? '').trim();
-            if (manualLatText || manualLonText) {
+            if (mode === 'manual' || (manualLatText && manualLonText && manual.mode == null)) {
                 const lat = Number(manualLatText);
                 const lon = Number(manualLonText);
                 if (!manualLatText || !manualLonText ||
@@ -797,7 +805,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
             }
-            // 2) GNOME Weather city → Open-Meteo (full current + hourly + daily)
+            // GNOME Weather city → Open-Meteo (full current + hourly + daily).
+            if (mode === 'manual')
+                throw new Error('Manual weather location needs valid coordinates; set them in Preferences');
             const gw = await loadGnomeWeatherLocation();
             if (gw?.lat != null && gw?.lon != null) {
                 apply(await fetchOpenMeteo(
@@ -806,16 +816,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
             }
-            // 2) IP geolocation disabled — privacy (see resolveIpLocation)
-            try {
-                const ip = await resolveIpLocation();
-                apply(await fetchOpenMeteo(ip.lat, ip.lon, ip.place, 'Open-Meteo · IP', cancellable));
-                retryDelaySeconds = 60;
-                if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
-                return;
-            } catch (e) {
-                logError(e, 'material-panel: IP weather failed');
-            }
+            // IP geolocation is intentionally not used, regardless of mode.
             // No location was configured or detected. Never show a plausible
             // forecast for an unrelated city as if it were local weather.
             throw new Error('No weather location configured; set a city in GNOME Weather');
