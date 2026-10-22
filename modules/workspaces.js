@@ -149,12 +149,36 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         });
     };
 
+    let lastSnapshotKey = null;
     const rebuild = () => {
-        box.destroy_all_children();
         const end4 = globalThis._materialPanelLayoutStyle === 'end4';
         const activeIndex = manager.get_active_workspace_index();
         const n = manager.get_n_workspaces();
         const focusId = _focusAppId();
+
+        // Mutter can emit restacked for changes that do not alter this chip's
+        // visible contents. Compare a lightweight window snapshot before
+        // destroying/recreating actors to avoid needless layout and icon churn.
+        const workspaceWindows = [];
+        for (let i = 0; i < n; i++) {
+            const ws = manager.get_workspace_by_index(i);
+            const windows = _windowsOnWorkspace(ws, i).map(win => {
+                let identity = null;
+                try { identity = win.get_stable_sequence?.() ?? win.get_id?.() ?? null; } catch (e) {}
+                let appId = null;
+                try {
+                    const app = Shell.WindowTracker.get_default().get_window_app(win);
+                    appId = app?.get_id?.() || app?.get_name?.() || null;
+                } catch (e) {}
+                return [identity, appId, win.get_wm_class?.() || '', win.get_title?.() || ''];
+            });
+            workspaceWindows.push(windows);
+        }
+        const snapshotKey = JSON.stringify([end4, activeIndex, n, focusId, workspaceWindows]);
+        if (snapshotKey === lastSnapshotKey)
+            return;
+        lastSnapshotKey = snapshotKey;
+        box.destroy_all_children();
 
         if (!end4) {
             for (let i = 0; i < n; i++) {
