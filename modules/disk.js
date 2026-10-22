@@ -8,45 +8,36 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {calculateDiskUsage, sameFilesystem} from '../lib/diskUsage.js';
 
-function readDisk(mount = '/') {
-    // Prefer Gio filesystem info — no df subprocess on the compositor thread
+function readDiskAsync(mount, cancellable, callback) {
+    const file = Gio.File.new_for_path(mount);
     try {
-        const file = Gio.File.new_for_path(mount);
-        const info = file.query_filesystem_info(
-            'filesystem::size,filesystem::used,filesystem::free', null);
-        const size = Number(info.get_attribute_uint64('filesystem::size'));
-        const used = Number(info.get_attribute_uint64('filesystem::used'));
-        const free = Number(info.get_attribute_uint64('filesystem::free'));
-        if (!Number.isFinite(size) || size <= 0)
-            throw new Error('no size');
-        const usedN = Number.isFinite(used) && used > 0
-            ? used
-            : Math.max(0, size - (Number.isFinite(free) ? free : 0));
-        const avail = Number.isFinite(free) ? free : Math.max(0, size - usedN);
-        const pct = Math.round((usedN / size) * 100);
-        return {size, used: usedN, avail, pct, mount, fs: mount};
+        file.query_filesystem_info_async(
+            'filesystem::id,filesystem::size,filesystem::used,filesystem::free',
+            GLib.PRIORITY_DEFAULT,
+            cancellable,
+            (source, result) => {
+                try {
+                    const info = source.query_filesystem_info_finish(result);
+                    let filesystemId = null;
+                    try { filesystemId = info.get_attribute_string('filesystem::id') || null; } catch (e) {}
+                    callback(calculateDiskUsage({
+                        size: info.get_attribute_uint64('filesystem::size'),
+                        used: info.get_attribute_uint64('filesystem::used'),
+                        free: info.get_attribute_uint64('filesystem::free'),
+                        filesystemId,
+                        mount,
+                    }));
+                } catch (e) {
+                    callback(null);
+                }
+            });
     } catch (e) {
-        try {
-            const [, out] = GLib.spawn_command_line_sync(`df -B1 ${GLib.shell_quote?.(mount) || mount}`);
-            const text = new TextDecoder('utf-8').decode(out);
-            const lines = text.trim().split('\n');
-            if (lines.length < 2) return null;
-            const parts = lines[1].trim().split(/\s+/);
-            if (parts.length < 6) return null;
-            return {
-                size: parseInt(parts[1], 10),
-                used: parseInt(parts[2], 10),
-                avail: parseInt(parts[3], 10),
-                pct: parseInt(String(parts[4]).replace('%', ''), 10),
-                mount: parts[5],
-                fs: parts[0],
-            };
-        } catch (e2) {
-            return null;
-        }
+        callback(null);
     }
 }
+
 
 function fmt(n) {
     if (n == null || !Number.isFinite(n)) return '—';
@@ -99,9 +90,18 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
-    const refresh = () => {
-        const root = readDisk('/');
-        const home = readDisk(GLib.get_home_dir());
+    let destroyed = false;
+    let refreshInFlight = false;
+    let sameFs = null;
+    let lastRoot = null;
+    let lastHome = null;
+    let refreshCancellable = null;
+
+    const updateLabels = () => {
+        if (destroyed)
+            return;
+        const root = lastRoot;
+        const home = lastHome;
         if (root) {
             label.text = `${root.pct}%`;
             rootL.text = `/  ${fmt(root.used)} / ${fmt(root.size)}  (${root.pct}%)`;
@@ -115,10 +115,63 @@ export function buildDisk(_extensionPath, scale = 1.0) {
             label.text = '—';
             rootL.text = '/  —';
         }
-        if (home && home.mount !== '/')
+        if (sameFs === true)
+            homeL.text = 'Home  same as /';
+        else if (home)
             homeL.text = `Home  ${fmt(home.used)} / ${fmt(home.size)}  (${home.pct}%)`;
         else
-            homeL.text = 'Home  same as /';
+            homeL.text = 'Home  —';
+    };
+
+    const refresh = () => {
+        if (destroyed || refreshInFlight)
+            return GLib.SOURCE_CONTINUE;
+        refreshInFlight = true;
+        refreshCancellable = new Gio.Cancellable();
+        let rootReady = false;
+        let homeReady = sameFs === true;
+        let rootResult = null;
+        let homeResult = sameFs === true ? null : undefined;
+
+        const finishIfReady = () => {
+            if (!rootReady || !homeReady)
+                return;
+            if (destroyed) {
+                refreshInFlight = false;
+                refreshCancellable = null;
+                return;
+            }
+            lastRoot = rootResult;
+            if (sameFs === true) {
+                lastHome = rootResult;
+            } else {
+                lastHome = homeResult;
+                const shared = sameFilesystem(rootResult, homeResult);
+                if (shared !== null)
+                    sameFs = shared;
+            }
+            updateLabels();
+            refreshInFlight = false;
+            refreshCancellable = null;
+        };
+
+        readDiskAsync('/', refreshCancellable, root => {
+            rootResult = root;
+            rootReady = true;
+            if (sameFs === true) {
+                homeResult = root;
+                homeReady = true;
+            }
+            finishIfReady();
+        });
+
+        if (sameFs !== true) {
+            readDiskAsync(GLib.get_home_dir(), refreshCancellable, home => {
+                homeResult = home;
+                homeReady = true;
+                finishIfReady();
+            });
+        }
         return GLib.SOURCE_CONTINUE;
     };
 
@@ -130,6 +183,8 @@ export function buildDisk(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
     button.connect('destroy', () => {
+        destroyed = true;
+        try { refreshCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(id); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
