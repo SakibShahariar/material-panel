@@ -2057,11 +2057,12 @@ export function wifiQsBlock() {
     let client = null;
     let nmSignalIds = [];
     let toggleTimeoutId = 0;
+    let connectivityHint = '';
     const stopNet = startNetSpeedMonitor(({downShort, upShort}) => {
         const d = downShort || '—';
         const u = upShort || '—';
-        // Tight: "↓16K ↑2K" fits the tile without clipping
-        speedLabel.text = `↓${d} ↑${u}`;
+        // Connectivity state takes priority over throughput when known to be degraded.
+        speedLabel.text = connectivityHint || `↓${d} ↑${u}`;
     });
     row.connect('destroy', () => {
         destroyed = true;
@@ -2256,8 +2257,10 @@ export function wifiQsBlock() {
         const parent = listPanel.get_parent();
         if (parent)
             parent.visible = expanded;
-        if (expanded)
+        if (expanded) {
             rebuildList();
+            checkConnectivity();
+        }
     };
 
     dropBtn.connect('clicked', () => {
@@ -2335,10 +2338,21 @@ export function wifiQsBlock() {
                 else
                     _ssid = 'Wi-Fi';
                 text.text = _ssid;
+
+                const state = client.get_connectivity?.();
+                const states = NM.ConnectivityState;
+                connectivityHint = conn && state === states?.PORTAL
+                    ? 'Sign in required'
+                    : conn && (state === states?.LIMITED || state === states?.NONE)
+                        ? 'No internet'
+                        : '';
                 speedLabel.visible = true;
-                if (!speedLabel.text || speedLabel.text === '')
-                    speedLabel.text = '↓ —  ↑ —';
+                if (connectivityHint)
+                    speedLabel.text = connectivityHint;
+                else if (!speedLabel.text || speedLabel.text === '')
+                    speedLabel.text = '↓ — ↑ —';
             } else {
+                connectivityHint = '';
                 _ssid = 'Wi-Fi';
                 text.text = 'Wi-Fi';
                 speedLabel.visible = false;
@@ -2347,10 +2361,29 @@ export function wifiQsBlock() {
             if (expanded)
                 rebuildList();
         };
+
+        const checkConnectivity = () => {
+            if (destroyed || !client?.connectivity_check_get_available?.())
+                return;
+            client.check_connectivity_async(null, (nmClient, result) => {
+                if (destroyed)
+                    return;
+                try {
+                    nmClient.check_connectivity_finish(result);
+                } catch (e) {
+                    logError(e, 'material-panel: connectivity check failed');
+                }
+                sync();
+            });
+        };
         sync();
         nmSignalIds = [
             client.connect('notify::wireless-enabled', sync),
-            client.connect('notify::primary-connection', sync),
+            client.connect('notify::primary-connection', () => {
+                sync();
+                checkConnectivity();
+            }),
+            client.connect('notify::connectivity', sync),
             client.connect('connection-added', () => {
                 if (!destroyed && expanded) rebuildList();
             }),
@@ -2358,6 +2391,7 @@ export function wifiQsBlock() {
                 if (!destroyed && expanded) rebuildList();
             }),
         ];
+        checkConnectivity();
     });
 
     row.listPanel = listPanel;
