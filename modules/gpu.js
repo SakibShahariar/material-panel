@@ -8,34 +8,9 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {parseNvidiaSmiOutput} from '../lib/gpuMetrics.js';
 
-function readGpuInfo() {
-    try {
-        const [, out] = GLib.spawn_command_line_sync(
-            'nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits');
-        const text = new TextDecoder('utf-8').decode(out).trim();
-        if (text && !/error|not found|failed|NVIDIA-SMI has failed/i.test(text)) {
-            const line = text.split('\n')[0];
-            // name may contain commas — split from the right for last 4 numeric fields
-            const parts = line.split(',').map(s => s.trim());
-            if (parts.length >= 5) {
-                const temp = parseInt(parts[parts.length - 1], 10);
-                const memTotal = parseInt(parts[parts.length - 2], 10);
-                const memUsed = parseInt(parts[parts.length - 3], 10);
-                const util = parseInt(parts[parts.length - 4], 10);
-                const name = parts.slice(0, parts.length - 4).join(', ');
-                return {
-                    vendor: 'NVIDIA',
-                    name: name || 'NVIDIA',
-                    util: Number.isFinite(util) ? util : null,
-                    memUsed: Number.isFinite(memUsed) ? memUsed : null,
-                    memTotal: Number.isFinite(memTotal) ? memTotal : null,
-                    temp: Number.isFinite(temp) ? temp : null,
-                };
-            }
-        }
-    } catch (e) {}
-
+function readGpuInfoFallback() {
     // Enumerate DRM cards instead of assuming the active GPU is card0.
     // Connector entries (card0-DP-1, etc.) are ignored.
     try {
@@ -114,6 +89,37 @@ function readGpuInfo() {
     return null;
 }
 
+function readGpuInfoAsync(cancellable, callback) {
+    let completed = false;
+    const finish = result => {
+        if (completed)
+            return;
+        completed = true;
+        callback(result);
+    };
+    try {
+        const proc = Gio.Subprocess.new(
+            ['nvidia-smi', '--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu', '--format=csv,noheader,nounits'],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+        proc.communicate_utf8_async(null, cancellable, (source, result) => {
+            try {
+                const [, stdout] = source.communicate_utf8_finish(result);
+                if (cancellable.is_cancelled()) {
+                    finish(null);
+                    return;
+                }
+                finish(source.get_successful()
+                    ? (parseNvidiaSmiOutput(stdout) || readGpuInfoFallback())
+                    : readGpuInfoFallback());
+            } catch (e) {
+                finish(cancellable.is_cancelled() ? null : readGpuInfoFallback());
+            }
+        });
+    } catch (e) {
+        finish(cancellable.is_cancelled() ? null : readGpuInfoFallback());
+    }
+}
+
 export function buildGpu(_extensionPath, scale = 1.0) {
     const icon = new St.Icon({
         style_class: 'material-panel-gpu-icon',
@@ -166,8 +172,14 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
-    const refresh = () => {
-        const g = readGpuInfo();
+    let destroyed = false;
+    let refreshInFlight = false;
+    let refreshCancellable = null;
+    let lastGpuInfo = null;
+
+    const render = g => {
+        if (destroyed)
+            return;
         if (!g) {
             button.visible = true;
             label.text = '—';
@@ -199,6 +211,22 @@ export function buildGpu(_extensionPath, scale = 1.0) {
             ? `VRAM  ${memUsed} / ${memTotal} MB`
             : 'VRAM  —';
         tempL.text = temp != null ? `Temp  ${temp}°C` : 'Temp  —';
+    };
+
+    const refresh = () => {
+        if (destroyed || refreshInFlight)
+            return GLib.SOURCE_CONTINUE;
+        refreshInFlight = true;
+        refreshCancellable = new Gio.Cancellable();
+        readGpuInfoAsync(refreshCancellable, result => {
+            if (destroyed)
+                return;
+            refreshInFlight = false;
+            refreshCancellable = null;
+            if (result)
+                lastGpuInfo = result;
+            render(lastGpuInfo);
+        });
         return GLib.SOURCE_CONTINUE;
     };
 
@@ -210,6 +238,8 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
     button.connect('destroy', () => {
+        destroyed = true;
+        try { refreshCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(id); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });

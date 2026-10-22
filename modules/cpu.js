@@ -295,64 +295,6 @@ function readNetRates() {
     }
 }
 
-function readGpuInfo() {
-    try {
-        const [, out] = GLib.spawn_command_line_sync(
-            'nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits');
-        const text = new TextDecoder('utf-8').decode(out).trim();
-        if (text && !/error|not found|failed/i.test(text)) {
-            const line = text.split('\n')[0];
-            const parts = line.split(',').map(s => s.trim());
-            if (parts.length >= 4) {
-                return {
-                    vendor: 'NVIDIA',
-                    util: parseInt(parts[0], 10),
-                    memUsed: parseInt(parts[1], 10),
-                    memTotal: parseInt(parts[2], 10),
-                    temp: parseInt(parts[3], 10),
-                };
-            }
-        }
-    } catch (e) {}
-    try {
-        const base = '/sys/class/drm/card0/device';
-        let util = null, temp = null, memUsed = null, memTotal = null;
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/gpu_busy_percent`).load_contents(null);
-            if (ok) util = parseInt(new TextDecoder('utf-8').decode(c).trim(), 10);
-        } catch (e) {}
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_used`).load_contents(null);
-            if (ok) memUsed = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
-        } catch (e) {}
-        try {
-            const [ok, c] = Gio.File.new_for_path(`${base}/mem_info_vram_total`).load_contents(null);
-            if (ok) memTotal = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / (1024 * 1024));
-        } catch (e) {}
-        try {
-            const hwmon = Gio.File.new_for_path(`${base}/hwmon`);
-            if (hwmon.query_exists(null)) {
-                const en = hwmon.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
-                let info;
-                while ((info = en.next_file(null)) !== null) {
-                    try {
-                        const [ok, c] = Gio.File.new_for_path(
-                            `${base}/hwmon/${info.get_name()}/temp1_input`).load_contents(null);
-                        if (ok) {
-                            temp = Math.round(parseInt(new TextDecoder('utf-8').decode(c).trim(), 10) / 1000);
-                            break;
-                        }
-                    } catch (e) {}
-                }
-                try { en.close(null); } catch (e) {}
-            }
-        } catch (e) {}
-        if (util != null || temp != null || memUsed != null)
-            return {vendor: 'AMD', util, memUsed, memTotal, temp};
-    } catch (e) {}
-    return null;
-}
-
 function readCoreClasses() {
     // Map cpu index → 'P' | 'E' | 'L' | null using max freq clusters or capacity.
     const maxHz = [];
