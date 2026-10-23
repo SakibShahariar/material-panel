@@ -669,19 +669,19 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                     if (timedOut) return;
                     GLib.source_remove(timeoutId);
                     let deviceProxy;
-                    try { deviceProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, `material-panel: bluez device proxy failed for "${displayName}"`); return; }
+                    try { deviceProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, `material-panel: bluez device proxy failed for "${displayName}"`); subLabel.text = 'Could not access device'; return; }
                     // If not paired yet, Pair first then Connect
                     if (!paired && method === 'Connect') {
                         deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
-                            try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); return; }
+                            try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); subLabel.text = `Pairing failed: ${e.message || 'check device is in pairing mode'}`; return; }
                             deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p2, r2) => {
-                                try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); }
+                                try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); subLabel.text = `Connection failed: ${e.message || 'try again'}`; }
                             });
                         });
                         return;
                     }
                     deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
-                        try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); }
+                        try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); subLabel.text = `${method} failed: ${e.message || 'try again'}`; }
                     });
                 });
             // Don't close menu — stay open like Noctalia/End4 so user sees result
