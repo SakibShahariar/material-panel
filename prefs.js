@@ -652,7 +652,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         // Module visibility toggles
         const visibilityGroup = new Adw.PreferencesGroup({
             title: 'Module Visibility',
-            description: '',
+            description: 'Requirement hints are informational, not live availability checks. Hardware, running services, and permissions can affect whether a module can provide data.',
         });
         modulesPage.add(visibilityGroup);
 
