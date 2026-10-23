@@ -572,8 +572,8 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     });
     const sortCpuBtn = new St.Button({label: 'CPU', style_class: 'material-panel-headphones-disconnect'});
     const sortMemBtn = new St.Button({label: 'MEM', style_class: 'material-panel-headphones-disconnect'});
-    sortCpuBtn.connect('clicked', () => { procSort = 'cpu'; refreshExtra(); });
-    sortMemBtn.connect('clicked', () => { procSort = 'mem'; refreshExtra(); });
+    sortCpuBtn.connect('clicked', () => { procSort = 'cpu'; renderProcesses(); });
+    sortMemBtn.connect('clicked', () => { procSort = 'mem'; renderProcesses(); });
     procTitleRow.add_child(procTitle);
     procTitleRow.add_child(sortCpuBtn);
     procTitleRow.add_child(sortMemBtn);
@@ -734,7 +734,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     };
 
     const refreshExtra = () => {
-        renderProcesses();
         const now = GLib.get_monotonic_time();
         if (!processRefreshInFlight &&
             (processLastRefresh === 0 || now - processLastRefresh >= 5 * 1000 * 1000))
@@ -750,8 +749,10 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             else if (expandBtn.label)
                 expandBtn.label.text = expanded ? 'Show less ▾' : 'Show more ▸';
         } catch (e) {}
-        if (expanded)
+        if (expanded) {
+            renderProcesses();
             refreshExtra();
+        }
     });
 
     const ensureCoreRows = (n) => {
