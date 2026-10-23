@@ -182,6 +182,9 @@ export default class MaterialPanelExtension extends Extension {
                 }
                 this._schedulePanelRebuild('matugen');
             });
+        } else {
+            // Do not keep watching a palette file after switching to fixed colors.
+            this._theme.unwatch();
         }
     }
 
