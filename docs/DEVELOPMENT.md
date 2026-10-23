@@ -57,7 +57,7 @@ The optional `scripts/calendar-sync-ics.py` imports an ICS feed into `~/.config/
 ```sh
 umask 077
 mkdir -p ~/.config/material-panel
-printf '%s\\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
+printf '%s\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
 chmod 600 ~/.config/material-panel/calendar-ics.url
 python3 scripts/calendar-sync-ics.py
 ```
