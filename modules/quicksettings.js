@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
@@ -1265,7 +1266,7 @@ export function bluetoothTile() {
                 deviceClass = props['Class'].deep_unpack();
         } catch (e) {}
 
-        const iconName = getDeviceIcon(deviceClass, connected || isConnecting);
+        const iconName = getBluetoothDeviceIcon(props, connected || isConnecting);
         // Primary-colored icons on surface; on-accent only while row is pressed
         const iconPathStr = iconPathPrimary(iconName);
 
@@ -1413,23 +1414,6 @@ export function bluetoothTile() {
         });
         return row;
     };
-
-    function getDeviceIcon(deviceClass, connected) {
-        // BlueZ Class is a uint32; major device class is bits 8-12
-        const n = Number(deviceClass) || 0;
-        const major = (n >> 8) & 0x1f;
-        // 4 = Audio/Video (headsets), 2 = Phone, 5 = Peripheral (keyboard/mouse)
-        if (major === 4)
-            return 'headphones';
-        if (major === 2)
-            return 'phone';
-        if (major === 5)
-            return 'keyboard';
-        const c = String(deviceClass || '').toLowerCase();
-        if (c.includes('audio') || c.includes('headset') || c.includes('headphone'))
-            return 'headphones';
-        return connected ? 'bluetooth-on' : 'bluetooth-off';
-    }
 
     const setupDeviceList = () => {
         Gio.DBusProxy.new_for_bus(
