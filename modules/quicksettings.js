@@ -25,57 +25,6 @@ import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
-// Only one of BT / Wi-Fi lists open at a time.
-// Use a function so call sites never hit a TDZ / missing-binding ReferenceError
-// if the module is partially reloaded.
-function wireQsInteractive(actor) {
-    if (!actor)
-        return;
-    try {
-        actor.reactive = true;
-        actor.track_hover = true;
-        actor.can_focus = true;
-    } catch (e) {}
-    // false = clear pressed on release; sticky 'true' kept onAccent colors
-    // (and latched labels/icons) until cursor left the tile after a toggle.
-    wireChipPress(actor, {stickyUntilLeave: false});
-    // Extra enter/leave in case child actors steal hover
-    actor.connect('enter-event', () => {
-        try { actor.add_style_class_name('hover'); } catch (e) {}
-        return Clutter.EVENT_PROPAGATE;
-    });
-    actor.connect('leave-event', () => {
-        try { actor.remove_style_class_name('hover'); } catch (e) {}
-        return Clutter.EVENT_PROPAGATE;
-    });
-}
-
-function getQsExpandController() {
-    if (!globalThis._materialPanelQsExpand) {
-        globalThis._materialPanelQsExpand = {
-            _apis: new Map(),
-            register(id, api) {
-                this._apis.set(id, api);
-            },
-            unregister(id) {
-                this._apis.delete(id);
-            },
-            expandOnly(id) {
-                for (const [key, api] of this._apis.entries()) {
-                    try {
-                        api.setExpanded(key === id);
-                    } catch (e) {}
-                }
-            },
-        };
-    }
-    return globalThis._materialPanelQsExpand;
-}
-const qsExpandController = getQsExpandController();
-
-
-
-
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
@@ -1118,15 +1067,6 @@ export function bluetoothTile() {
             mainBtn.y_expand = true;
         } catch (e) {}
         try { syncTileExtras(tileRow, powered); } catch (e) {}
-        if (_refreshDevices) _refreshDevices();
-    };
-
-    const setBlockedState = () => {
-        isBlocked = true;
-        currentlyPowered = false;
-        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
-        tileRow.set_style_class_name('material-panel-qs-tile material-panel-qs-bt-tile-row');
-        text.text = 'Blocked — tap to unblock';
         if (_refreshDevices) _refreshDevices();
     };
 
