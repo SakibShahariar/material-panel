@@ -943,3 +943,21 @@
     -arrow-rise: 0;
     -arrow-base: 0;
 }
+
+/* Shared typography scale (kept in sync with TYPE_SCALE in lib/theme.js). */
+.material-panel-type-caption,
+.material-panel-qs-profile-sub,
+.material-panel-qs-media-sub,
+.material-panel-qs-bt-device-status {
+    font-size: 10.5px;
+}
+.material-panel-type-body,
+.material-panel-qs-tile-label,
+.material-panel-qs-profile-name,
+.material-panel-qs-bt-device-name {
+    font-size: 12px;
+}
+.material-panel-type-title,
+.material-panel-qs-media-title {
+    font-size: 14px;
+}
