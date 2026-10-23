@@ -43,4 +43,4 @@ curl -fsSL 'https://api.iconify.design/material-symbols:wifi.svg?height=24' \
 ```
 
 After install, reload extension so `applyIcons()` writes recolored copies under
-`~/.config/material-panel/icons/`.
+`$XDG_CACHE_HOME/material-panel/icons/` (or `~/.cache/material-panel/icons/` when unset).
