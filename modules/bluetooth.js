@@ -150,7 +150,7 @@ function findAdapterPaths(callback, cancellable = null) {
     let timedOut = false;
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
         timedOut = true;
-        callback([]);
+        callback([], new Error('BlueZ service request timed out'));
         return GLib.SOURCE_REMOVE;
     });
 
@@ -169,9 +169,12 @@ function findAdapterPaths(callback, cancellable = null) {
             try {
                 objMgr = Gio.DBusProxy.new_for_bus_finish(res);
             } catch (e) {
-                if (!e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                if (!e?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) {
                     logError(e, 'material-panel: bluez unavailable (is bluetoothd running?)');
-                callback([]);
+                    callback([], e);
+                } else {
+                    callback([]);
+                }
                 return;
             }
             objMgr.call(
@@ -197,7 +200,7 @@ function findAdapterPaths(callback, cancellable = null) {
                         callback(adapters);
                     } catch (e) {
                         logError(e, 'material-panel: bluez GetManagedObjects failed');
-                        callback([]);
+                        callback([], e);
                     }
                 });
         });
@@ -490,6 +493,18 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         devicesOuter.opacity = 90;
     };
 
+    const setBluezUnavailableState = () => {
+        isBlocked = false;
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
+        btSwitch.setToggleState(false);
+        btSwitch.label.text = 'Bluetooth — Unavailable';
+        blockedHint.visible = false;
+        scanSwitch.visible = false;
+        devicesHeaderLabel.text = 'Paired devices — BlueZ unavailable';
+        devicesOuter.opacity = 90;
+    };
+
     const bindAdapter = path => {
         if (propsProxy && propsSignalId) {
             try { propsProxy.disconnect(propsSignalId); } catch (e) {}
@@ -551,8 +566,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const discover = () => {
         if (discoverAttempts > 6) return;
         discoverAttempts++;
-        findAdapterPaths(adapters => {
+        findAdapterPaths((adapters, error = null) => {
             refreshAdapterMenu(adapters);
+            if (error) {
+                discoverAttempts = 0;
+                setBluezUnavailableState();
+                return;
+            }
             if (!adapters.length) {
                 isSoftBlocked(blocked => {
                     if (blocked) setBlockedState();
