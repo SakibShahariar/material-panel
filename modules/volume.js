@@ -3,7 +3,6 @@ import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Gvc from 'gi://Gvc';
 
-import {iconPathPrimary, iconPathOnAccent, iconPath} from '../lib/iconTheme.js';
 import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
 import {createMaterialSymbol, setMaterialSymbolKey, setMaterialSymbolColor} from '../lib/materialSymbol.js';
 import {getMixerControl} from '../lib/audio.js';
