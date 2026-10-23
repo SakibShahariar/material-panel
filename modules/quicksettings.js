@@ -1542,7 +1542,7 @@ export function bluetoothTile() {
                             }));
                             // Tile shows connected device name + battery when linked
                             try {
-                                let tileName = currentlyPowered ? 'Bluetooth' : 'Bluetooth';
+                                let tileName = 'Bluetooth';
                                 for (const {props, batteryPct} of pairedDevices) {
                                     const connected = props['Connected']?.deep_unpack() === true;
                                     if (!connected)
