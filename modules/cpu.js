@@ -13,6 +13,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
 import {readMemInfo} from '../lib/memInfo.js';
+import {readProcNetDevText} from '../lib/procNetDev.js';
 
 function findTempFile() {
     const candidates = [];
@@ -238,9 +239,8 @@ function formatBytes(n) {
 function readNetRates() {
     // cumulative bytes; caller diffs
     try {
-        const [ok, contents] = Gio.File.new_for_path('/proc/net/dev').load_contents(null);
-        if (!ok) return null;
-        const text = new TextDecoder('utf-8').decode(contents);
+        const text = readProcNetDevText();
+        if (text === null) return null;
         let rx = 0, tx = 0;
         for (const line of text.split('\n').slice(2)) {
             const t = line.trim();
