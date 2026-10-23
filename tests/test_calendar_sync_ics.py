@@ -21,6 +21,15 @@ sys.modules[SPEC.name] = calendar_sync_ics
 SPEC.loader.exec_module(calendar_sync_ics)
 
 
+class CachePathTests(unittest.TestCase):
+    def test_generated_data_uses_cache_while_secret_url_stays_in_config(self):
+        self.assertEqual(calendar_sync_ics.OUT.parent, calendar_sync_ics.CACHE)
+        self.assertEqual(calendar_sync_ics.HTTP_STATE.parent, calendar_sync_ics.CACHE)
+        self.assertEqual(calendar_sync_ics.URL_FILE.parent, calendar_sync_ics.CFG)
+        self.assertEqual(calendar_sync_ics.OUT.name, "calendar-events.json")
+        self.assertEqual(calendar_sync_ics.HTTP_STATE.name, "calendar-ics.http.json")
+
+
 class ParseIcsTimeTests(unittest.TestCase):
     def test_utc_timestamp_remains_utc(self):
         value, all_day = calendar_sync_ics.parse_ics_time("20261021T090000Z", "")
