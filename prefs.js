@@ -47,28 +47,28 @@ function friendlyRoleName(role) {
 }
 
 const ALL_MODULES = [
-    {id: 'activities', name: 'Activities', zone: 'left'},
-    {id: 'focusedWindow', name: 'Focused Window', zone: 'left'},
-    {id: 'btConnected', name: 'BT Connected Device', zone: 'left'},
-    {id: 'workspaces', name: 'Workspaces', zone: 'left'},
-    {id: 'cpu', name: 'CPU / Activity', zone: 'left'},
-    {id: 'memory', name: 'Memory', zone: 'left'},
-    {id: 'disk', name: 'Disk', zone: 'left'},
-    {id: 'gpu', name: 'GPU', zone: 'left'},
-    {id: 'networkSpeed', name: 'Network Speed', zone: 'right'},
-    {id: 'clock', name: 'Clock', zone: 'center'},
-    {id: 'weather', name: 'Weather', zone: 'center'},
-    {id: 'notifications', name: 'Notifications', zone: 'center'},
-    {id: 'battery', name: 'Battery', zone: 'right'},
-    {id: 'volume', name: 'Volume', zone: 'right'},
-    {id: 'network', name: 'Network', zone: 'right'},
-    {id: 'darkmode', name: 'Dark Mode', zone: 'right'},
-    {id: 'nightlight', name: 'Night Light', zone: 'right'},
-    {id: 'dnd', name: 'Do Not Disturb', zone: 'right'},
-    {id: 'powermenu', name: 'Power Menu', zone: 'right'},
-    {id: 'bluetooth', name: 'Bluetooth', zone: 'right'},
-    {id: 'media', name: 'Media', zone: 'right'},
-    {id: 'quicksettings', name: 'Quick Settings', zone: 'right'},
+    {id: 'activities', name: 'Activities', zone: 'left', requirement: 'GNOME Shell overview'},
+    {id: 'focusedWindow', name: 'Focused Window', zone: 'left', requirement: 'Active-window information from GNOME Shell'},
+    {id: 'btConnected', name: 'BT Connected Device', zone: 'left', requirement: 'BlueZ Bluetooth service and a connected device'},
+    {id: 'workspaces', name: 'Workspaces', zone: 'left', requirement: 'GNOME Shell workspace API'},
+    {id: 'cpu', name: 'CPU / Activity', zone: 'left', requirement: 'Linux /proc data; process details depend on system permissions'},
+    {id: 'memory', name: 'Memory', zone: 'left', requirement: 'Linux /proc/meminfo'},
+    {id: 'disk', name: 'Disk', zone: 'left', requirement: 'Mounted filesystems exposed through GIO'},
+    {id: 'gpu', name: 'GPU', zone: 'left', requirement: 'Linux DRM information; NVIDIA usage details additionally use nvidia-smi when available'},
+    {id: 'networkSpeed', name: 'Network Speed', zone: 'right', requirement: 'Linux /proc/net/dev'},
+    {id: 'clock', name: 'Clock', zone: 'center', requirement: 'GNOME Shell and system time settings'},
+    {id: 'weather', name: 'Weather', zone: 'center', requirement: 'GNOME Weather location or manual coordinates, plus internet access to Open-Meteo'},
+    {id: 'notifications', name: 'Notifications', zone: 'center', requirement: 'GNOME Shell notification API'},
+    {id: 'battery', name: 'Battery', zone: 'right', requirement: 'UPower and battery hardware; hidden on systems without a battery'},
+    {id: 'volume', name: 'Volume', zone: 'right', requirement: 'Gvc audio mixer and an available audio service'},
+    {id: 'network', name: 'Network', zone: 'right', requirement: 'NetworkManager; connection actions use saved network profiles'},
+    {id: 'darkmode', name: 'Dark Mode', zone: 'right', requirement: 'GNOME color-scheme settings'},
+    {id: 'nightlight', name: 'Night Light', zone: 'right', requirement: 'GNOME Night Light settings support'},
+    {id: 'dnd', name: 'Do Not Disturb', zone: 'right', requirement: 'GNOME Shell notification controls'},
+    {id: 'powermenu', name: 'Power Menu', zone: 'right', requirement: 'GNOME Shell session and power actions'},
+    {id: 'bluetooth', name: 'Bluetooth', zone: 'right', requirement: 'BlueZ D-Bus service and Bluetooth adapter'},
+    {id: 'media', name: 'Media', zone: 'right', requirement: 'A media player exposing MPRIS on the user session bus'},
+    {id: 'quicksettings', name: 'Quick Settings', zone: 'right', requirement: 'GNOME Shell controls and the selected Quick Settings layout'},
 ];
 
 export default class MaterialPanelPreferences extends ExtensionPreferences {
@@ -663,7 +663,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const isHidden = config.hiddenModules.includes(module.id) || !isPlaced;
             const row = new Adw.ActionRow({
                 title: module.name,
-                subtitle: `Zone: ${module.zone} • ${hasBuiltin(module.id) ? 'Built-in' : 'External'}`,
+                subtitle: `${hasBuiltin(module.id) ? 'Built-in' : 'External'} • Default zone: ${module.zone} • ${module.requirement}`,
             });
 
             const toggle = new Gtk.Switch({
