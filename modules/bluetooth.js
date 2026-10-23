@@ -12,6 +12,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {codecFromPactlText} from '../lib/bluetoothCodec.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
+import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -23,67 +24,6 @@ const PROPERTIES_IFACE = 'org.freedesktop.DBus.Properties';
  * Map BlueZ Icon / Class to a panel icon key (Material Symbols style names we ship).
  * Falls back to generic bluetooth-on/off.
  */
-function deviceIconKey(props, connected) {
-    try {
-        const icon = String(props['Icon']?.deep_unpack?.() ?? props['Icon'] ?? '').toLowerCase();
-        const name = String(
-            props['Alias']?.deep_unpack?.() ?? props['Name']?.deep_unpack?.() ?? ''
-        ).toLowerCase();
-        const cls = Number(props['Class']?.deep_unpack?.() ?? props['Class'] ?? 0);
-
-        // BlueZ Icon property (freedesktop icon names)
-        if (icon.includes('audio-headset') || icon.includes('headset'))
-            return 'headphones';
-        if (icon.includes('audio-headphones') || icon.includes('headphone'))
-            return 'headphones';
-        if (icon.includes('audio-card') || icon.includes('speaker'))
-            return 'headphones';
-        if (icon.includes('input-keyboard') || icon.includes('keyboard'))
-            return 'keyboard';
-        if (icon.includes('input-mouse') || icon.includes('mouse'))
-            return 'mouse';
-        if (icon.includes('input-gaming') || icon.includes('joystick') || icon.includes('gamepad'))
-            return 'gamepad';
-        if (icon.includes('phone') || icon.includes('smartphone'))
-            return 'phone';
-        if (icon.includes('computer') || icon.includes('laptop'))
-            return 'computer';
-
-        // Name heuristics
-        if (/headphone|headset|buds|airpod|earbud|earphone/.test(name))
-            return 'headphones';
-        if (/speaker|soundbar/.test(name))
-            return 'headphones';
-        if (/keyboard|keychron/.test(name))
-            return 'keyboard';
-        if (/mouse|trackball|trackpad/.test(name))
-            return 'mouse';
-        if (/gamepad|game controller|controller|joystick/.test(name))
-            return 'gamepad';
-
-        // Major device class bits (Bluetooth Class of Device)
-        // bits 8-12 = major class
-        const major = (cls >> 8) & 0x1f;
-        if (major === 0x04) // Audio / Video
-            return 'headphones';
-        if (major === 0x01) // Computer
-            return 'computer';
-        if (major === 0x02) // Phone
-            return 'phone';
-        if (major === 0x05) { // Peripheral; minor class distinguishes input devices
-            const minor = (cls >> 2) & 0x3f;
-            if (minor & 0x20)
-                return 'mouse';
-            if (minor & 0x10)
-                return 'keyboard';
-            if (minor === 0x04 || minor === 0x08)
-                return 'gamepad';
-            return 'keyboard';
-        }
-    } catch (e) {}
-    return connected ? 'bluetooth-on' : 'bluetooth-off';
-}
-
 function resolveDeviceGicon(key, connected) {
     const candidates = [
         connected ? iconPathOnAccent(key) : iconPathPrimary(key),
@@ -623,7 +563,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         });
         const rowBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-device-box'});
         // Icon by BlueZ type (Omarchy-style device glyphs)
-        const iconKey = deviceIconKey(props, connected || connecting);
+        const iconKey = getBluetoothDeviceIcon(props, connected || connecting);
         const gicon = resolveDeviceGicon(iconKey, connected);
         const devIcon = new St.Icon({
             style_class: 'material-panel-bt-device-icon',
