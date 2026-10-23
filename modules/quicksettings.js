@@ -1260,12 +1260,6 @@ export function bluetoothTile() {
             } catch (e) {}
         }
 
-        let deviceClass = null;
-        try {
-            if ('Class' in props && props['Class'])
-                deviceClass = props['Class'].deep_unpack();
-        } catch (e) {}
-
         const iconName = getBluetoothDeviceIcon(props, connected || isConnecting);
         // Primary-colored icons on surface; on-accent only while row is pressed
         const iconPathStr = iconPathPrimary(iconName);
