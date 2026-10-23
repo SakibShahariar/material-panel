@@ -287,7 +287,6 @@ function buildDualSliders() {
     let sink = null;
     let control = null;
     const controlSignalIds = [];
-    const volIconKeys = ['volume-high', 'volume-medium', 'volume-low', 'volume-muted'];
     const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
     const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
     const volSlider = createSlider({
@@ -309,11 +308,6 @@ function buildDualSliders() {
     const volRow = mkRow(['volume-high'], 'audio-volume-high-symbolic', volSlider);
     // keep icon ref for updates
     const volIcon = volRow.get_child_at_index(0);
-    try {
-        const orig = volSlider.actor;
-        // wrap onChange to update icon - already set; re-bind via control
-    } catch (e) {}
-
     try {
         control = getMixerControl();
         const bind = () => {
