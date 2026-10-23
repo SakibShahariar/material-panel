@@ -6,7 +6,7 @@ import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
