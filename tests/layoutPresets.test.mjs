@@ -4,7 +4,6 @@ import test from 'node:test';
 import {
     applyLayoutStyle,
     DEFAULT_ZONES,
-    END4_ZONES,
     LAYOUT_DEFAULT,
     LAYOUT_END4,
 } from '../lib/layoutPresets.js';
