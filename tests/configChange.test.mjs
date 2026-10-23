@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {classifyConfigChange} from '../lib/configChange.js';
+import {classifyConfigChange, getChangedConfigKeys} from '../lib/configChange.js';
 
 const base = {
     trayAllHidden: false,
@@ -38,4 +38,16 @@ test('requires a full rebuild for mixed or unsupported changes', () => {
 test('treats equivalent nested config values as unchanged', () => {
     const equivalent = {...base, panelSize: {...base.panelSize}};
     assert.equal(classifyConfigChange(base, equivalent), 'tray');
+});
+
+test('reports changed top-level keys once for consumers to reuse', () => {
+    assert.deepEqual(getChangedConfigKeys(base, {
+        ...base,
+        trayAllHidden: true,
+        panelSize: {...base.panelSize, gapTop: 9},
+    }), ['trayAllHidden', 'panelSize']);
+    assert.deepEqual(getChangedConfigKeys(base, {...base}), []);
+    assert.equal(getChangedConfigKeys(null, base), null);
+    assert.equal(classifyConfigChange(base, {...base, clockFormat: '12h'},
+        getChangedConfigKeys(base, {...base, clockFormat: '12h'})), 'clock');
 });
