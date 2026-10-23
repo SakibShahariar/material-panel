@@ -1,6 +1,6 @@
 import {setChipA11y} from '../lib/a11y.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
-import {iconPathPrimary} from '../lib/iconTheme.js';
+
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
