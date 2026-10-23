@@ -44,7 +44,7 @@ from scripts.calendar_sync_http import fetch_conditional, save_validators
 
 HOME = Path.home()
 CFG = HOME / ".config" / "material-panel"
-CACHE = Path(os.environ.get("XDG_CACHE_HOME", str(HOME / ".cache"))) / "material-panel"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME") or (HOME / ".cache")) / "material-panel"
 OUT = CACHE / "calendar-events.json"
 URL_FILE = CFG / "calendar-ics.url"
 URL_ENV = "MATERIAL_PANEL_ICS_URL"
