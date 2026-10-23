@@ -342,7 +342,6 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag, cancellable = null) {
         const codes = json.daily?.weather_code || [];
         const pops = json.daily?.precipitation_probability_max || [];
         const today = GLib.DateTime.new_now_local().format('%Y-%m-%d');
-        const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         for (let i = 0; i < times.length && daily.length < 6; i++) {
             const date = String(times[i]).slice(0, 10);
             let label = date.slice(5); // MM-DD fallback
