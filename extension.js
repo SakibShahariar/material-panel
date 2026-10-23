@@ -70,9 +70,14 @@ export default class MaterialPanelExtension extends Extension {
                 // Gaps + opacity are CSS / geometry — do NOT tear down our chips/QS.
                 try {
                     const panelSize = this._config.panelSize ?? {};
-                    const colorSource = resolveColorSource(this._config.colorSource);
-                    this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-                    this._builder?._applyChipGap?.(this._config);
+                    // A scale change schedules _schedulePanelSizeUpdate(), which
+                    // applies the theme and chip gap itself. Avoid doing that work
+                    // twice while still syncing geometry immediately.
+                    if (!scaleCh) {
+                        const colorSource = resolveColorSource(this._config.colorSource);
+                        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
+                        this._builder?._applyChipGap?.(this._config);
+                    }
                     this._builder?._syncGeometry?.();
                     log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=${scaleCh}`);
                 } catch (e) {
