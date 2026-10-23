@@ -176,7 +176,12 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, refresh);
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
+        // Do not query filesystem metadata for a chip hidden with the panel.
+        if (!button.mapped && !menu.isOpen)
+            return GLib.SOURCE_CONTINUE;
+        return refresh();
+    });
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);

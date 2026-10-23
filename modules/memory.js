@@ -93,7 +93,13 @@ export function buildMemory(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, refresh);
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
+        // Avoid periodic /proc reads while the panel chip is not mapped.
+        // A direct click still refreshes immediately before opening the popup.
+        if (!button.mapped && !menu.isOpen)
+            return GLib.SOURCE_CONTINUE;
+        return refresh();
+    });
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);
