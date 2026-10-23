@@ -726,15 +726,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                                 if (blocked) {
                                     setBlockedState();
                                     devicesBox.destroy_all_children();
-                                    const hint = new St.Label({text: 'Blocked — use switch above to unblock', style_class: 'material-panel-bt-device-status'});
-                                    hint.style = 'font-style: italic; padding: 4px 8px;';
+                                    const hint = new St.Label({text: 'Blocked — use switch above to unblock', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                                     devicesBox.add_child(hint);
                                     devicesHeaderCount.text = '';
                                     return;
                                 }
                                 devicesBox.destroy_all_children();
-                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-bt-device-status'});
-                                hint.style = 'font-style: italic; padding: 4px 8px;';
+                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                                 devicesBox.add_child(hint);
                                 devicesHeaderCount.text = '';
                             });
@@ -742,8 +740,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         }
                         if (!currentlyPowered) {
                             devicesBox.destroy_all_children();
-                            const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-bt-device-status'});
-                            hint.style = 'font-style: italic; padding: 4px 8px;';
+                            const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                             devicesBox.add_child(hint);
                             devicesHeaderCount.text = '';
                             return;
@@ -769,8 +766,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         devicesBox.destroy_all_children();
                         devicesHeaderCount.text = `(${pairedDevices.length})`;
                         if (pairedDevices.length === 0) {
-                            const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-bt-device-status'});
-                            hint.style = 'font-style: italic; padding: 4px 8px;';
+                            const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                             devicesBox.add_child(hint);
                             return;
                         }
@@ -809,7 +805,6 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                                 .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
                             if (nearby.length > 0) {
                                 const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-bt-nearby-header'});
-                                sep.style = 'font-size: 10px; opacity: 0.6; padding: 6px 8px 2px 8px;';
                                 devicesBox.add_child(sep);
                                 for (const {path, props} of nearby.slice(0, 6))
                                     devicesBox.add_child(buildDeviceRow(path, props));
