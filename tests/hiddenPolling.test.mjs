@@ -19,7 +19,7 @@ test('system metric polling skips hidden chips with closed popups', () => {
 });
 
 test('manual refresh remains available when opening directly refreshed module popups', () => {
-    for (const name of ['gpu', 'disk', 'battery', 'memory']) {
+    for (const name of ['gpu', 'disk', 'memory']) {
         const source = modules.find(([moduleName]) => moduleName === name)[1];
         assert.match(
             source,
@@ -27,4 +27,11 @@ test('manual refresh remains available when opening directly refreshed module po
             `${name} should refresh on direct interaction`
         );
     }
+
+    const battery = modules.find(([name]) => name === 'battery')[1];
+    assert.match(
+        battery,
+        /menu\.connect\('open-state-changed',[\s\S]*?if \(open\)[\s\S]*?refresh\(\)/,
+        'battery should refresh when its popup opens'
+    );
 });
