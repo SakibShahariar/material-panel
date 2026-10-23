@@ -1450,15 +1450,13 @@ export function bluetoothTile() {
                             deviceContainer.destroy_all_children();
                             const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                             if (!hasAdapter) {
-                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-empty'});
-                                hint.style = 'font-style: italic; padding: 4px 8px;';
+                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded ? true : false;
                                 return;
                             }
                             if (!currentlyPowered) {
-                                const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-qs-bt-empty'});
-                                hint.style = 'font-style: italic; padding: 4px 8px;';
+                                const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
                                 return;
@@ -1489,8 +1487,7 @@ export function bluetoothTile() {
                                 })
                                 .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
                             if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
-                                const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty'});
-                                hint.style = 'font-style: italic; padding: 4px 8px;';
+                                const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
                                 return;
