@@ -51,3 +51,6 @@ These tests do not verify GNOME Shell interactions or desktop behavior. See the 
 - [Development guide](docs/DEVELOPMENT.md)
 - [Open issues and planned work](https://github.com/SakibShahariar/material-panel/issues)
 
+## License
+
+Material Panel is licensed under **GNU GPL-3.0-only**. See [LICENSE](LICENSE) for the full license text. Third-party assets and dependencies may be subject to their own licenses.
