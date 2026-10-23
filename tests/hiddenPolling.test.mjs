@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
 const modules = await Promise.all(
-    ['gpu', 'disk', 'battery', 'memory', 'cpu'].map(async name => [
+    ['gpu', 'disk', 'battery', 'memory', 'cpu', 'networkSpeed'].map(async name => [
         name,
         await readFile(new URL(`../modules/${name}.js`, import.meta.url), 'utf8'),
     ])
