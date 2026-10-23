@@ -1946,7 +1946,8 @@ export function wifiQsBlock() {
         settingsBtn.connect('clicked', () => {
             try { GLib.spawn_command_line_async('gnome-control-center wifi'); }
             catch (e) {
-                try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e2) {}
+                try { GLib.spawn_command_line_async('gnome-control-center network'); }
+                catch (e2) { logError(e2, 'material-panel: failed to open Network settings'); }
             }
             return Clutter.EVENT_STOP;
         });
