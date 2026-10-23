@@ -8,7 +8,7 @@ This page records current implementation gaps, not problems every installation w
 - **Work areas:** monitor and work-area changes are observed, but maximized-window interactions still need runtime validation across GNOME Shell versions.
 - **Theme fallback:** Matugen palettes are supported; without a usable custom palette, the extension uses a bundled palette instead of fully inheriting the active Shell theme ([#145](https://github.com/SakibShahariar/material-panel/issues/145)).
 - **Tray compatibility:** third-party icons require AppIndicator/KStatusNotifierItem Support or BetterTrayIcons. The bridge supports extensions using GNOME's public `addToStatusArea` API; extensions accessing panel internals directly may not work.
-- **Generated files:** generated icon/theme files and the synced calendar cache live under `~/.config/material-panel/`; moving regenerable data to suitable cache/state directories remains open ([#87](https://github.com/SakibShahariar/material-panel/issues/87)).
+- **Generated files:** generated icons, theme CSS, calendar events, and HTTP validators now use the XDG cache directory. Existing calendar data in `~/.config/material-panel/calendar-events.json` is read as a migration fallback until the next successful sync.
 
 ## Modules and integrations
 
