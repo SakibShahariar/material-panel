@@ -1105,9 +1105,7 @@ export function bluetoothTile() {
         text.text = 'Bluetooth';
         // Force matugen primary when on — CSS alone was losing specificity → wrong/pink fills
         try {
-            const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
             const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
-            const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
             text.style = powered
                 ? `font-weight: 700; color: ${onP};`
                 : 'font-weight: 600;';
@@ -1733,7 +1731,6 @@ export function wifiQsBlock() {
         width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
     });
     try {
-        const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
         row.style = 'border-radius: 18px; min-height: 52px; height: 52px;'; // bg from CSS tile style
         row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
     } catch (e) {}
@@ -1860,7 +1857,6 @@ export function wifiQsBlock() {
     const setActive = on => {
         const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
         const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
-        const surface = globalThis._materialPanelQsSurface ?? 'rgba(49,50,68,0.55)';
         if (on)
             row.add_style_class_name('active');
         else
