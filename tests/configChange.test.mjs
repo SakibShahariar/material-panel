@@ -35,9 +35,21 @@ test('requires a full rebuild for mixed or unsupported changes', () => {
     assert.equal(classifyConfigChange(null, base), 'full');
 });
 
-test('treats equivalent nested config values as unchanged', () => {
-    const equivalent = {...base, panelSize: {...base.panelSize}};
+test('treats equivalent nested config values as unchanged regardless of key order', () => {
+    const equivalent = {
+        ...base,
+        panelSize: {gapTop: 5, scale: 1},
+        foreignRoleZones: {},
+    };
     assert.equal(classifyConfigChange(base, equivalent), 'tray');
+    assert.equal(classifyConfigChange(
+        {nested: {first: 1, second: {left: true, right: false}}},
+        {nested: {second: {right: false, left: true}, first: 1}},
+    ), 'tray');
+    assert.equal(classifyConfigChange(
+        {nested: {first: 1, second: 2}},
+        {nested: {first: 1, third: 2}},
+    ), 'full');
 });
 
 test('reports changed top-level keys once for consumers to reuse', () => {
