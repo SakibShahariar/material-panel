@@ -1855,6 +1855,7 @@ export function wifiQsBlock() {
     listPanel.visible = false;
 
     let expanded = false;
+    let wifiActionError = '';
 
     const setActive = on => {
         const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
@@ -1960,8 +1961,12 @@ export function wifiQsBlock() {
                         .find(d => d.get_device_type() === NM.DeviceType.WIFI);
                     if (!device)
                         return Clutter.EVENT_STOP;
+                    wifiActionError = '';
                     client.activate_connection_async(conn, device, null, null, (c, res) => {
-                        try { client.activate_connection_finish(res); } catch (e) {
+                        try {
+                            client.activate_connection_finish(res);
+                        } catch (e) {
+                            wifiActionError = 'Could not connect to network';
                             if (!destroyed)
                                 logError(e, 'material-panel: QS Wi-Fi activate failed');
                         }
@@ -1972,6 +1977,12 @@ export function wifiQsBlock() {
                 });
                 listPanel.add_child(btn);
             }
+        }
+        if (wifiActionError) {
+            listPanel.add_child(new St.Label({
+                text: wifiActionError,
+                style_class: 'material-panel-qs-bt-empty',
+            }));
         }
         const settingsBtn = new St.Button({
             style_class: 'material-panel-qs-bt-device',
