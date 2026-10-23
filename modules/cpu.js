@@ -422,6 +422,9 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     let refreshPopup = (_data) => {}; // assigned after popup widgets exist
 
     let updateLabels = () => {
+        // Avoid repeated /proc and sysfs reads when neither chip nor popup is visible.
+        if (!button.mapped && !menu.isOpen)
+            return GLib.SOURCE_CONTINUE;
         try {
             if (!globalThis._materialPanelCoreClasses)
                 globalThis._materialPanelCoreClasses = readCoreClasses();
