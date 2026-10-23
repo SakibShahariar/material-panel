@@ -35,8 +35,6 @@ export default class MaterialPanelExtension extends Extension {
 
         this._applyTheme({rebuildPanel: true});
 
-
-
         this._panelWasVisible = Main.panel.visible;
         Main.panel.hide();
 
@@ -67,8 +65,6 @@ export default class MaterialPanelExtension extends Extension {
             case 'tray':
                 return;
             case 'panelSize': {
-                const p = prev?.panelSize ?? {};
-                const n = newConfig?.panelSize ?? {};
                 const scaleCh = Math.abs(scaleOf(prev) - scaleOf(newConfig)) > 0.001;
                 // Only scale needs destroy/recreate of panel modules (icon sizes baked in).
                 // Gaps + opacity are CSS / geometry — do NOT tear down our chips/QS.
