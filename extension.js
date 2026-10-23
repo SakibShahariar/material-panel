@@ -84,9 +84,6 @@ function classifyConfigChange(prev, next) {
     ]))
         return 'tray';
 
-    if (sameExcept(prev, next, ['layoutStyle', 'layoutSnapshots']))
-        return 'full';
-
     if (sameExcept(prev, next, ['panelSize']))
         return 'panelSize';
 
@@ -95,10 +92,6 @@ function classifyConfigChange(prev, next) {
 
     if (sameExcept(prev, next, ['colorSource']))
         return 'color';
-
-    // slider / tile visual styles rebuild QS chrome
-    if (sameExcept(prev, next, ['sliderStyle', 'qsTileStyle']))
-        return 'full';
 
     return 'full';
 }
