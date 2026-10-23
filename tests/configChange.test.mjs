@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {classifyConfigChange} from '../lib/configChange.js';
+
+const base = {
+    trayAllHidden: false,
+    foreignRoleZones: {},
+    hiddenForeignRoles: [],
+    foreignRoleZonesBackup: {},
+    panelSize: {scale: 1, gapTop: 5},
+    clockFormat: '24h',
+    colorSource: null,
+    layoutStyle: 'default',
+};
+
+test('classifies tray-only changes', () => {
+    assert.equal(classifyConfigChange(base, {...base, trayAllHidden: true}), 'tray');
+    assert.equal(classifyConfigChange(base, {
+        ...base, foreignRoleZones: {network: 'left'},
+    }), 'tray');
+});
+
+test('classifies panel size, clock, and color changes', () => {
+    assert.equal(classifyConfigChange(base, {
+        ...base, panelSize: {...base.panelSize, gapTop: 8},
+    }), 'panelSize');
+    assert.equal(classifyConfigChange(base, {...base, clockFormat: '12h'}), 'clock');
+    assert.equal(classifyConfigChange(base, {...base, colorSource: '/tmp/palette.css'}), 'color');
+});
+
+test('requires a full rebuild for mixed or unsupported changes', () => {
+    assert.equal(classifyConfigChange(base, {...base, clockFormat: '12h', colorSource: '/tmp/palette.css'}), 'full');
+    assert.equal(classifyConfigChange(base, {...base, layoutStyle: 'end4'}), 'full');
+    assert.equal(classifyConfigChange(null, base), 'full');
+});
+
+test('treats equivalent nested config values as unchanged', () => {
+    const equivalent = {...base, panelSize: {...base.panelSize}};
+    assert.equal(classifyConfigChange(base, equivalent), 'tray');
+});
