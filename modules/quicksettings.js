@@ -790,12 +790,8 @@ export function volumeSliderRow() {
     return row;
 }
 
-// Brightness via GNOME Settings Daemon's D-Bus property - same
-// Reads current brightness directly from sysfs and writes changes via
-// systemd-logind's SetBrightness method - this is what modern GNOME Shell
-// itself actually uses (confirmed via systemd's own docs), not the older
-// gnome-settings-daemon Properties interface that a previous version of
-// this function tried and that doesn't exist on all systems.
+// Read the backlight device and current brightness from sysfs.
+// Writes are handled by brightnessctl in brightnessSliderRow() below.
 function findBacklightDevice() {
     try {
         const dir = Gio.File.new_for_path('/sys/class/backlight');
