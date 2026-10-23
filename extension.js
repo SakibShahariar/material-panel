@@ -9,92 +9,13 @@ import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
-
-function stripKeys(c, extraKeys = []) {
-    const o = {...c};
-    for (const k of extraKeys)
-        delete o[k];
-    return o;
-}
-
-function deepEqual(a, b) {
-    if (a === b)
-        return true;
-    if (a == null || b == null)
-        return a === b;
-    if (typeof a !== typeof b)
-        return false;
-    if (typeof a !== 'object')
-        return a === b;
-    if (Array.isArray(a) !== Array.isArray(b))
-        return false;
-    if (Array.isArray(a)) {
-        if (a.length !== b.length)
-            return false;
-        for (let i = 0; i < a.length; i++) {
-            if (!deepEqual(a[i], b[i]))
-                return false;
-        }
-        return true;
-    }
-    const ka = Object.keys(a).sort();
-    const kb = Object.keys(b).sort();
-    if (ka.length !== kb.length)
-        return false;
-    for (let i = 0; i < ka.length; i++) {
-        if (ka[i] !== kb[i])
-            return false;
-        if (!deepEqual(a[ka[i]], b[kb[i]]))
-            return false;
-    }
-    return true;
-}
-
-function sameExcept(prev, next, keys) {
-    if (!prev || !next)
-        return false;
-    try {
-        return deepEqual(stripKeys(prev, keys), stripKeys(next, keys));
-    } catch (e) {
-        return false;
-    }
-}
+import {classifyConfigChange} from './lib/configChange.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
     return Number.isFinite(s) ? s : 1.0;
 }
 
-/**
- * Classify config delta so we avoid full panel rebuilds when possible.
- *
- * Prefs saves that used to rebuild everything:
- * - tray / hide-all / placement
- * - panelSize (gaps + scale)
- * - clockFormat (clock module watches config itself)
- * - colorSource (theme + optional rebuild for icons)
- * - modules / presets / hiddenModules → full rebuild (required)
- */
-function classifyConfigChange(prev, next) {
-    if (!prev || !next)
-        return 'full';
-
-    if (sameExcept(prev, next, [
-        'trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles', 'foreignRoleZonesBackup',
-    ]))
-        return 'tray';
-
-    if (sameExcept(prev, next, ['panelSize']))
-        return 'panelSize';
-
-    if (sameExcept(prev, next, ['clockFormat']))
-        return 'clock';
-
-    if (sameExcept(prev, next, ['colorSource']))
-        return 'color';
-
-    return 'full';
-}
 
 export default class MaterialPanelExtension extends Extension {
     enable() {
