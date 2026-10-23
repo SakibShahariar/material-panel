@@ -12,7 +12,7 @@ A configurable GNOME Shell top panel that replaces the stock panel while keeping
 - **Flexible layout** — arrange built-in modules across left, center, and right zones.
 - **Appearance controls** — adjust panel sizing, slider styles, tile styles, and color palette.
 - **Quick Settings** — choose among the default and optional End-4/Ryoku implementations.
-- **Built-in modules** — activities, workspaces, clock, weather, notifications, CPU, memory, GPU, disk, battery, volume, network/Wi-Fi, network speed, Bluetooth, media playback, focused-window information, dark mode, night light, Do Not Disturb, and power actions.
+- **Built-in modules** — activities, workspaces, clock, weather, notifications, CPU, memory, GPU, disk, battery, volume, network/Wi-Fi, network speed, Bluetooth device controls, media playback, focused-window information, dark mode, night light, Do Not Disturb, and power actions.
 - **Third-party icons** — bridge supported status-area icons into the panel, with an optional tray drawer.
 - **Calendar integration** — optionally sync events from an ICS feed.
 
@@ -76,7 +76,7 @@ python3 -m unittest discover -s tests
 node --experimental-default-type=module --test tests/*.test.mjs
 ```
 
-The test suite covers ICS timestamp/time-zone parsing, multi-day all-day event indexing, panel-size config migration and clamping, layout snapshot restoration, and network byte-rate calculations. These tests do not replace GNOME Shell runtime checks for panel widgets, NetworkManager callbacks, or desktop interactions.
+The test suite covers ICS timestamp/time-zone parsing, multi-day all-day event indexing, panel-size config migration and clamping, layout snapshot restoration, network byte-rate calculations, `/proc` memory parsing, and disk-usage validation. These tests do not replace GNOME Shell runtime checks for panel widgets, NetworkManager callbacks, or desktop interactions.
 
 ## Icons and fonts
 
@@ -162,7 +162,7 @@ This bridge only catches extensions that use the public `addToStatusArea` API. E
 - **Third-party tray icons:** require **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). Material Panel hosts those icons on the bar; it does not run its own StatusNotifier watcher.
 - **Brightness:** the slider requires `brightnessctl`. If it is missing, or there is no `/sys/class/backlight` device (common on desktop monitors without DDC/CI support), the slider is hidden.
 - **Wi-Fi:** the module reconnects only to saved networks. Joining a new network with a password requires a NetworkManager secret-agent D-Bus flow, which is not implemented.
-- **Bluetooth:** the module currently toggles the adapter only. Device pairing and connection management are not implemented. Adapter discovery is also one of the least-tested areas; if the toggle fails, check logs for `material-panel: bluez` errors.
+- **Bluetooth:** the module supports adapter toggling and device pairing/connection controls when BlueZ exposes the required operations. Adapter discovery and device operations remain among the less-tested areas; if a toggle or device action fails, check logs for `material-panel: bluez` errors.
 - **Panel work area:** setting the stock panel height to zero may affect `Main.layoutManager` work-area calculations on some GNOME versions. Watch for gaps or overlaps around maximized windows; see the comment in `extension.js`.
 
 For current work and additional limitations, see the [open issue tracker](https://github.com/SakibShahariar/material-panel/issues).
