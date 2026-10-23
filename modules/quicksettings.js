@@ -1855,7 +1855,6 @@ export function wifiQsBlock() {
     let wifiActionError = '';
 
     const setActive = on => {
-        const primary = globalThis._materialPanelPrimary ?? '#89b4fa';
         const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
         if (on)
             row.add_style_class_name('active');
