@@ -18,7 +18,7 @@ This page records current implementation gaps, not problems every installation w
 - **Bluetooth:** adapter toggling and device pairing/connection controls work when BlueZ exposes the needed operations. Shared popup/Quick Settings behavior still needs consolidation ([#95](https://github.com/SakibShahariar/material-panel/issues/95)).
 - **Disk usage:** reports `/` and the home path; arbitrary mounted filesystem selection is not available ([#39](https://github.com/SakibShahariar/material-panel/issues/39)).
 - **Batteries:** only one battery device is selected; multiple physical batteries are not combined or listed ([#43](https://github.com/SakibShahariar/material-panel/issues/43)).
-- **Calendar:** the ICS importer does not expand `RRULE` recurrence sets or apply `EXDATE` exclusions. The End-4 calendar uses Monday-first English weekday labels and does not yet open an agenda or mark event days ([#105](https://github.com/SakibShahariar/material-panel/issues/105)).
+- **Calendar:** the ICS importer does not expand `RRULE` recurrence sets or apply `EXDATE` exclusions. The End-4 calendar now follows the runtime locale for weekday ordering/labels and can show cached events for the selected day; this still needs GNOME Shell runtime verification ([#105](https://github.com/SakibShahariar/material-panel/issues/105)).
 - **Preferences:** missing dependencies and unavailable modules are not yet detected and explained consistently ([#35](https://github.com/SakibShahariar/material-panel/issues/35)).
 
 ## Architecture and performance
