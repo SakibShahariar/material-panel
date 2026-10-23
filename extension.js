@@ -10,8 +10,8 @@ import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 
-function cloneStrip(c, extraKeys = []) {
-    const o = JSON.parse(JSON.stringify(c));
+function stripKeys(c, extraKeys = []) {
+    const o = {...c};
     for (const k of extraKeys)
         delete o[k];
     return o;
@@ -54,7 +54,7 @@ function sameExcept(prev, next, keys) {
     if (!prev || !next)
         return false;
     try {
-        return deepEqual(cloneStrip(prev, keys), cloneStrip(next, keys));
+        return deepEqual(stripKeys(prev, keys), stripKeys(next, keys));
     } catch (e) {
         return false;
     }
