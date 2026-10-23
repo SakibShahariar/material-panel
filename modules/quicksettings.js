@@ -1635,11 +1635,6 @@ export function powerRow(menu = null) {
             x_expand: true,
             child: icon,
         });
-        if (globalThis._materialPanelLayoutStyle === 'end4') {
-            try {
-                btn.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
-            } catch (e) {}
-        }
         try {
             wireChipPress(btn, {
                 stickyUntilLeave: false,
