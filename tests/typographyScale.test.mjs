@@ -29,5 +29,6 @@ test('applies typography roles to Quick Settings labels in both theme paths', ()
         assert.ok(stylesheet.includes(selector), `fallback stylesheet styles ${selector}`);
     }
     // The user-configurable panel scale still controls bar-chip label sizes.
+    assert.ok(theme.includes('const labelFont = (TYPE_SCALE.caption * scale).toFixed(1);'));
     assert.ok(theme.includes('font-size: ${labelFont}px;'));
 });
