@@ -22,3 +22,13 @@ test('expanded CPU popup does not rebuild process rows on every metric tick', ()
     assert.match(cpu, /procSort = 'cpu'; renderProcesses\(\)/);
     assert.match(cpu, /procSort = 'mem'; renderProcesses\(\)/);
 });
+
+test('one CPU sample feeds both the chip and the one-second popup refresh', () => {
+    assert.match(cpu, /latestMetricSample = \{\.\.\.data, temp\}/);
+    assert.match(cpu, /refreshPopup\(latestMetricSample\)/);
+    assert.doesNotMatch(
+        cpu,
+        /fastTimerId = GLib\.timeout_add\([\s\S]{0,500}?refreshPopup\(\)/,
+        'the popup timer must not trigger a second independent CPU/sysfs sample'
+    );
+});
