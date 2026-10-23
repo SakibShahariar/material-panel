@@ -782,6 +782,5 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => { try { menu.destroy(); } catch (e) {} });
 
-    try { log('material-panel: End-4 QS matched to reference layout'); } catch (e) {}
     return button;
 }
