@@ -9,7 +9,7 @@ import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
-import {classifyConfigChange} from './lib/configChange.js';
+import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -45,11 +45,11 @@ export default class MaterialPanelExtension extends Extension {
             this._config = newConfig;
             globalThis._materialPanelWeatherLocation = newConfig.weatherLocation ?? {};
 
-            // Apply tray BEFORE classify so L/R/C never depends on classification
-            const trayChanged = !prev ||
-                prev.trayAllHidden !== newConfig.trayAllHidden ||
-                JSON.stringify(prev.foreignRoleZones ?? {}) !== JSON.stringify(newConfig.foreignRoleZones ?? {}) ||
-                JSON.stringify(prev.hiddenForeignRoles ?? []) !== JSON.stringify(newConfig.hiddenForeignRoles ?? []);
+            // Compute nested config differences once and reuse them for both
+            // tray placement and rebuild classification.
+            const changedKeys = getChangedConfigKeys(prev, newConfig);
+            const trayChanged = !changedKeys || changedKeys.some(key =>
+                ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles'].includes(key));
             if (trayChanged) {
                 log(`material-panel: tray keys changed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
                 this._applyTrayOnly();
@@ -60,7 +60,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
             } catch (e) {}
 
-            const kind = classifyConfigChange(prev, newConfig);
+            const kind = classifyConfigChange(prev, newConfig, changedKeys);
             log(`material-panel: config change classified as "${kind}"`);
 
             switch (kind) {
