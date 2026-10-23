@@ -76,7 +76,7 @@ python3 -m unittest discover -s tests
 node --experimental-default-type=module --test tests/*.test.mjs
 ```
 
-The test suite covers ICS timestamp/time-zone parsing, multi-day all-day event indexing, panel-size config migration and clamping, layout snapshot restoration, network byte-rate calculations, `/proc` memory parsing, and disk-usage validation. These tests do not replace GNOME Shell runtime checks for panel widgets, NetworkManager callbacks, or desktop interactions.
+The test suite covers ICS parsing and time-zone handling, multi-day all-day event indexing, conditional HTTP caching, config-change classification and normalization, layout presets/snapshots, Bluetooth codec matching, GPU metrics, network-speed calculations, process snapshots, `/proc` memory parsing, and disk-usage validation. These tests do not replace GNOME Shell runtime checks for panel widgets, NetworkManager callbacks, or desktop interactions.
 
 ## Icons and fonts
 
@@ -88,7 +88,7 @@ The source SVGs are committed, so a fresh checkout does not need to download the
 bash scripts/fetch-icons.sh
 ```
 
-The script tries filled and regular variants, validates downloaded SVGs, and leaves an existing icon untouched if both downloads fail or a response is invalid. Review asset changes before committing them.
+The script prefers filled SVG variants and falls back to plain 24px variants, validates downloaded SVGs, and leaves an existing icon untouched if both downloads fail or a response is invalid. Review asset changes before committing them.
 
 Panel and Quick Settings chrome uses **Material Symbols Rounded**, like the end-4 Quickshell `MaterialSymbol` style, including the FILL axis when the variable font is installed.
 
@@ -113,7 +113,7 @@ An ICS URL may grant access to a private calendar, so store it with restrictive 
 ```sh
 umask 077
 mkdir -p ~/.config/material-panel
-printf '%s\\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
+printf '%s\n' 'YOUR_ICS_URL' > ~/.config/material-panel/calendar-ics.url
 chmod 600 ~/.config/material-panel/calendar-ics.url
 python3 scripts/calendar-sync-ics.py
 ```
@@ -149,9 +149,9 @@ stylesheet.css                bundled fallback styling
 
 ### Panel lifecycle and compatibility
 
-`panelBuilder.render(config)` currently performs a full teardown and rebuild rather than incremental updates. Preset switches, preference saves, and other panel changes use the same rendering path.
+`panelBuilder.render(config)` performs a full teardown and rebuild rather than incremental actor updates whenever a full render is required. The extension routes some changes—such as tray placement—through specialized paths, and debounces rebuild requests; reducing redundant rebuilds remains open work ([#20](https://github.com/SakibShahariar/material-panel/issues/20)).
 
-GNOME's `Main.panel` is a singleton that other extensions may use through `addToStatusArea`. Material Panel keeps it alive (hidden, with zero height) rather than destroying it. `StatusAreaBridge` reparents third-party actors without destroying them; on rebuild, bridged actors are detached before teardown and reattached afterward.
+GNOME's `Main.panel` is a singleton that other extensions may use through `addToStatusArea`. Material Panel keeps it alive and hides it rather than destroying it. `StatusAreaBridge` reparents third-party actors without destroying them; on rebuild, bridged actors are detached before teardown and reattached afterward.
 
 This bridge only catches extensions that use the public `addToStatusArea` API. Extensions that access `Main.panel` internals directly may not be compatible.
 
@@ -160,8 +160,8 @@ This bridge only catches extensions that use the public `addToStatusArea` API. E
 The following are current implementation gaps, not a guarantee that every setup will experience a bug:
 
 - **Multi-monitor:** the panel is drawn on the primary monitor only. The stock GNOME top bar is hidden on all monitors while the extension is enabled, so secondary displays will not show a top bar. See [#30](https://github.com/SakibShahariar/material-panel/issues/30) and [#110](https://github.com/SakibShahariar/material-panel/issues/110).
-- **Panel work area:** setting the stock panel height to zero may affect `Main.layoutManager` work-area calculations on some GNOME versions. Watch for gaps or overlaps around maximized windows; see the comment in `extension.js`.
-- **Weather location:** the hard-coded Dhaka fallback has been removed. Users can configure a manual latitude/longitude and optional display name in Preferences; when manual coordinates are not configured, the module uses the location configured in GNOME Weather. It does not silently substitute Dhaka or use IP geolocation. Cycling among multiple saved weather locations is not implemented yet ([#143](https://github.com/SakibShahariar/material-panel/issues/143); the fallback bug is fixed in [#55](https://github.com/SakibShahariar/material-panel/issues/55)).
+- **Work-area compatibility:** panel geometry listens for monitor and work-area changes, but interactions with maximized-window work areas still need runtime validation across GNOME Shell versions.
+- **Weather location:** the hard-coded Dhaka fallback has been removed. Users can configure a manual latitude/longitude and optional display name in Preferences; when manual coordinates are not configured, the module uses the location configured in GNOME Weather unless location lookup is explicitly disabled. It does not silently substitute Dhaka or use IP geolocation. Cycling among multiple saved weather locations is not implemented yet ([#143](https://github.com/SakibShahariar/material-panel/issues/143); the fallback bug is fixed in [#55](https://github.com/SakibShahariar/material-panel/issues/55)).
 - **Third-party tray icons:** require **AppIndicator and KStatusNotifierItem Support** (or BetterTrayIcons). Material Panel hosts those icons on the bar; it does not run its own StatusNotifier watcher. The bridge supports extensions using GNOME's public `addToStatusArea` API; extensions that access `Main.panel` internals directly may not be compatible.
 - **Brightness:** the slider requires `brightnessctl`. If it is missing, or there is no `/sys/class/backlight` device (common on desktop monitors without DDC/CI support), the slider is hidden.
 - **Wi-Fi:** the module currently lists saved wireless profiles, not a scan of all nearby access points. Signal strength, security indicators, and in-range status are not shown; joining a new network with a password is not implemented. See [#100](https://github.com/SakibShahariar/material-panel/issues/100) and [#28](https://github.com/SakibShahariar/material-panel/issues/28).
@@ -172,6 +172,8 @@ The following are current implementation gaps, not a guarantee that every setup 
 - **Polling and rebuilds:** memory and disk periodic refreshes pause while their chips are unmapped and their menus are closed, but a shared sampler and consistent pause behavior across all modules (including CPU/GPU and locked or blank screens) are not implemented yet ([#96](https://github.com/SakibShahariar/material-panel/issues/96)). Panel updates still perform full teardown/rebuilds in some paths; redundant rebuilds need measurement and further reduction ([#20](https://github.com/SakibShahariar/material-panel/issues/20)).
 - **Quick Settings architecture:** the default, End-4, and Ryoku implementations still contain duplicated UI behavior, and the default tile list is hard-coded rather than driven by a configurable registry ([#103](https://github.com/SakibShahariar/material-panel/issues/103)).
 - **Theme fallback:** Matugen palettes are supported, but when a usable custom palette is unavailable the fallback remains a bundled fixed palette rather than fully inheriting the active GNOME Shell theme ([#145](https://github.com/SakibShahariar/material-panel/issues/145)).
+- **Preferences availability:** some module rows describe their requirements, but Preferences does not yet systematically detect unavailable modules or missing dependencies and explain how to resolve them ([#35](https://github.com/SakibShahariar/material-panel/issues/35)).
+- **Shared state:** modules still exchange some settings and callbacks through `globalThis`; replacing this with a dedicated shared-state/configuration path remains open cleanup work ([#88](https://github.com/SakibShahariar/material-panel/issues/88)).
 - **Generated files:** generated icon/theme files and the synced calendar-event cache currently live under `~/.config/material-panel/`; relocating regenerable files to an appropriate cache/state directory is tracked in [#87](https://github.com/SakibShahariar/material-panel/issues/87).
 
 These limitations are tracked alongside other bugs and planned features in the [open issue tracker](https://github.com/SakibShahariar/material-panel/issues). Some issues describe planned improvements rather than broken behavior. Source-level tests do not replace GNOME Shell runtime testing.
