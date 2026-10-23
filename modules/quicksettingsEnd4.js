@@ -94,19 +94,6 @@ function openPrefs() {
     } catch (e) {}
 }
 
-/** @deprecated use confirmAndRun */
-function confirmPower(action) {
-    const map = {
-        logout: ['Log out', 'Close all apps and log out?', 'Log out', 'gnome-session-quit --logout --no-prompt'],
-        reboot: ['Restart', 'Restart this system now?', 'Restart', 'systemctl reboot'],
-        poweroff: ['Power off', 'Power off this system?', 'Power off', 'systemctl poweroff'],
-    };
-    const entry = map[action];
-    if (!entry)
-        return;
-    confirmAndRun(entry[0], entry[1], entry[2], entry[3]);
-}
-
 // ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
 
 function isFedoraHost() {
