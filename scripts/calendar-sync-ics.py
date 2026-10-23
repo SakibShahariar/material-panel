@@ -20,7 +20,7 @@ Setup (Google Calendar):
   Optional systemd user timer (every 15 min) — see script --install-timer
 
 Output:
-  ~/.config/material-panel/calendar-events.json
+  $XDG_CACHE_HOME/material-panel/calendar-events.json
 """
 
 from __future__ import annotations
@@ -44,10 +44,11 @@ from scripts.calendar_sync_http import fetch_conditional, save_validators
 
 HOME = Path.home()
 CFG = HOME / ".config" / "material-panel"
-OUT = CFG / "calendar-events.json"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", str(HOME / ".cache"))) / "material-panel"
+OUT = CACHE / "calendar-events.json"
 URL_FILE = CFG / "calendar-ics.url"
 URL_ENV = "MATERIAL_PANEL_ICS_URL"
-HTTP_STATE = CFG / "calendar-ics.http.json"
+HTTP_STATE = CACHE / "calendar-ics.http.json"
 
 
 def load_url() -> str:
@@ -263,7 +264,7 @@ def parse_events(ics: str, horizon_days: int = 90) -> list[dict]:
 
 
 def write_json(events: list[dict], source: str) -> None:
-    CFG.mkdir(parents=True, exist_ok=True)
+    CACHE.mkdir(parents=True, exist_ok=True)
     doc = {
         "version": 1,
         "syncedAt": datetime.now(timezone.utc).isoformat(),
