@@ -11,8 +11,8 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 
-// Prefer GNOME Weather location + libgweather conditions.
-// Fallback: Open-Meteo at those coords → IP → default.
+// Prefer the configured GNOME Weather location or explicit coordinates.
+// Never infer a city from IP data or show an unrelated default forecast.
 
 const OPEN_METEO =
     'https://api.open-meteo.com/v1/forecast?latitude=%LAT%&longitude=%LON%' +
@@ -20,7 +20,6 @@ const OPEN_METEO =
     '&hourly=temperature_2m,weather_code,precipitation_probability' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
     '&forecast_days=6&timezone=auto';
-const IP_LOC = 'https://ipapi.co/json/';
 
 let _GWeather = undefined; // undefined = not tried, null = unavailable
 
@@ -385,13 +384,6 @@ async function fetchOpenMeteo(lat, lon, place, sourceTag, cancellable = null) {
         isDay,
     };
 }
-
-async function resolveIpLocation() {
-    // Privacy: do not send the user's IP to third-party geolocation APIs.
-    // Use GNOME Weather locations or the fixed fallback coordinates instead.
-    throw new Error('IP geolocation disabled (privacy)');
-}
-
 
 export function buildWeather(_extensionPath, scale = 1.0) {
     const cancellable = new Gio.Cancellable();
