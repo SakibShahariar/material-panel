@@ -231,7 +231,13 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, refresh);
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
+        // GPU polling can spawn nvidia-smi and read sysfs; skip it while the
+        // chip is hidden and its popup is closed. Clicks still refresh at once.
+        if (!button.mapped && !menu.isOpen)
+            return GLib.SOURCE_CONTINUE;
+        return refresh();
+    });
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);
