@@ -46,9 +46,6 @@ function surfaceHover() {
 function surfaceHoverStrong() {
     return globalThis._materialPanelHoverBgStrong ?? 'rgba(205, 214, 244, 0.22)';
 }
-// Back-compat aliases used in this file
-const SURFACE = null; // do not use — call surface()
-
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
 }
