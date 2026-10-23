@@ -434,7 +434,8 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         child: new St.Label({text: 'Open Bluetooth Settings…', style_class: 'material-panel-bt-footer-label'}),
     });
     footerBtn.connect('clicked', () => {
-        try { GLib.spawn_command_line_async('gnome-control-center bluetooth'); } catch (e) {}
+        try { GLib.spawn_command_line_async('gnome-control-center bluetooth'); }
+        catch (e) { logError(e, 'material-panel: failed to open Bluetooth settings'); }
         menuClose(menu);
     });
     const footerItem = wrapAsMenuItem(footerBtn);
@@ -843,7 +844,8 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     button.connect('button-press-event', (_a, event) => {
         if (event.get_button() === 3) { // right click
             if (isBlocked) {
-                try { GLib.spawn_command_line_async('rfkill unblock bluetooth'); } catch (e) {}
+                try { GLib.spawn_command_line_async('rfkill unblock bluetooth'); }
+                catch (e) { logError(e, 'material-panel: rfkill unblock failed from context menu'); }
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => { discover(); return GLib.SOURCE_REMOVE; });
                 return Clutter.EVENT_STOP;
             }
