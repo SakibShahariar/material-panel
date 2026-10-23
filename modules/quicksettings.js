@@ -2366,7 +2366,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     });
 
     const end4 = globalThis._materialPanelLayoutStyle === 'end4';
-    try { log(`material-panel: QS end4=${end4} layout=${globalThis._materialPanelLayoutStyle}`); } catch (e) {}
 
     const menu = new PopupMenu.PopupMenu(button, end4 ? 1.0 : 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-qs-menu');
