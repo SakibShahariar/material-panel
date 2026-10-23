@@ -91,52 +91,6 @@ function readTempHwmon() {
     return null;
 }
 
-function readTripPoints(zoneName) {
-    const trips = {high: null, critical: null};
-    const candidates = [];
-    try {
-        const dir = Gio.File.new_for_path(`/sys/class/thermal/${zoneName}`);
-        const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
-        let info;
-        while ((info = enumerator.next_file(null)) !== null) {
-            const match = info.get_name().match(/^trip_point_(\d+)_temp$/);
-            if (!match)
-                continue;
-            const index = Number(match[1]);
-            try {
-                const basePath = `/sys/class/thermal/${zoneName}/trip_point_${index}`;
-                const [okTemp, tempContents] = Gio.File.new_for_path(`${basePath}_temp`).load_contents(null);
-                const [okType, typeContents] = Gio.File.new_for_path(`${basePath}_type`).load_contents(null);
-                if (!okTemp || !okType)
-                    continue;
-                const raw = Number.parseInt(new TextDecoder('utf-8').decode(tempContents).trim(), 10);
-                if (!Number.isFinite(raw))
-                    continue;
-                const deg = raw > 1000 ? raw / 1000 : raw;
-                const type = new TextDecoder('utf-8').decode(typeContents).trim().toLowerCase();
-                candidates.push({index, type, temperature: Math.round(deg)});
-            } catch (e) {
-                // Some thermal zones expose incomplete trip-point metadata.
-            }
-        }
-        enumerator.close(null);
-    } catch (e) {}
-    candidates.sort((a, b) => a.index - b.index);
-
-    // Linux thermal trip points are typed (active/passive/hot/critical);
-    // their numeric indices do not have a fixed meaning across devices.
-    const hot = candidates.find(trip => trip.type === 'hot');
-    const passive = candidates.find(trip => trip.type === 'passive');
-    const critical = candidates.find(trip => trip.type === 'critical');
-    if (hot)
-        trips.high = hot.temperature;
-    else if (passive)
-        trips.high = passive.temperature;
-    if (critical)
-        trips.critical = critical.temperature;
-    return trips;
-}
-
 function readLoadAvg() {
     try {
         const [ok, contents] = Gio.File.new_for_path('/proc/loadavg').load_contents(null);
@@ -408,7 +362,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const tempInfo = findTempFile();
     const tempPath = tempInfo?.path ?? null;
     const zoneName = tempInfo?.name ?? null;
-    const tripPoints = zoneName ? readTripPoints(zoneName) : {high: null, critical: null};
 
     let prevCores = [];
     let primed = false;
@@ -530,10 +483,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const usageValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const tempValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
     const loadValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const thermalSensor = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalCurrent = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalHigh = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
-    const thermalCrit = new St.Label({text: '', style_class: 'material-panel-cpu-popup-thermal-row'});
     const coresGrid = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-cores'});
     const coreLabels = [];
 
@@ -848,7 +797,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             if (temp === null) temp = readTempHwmon();
         }
         const load = readLoadAvg();
-        const trips = zoneName ? readTripPoints(zoneName) : {high: null, critical: null};
 
         usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
         tempValue.text = temp !== null ? `${temp}°C` : 'N/A';
