@@ -25,6 +25,28 @@ import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
+function getQsExpandController() {
+    if (!globalThis._materialPanelQsExpand) {
+        globalThis._materialPanelQsExpand = {
+            _apis: new Map(),
+            register(id, api) {
+                this._apis.set(id, api);
+            },
+            unregister(id) {
+                this._apis.delete(id);
+            },
+            expandOnly(id) {
+                for (const [key, api] of this._apis.entries()) {
+                    try {
+                        api.setExpanded(key === id);
+                    } catch (e) {}
+                }
+            },
+        };
+    }
+    return globalThis._materialPanelQsExpand;
+}
+
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
