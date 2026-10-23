@@ -7,7 +7,7 @@ import Gvc from 'gi://Gvc';
 import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {getMixerControl} from '../lib/audio.js';
