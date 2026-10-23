@@ -628,7 +628,7 @@ export function volumeSliderRow() {
         text: '0%',
         style_class: 'material-panel-qs-slider-value',
         y_align: Clutter.ActorAlign.CENTER,
-        style: 'min-width: 36px; text-align: right; font-size: 12px;',
+        
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
@@ -833,7 +833,7 @@ export function brightnessSliderRow() {
         text: `${initialPct}%`,
         style_class: 'material-panel-qs-slider-value',
         y_align: Clutter.ActorAlign.CENTER,
-        style: 'min-width: 36px; text-align: right; font-size: 12px;',
+        
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
