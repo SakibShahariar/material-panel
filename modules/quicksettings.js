@@ -2582,10 +2582,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         if (iconOnly) {
             // Single row of circles
             gl.attach(tile, i, 0, 1, 1);
-            try {
-                // hide text-ish children on chevron rows best-effort
-                tile.get_children?.()?.forEach?.(c => {});
-            } catch (e) {}
         } else {
             gl.attach(tile, i % 2, Math.floor(i / 2), 1, 1);
         }
@@ -2623,14 +2619,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     }
 
     if (end4) {
-        try {
-            const dualEl = menu.box.get_children?.()?.find?.(c => {
-                try {
-                    return String(c.style_class || '').includes('dual') ||
-                        String(c.get_style_class_name?.() || '').includes('dual');
-                } catch (e) { return false; }
-            });
-        } catch (e) {}
         menu.connect('open-state-changed', (_m, open) => {
             if (open) {
                 applyQsChrome();
