@@ -83,28 +83,6 @@ function wmoToIcon(code, isDay) {
     return 'weather';
 }
 
-function gweatherIconKey(info) {
-    let isDay = true;
-    try { isDay = info.is_daytime(); } catch (e) {}
-    let name = '';
-    try { name = info.get_icon_name() || ''; } catch (e) {}
-    if (/clear|sunny/.test(name))
-        return isDay ? 'weather-sunny' : 'weather-clear-night';
-    if (/few-clouds|partly/.test(name))
-        return 'weather-partly-cloudy';
-    if (/overcast|clouds/.test(name))
-        return 'weather-cloudy';
-    if (/fog|mist/.test(name))
-        return 'weather-fog';
-    if (/showers|rain|drizzle/.test(name))
-        return 'weather-rain';
-    if (/snow|sleet/.test(name))
-        return 'weather-snow';
-    if (/storm|thunder|severe/.test(name))
-        return 'weather-thunder';
-    return 'weather';
-}
-
 function httpGet(url, cancellable = null) {
     return new Promise((resolve, reject) => {
         const requestCancellable = new Gio.Cancellable();
