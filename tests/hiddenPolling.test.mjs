@@ -23,7 +23,7 @@ test('manual refresh remains available when opening directly refreshed module po
         const source = modules.find(([moduleName]) => moduleName === name)[1];
         assert.match(
             source,
-            /button\\.connect\\('clicked',[\\s\\S]*?refresh\\(\\)/,
+            /button\.connect\('clicked',[\s\S]*?refresh\(\)/,
             `${name} should refresh on direct interaction`
         );
     }
