@@ -40,7 +40,7 @@ Coverage includes ICS parsing and time zones, multi-day all-day event indexing, 
 
 ## Icons and fonts
 
-Bundled Material Symbols SVGs are stored in `assets/icons-src/*.svg`. `lib/iconTheme.js` recolors them and writes generated copies to `~/.config/material-panel/icons/`. To refresh the source assets:
+Bundled Material Symbols SVGs are stored in `assets/icons-src/*.svg`. `lib/iconTheme.js` recolors them and writes generated copies to `$XDG_CACHE_HOME/material-panel/icons/`. To refresh the source assets:
 
 ```sh
 bash scripts/fetch-icons.sh
@@ -52,7 +52,7 @@ Panel and Quick Settings chrome uses Material Symbols Rounded. Install a compati
 
 ## Optional ICS calendar sync
 
-The optional `scripts/calendar-sync-ics.py` imports an ICS feed into `~/.config/material-panel/calendar-events.json`. Treat the URL as a secret because it may grant access to a private calendar:
+The optional `scripts/calendar-sync-ics.py` imports an ICS feed into `$XDG_CACHE_HOME/material-panel/calendar-events.json`. Treat the URL as a secret because it may grant access to a private calendar:
 
 ```sh
 umask 077
@@ -62,7 +62,7 @@ chmod 600 ~/.config/material-panel/calendar-ics.url
 python3 scripts/calendar-sync-ics.py
 ```
 
-Alternatively, provide `MATERIAL_PANEL_ICS_URL` in the environment. The generated cache is written with mode `0600`; HTTP validators are stored separately. To install a systemd user timer that syncs every 15 minutes:
+Alternatively, provide `MATERIAL_PANEL_ICS_URL` in the environment. The generated event cache and HTTP validators live under `$XDG_CACHE_HOME/material-panel/` and are written with mode `0600`. Existing event data in `~/.config/material-panel/calendar-events.json` is read as a migration fallback until the next successful sync. To install a systemd user timer that syncs every 15 minutes:
 
 ```sh
 python3 scripts/calendar-sync-ics.py --install-timer
