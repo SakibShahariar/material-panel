@@ -369,6 +369,11 @@
     font-style: italic;
     padding: 4px 8px;
 }
+.material-panel-qs-slider-value {
+    min-width: 36px;
+    text-align: right;
+    font-size: 12px;
+}
 
 /* Standalone BT chip arrow */
 .material-panel-bt-chip-box { spacing: 2px; }
