@@ -420,6 +420,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     readAll();
 
     let refreshPopup = (_data) => {}; // assigned after popup widgets exist
+    let latestMetricSample = null;
 
     let updateLabels = () => {
         // Avoid repeated /proc and sysfs reads when neither chip nor popup is visible.
@@ -434,6 +435,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const totalPct = data.totalPct;
         let temp = readTemp(tempPath);
         if (temp === null) temp = readTempHwmon();
+        latestMetricSample = {...data, temp};
         let mode = 'cpu';
         try {
             mode = globalThis._materialPanelActivityChip || 'cpu';
@@ -469,7 +471,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         } catch (e) {}
         try {
             if (menu && menu.isOpen)
-                refreshPopup({...data, temp});
+                refreshPopup(latestMetricSample);
         } catch (e) {}
         return GLib.SOURCE_CONTINUE;
     };
@@ -877,7 +879,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     let fastTimerId = 0;
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {
-            refreshPopup();
+            refreshPopup(latestMetricSample);
             if (fastTimerId)
                 return;
             fastTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -885,7 +887,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
                     fastTimerId = 0;
                     return GLib.SOURCE_REMOVE;
                 }
-                refreshPopup();
+                refreshPopup(latestMetricSample);
                 return GLib.SOURCE_CONTINUE;
             });
         } else if (fastTimerId) {
