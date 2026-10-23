@@ -637,7 +637,7 @@ export function volumeSliderRow() {
     if (volStyle.id === 'rails' || volStyle.id === 'arc') {
         try {
             row.orientation = Clutter.Orientation.VERTICAL;
-            row.style = 'spacing: 8px; padding: 4px 0;';
+            row.add_style_class_name('material-panel-qs-slider-row-tall');
             icon.x_align = Clutter.ActorAlign.CENTER;
             pctLabel.x_align = Clutter.ActorAlign.CENTER;
             // arc has its own center % — keep row % hidden
@@ -843,7 +843,7 @@ export function brightnessSliderRow() {
     if (briStyle.id === 'rails' || briStyle.id === 'arc') {
         try {
             row.orientation = Clutter.Orientation.VERTICAL;
-            row.style = 'spacing: 8px; padding: 4px 0;';
+            row.add_style_class_name('material-panel-qs-slider-row-tall');
         } catch (e) {}
     }
     const slider = createSlider({
