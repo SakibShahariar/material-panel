@@ -42,14 +42,14 @@ test('treats equivalent nested config values as unchanged regardless of key orde
         foreignRoleZones: {},
     };
     assert.equal(classifyConfigChange(base, equivalent), 'tray');
-    assert.equal(classifyConfigChange(
+    assert.deepEqual(getChangedConfigKeys(
         {nested: {first: 1, second: {left: true, right: false}}},
         {nested: {second: {right: false, left: true}, first: 1}},
-    ), 'tray');
-    assert.equal(classifyConfigChange(
+    ), []);
+    assert.deepEqual(getChangedConfigKeys(
         {nested: {first: 1, second: 2}},
         {nested: {first: 1, third: 2}},
-    ), 'full');
+    ), ['nested']);
 });
 
 test('reports changed top-level keys once for consumers to reuse', () => {
