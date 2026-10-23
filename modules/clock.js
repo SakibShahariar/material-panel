@@ -2,7 +2,7 @@ import {setChipA11y} from '../lib/a11y.js';
 /**
  * Clock chip + Omarchy-inspired calendar popup:
  * month grid, event dots, day agenda, next-event countdown.
- * Events: ~/.config/material-panel/calendar-events.json
+ * Events: $XDG_CACHE_HOME/material-panel/calendar-events.json
  */
 import St from 'gi://St';
 import GLib from 'gi://GLib';
