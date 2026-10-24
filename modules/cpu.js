@@ -467,7 +467,10 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         try {
             mode = globalThis._materialPanelActivityChip || 'cpu';
         } catch (e) {}
-        const memSnap = readMemInfo();
+        // The default CPU-only chip does not display memory. Avoid even consulting
+        // the shared memory snapshot unless this chip mode needs it; the popup
+        // reads memory separately when it is open.
+        const memSnap = mode === 'cpu' ? null : readMemInfo();
         if (mode === 'ram') {
             cpuLabel.text = memSnap ? `${memSnap.usedPct}%` : '—';
             tempLabel.text = memSnap ? 'RAM' : '';
