@@ -47,3 +47,14 @@ test('CPU temperature sampling reuses the discovered hwmon sensor path', () => {
         'successful sensor discovery should cache the path'
     );
 });
+
+test('CPU core topology metadata is cached across popup refreshes', () => {
+    assert.match(cpu, /let coreClassesRead = false;/);
+    assert.match(
+        cpu,
+        /function getCoreClasses\(\) \{\s*if \(!coreClassesRead\) \{\s*cachedCoreClasses = readCoreClasses\(\);\s*coreClassesRead = true;/,
+        'sysfs topology discovery should happen only once per module lifetime'
+    );
+    assert.match(cpu, /const cc = getCoreClasses\(\);/);
+    assert.doesNotMatch(cpu, /const cc = readCoreClasses\(\);/);
+});
