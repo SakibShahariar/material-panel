@@ -58,3 +58,11 @@ test('CPU core topology metadata is cached across popup refreshes', () => {
     assert.match(cpu, /const cc = getCoreClasses\(\);/);
     assert.doesNotMatch(cpu, /const cc = readCoreClasses\(\);/);
 });
+
+test('CPU-only chip mode avoids unnecessary memory snapshot reads', () => {
+    assert.match(
+        cpu,
+        /const memSnap = mode === 'cpu' \? null : readMemInfo\(\);/,
+        'memory should only be sampled for RAM-bearing chip modes'
+    );
+});
