@@ -32,3 +32,18 @@ test('one CPU sample feeds both the chip and the one-second popup refresh', () =
         'the popup timer must not trigger a second independent CPU/sysfs sample'
     );
 });
+
+
+test('CPU temperature sampling reuses the discovered hwmon sensor path', () => {
+    assert.match(cpu, /let cachedHwmonTempPath = null;/);
+    assert.match(
+        cpu,
+        /if \(cachedHwmonTempPath\) \{\s*const temp = readTemp\(cachedHwmonTempPath\);\s*if \(temp !== null\)\s*return temp;/,
+        'a valid cached sensor should be read directly without re-enumerating hwmon'
+    );
+    assert.match(
+        cpu,
+        /cachedHwmonTempPath = tempPath;/,
+        'successful sensor discovery should cache the path'
+    );
+});
