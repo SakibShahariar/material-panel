@@ -228,6 +228,19 @@ function readNetRates() {
     }
 }
 
+// CPU topology/capacity metadata is stable for the lifetime of this module.
+// Cache it so popup refreshes do not repeatedly walk sysfs.
+let cachedCoreClasses;
+let coreClassesRead = false;
+
+function getCoreClasses() {
+    if (!coreClassesRead) {
+        cachedCoreClasses = readCoreClasses();
+        coreClassesRead = true;
+    }
+    return cachedCoreClasses;
+}
+
 function readCoreClasses() {
     // Map cpu index → 'P' | 'E' | 'L' | null using max freq clusters or capacity.
     const maxHz = [];
@@ -442,8 +455,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         if (!button.mapped && !menu.isOpen)
             return GLib.SOURCE_CONTINUE;
         try {
-            if (!globalThis._materialPanelCoreClasses)
-                globalThis._materialPanelCoreClasses = readCoreClasses();
+            getCoreClasses();
         } catch (e) {}
         // Single sample per tick — calling readAll twice ate the delta (popup stuck ~0%)
         const data = readAll();
@@ -534,7 +546,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const coresSection = new PopupMenu.PopupMenuSection();
     const coresTitle = new St.Label({text: 'Per core', style_class: 'material-panel-cpu-popup-section-title'});
     try {
-        const cc = readCoreClasses();
+        const cc = getCoreClasses();
         if (cc && cc.some(x => x === 'P' || x === 'E'))
             coresTitle.text = 'Per core  (P = performance, E = efficiency)';
         globalThis._materialPanelCoreClasses = cc;
