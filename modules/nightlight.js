@@ -2,7 +2,8 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 
-import {iconPath} from '../lib/iconTheme.js';
+import {giconForKey, wireFileIconPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 export function buildNightLight() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'});
@@ -14,12 +15,24 @@ export function buildNightLight() {
             style_class: 'material-panel-nightlight-icon',
             icon_size: 20,
             y_align: Clutter.ActorAlign.CENTER,
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('night-light'))),
+            icon_name: 'night-light-symbolic',
         }),
     });
 
+    const icon = button.get_child();
+    let iconKey = 'night-light';
+    const press = wireFileIconPress(button, () => [{key: iconKey, icon}]);
+
     const update = () => {
         const on = settings.get_boolean('night-light-enabled');
+        iconKey = 'night-light';
+        const fileIcon = giconForKey(iconKey, false, 'neutral');
+        try {
+            icon.gicon = fileIcon;
+            icon.icon_name = fileIcon ? '' : (on ? 'night-light-symbolic' : 'weather-clear-symbolic');
+        } catch (e) {}
+        setChipA11y(button, `Night light, ${on ? 'on' : 'off'}`);
+        press.applyIcons?.();
         button.set_style_class_name(
             `material-panel-nightlight-btn material-panel-chip${on ? ' active' : ''}`);
     };
