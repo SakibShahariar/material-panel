@@ -1,4 +1,5 @@
 import GLib from 'gi://GLib';
+import {debugLog} from './lib/debug.js';
 import {closeMixerControl} from './lib/audio.js';
 import {clearPanelMenus} from './lib/popupDismiss.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -64,7 +65,7 @@ export default class MaterialPanelExtension extends Extension {
                 ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles'].includes(key));
             if (trayChanged) {
                 const placements = newConfig.foreignRoleZones ?? {};
-                log(`material-panel: tray placements updated (${Object.keys(placements).length} configured)`);
+                debugLog(`tray placements updated (${Object.keys(placements).length} configured)`);
                 if (GLib.getenv('MATERIAL_PANEL_DEBUG_TRAY') === '1')
                     log(`material-panel: tray placement details ${JSON.stringify(placements)}`);
                 this._applyTrayOnly();
@@ -75,7 +76,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
             } catch (e) {}
 
-            log(`material-panel: config change classified as "${kind}"`);
+            debugLog(`config change classified as "${kind}"`);
 
             switch (kind) {
             case 'tray':
@@ -96,7 +97,7 @@ export default class MaterialPanelExtension extends Extension {
                                 return;
                             this._builder?._applyChipGap?.(this._config);
                             this._builder?._syncGeometry?.();
-                            log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=false`);
+                            debugLog(`panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=false`);
                         });
                     } else {
                         this._builder?._syncGeometry?.();
@@ -200,7 +201,7 @@ export default class MaterialPanelExtension extends Extension {
             this._theme.watch(colorSource, () => {
                 // CSS updates immediately; modules bake primary into FileIcons at
                 // build time — need a debounced rebuild so icons follow the palette.
-                log('material-panel: matugen watch — theme + debounced rebuild for icons');
+                debugLog('matugen watch — theme + debounced rebuild for icons');
                 try {
                     const freshSize = this._config.panelSize ?? {};
                     const freshSource = resolveColorSource(this._config.colorSource);
@@ -224,7 +225,7 @@ export default class MaterialPanelExtension extends Extension {
             try { GLib.source_remove(this._rebuildDebounceId); } catch (e) {}
             this._rebuildDebounceId = 0;
         }
-        log(`material-panel: panel rebuild scheduled (${reason})`);
+        debugLog(`panel rebuild scheduled (${reason})`);
         this._rebuildDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
             this._rebuildDebounceId = 0;
             try {
@@ -250,7 +251,7 @@ export default class MaterialPanelExtension extends Extension {
             const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
                 try {
                     this._bridge?.reattachAll?.();
-                    log(`material-panel: tray rescan +${ms}ms`);
+                    debugLog(`tray rescan +${ms}ms`);
                 } catch (e) {}
                 return GLib.SOURCE_REMOVE;
             });
