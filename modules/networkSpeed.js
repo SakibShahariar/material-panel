@@ -14,6 +14,7 @@ import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
     let sessionRx = 0, sessionTx = 0;
+    let sessionIface = null;
 
     // Symbolic icon — CSS color works (primary / on-primary on press)
     const icon = new St.Icon({
@@ -80,8 +81,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     });
 
     const stopMonitor = startNetSpeedMonitor(sample => {
-        sessionRx += sample.down;
-        sessionTx += sample.up;
+        if (sample.iface !== sessionIface) {
+            sessionIface = sample.iface;
+            sessionRx = 0;
+            sessionTx = 0;
+        } else {
+            sessionRx += Math.max(0, Number(sample.rxDelta) || 0);
+            sessionTx += Math.max(0, Number(sample.txDelta) || 0);
+        }
         last = {
             down: sample.down,
             up: sample.up,
