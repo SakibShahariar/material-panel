@@ -362,6 +362,52 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         } catch (e) {}
     };
 
+    let destroyed = false;
+    const rebuildTimerIds = new Set();
+    let searchDebounceId = 0;
+    const cancelSearchRebuild = () => {
+        if (!searchDebounceId)
+            return;
+        try { GLib.source_remove(searchDebounceId); } catch (e) {}
+        rebuildTimerIds.delete(searchDebounceId);
+        searchDebounceId = 0;
+    };
+    const cancelRebuildTimers = () => {
+        for (const id of rebuildTimerIds) {
+            try { GLib.source_remove(id); } catch (e) {}
+        }
+        rebuildTimerIds.clear();
+        searchDebounceId = 0;
+    };
+    const scheduleRebuild = (delay = 40) => {
+        if (destroyed)
+            return;
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            rebuildTimerIds.delete(id);
+            if (!destroyed) {
+                try { rebuild(); } catch (e) {}
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+        rebuildTimerIds.add(id);
+    };
+    const scheduleSearchRebuild = () => {
+        cancelSearchRebuild();
+        if (destroyed)
+            return;
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+            rebuildTimerIds.delete(id);
+            if (searchDebounceId === id)
+                searchDebounceId = 0;
+            if (!destroyed) {
+                try { rebuild(); } catch (e) {}
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+        searchDebounceId = id;
+        rebuildTimerIds.add(id);
+    };
+
     const makeCard = item => {
         const card = new St.BoxLayout({
             orientation: Clutter.Orientation.HORIZONTAL,
@@ -474,10 +520,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         wireChipPress(dismiss, {stickyUntilLeave: true});
         dismiss.connect('clicked', () => {
             destroyNotification(item.notification);
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 40, () => {
-                rebuild();
-                return GLib.SOURCE_REMOVE;
-            });
+            scheduleRebuild(40);
             return Clutter.EVENT_STOP;
         });
         card.add_child(dismiss);
@@ -492,10 +535,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 }
                 if (event.get_button() === 3) {
                     destroyNotification(item.notification);
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 40, () => {
-                        rebuild();
-                        return GLib.SOURCE_REMOVE;
-                    });
+                    scheduleRebuild(40);
                     return Clutter.EVENT_STOP;
                 }
             } catch (e) {}
@@ -507,6 +547,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     let filterText = '';
     const rebuild = () => {
+        if (destroyed)
+            return;
         listBox.destroy_all_children();
         let items = listNotifications();
         setCount(items.length);
@@ -564,16 +606,13 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     clearBtn.connect('clicked', () => {
         clearAllNotifications();
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60, () => {
-            rebuild();
-            return GLib.SOURCE_REMOVE;
-        });
+        scheduleRebuild(60);
     });
 
     try {
         searchEntry.clutter_text.connect('text-changed', () => {
             filterText = searchEntry.get_text()?.trim() || '';
-            rebuild();
+            scheduleSearchRebuild();
         });
     } catch (e) {}
 
@@ -581,6 +620,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         if (open) {
             filterText = '';
             try { searchEntry.set_text(''); } catch (e) {}
+            cancelSearchRebuild();
             rebuild();
         }
     });
@@ -601,10 +641,12 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     const sourceIds = new Map(); // source → [signal ids]
     let countDebounce = 0;
     const scheduleCount = () => {
-        if (countDebounce)
+        if (destroyed || countDebounce)
             return;
         countDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
             countDebounce = 0;
+            if (destroyed)
+                return GLib.SOURCE_REMOVE;
             try {
                 setCount(listNotifications().length);
             } catch (e) {}
@@ -632,6 +674,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         for (const sig of ['notification-added', 'notification-removed', 'destroy']) {
             try {
                 ids.push(source.connect(sig, () => {
+                    if (destroyed)
+                        return;
                     if (sig === 'destroy')
                         unhookSource(source);
                     scheduleCount();
@@ -668,6 +712,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     scheduleCount();
 
     button.connect('destroy', () => {
+        destroyed = true;
+        cancelRebuildTimers();
         if (countDebounce) {
             try { GLib.source_remove(countDebounce); } catch (e) {}
             countDebounce = 0;
