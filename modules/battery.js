@@ -286,7 +286,6 @@ export function buildBattery(extensionPath, scale = 1.0) {
         menu.destroy();
     });
 
-    try { setChipA11y(button, 'Battery');
-    wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}
+    try { setChipA11y(button, 'Battery'); } catch (e) {}
     return button;
 }
