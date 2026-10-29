@@ -555,6 +555,9 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     const prevBtn = mk('media-skip-backward-symbolic');
     const playBtn = mk('media-playback-start-symbolic');
     const nextBtn = mk('media-skip-forward-symbolic');
+    setChipA11y(prevBtn, 'Previous track');
+    setChipA11y(playBtn, 'Play or pause, paused');
+    setChipA11y(nextBtn, 'Next track');
     controls.add_child(prevBtn);
     controls.add_child(playBtn);
     controls.add_child(nextBtn);
@@ -577,6 +580,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             playBtn.child.icon_name = playing
                 ? 'media-playback-pause-symbolic'
                 : 'media-playback-start-symbolic';
+            setChipA11y(playBtn, playing ? 'Play or pause, playing' : 'Play or pause, paused');
         } catch (e) {}
         try {
             const key = playing ? 'media-pause' : 'media-play';
