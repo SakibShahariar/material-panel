@@ -16,3 +16,11 @@ test('profile avatar initial fallback remains available when no image exists', (
     assert.ok(source.includes("child: new St.Label({text: initial, style_class: 'material-panel-qs-avatar-label'})"));
     assert.ok(stylesheet.includes('border-radius: 999px;'));
 });
+
+test('AccountsService avatar lookup uses ESM import and non-synchronous manager access', () => {
+    assert.ok(source.includes("await import('gi://Act')"));
+    assert.ok(source.includes('Act.UserManager.get_default()'));
+    assert.ok(!source.includes('imports.gi.Act'));
+    assert.ok(!source.includes('get_default_sync'));
+    assert.ok(source.includes('getAvatarFile().then(file =>'));
+});

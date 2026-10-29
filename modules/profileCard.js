@@ -24,56 +24,65 @@ function readUptimeSeconds() {
     }
 }
 
-function getAvatarFile() {
+async function getAvatarFile() {
     const user = GLib.get_user_name() || '';
     const candidates = [
         GLib.build_filenamev(['/var/lib/AccountsService/icons', user]),
         GLib.build_filenamev([GLib.get_home_dir(), '.face']),
         GLib.build_filenamev([GLib.get_home_dir(), '.face.icon']),
-        // AccountsService D-Bus IconFile via Act (if available) - try import lazily
     ];
-    // Try Act.UserManager if GIR available
+
+    // AccountsService is optional. Use its non-blocking manager API and keep
+    // the initial-letter avatar available while the lookup completes.
     try {
-        // Dynamic import via gi://Act is optional; if not installed this throws
-        const Act = imports.gi.Act;
-        if (Act) {
-            const mgr = Act.UserManager.get_default_sync(null);
-            const u = mgr?.get_user(user);
-            const f = u?.get_icon_file?.();
-            if (f) candidates.unshift(f);
-        }
-    } catch (e) {}
-    for (const p of candidates) {
-        if (!p) continue;
+        const Act = (await import('gi://Act')).default;
+        const manager = Act.UserManager.get_default();
+        const account = manager?.get_user(user);
+        const iconFile = account?.get_icon_file?.();
+        if (iconFile)
+            candidates.unshift(iconFile);
+    } catch (e) {
+        // Missing AccountsService/GIR is normal on some systems.
+    }
+
+    for (const path of candidates) {
+        if (!path)
+            continue;
         try {
-            const f = Gio.File.new_for_path(p);
-            if (f.query_exists(null)) return p;
-        } catch (e) {}
+            if (Gio.File.new_for_path(path).query_exists(null))
+                return path;
+        } catch (e) {
+            // Ignore unavailable or inaccessible avatar paths.
+        }
     }
     return null;
 }
 
 function buildAvatar(initial) {
-    const file = getAvatarFile();
-    if (file) {
-        // Keep user-controlled paths inside Gio's file/GIcon APIs, not CSS.
-        const avatarIcon = new St.Icon({
-            gicon: Gio.FileIcon.new(Gio.File.new_for_path(file)),
-            icon_size: 36,
-            style_class: 'material-panel-qs-avatar-image',
-        });
-        const avatar = new St.Bin({
-            style_class: 'material-panel-qs-avatar',
-            child: avatarIcon,
-            clip_to_allocation: true,
-        });
-        avatar.set_size(36, 36);
-        return avatar;
-    }
-    return new St.Bin({
+    const avatar = new St.Bin({
         style_class: 'material-panel-qs-avatar',
         child: new St.Label({text: initial, style_class: 'material-panel-qs-avatar-label'}),
+        clip_to_allocation: true,
     });
+    avatar.set_size(36, 36);
+
+    // Resolve AccountsService asynchronously; never block Shell startup for
+    // the avatar. If no file is found, the initial-letter fallback stays.
+    getAvatarFile().then(file => {
+        if (!file || !avatar.get_parent())
+            return;
+        try {
+            avatar.set_child(new St.Icon({
+                gicon: Gio.FileIcon.new(Gio.File.new_for_path(file)),
+                icon_size: 36,
+                style_class: 'material-panel-qs-avatar-image',
+            }));
+        } catch (e) {
+            // Preserve the fallback avatar if the image cannot be displayed.
+        }
+    }).catch(() => {});
+
+    return avatar;
 }
 
 export function buildProfileCard({onPrefs = null} = {}) {
