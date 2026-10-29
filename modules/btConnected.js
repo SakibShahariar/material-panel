@@ -199,59 +199,144 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         label.text = '';
     };
 
-    const scan = () => {
-        Gio.DBus.system.call(
-            BLUEZ, '/', 'org.freedesktop.DBus.ObjectManager', 'GetManagedObjects',
-            null, new GLib.VariantType('(a{oa{sa{sv}}})'),
-            Gio.DBusCallFlags.NONE, -1, null,
-            (_c, res) => {
-                try {
-                    const [objs] = Gio.DBus.system.call_finish(res).deep_unpack();
-                    let best = null;
-                    const devices = [];
-                    for (const [path, ifaces] of Object.entries(objs)) {
-                        const props = ifaces?.[DEVICE_IFACE];
-                        if (!props)
-                            continue;
-                        let connected = false;
-                        try {
-                            connected = props['Connected']?.deep_unpack() === true;
-                        } catch (e) {
-                            connected = false;
+    let destroyed = false;
+    let scanInFlight = false;
+    let scanAgain = false;
+    let scanDebounceId = 0;
+    const requestScan = () => {
+        if (destroyed)
+            return;
+        if (scanDebounceId) {
+            try { GLib.source_remove(scanDebounceId); } catch (e) {}
+        }
+        scanDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            scanDebounceId = 0;
+            scan(true);
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+
+    const scan = (force = false) => {
+        if (destroyed)
+            return GLib.SOURCE_REMOVE;
+        if (!force && !button.is_mapped && !menu.isOpen)
+            return GLib.SOURCE_CONTINUE;
+        if (scanInFlight) {
+            if (force)
+                scanAgain = true;
+            return GLib.SOURCE_CONTINUE;
+        }
+        scanInFlight = true;
+        try {
+            Gio.DBus.system.call(
+                BLUEZ, '/', 'org.freedesktop.DBus.ObjectManager', 'GetManagedObjects',
+                null, new GLib.VariantType('(a{oa{sa{sv}}})'),
+                Gio.DBusCallFlags.NONE, -1, null,
+                (_c, res) => {
+                    scanInFlight = false;
+                    if (destroyed)
+                        return;
+                    try {
+                        const [objs] = Gio.DBus.system.call_finish(res).deep_unpack();
+                        let best = null;
+                        const devices = [];
+                        for (const [path, ifaces] of Object.entries(objs)) {
+                            const props = ifaces?.[DEVICE_IFACE];
+                            if (!props)
+                                continue;
+                            let connected = false;
+                            try {
+                                connected = props['Connected']?.deep_unpack() === true;
+                            } catch (e) {
+                                connected = false;
+                            }
+                            if (!connected || !isAudioHeadset(props))
+                                continue;
+                            const pct = batteryPct(props, ifaces);
+                            const name = deviceName(props);
+                            const entry = {path, name, pct};
+                            devices.push(entry);
+                            if (!best || (pct != null && (best.pct == null || pct > best.pct)))
+                                best = entry;
                         }
-                        if (!connected || !isAudioHeadset(props))
-                            continue;
-                        const pct = batteryPct(props, ifaces);
-                        const name = deviceName(props);
-                        const entry = {path, name, pct};
-                        devices.push(entry);
-                        if (!best || (pct != null && (best.pct == null || pct > best.pct)))
-                            best = entry;
+                        if (best) {
+                            label.text = best.pct != null
+                                ? `${best.name} · ${best.pct}%`
+                                : best.name;
+                            const g = giconForKey('headphones', false);
+                            if (g)
+                                icon.gicon = g;
+                            button.visible = true;
+                        } else {
+                            applyHidden();
+                        }
+                        rebuildList(devices);
+                    } catch (e) {
+                        logError(e, 'material-panel: headphones BlueZ scan');
                     }
-                    if (best) {
-                        label.text = best.pct != null
-                            ? `${best.name} · ${best.pct}%`
-                            : best.name;
-                        const g = giconForKey('headphones', false);
-                        if (g)
-                            icon.gicon = g;
-                        button.visible = true;
-                    } else {
-                        applyHidden();
+                    if (scanAgain) {
+                        scanAgain = false;
+                        requestScan();
                     }
-                    rebuildList(devices);
-                } catch (e) {
-                    applyHidden();
-                    rebuildList([]);
-                }
-            });
+                });
+        } catch (e) {
+            scanInFlight = false;
+            logError(e, 'material-panel: start headphones BlueZ scan');
+            if (scanAgain) {
+                scanAgain = false;
+                requestScan();
+            }
+        }
         return GLib.SOURCE_CONTINUE;
     };
 
-    scan();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, scan);
+    const subscriptions = [];
+    const subscribeBluez = (iface, member, objectPath, arg0, callback) => {
+        try {
+            subscriptions.push(Gio.DBus.system.signal_subscribe(
+                BLUEZ, iface, member, objectPath, arg0,
+                Gio.DBusSignalFlags.NONE, callback));
+        } catch (e) {
+            logError(e, 'material-panel: subscribe to BlueZ ' + member);
+        }
+    };
+    subscribeBluez('org.freedesktop.DBus.ObjectManager', 'InterfacesAdded', '/', null,
+        () => requestScan());
+    subscribeBluez('org.freedesktop.DBus.ObjectManager', 'InterfacesRemoved', '/', null,
+        () => requestScan());
+    subscribeBluez('org.freedesktop.DBus.Properties', 'PropertiesChanged', null, null,
+        (_connection, _sender, _path, _iface, _signal, parameters) => {
+            try {
+                const [changedInterface] = parameters.deep_unpack();
+                if (changedInterface === DEVICE_IFACE || changedInterface === 'org.bluez.Battery1')
+                    requestScan();
+            } catch (e) {}
+        });
+
+    menu.connect('open-state-changed', (_menu, open) => {
+        if (open)
+            requestScan();
+    });
+    button.connect('notify::mapped', () => {
+        if (button.is_mapped)
+            requestScan();
+    });
+
+    // Event signals are primary. A slower timer is only a fallback while the
+    // chip is actually mapped or its popup is open; hidden chips do no BlueZ I/O.
+    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15, () => scan(false));
+    scan(true);
     button.connect('destroy', () => {
+        destroyed = true;
+        if (scanDebounceId) {
+            try { GLib.source_remove(scanDebounceId); } catch (e) {}
+            scanDebounceId = 0;
+        }
         try { GLib.source_remove(id); } catch (e) {}
+        for (const subscription of subscriptions) {
+            try { Gio.DBus.system.signal_unsubscribe(subscription); } catch (e) {}
+        }
+        subscriptions.length = 0;
         try { menu.destroy(); } catch (e) {}
     });
 
