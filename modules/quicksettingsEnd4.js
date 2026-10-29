@@ -320,28 +320,19 @@ function buildDualSliders() {
         }
     } catch (e) {}
 
-    let maxB = 100, curB = 50;
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('brightnessctl max');
-        if (ok)
-            maxB = parseInt(new TextDecoder().decode(out).trim(), 10) || 100;
-    } catch (e) {}
-    try {
-        const [ok, out] = GLib.spawn_command_line_sync('brightnessctl get');
-        if (ok)
-            curB = parseInt(new TextDecoder().decode(out).trim(), 10) || 50;
-    } catch (e) {}
-
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
     const briW = briStyle.id === 'arc' ? 112 : (briStyle.id === 'rails' ? 28 : trackW);
     const briSlider = createSlider({
-        initialValue: Math.min(1, Math.max(0.01, curB / maxB)),
+        // Safe fallback while brightnessctl is probed without blocking Shell.
+        initialValue: 0.5,
         width: briW,
         style: briStyle.id,
         accent: briStyle.accent,
         onChange: value => {
             try {
-                GLib.spawn_command_line_async(`brightnessctl set ${Math.max(1, Math.round(value * 100))}%`);
+                Gio.Subprocess.new(
+                    ['brightnessctl', 'set', `${Math.max(1, Math.round(value * 100))}%`],
+                    Gio.SubprocessFlags.NONE);
             } catch (e) {}
         },
     });
@@ -349,7 +340,49 @@ function buildDualSliders() {
 
     col.add_child(volRow);
     col.add_child(briRow);
+    let brightnessProbeCancelled = false;
+    const probeBrightness = (args, done) => {
+        try {
+            const proc = Gio.Subprocess.new(
+                ['brightnessctl', ...args],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, null, (source, result) => {
+                try {
+                    const [, stdout] = source.communicate_utf8_finish(result);
+                    const value = Number.parseInt(String(stdout ?? '').trim(), 10);
+                    done(source.get_successful() && Number.isFinite(value) ? value : null);
+                } catch (e) {
+                    done(null);
+                }
+            });
+        } catch (e) {
+            done(null);
+        }
+    };
+    let maxBrightness = null;
+    let currentBrightness = null;
+    let pendingBrightnessProbes = 2;
+    const finishBrightnessProbe = () => {
+        pendingBrightnessProbes--;
+        if (pendingBrightnessProbes !== 0 || brightnessProbeCancelled)
+            return;
+        if (Number.isFinite(maxBrightness) && maxBrightness > 0 &&
+            Number.isFinite(currentBrightness) && currentBrightness >= 0) {
+            try {
+                briSlider.setValue(Math.min(1, Math.max(0.01, currentBrightness / maxBrightness)));
+            } catch (e) {}
+        }
+    };
+    probeBrightness(['max'], value => {
+        maxBrightness = value;
+        finishBrightnessProbe();
+    });
+    probeBrightness(['get'], value => {
+        currentBrightness = value;
+        finishBrightnessProbe();
+    });
     col.connect('destroy', () => {
+        brightnessProbeCancelled = true;
         if (control) {
             for (const id of controlSignalIds) {
                 try { control.disconnect(id); } catch (e) {}
