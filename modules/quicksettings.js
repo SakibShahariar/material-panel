@@ -675,13 +675,6 @@ export function volumeSliderRow() {
     });
     row.add_child(slider.actor);
     row.add_child(pctLabel);
-    row.connect('destroy', () => {
-        if (brightnessWriteId) {
-            try { GLib.source_remove(brightnessWriteId); } catch (e) {}
-            brightnessWriteId = 0;
-        }
-        pendingBrightnessPct = null;
-    });
     try {
         if (slider.hideExternalValue)
             pctLabel.visible = false;
