@@ -65,10 +65,12 @@ function readTemp(tempPath) {
     } catch (e) { return null; }
 }
 
-// Keep the successful hwmon sensor path between samples. Enumerating hwmon
-// devices and reading every device name on each one-second CPU tick is needless
-// synchronous I/O; retry discovery if the cached sensor stops returning a value.
+// Keep the successful hwmon sensor path between samples. Discovery is
+// synchronous I/O, so negative results are cached briefly instead of walking
+// sysfs on every visible CPU refresh tick.
 let cachedHwmonTempPath = null;
+let lastHwmonDiscoveryAt = 0;
+const HWMON_RETRY_INTERVAL_US = 30 * 1000000;
 
 function readTempHwmon() {
     if (cachedHwmonTempPath) {
@@ -77,6 +79,10 @@ function readTempHwmon() {
             return temp;
         cachedHwmonTempPath = null;
     }
+    const now = GLib.get_monotonic_time();
+    if (now - lastHwmonDiscoveryAt < HWMON_RETRY_INTERVAL_US)
+        return null;
+    lastHwmonDiscoveryAt = now;
     try {
         const dir = Gio.File.new_for_path('/sys/class/hwmon');
         const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
