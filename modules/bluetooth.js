@@ -177,21 +177,46 @@ function isSoftBlocked(callback) {
 let _btPopupMenu = null;
 let _btPopupButton = null;
 
+function clearSharedBluetoothPopup(menu, button) {
+    if (_btPopupMenu === menu)
+        _btPopupMenu = null;
+    if (_btPopupButton === button)
+        _btPopupButton = null;
+}
+
+function sharedBluetoothPopupIsAlive() {
+    const menu = _btPopupMenu;
+    if (!menu)
+        return false;
+    try {
+        if (menu.actor?.actor_destroyed || _btPopupButton?.actor_destroyed) {
+            clearSharedBluetoothPopup(menu, _btPopupButton);
+            return false;
+        }
+        menu.actor?.get_parent?.();
+        return true;
+    } catch (e) {
+        clearSharedBluetoothPopup(menu, _btPopupButton);
+        return false;
+    }
+}
+
 export function toggleBluetoothPopup(sourceActor = null) {
-    if (!_btPopupMenu) {
+    if (!sharedBluetoothPopupIsAlive()) {
         log('material-panel: bluetooth popup not ready — build Bluetooth module or wait for ensure');
         return false;
     }
+    const menu = _btPopupMenu;
     try {
-        if (_btPopupMenu.isOpen) {
-            menuClose(_btPopupMenu);
+        if (menu.isOpen) {
+            menuClose(menu);
             return true;
         }
         if (sourceActor)
-            _btPopupMenu.sourceActor = sourceActor;
+            menu.sourceActor = sourceActor;
         else if (_btPopupButton)
-            _btPopupMenu.sourceActor = _btPopupButton;
-        menuOpen(_btPopupMenu);
+            menu.sourceActor = _btPopupButton;
+        menuOpen(menu);
         return true;
     } catch (e) {
         logError(e, 'material-panel: toggleBluetoothPopup');
@@ -199,9 +224,9 @@ export function toggleBluetoothPopup(sourceActor = null) {
     }
 }
 
-/** True if the shared BT popup was created (chip is on the bar or ensure ran). */
+/** True only while the shared popup still belongs to a live Bluetooth chip. */
 export function isBluetoothPopupReady() {
-    return !!_btPopupMenu;
+    return sharedBluetoothPopupIsAlive();
 }
 
 export function buildBluetooth(_extensionPath, scale = 1.0) {
@@ -238,6 +263,9 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     _btPopupMenu = menu;
     _btPopupButton = button;
+    const clearThisPopup = () => clearSharedBluetoothPopup(menu, button);
+    menu.actor.connect('destroy', clearThisPopup);
+    button.connect('destroy', clearThisPopup);
 
     menu.actor.add_style_class_name('material-panel-popup material-panel-bluetooth-popup');
     Main.uiGroup.add_child(menu.actor);
@@ -814,6 +842,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     discover();
 
     button.connect('destroy', () => {
+        clearThisPopup();
         destroyed = true;
         for (const id of [rfkillRetryId, rfkillResetId, contextRetryId]) {
             if (id) {
