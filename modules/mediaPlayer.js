@@ -362,6 +362,9 @@ export function buildMediaPlayerRow() {
     const prevBtn = mk('media-skip-backward-symbolic');
     const playBtn = mk('media-playback-start-symbolic');
     const nextBtn = mk('media-skip-forward-symbolic');
+    setChipA11y(prevBtn, 'Previous track');
+    setChipA11y(playBtn, 'Play or pause, paused');
+    setChipA11y(nextBtn, 'Next track');
     controls.add_child(prevBtn);
     controls.add_child(playBtn);
     controls.add_child(nextBtn);
@@ -403,6 +406,7 @@ export function buildMediaPlayerRow() {
                     playBtn.child.icon_name = playing
                         ? 'media-playback-pause-symbolic'
                         : 'media-playback-start-symbolic';
+                    setChipA11y(playBtn, playing ? 'Play or pause, playing' : 'Play or pause, paused');
                 } catch (e) {}
             },
             onReady: c => { ctl = c; },
@@ -464,6 +468,16 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         can_focus: true,
         child: box,
     });
+    let currentTrackTitle = 'No media';
+    let currentPlaybackState = 'paused';
+    const updateMediaChipA11y = () => {
+        const track = currentTrackTitle.length > 80
+            ? currentTrackTitle.slice(0, 77) + '…'
+            : currentTrackTitle;
+        setChipA11y(button, currentTrackTitle === 'No media'
+            ? 'Media, no media'
+            : `Media: ${track}, ${currentPlaybackState}`);
+    };
     try {
         button.style = `max-width: ${Math.round(160 * scale)}px;`;
     } catch (e) {}
@@ -583,18 +597,28 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             label.text = 'No media';
             pTitle.text = 'No media';
             pArtist.text = '';
+            currentTrackTitle = 'No media';
+            currentPlaybackState = 'paused';
+            updateMediaChipA11y();
             setPlayingUi(false);
             return;
         }
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 const t = title || 'Media';
+                currentTrackTitle = title || 'Unknown track';
                 label.text = t.length > 22 ? `${t.slice(0, 20)}…` : t;
                 pTitle.text = title || 'Unknown';
                 pArtist.text = artist || '';
+                updateMediaChipA11y();
                 try { setArtFromUrl(art, artUrl); } catch (e) {}
             },
-            onStatus: playing => setPlayingUi(!!playing),
+            onStatus: playing => {
+                currentPlaybackState = playing ? 'playing' : 'paused';
+                setChipA11y(playBtn, playing ? 'Play or pause, playing' : 'Play or pause, paused');
+                updateMediaChipA11y();
+                setPlayingUi(!!playing);
+            },
             onReady: c => { ctl = c; },
         });
     };
@@ -627,6 +651,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             getIcons: () => [{icon, key: label.text === 'No media' ? 'media-play' : 'media-pause'}],
         });
     } catch (e) {}
-    try { setChipA11y(button, 'Media'); } catch (e) {}
+    try { updateMediaChipA11y(); } catch (e) {}
     return button;
 }
