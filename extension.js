@@ -63,7 +63,10 @@ export default class MaterialPanelExtension extends Extension {
             const trayChanged = classificationFailed || !changedKeys || changedKeys.some(key =>
                 ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles'].includes(key));
             if (trayChanged) {
-                log(`material-panel: tray keys changed or classification failed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
+                const placements = newConfig.foreignRoleZones ?? {};
+                log(`material-panel: tray placements updated (${Object.keys(placements).length} configured)`);
+                if (GLib.getenv('MATERIAL_PANEL_DEBUG_TRAY') === '1')
+                    log(`material-panel: tray placement details ${JSON.stringify(placements)}`);
                 this._applyTrayOnly();
             }
 
