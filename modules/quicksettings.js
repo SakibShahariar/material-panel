@@ -479,6 +479,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
 
     const refresh = () => {
         const on = isOn();
+        setChipA11y(tile, `${label}, ${on ? 'on' : 'off'}`);
         const sid = currentTileStyleId();
         const quiet = isQuietTileStyle(sid);
         const solid = isSolidFillTileStyle(sid);
