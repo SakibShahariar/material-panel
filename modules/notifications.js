@@ -415,11 +415,15 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             x_expand: true,
             reactive: true,
             track_hover: true,
+            can_focus: true,
         });
         try {
             card.style =
                 'spacing: 10px; padding: 10px 12px; border-radius: 14px;';
         } catch (e) {}
+        const accessibleTitle = (item.title || item.appName || 'Notification').slice(0, 64);
+        const accessibleApp = (item.appName || 'App').slice(0, 48);
+        setChipA11y(card, `Notification from ${accessibleApp}: ${accessibleTitle}`);
 
         // App / notif icon
         const avatar = new St.Icon({
@@ -539,6 +543,22 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                     return Clutter.EVENT_STOP;
                 }
             } catch (e) {}
+            return Clutter.EVENT_PROPAGATE;
+        });
+        card.connect('key-press-event', (_actor, event) => {
+            const key = event.get_key_symbol();
+            if (key === Clutter.KEY_Return || key === Clutter.KEY_KP_Enter || key === Clutter.KEY_space) {
+                try {
+                    item.notification?.activate?.();
+                    menuClose(menu);
+                } catch (e) {}
+                return Clutter.EVENT_STOP;
+            }
+            if (key === Clutter.KEY_Delete || key === Clutter.KEY_BackSpace) {
+                destroyNotification(item.notification);
+                scheduleRebuild(40);
+                return Clutter.EVENT_STOP;
+            }
             return Clutter.EVENT_PROPAGATE;
         });
 
