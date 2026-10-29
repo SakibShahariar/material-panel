@@ -11,6 +11,7 @@ import {menuToggle} from '../lib/shellCompat.js';
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -31,6 +32,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     });
     box.add_child(icon);
     button.set_child(box);
+    setChipA11y(button, 'Network status unavailable');
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup');
@@ -50,6 +52,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         } catch (e) {
             if (!destroyed) {
                 logError(e, 'material-panel: NetworkManager unavailable');
+                setChipA11y(button, 'NetworkManager unavailable');
                 // An empty popup looks like there are simply no networks.
                 // Surface the actual failure so users can distinguish it.
                 menu.addMenuItem(new PopupMenu.PopupMenuItem(
@@ -83,9 +86,17 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             const conn = client.get_primary_connection();
             if (!conn) {
                 setIcon('network-offline');
+                setChipA11y(button, client.wireless_enabled ? 'Offline' : 'Wi-Fi disabled');
                 return;
             }
-            setIcon(networkIconForType(conn.get_connection_type(), NM));
+            const type = String(conn.get_connection_type() ?? '');
+            setIcon(networkIconForType(type, NM));
+            if (type.includes('wireless'))
+                setChipA11y(button, 'Wi-Fi enabled, connected');
+            else if (type.includes('ethernet'))
+                setChipA11y(button, 'Wired connection active');
+            else
+                setChipA11y(button, type ? type + ' connection active' : 'Network connected');
         };
         updateStatusIcon();
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
@@ -108,6 +119,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             try {
                 wifiToggle.setToggleState(!!client.wireless_enabled);
             } catch (e) {}
+            updateStatusIcon();
         });
         menu.addMenuItem(wifiToggle);
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
