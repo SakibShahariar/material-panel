@@ -220,6 +220,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                     can_focus: true,
                 });
                 wirePressedClass(btn);
+                setChipA11y(btn, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
             }
@@ -247,6 +248,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                         'padding: 0; border-radius: 999px; border: none;';
                 } catch (e) {}
                 wirePressedClass(dot);
+                setChipA11y(dot, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
                 dot.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(dot);
                 continue;
@@ -317,6 +319,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                     `min-width: ${clusterW}px; min-height: ${clusterH}px;`;
             } catch (e) {}
             wirePressedClass(btn);
+            const appNames = apps.map(entry => entry.app.get_name?.() || entry.app.get_id?.())
+                .filter(Boolean);
+            const workspaceName = `Workspace ${i + 1}: ${appNames.join(', ')}${active ? ', active' : ''}`;
+            setChipA11y(btn, workspaceName);
             btn.connect('clicked', () => ws.activate(global.get_current_time()));
             box.add_child(btn);
         }
