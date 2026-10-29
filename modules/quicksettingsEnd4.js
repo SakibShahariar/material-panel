@@ -8,6 +8,7 @@
  * No default QS imports.
  */
 import GLib from 'gi://GLib';
+import {setChipA11y} from '../lib/a11y.js';
 import Gio from 'gi://Gio';
 import {wireFileIconPress, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 import St from 'gi://St';
@@ -173,7 +174,7 @@ function buildHeader(menu) {
 
     row.add_child(new St.Widget({x_expand: true}));
 
-            const mkBtn = (symbolic, fn) => {
+            const mkBtn = (symbolic, fn, accessibleName) => {
         const b = new St.Button({
             style_class: 'material-panel-e4qs-header-btn',
             reactive: true,
@@ -213,6 +214,7 @@ function buildHeader(menu) {
         };
         apply('normal');
         b.set_child(ic);
+        setChipA11y(b, accessibleName);
         b.connect('notify::hover', () => apply(b.hover ? 'hover' : 'normal'));
         b.connect('button-press-event', () => { apply('pressed'); return Clutter.EVENT_PROPAGATE; });
         b.connect('button-release-event', () => { apply(b.hover ? 'hover' : 'normal'); return Clutter.EVENT_PROPAGATE; });
@@ -220,13 +222,13 @@ function buildHeader(menu) {
         b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
     };
-    row.add_child(mkBtn('document-edit-symbolic', openPrefs));
+    row.add_child(mkBtn('document-edit-symbolic', openPrefs, 'Edit panel preferences'));
     // Don't present a refresh control until it has a real refresh operation.
-    row.add_child(mkBtn('emblem-system-symbolic', openPrefs));
+    row.add_child(mkBtn('emblem-system-symbolic', openPrefs, 'Open system settings'));
     row.add_child(mkBtn('system-shutdown-symbolic', () => {
         try { menuClose(menu); } catch (e) {}
         confirmAndRun('Power off', 'Power off this system?', 'Power off', 'systemctl poweroff');
-    }));
+    }, 'Power off'));
 
     const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
     style(batt, `background-color: ${surface()}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
