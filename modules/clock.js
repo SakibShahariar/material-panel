@@ -87,6 +87,8 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
         reactive: true,
         track_hover: true,
     });
+    setChipA11y(prevBtn, 'Previous month');
+    setChipA11y(nextBtn, 'Next month');
     wirePressedClass(prevBtn);
     wirePressedClass(nextBtn);
     const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
