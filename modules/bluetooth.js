@@ -253,6 +253,10 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let currentlyPowered = false;
     let isBlocked = false;
     let discovering = false;
+    let destroyed = false;
+    let rfkillRetryId = 0;
+    let rfkillResetId = 0;
+    let contextRetryId = 0;
     let preferredAdapterPath = null;
     let adapterMenuItems = [];
 
@@ -285,14 +289,18 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                 GLib.spawn_command_line_async('rfkill unblock bluetooth');
                 log('material-panel: rfkill unblock bluetooth requested (header switch)');
                 btSwitch.label.text = 'Unblocking…';
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-                    discover();
+                rfkillRetryId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+                    rfkillRetryId = 0;
+                    if (!destroyed)
+                        discover();
                     return GLib.SOURCE_REMOVE;
                 });
             } catch (e) { logError(e, 'material-panel: rfkill unblock failed'); }
             // revert visual until rediscover
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-                btSwitch.setToggleState(false);
+            rfkillResetId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                rfkillResetId = 0;
+                if (!destroyed)
+                    btSwitch.setToggleState(false);
                 return GLib.SOURCE_REMOVE;
             });
             return;
@@ -786,7 +794,12 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
             if (isBlocked) {
                 try { GLib.spawn_command_line_async('rfkill unblock bluetooth'); }
                 catch (e) { logError(e, 'material-panel: rfkill unblock failed from context menu'); }
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => { discover(); return GLib.SOURCE_REMOVE; });
+                contextRetryId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+                    contextRetryId = 0;
+                    if (!destroyed)
+                        discover();
+                    return GLib.SOURCE_REMOVE;
+                });
                 return Clutter.EVENT_STOP;
             }
             if (propsProxy) {
@@ -801,6 +814,15 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     discover();
 
     button.connect('destroy', () => {
+        destroyed = true;
+        for (const id of [rfkillRetryId, rfkillResetId, contextRetryId]) {
+            if (id) {
+                try { GLib.source_remove(id); } catch (e) {}
+            }
+        }
+        rfkillRetryId = 0;
+        rfkillResetId = 0;
+        contextRetryId = 0;
         try { cancellable.cancel(); } catch (e) {}
         if (propsProxy && propsSignalId) try { propsProxy.disconnect(propsSignalId); } catch (e) {}
         menu.destroy();
