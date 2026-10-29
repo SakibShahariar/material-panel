@@ -105,14 +105,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         wifiToggle.connect('toggled', item => {
             const want = !!item.state;
             try {
-                GLib.spawn_command_line_async(want ? 'nmcli radio wifi on' : 'nmcli radio wifi off');
-            } catch (e) {
-                logError(e, 'material-panel: nmcli wifi radio failed');
-            }
-            try {
+                // NetworkManager owns the radio state; avoid a redundant nmcli
+                // subprocess and let notify::wireless-enabled synchronize UI.
                 client.wireless_enabled = want;
-            } catch (e2) {
-                logError(e2, 'material-panel: NM wireless_enabled set failed');
+            } catch (e) {
+                logError(e, 'material-panel: NM wireless_enabled set failed');
             }
         });
         const wirelessEnabledId = client.connect('notify::wireless-enabled', () => {
