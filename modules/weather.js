@@ -10,6 +10,7 @@ import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -132,23 +133,6 @@ function httpGet(url, cancellable = null) {
     });
 }
 
-/**
- * GNOME Weather GSettings coords are radians; Open-Meteo wants degrees.
- */
-function normalizeLatLon(lat, lon) {
-    lat = Number(lat);
-    lon = Number(lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon))
-        return null;
-    // Treat as radians when both magnitudes look like ±π range
-    if (Math.abs(lat) <= 3.2 && Math.abs(lon) <= 3.2) {
-        lat = lat * (180 / Math.PI);
-        lon = lon * (180 / Math.PI);
-    }
-    if (lat < -90 || lat > 90 || lon < -180 || lon > 180)
-        return null;
-    return {lat, lon};
-}
 
 /**
  * Safe path: parse `gsettings get org.gnome.Weather locations` text.
@@ -190,7 +174,7 @@ function loadGnomeWeatherLocationFromGsettingsText() {
         const pair = text.match(/\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)/);
         if (!pair)
             return null;
-        const norm = normalizeLatLon(pair[1], pair[2]);
+        const norm = radiansToDegreesLatLon(pair[1], pair[2]);
         if (!norm)
             return null;
         return {location: null, name, lat: norm.lat, lon: norm.lon};
@@ -248,7 +232,7 @@ async function loadGnomeWeatherLocation() {
         try {
             name = loc.get_city_name?.() || loc.get_name?.() || '';
         } catch (e) {}
-        const norm = normalizeLatLon(lat, lon);
+        const norm = radiansToDegreesLatLon(lat, lon);
         if (!norm)
             return null;
         log(`material-panel: weather loc "${name}" ${norm.lat.toFixed(2)},${norm.lon.toFixed(2)} (GWeather)`);
