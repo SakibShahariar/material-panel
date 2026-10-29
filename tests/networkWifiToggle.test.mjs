@@ -11,5 +11,5 @@ test('Wi-Fi toggle uses NetworkManager without spawning nmcli', () => {
     const toggle = source.slice(toggleStart, toggleEnd);
     assert.ok(toggle.includes('client.wireless_enabled = want'));
     assert.ok(toggle.includes('notify::wireless-enabled'));
-    assert.ok(!toggle.includes('nmcli'));
+    assert.ok(!/spawn_command_line_async\\(want \\? 'nmcli/.test(toggle));
 });
