@@ -196,9 +196,6 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     // Tick
     const tick = () => {
-        try {
-            use12h = store.load()?.clockFormat === '12h';
-        } catch (e) {}
         label.text = isEnd4() ? formatEnd4(use12h) : formatNow(use12h);
         // Optional: announce next event on chip when close
         try {
@@ -222,6 +219,20 @@ export function buildClock(_extensionPath, scale = 1.0) {
             }
         } catch (e) {}
     };
+    // Config changes arrive through the directory monitor; the periodic tick
+    // only formats the current time and calendar countdown.
+    try {
+        store.watch(cfg => {
+            const nextUse12h = cfg?.clockFormat === '12h';
+            if (nextUse12h !== use12h) {
+                use12h = nextUse12h;
+                tick();
+            }
+        });
+    } catch (e) {
+        logError(e, 'material-panel: clock config watcher');
+    }
+
     const tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15, () => {
         tick();
         return GLib.SOURCE_CONTINUE;
@@ -503,6 +514,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         try { GLib.source_remove(tickId); } catch (e) {}
+        try { store.unwatch(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
 
