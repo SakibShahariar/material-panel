@@ -38,18 +38,32 @@ export default class MaterialPanelExtension extends Extension {
         this._panelWasVisible = Main.panel.visible;
         Main.panel.hide();
 
-        this._configStore.watch(newConfig => {
-            const prev = this._config;
+        this._configStore.watch(incomingConfig => {
+            const prev = this._config && typeof this._config === 'object' ? this._config : {};
+            const newConfig = incomingConfig && typeof incomingConfig === 'object'
+                ? incomingConfig
+                : {};
             this._config = newConfig;
             globalThis._materialPanelWeatherLocation = newConfig.weatherLocation ?? {};
 
-            // Compute nested config differences once and reuse them for both
-            // tray placement and rebuild classification.
-            const changedKeys = getChangedConfigKeys(prev, newConfig);
-            const trayChanged = !changedKeys || changedKeys.some(key =>
+            // Classification must never strand the watcher. Unknown or malformed
+            // shapes fall back to a full rebuild and a tray placement refresh.
+            let changedKeys = null;
+            let kind = 'unknown';
+            let classificationFailed = false;
+            try {
+                changedKeys = getChangedConfigKeys(prev, newConfig);
+                kind = classifyConfigChange(prev, newConfig, changedKeys);
+            } catch (e) {
+                classificationFailed = true;
+                changedKeys = null;
+                kind = 'unknown';
+                logError(e, 'material-panel: config change classification failed; using full rebuild');
+            }
+            const trayChanged = classificationFailed || !changedKeys || changedKeys.some(key =>
                 ['trayAllHidden', 'foreignRoleZones', 'hiddenForeignRoles'].includes(key));
             if (trayChanged) {
-                log(`material-panel: tray keys changed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
+                log(`material-panel: tray keys changed or classification failed — applying placements ${JSON.stringify(newConfig.foreignRoleZones ?? {})}`);
                 this._applyTrayOnly();
             }
 
@@ -58,7 +72,6 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
             } catch (e) {}
 
-            const kind = classifyConfigChange(prev, newConfig, changedKeys);
             log(`material-panel: config change classified as "${kind}"`);
 
             switch (kind) {
@@ -99,7 +112,12 @@ export default class MaterialPanelExtension extends Extension {
                 this._applyTheme({rebuildPanel: true}); // debounced inside _schedulePanelRebuild
                 return;
             default:
-                this._applyTheme({rebuildPanel: true});
+                try {
+                    this._applyTheme({rebuildPanel: true});
+                } catch (e) {
+                    logError(e, 'material-panel: fallback config rebuild');
+                    try { this._schedulePanelRebuild('config-classification-fallback'); } catch (e2) {}
+                }
             }
         });
     }
