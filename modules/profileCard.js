@@ -56,12 +56,17 @@ function getAvatarFile() {
 function buildAvatar(initial) {
     const file = getAvatarFile();
     if (file) {
-        // Use background-image so border-radius 999px clips to circle
+        // Keep user-controlled paths inside Gio's file/GIcon APIs, not CSS.
+        const avatarIcon = new St.Icon({
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(file)),
+            icon_size: 36,
+            style_class: 'material-panel-qs-avatar-image',
+        });
         const avatar = new St.Bin({
             style_class: 'material-panel-qs-avatar',
-            style: `background-image: url("file://${file}"); background-size: cover; background-position: center;`,
+            child: avatarIcon,
+            clip_to_allocation: true,
         });
-        // Ensure size is explicit (stylesheet gives 36px via CSS, but background needs bin size)
         avatar.set_size(36, 36);
         return avatar;
     }

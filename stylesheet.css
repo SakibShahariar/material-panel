@@ -243,6 +243,12 @@
     border-radius: 999px;
 }
 
+.material-panel-qs-avatar-image {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+}
+
 .material-panel-qs-avatar-label {
     font-size: 14px;
     font-weight: 700;
