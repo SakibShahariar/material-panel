@@ -1,8 +1,7 @@
-/* Structural CSS only. All color values (fixed-palette fallback AND
-   matugen output) come from theme.js, which generates and loads
-   ~/.config/material-panel/generated-theme.css. Keeping colors out of
-   this file entirely avoids a load-order race between GNOME's automatic
-   loading of this bundled stylesheet and our own runtime-loaded one.
+/* Structural CSS with low-contrast neutral emergency overlays. Runtime theme.js
+   generates colors from the active GNOME Shell theme when Matugen roles are
+   missing, then loads generated-theme.css over this stylesheet. The bundled
+   stylesheet stays usable if runtime stylesheet generation fails.
 
    NOTE: bar/panel dimension rules (height, padding, pill sizes, font
    sizes) live in theme.js instead of here, since they need to scale with
@@ -171,7 +170,7 @@
     height: 48px;
     min-height: 48px;
     min-width: 148px;
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: rgba(128, 128, 128, 0.10);
 }
 
 .material-panel-qs-tile-content {
