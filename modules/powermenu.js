@@ -9,15 +9,16 @@ import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPath} from '../lib/iconTheme.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
+import {runPowerAction} from '../lib/powerAction.js';
 
 // Uses loginctl/systemctl via spawn rather than talking to logind's D-Bus
 // interface directly - much less risk of a subtly wrong method signature,
 // and these commands are stable across distros with systemd.
 const ACTIONS = [
-    {label: 'Lock', command: 'loginctl lock-session'},
-    {label: 'Suspend', command: 'systemctl suspend'},
-    {label: 'Restart', command: 'systemctl reboot'},
-    {label: 'Shut Down', command: 'systemctl poweroff'},
+    {label: 'Lock', argv: ['loginctl', 'lock-session']},
+    {label: 'Suspend', argv: ['systemctl', 'suspend']},
+    {label: 'Restart', argv: ['systemctl', 'reboot']},
+    {label: 'Shut Down', argv: ['systemctl', 'poweroff']},
 ];
 
 export function buildPowerMenu() {
@@ -38,16 +39,16 @@ export function buildPowerMenu() {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    for (const {label, command} of ACTIONS) {
+    for (const {label, argv} of ACTIONS) {
         const item = new PopupMenu.PopupMenuItem(label);
         item.connect('activate', closeAfter(menu, () => {
-            if (command === 'systemctl reboot' || command === 'systemctl poweroff') {
-                const isRestart = command === 'systemctl reboot';
+            if (label === 'Restart' || label === 'Shut Down') {
+                const isRestart = label === 'Restart';
                 confirmAndRun(
                     isRestart ? 'Restart' : 'Shut Down',
                     isRestart ? 'Restart this system now?' : 'Shut down this system now?',
                     isRestart ? 'Restart' : 'Shut Down',
-                    command);
+                    argv);
                 return;
             }
             try {
