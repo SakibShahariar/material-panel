@@ -75,11 +75,16 @@ export default class MaterialPanelExtension extends Extension {
                     // twice while still syncing geometry immediately.
                     if (!scaleCh) {
                         const colorSource = resolveColorSource(this._config.colorSource);
-                        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-                        this._builder?._applyChipGap?.(this._config);
+                        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default', applied => {
+                            if (!applied)
+                                return;
+                            this._builder?._applyChipGap?.(this._config);
+                            this._builder?._syncGeometry?.();
+                            log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=false`);
+                        });
+                    } else {
+                        this._builder?._syncGeometry?.();
                     }
-                    this._builder?._syncGeometry?.();
-                    log(`material-panel: panelSize applied scale=${panelSize.scale} chipGap=${panelSize.chipGap} popupOpacity=${panelSize.popupOpacity} rebuild=${scaleCh}`);
                 } catch (e) {
                     logError(e, 'material-panel: panelSize apply');
                 }
@@ -129,24 +134,22 @@ export default class MaterialPanelExtension extends Extension {
         try {
             const panelSize = this._config.panelSize ?? {};
             const colorSource = resolveColorSource(this._config.colorSource);
-            this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
+            this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default', applied => {
+                if (!applied)
+                    return;
+                // Chip gap must update live without requiring scale change.
+                try { this._builder?._applyChipGap?.(this._config); } catch (e) {}
+                if (!scaleChanged)
+                    return;
+                this._sizeDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                    this._sizeDebounceId = 0;
+                    this._schedulePanelRebuild('panelSize');
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
         } catch (e) {
             logError(e, 'material-panel: theme apply on size change');
         }
-
-        // Chip gap must update live without requiring scale change
-        try {
-            this._builder?._applyChipGap?.(this._config);
-        } catch (e) {}
-
-        if (!scaleChanged)
-            return;
-
-        this._sizeDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-            this._sizeDebounceId = 0;
-            this._schedulePanelRebuild('panelSize');
-            return GLib.SOURCE_REMOVE;
-        });
     }
 
     _applyTheme({rebuildPanel = true} = {}) {
@@ -163,11 +166,14 @@ export default class MaterialPanelExtension extends Extension {
             if (this._config.layoutStyle === 'end4')
                 applyLayoutStyle(this._config, 'end4');
         } catch (e) {}
-        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default');
-        if (rebuildPanel)
-            this._schedulePanelRebuild('theme');
-        else
-            this._applyTrayOnly();
+        this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default', applied => {
+            if (!applied)
+                return;
+            if (rebuildPanel)
+                this._schedulePanelRebuild('theme');
+            else
+                this._applyTrayOnly();
+        });
 
         if (colorSource) {
             this._theme.watch(colorSource, () => {
@@ -177,11 +183,13 @@ export default class MaterialPanelExtension extends Extension {
                 try {
                     const freshSize = this._config.panelSize ?? {};
                     const freshSource = resolveColorSource(this._config.colorSource);
-                    this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default');
+                    this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default', applied => {
+                        if (applied)
+                            this._schedulePanelRebuild('matugen');
+                    });
                 } catch (e) {
                     logError(e, 'material-panel: matugen theme apply');
                 }
-                this._schedulePanelRebuild('matugen');
             });
         } else {
             // Do not keep watching a palette file after switching to fixed colors.
