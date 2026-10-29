@@ -76,10 +76,51 @@ function spawnCaptureAsync(argv) {
     });
 }
 
+const CODEC_CACHE_TTL_MS = 15000;
+const PACTL_SNAPSHOT_TTL_MS = 5000;
+const codecCache = new Map();
+let pactlSnapshot = null;
+let pactlSnapshotAt = 0;
+let pactlSnapshotPromise = null;
+
+function loadPactlCardsSnapshot() {
+    const now = Date.now();
+    if (pactlSnapshot !== null && now - pactlSnapshotAt < PACTL_SNAPSHOT_TTL_MS)
+        return Promise.resolve(pactlSnapshot);
+    if (pactlSnapshotPromise)
+        return pactlSnapshotPromise;
+    pactlSnapshotPromise = spawnCaptureAsync(['env', 'LC_ALL=C', 'pactl', 'list', 'cards'])
+        .then(text => {
+            pactlSnapshot = text;
+            pactlSnapshotAt = Date.now();
+            return text;
+        })
+        .finally(() => {
+            pactlSnapshotPromise = null;
+        });
+    return pactlSnapshotPromise;
+}
+
 function probeBluetoothCodecAsync(deviceAddress) {
-    return spawnCaptureAsync(['env', 'LC_ALL=C', 'pactl', 'list', 'cards'])
-        .then(text => codecFromPactlText(text, deviceAddress))
-        .catch(() => null);
+    const address = String(deviceAddress ?? '').trim();
+    if (!address)
+        return Promise.resolve(null);
+    const now = Date.now();
+    const cached = codecCache.get(address);
+    if (cached && now < cached.expiresAt)
+        return Promise.resolve(cached.codec);
+    return loadPactlCardsSnapshot()
+        .then(text => {
+            const codec = codecFromPactlText(text, address);
+            codecCache.set(address, {codec, expiresAt: Date.now() + CODEC_CACHE_TTL_MS});
+            return codec;
+        })
+        .catch(() => {
+            // Cache failed probes briefly too, avoiding a process storm when
+            // pactl is absent or the audio service is not ready.
+            codecCache.set(address, {codec: null, expiresAt: Date.now() + CODEC_CACHE_TTL_MS});
+            return null;
+        });
 }
 
 
