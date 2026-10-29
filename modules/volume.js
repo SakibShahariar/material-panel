@@ -6,6 +6,7 @@ import Gvc from 'gi://Gvc';
 import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
 import {createMaterialSymbol, setMaterialSymbolKey, setMaterialSymbolColor} from '../lib/materialSymbol.js';
 import {getMixerControl} from '../lib/audio.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 // Shared control so the chip and QS slider share one sink object —
 // volume changes from the slider emit notify::volume on the same
@@ -73,7 +74,8 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         else if (pct >= 33) key = 'volume-medium';
         else key = 'volume-low';
         setIcon(key);
-        label.text = sink.is_muted ? 'mute' : `${pct}%`;
+        label.text = sink.is_muted ? 'Muted' : `${pct}%`;
+        setChipA11y(box, sink.is_muted ? 'Volume, muted' : `Volume, ${pct}%`);
     };
 
     const attachSink = () => {
