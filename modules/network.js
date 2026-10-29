@@ -10,6 +10,7 @@ import {menuToggle} from '../lib/shellCompat.js';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
+import {networkIconForType} from '../lib/networkIcon.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -72,7 +73,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         if (destroyed)
             return;
 
+        let currentIconKey = 'network-offline';
         const setIcon = key => {
+            currentIconKey = key;
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
         };
 
@@ -82,13 +85,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 setIcon('network-offline');
                 return;
             }
-            const type = conn.get_connection_type();
-            if (type === NM.SETTING_WIRELESS_SETTING_NAME)
-                setIcon('network-wifi');
-            else if (type === NM.SETTING_WIRED_SETTING_NAME)
-                setIcon('network-wired');
-            else
-                setIcon('network-wifi');
+            setIcon(networkIconForType(conn.get_connection_type(), NM));
         };
         updateStatusIcon();
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
@@ -185,6 +182,6 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         });
     });
 
-    try { wireFileIconPress(button, () => [{icon, key: 'network-wifi'}]); } catch (e) {}
+    try { wireFileIconPress(button, () => [{icon, key: currentIconKey}]); } catch (e) {}
     return button;
 }
