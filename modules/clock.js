@@ -26,6 +26,7 @@ import {
     formatCountdown,
     formatEventTimeRange,
     meetingUrl,
+    safeEventUrl,
 } from '../lib/calendarEvents.js';
 
 const CELL = 36;
@@ -440,15 +441,13 @@ export function buildClock(_extensionPath, scale = 1.0) {
                 col.add_child(loc);
             }
             row.set_child(col);
-            const url = meetingUrl(ev) || (ev.htmlLink && /^https?:/i.test(ev.htmlLink) ? ev.htmlLink : null);
+            const url = safeEventUrl(meetingUrl(ev) || ev.htmlLink);
             row.connect('clicked', () => {
                 if (url) {
                     try {
                         Gio.AppInfo.launch_default_for_uri_async(url, null, null, null);
                     } catch (e) {
-                        try {
-                            GLib.spawn_command_line_async(`xdg-open '${url.replace(/'/g, '')}'`);
-                        } catch (e2) {}
+                        logError(e, 'material-panel: failed to open calendar event URL');
                     }
                 }
                 return Clutter.EVENT_STOP;
