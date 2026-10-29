@@ -619,7 +619,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             },
             onStatus: playing => {
                 currentPlaybackState = playing ? 'playing' : 'paused';
-                setChipA11y(playBtn, playing ? 'Play or pause, playing' : 'Play or pause, paused');
                 updateMediaChipA11y();
                 setPlayingUi(!!playing);
             },
