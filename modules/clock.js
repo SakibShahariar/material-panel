@@ -26,8 +26,8 @@ import {
     formatCountdown,
     formatEventTimeRange,
     meetingUrl,
-    safeEventUrl,
 } from '../lib/calendarEvents.js';
+import {safeEventUrl} from '../lib/safeEventUrl.js';
 
 const CELL = 36;
 

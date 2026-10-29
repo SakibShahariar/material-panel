@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {safeEventUrl} from '../lib/calendarEvents.js';
+import {safeEventUrl} from '../lib/safeEventUrl.js';
 
 test('calendar event links accept valid HTTPS URLs', () => {
     assert.equal(safeEventUrl('https://meet.example.com/room?id=42'), 'https://meet.example.com/room?id=42');
