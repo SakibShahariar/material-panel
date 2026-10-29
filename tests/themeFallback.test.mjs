@@ -7,6 +7,8 @@ const stylesheet = await readFile(new URL('../stylesheet.css', import.meta.url),
 
 test('theme fallback reads foreground, popup surface and accent colors from GNOME Shell theme nodes', () => {
     assert.ok(source.includes('function getThemeFallbackPalette()'));
+    assert.ok(source.includes('colors resolved from the active GNOME Shell theme as the fallback'));
+    assert.ok(!source.includes('same fixed values as fallback defaults'));
     assert.ok(source.includes('node.get_foreground_color()'));
     assert.ok(source.includes('node.get_background_color()'));
     assert.ok(source.includes('node.lookup_color(name, true)'));
