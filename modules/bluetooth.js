@@ -287,6 +287,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         child: buttonBox,
     });
 
+    const autoHideWhenUnavailable = globalThis._materialPanelAutoHideBluetooth === true;
     setChipA11y(button, 'Bluetooth, status unavailable');
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     _btPopupMenu = menu;
@@ -456,6 +457,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        button.visible = true;
         isBlocked = false;
         setChipA11y(button, `Bluetooth, ${powered ? 'on' : 'off'}`);
         blockedHint.visible = false;
@@ -477,6 +479,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const setBlockedState = () => {
         isBlocked = true;
         currentlyPowered = false;
+        button.visible = true;
         setChipA11y(button, 'Bluetooth, blocked');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
@@ -490,6 +493,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     };
 
     const setNoAdapterState = () => {
+        button.visible = !autoHideWhenUnavailable;
         isBlocked = false;
         setChipA11y(button, 'Bluetooth, no adapter');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
@@ -503,6 +507,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     };
 
     const setBluezUnavailableState = () => {
+        button.visible = true;
         isBlocked = false;
         setChipA11y(button, 'Bluetooth, unavailable');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
