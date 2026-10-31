@@ -49,6 +49,8 @@ test('config store, preferences, and default Quick Settings consume the same til
 test('Preferences keeps the tile-order editor synchronized with config watcher updates', async () => {
     const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
     assert.match(prefs, /tileOrderRow\.set_text\(formatQuickSettingsTileOrder\(config\.qsTiles\)\)/);
-    assert.ok(prefs.indexOf('syncObjectInPlace(config, merged)') <
-        prefs.indexOf('tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles))'));
+    const watcherStart = prefs.indexOf('store.watch(newConfig => {');
+    const watcher = prefs.slice(watcherStart);
+    assert.ok(watcher.indexOf('syncObjectInPlace(config, merged)') <
+        watcher.indexOf('tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles))'));
 });
