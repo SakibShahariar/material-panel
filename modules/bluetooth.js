@@ -13,6 +13,7 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {codecFromPactlText} from '../lib/bluetoothCodec.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
+import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
@@ -700,36 +701,19 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         row.set_child(rowBox);
         setChipA11y(row, [displayName, ...parts].join(', '));
         row.connect('clicked', () => {
-            const method = connected ? 'Disconnect' : 'Connect';
-            let timedOut = false;
-            const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
-                timedOut = true;
-                logError(new Error(`material-panel: bluez ${method} timeout for "${displayName}"`));
-                return GLib.SOURCE_REMOVE;
+            const action = connected ? 'Disconnect' : 'Connect';
+            runBluetoothDeviceAction({
+                path, paired, connected, timeoutMs: DBUS_TIMEOUT_MS, cancellable,
+            }, (error, completedAction) => {
+                if (!error)
+                    return;
+                logError(error, `material-panel: bluez ${completedAction} failed for "${displayName}"`);
+                const message = error.message || 'try again';
+                subLabel.text = !paired && action === 'Connect'
+                    ? `Pairing or connection failed: ${message}`
+                    : `${completedAction} failed: ${message}`;
             });
-            Gio.DBusProxy.new_for_bus(
-                Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-                BLUEZ_SERVICE, path, DEVICE_IFACE, null,
-                (_s, res) => {
-                    if (timedOut) return;
-                    GLib.source_remove(timeoutId);
-                    let deviceProxy;
-                    try { deviceProxy = Gio.DBusProxy.new_for_bus_finish(res); } catch (e) { logError(e, `material-panel: bluez device proxy failed for "${displayName}"`); subLabel.text = 'Could not access device'; return; }
-                    // If not paired yet, Pair first then Connect
-                    if (!paired && method === 'Connect') {
-                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
-                            try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez Pair failed for "${displayName}"`); subLabel.text = `Pairing failed: ${e.message || 'check device is in pairing mode'}`; return; }
-                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p2, r2) => {
-                                try { p2.call_finish(r2); } catch (e) { logError(e, `material-panel: bluez Connect failed for "${displayName}"`); subLabel.text = `Connection failed: ${e.message || 'try again'}`; }
-                            });
-                        });
-                        return;
-                    }
-                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, cancellable, (p, r) => {
-                        try { p.call_finish(r); } catch (e) { logError(e, `material-panel: bluez ${method} failed for "${displayName}"`); subLabel.text = `${method} failed: ${e.message || 'try again'}`; }
-                    });
-                });
-            // Don't close menu — stay open like Noctalia/End4 so user sees result
+            // Don't close menu — stay open like Noctalia/End4 so user sees result.
             return Clutter.EVENT_STOP;
         });
         return row;
