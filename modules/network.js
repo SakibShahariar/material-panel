@@ -12,6 +12,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {findBestAccessPoint, getAccessPointInfo} from '../lib/wifiAccessPoints.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -127,15 +128,51 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         } catch (e) {}
         menu.addMenuItem(networksSection);
 
-        const activate = connection => {
-            const device = client.get_devices().find(d => d.get_device_type() === NM.DeviceType.WIFI);
-            if (!device)
+        let wifiDevice = null;
+        let wifiDeviceSignalIds = [];
+        let scanStatus = '';
+        let scanInFlight = false;
+        let scanCancellable = null;
+
+        const setScanStatus = message => {
+            scanStatus = message || '';
+            if (!destroyed)
+                rebuildNetworkList();
+        };
+
+        const bindWifiDevice = () => {
+            for (const id of wifiDeviceSignalIds) {
+                try { wifiDevice?.disconnect(id); } catch (e) {}
+            }
+            wifiDeviceSignalIds = [];
+            try {
+                wifiDevice = client.get_devices().find(d =>
+                    d.get_device_type() === NM.DeviceType.WIFI) || null;
+            } catch (e) {
+                wifiDevice = null;
+            }
+            if (!wifiDevice)
                 return;
-            client.activate_connection_async(connection, device, null, null, (c, res) => {
+            for (const signal of ['access-point-added', 'access-point-removed', 'notify::access-points']) {
+                try {
+                    wifiDeviceSignalIds.push(wifiDevice.connect(signal, () => {
+                        if (!destroyed)
+                            rebuildNetworkList();
+                    }));
+                } catch (e) {}
+            }
+        };
+
+        const activate = connection => {
+            if (!wifiDevice)
+                return;
+            client.activate_connection_async(connection, wifiDevice, null, null, (c, res) => {
                 try {
                     client.activate_connection_finish(res);
+                    setScanStatus('');
                 } catch (e) {
                     logError(e, 'material-panel: failed to activate network connection');
+                    setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
                 }
             });
         };
@@ -143,23 +180,124 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         const rebuildNetworkList = () => {
             networksSection.removeAll();
             const activeId = client.get_primary_connection()?.get_uuid();
-            const wifiConnections = client.get_connections()
+            const accessPoints = wifiDevice?.get_access_points?.() || [];
+            const savedConnections = client.get_connections()
                 .filter(c => c.get_connection_type() === NM.SETTING_WIRELESS_SETTING_NAME);
-
-            if (wifiConnections.length === 0) {
-                const empty = new PopupMenu.PopupMenuItem('No saved networks', {reactive: false});
-                networksSection.addMenuItem(empty);
-                return;
+            const savedBySsid = new Map();
+            for (const connection of savedConnections) {
+                const ap = findBestAccessPoint(connection, accessPoints);
+                if (ap) {
+                    const key = (() => {
+                        try {
+                            const ssid = connection.get_setting_wireless()?.get_ssid()?.get_data?.();
+                            return ssid ? Array.from(ssid).join(',') : null;
+                        } catch (e) {
+                            return null;
+                        }
+                    })();
+                    if (key)
+                        savedBySsid.set(key, connection);
+                }
             }
 
-            for (const conn of wifiConnections) {
-                const item = new PopupMenu.PopupMenuItem(conn.get_id());
-                if (conn.get_uuid() === activeId)
-                    item.setOrnament(PopupMenu.Ornament.DOT);
-                item.connect('activate', () => activate(conn));
-                networksSection.addMenuItem(item);
+            const visibleEntries = [];
+            const seen = new Set();
+            for (const ap of accessPoints) {
+                const info = getAccessPointInfo(ap);
+                if (!info?.ssid)
+                    continue;
+                const raw = (() => {
+                    try {
+                        const data = ap.get_ssid()?.get_data?.();
+                        return data ? Array.from(data).join(',') : null;
+                    } catch (e) {
+                        return null;
+                    }
+                })();
+                if (!raw || seen.has(raw))
+                    continue;
+                seen.add(raw);
+                const connection = savedBySsid.get(raw) || null;
+                visibleEntries.push({ap, info, connection});
+            }
+            visibleEntries.sort((a, b) => b.info.strength - a.info.strength ||
+                a.info.ssid.localeCompare(b.info.ssid));
+
+            if (visibleEntries.length === 0 && savedConnections.length === 0) {
+                networksSection.addMenuItem(new PopupMenu.PopupMenuItem(
+                    'No Wi-Fi networks found', {reactive: false}));
+            } else {
+                for (const entry of visibleEntries) {
+                    const {info, connection} = entry;
+                    const security = info.secure ? '🔒' : 'Open';
+                    const label = connection
+                        ? `${connection.get_id()} · ${info.strength}% · ${security}`
+                        : `${info.ssid} · ${info.strength}% · ${security} · Not saved`;
+                    const item = new PopupMenu.PopupMenuItem(label, {
+                        reactive: Boolean(connection),
+                    });
+                    if (connection) {
+                        if (connection.get_uuid() === activeId)
+                            item.setOrnament(PopupMenu.Ornament.DOT);
+                        item.connect('activate', () => activate(connection));
+                    }
+                    networksSection.addMenuItem(item);
+                }
+
+                const inRange = new Set(visibleEntries.filter(e => e.connection)
+                    .map(e => e.connection.get_uuid()));
+                for (const connection of savedConnections) {
+                    if (inRange.has(connection.get_uuid()))
+                        continue;
+                    const item = new PopupMenu.PopupMenuItem(
+                        `${connection.get_id()} · Saved · Not in range`,
+                        {reactive: false});
+                    if (connection.get_uuid() === activeId)
+                        item.setOrnament(PopupMenu.Ornament.DOT);
+                    networksSection.addMenuItem(item);
+                }
+            }
+            if (scanStatus)
+                networksSection.addMenuItem(new PopupMenu.PopupMenuItem(scanStatus, {reactive: false}));
+        };
+
+        const requestWifiScan = () => {
+            if (!wifiDevice || scanInFlight || destroyed)
+                return;
+            scanInFlight = true;
+            scanStatus = 'Scanning for nearby networks…';
+            rebuildNetworkList();
+            scanCancellable = new Gio.Cancellable();
+            try {
+                wifiDevice.request_scan_async(scanCancellable, (device, result) => {
+                    scanInFlight = false;
+                    try {
+                        device.request_scan_finish(result);
+                        scanStatus = 'Scan requested; waiting for nearby network results…';
+                    } catch (e) {
+                        scanStatus = 'Wi-Fi scan unavailable. Check NetworkManager permissions.';
+                        logError(e, 'material-panel: Wi-Fi scan failed');
+                    }
+                    if (!destroyed)
+                        rebuildNetworkList();
+                });
+            } catch (e) {
+                scanInFlight = false;
+                scanStatus = 'Unable to request a Wi-Fi scan.';
+                logError(e, 'material-panel: unable to request Wi-Fi scan');
+                rebuildNetworkList();
             }
         };
+
+        bindWifiDevice();
+        rebuildNetworkList();
+        menu.connect('open-state-changed', (_menu, open) => {
+            if (open) {
+                bindWifiDevice();
+                rebuildNetworkList();
+                requestWifiScan();
+            }
+        });
         rebuildNetworkList();
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const settingsItem = new PopupMenu.PopupMenuItem('Wi-Fi settings…');
@@ -181,6 +319,16 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         const connsChangedId = client.connect('connection-added', rebuildNetworkList);
         const connsRemovedId = client.connect('connection-removed', rebuildNetworkList);
         const activeChangedId = client.connect('notify::primary-connection', rebuildNetworkList);
+        const devicesChangedIds = [
+            client.connect('device-added', () => {
+                bindWifiDevice();
+                rebuildNetworkList();
+            }),
+            client.connect('device-removed', () => {
+                bindWifiDevice();
+                rebuildNetworkList();
+            }),
+        ];
 
         button.connect('destroy', () => {
             client.disconnect(primaryConnId);
@@ -188,6 +336,14 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             client.disconnect(connsChangedId);
             client.disconnect(connsRemovedId);
             client.disconnect(activeChangedId);
+            for (const id of devicesChangedIds) {
+                try { client.disconnect(id); } catch (e) {}
+            }
+            for (const id of wifiDeviceSignalIds) {
+                try { wifiDevice?.disconnect(id); } catch (e) {}
+            }
+            wifiDeviceSignalIds = [];
+            try { scanCancellable?.cancel(); } catch (e) {}
         });
     });
 
