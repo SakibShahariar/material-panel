@@ -51,3 +51,11 @@ test('Quick Settings EQ bars stop and reset when reduced motion is enabled', () 
     assert.ok(quicksettings.includes("connect('changed::enable-animations', syncEqMotion)"));
     assert.ok(quicksettings.includes("connect('notify::reduced-motion', syncEqMotion)"));
 });
+
+test('Bluetooth connection pulse stops for reduced motion and resumes on preference change', () => {
+    assert.ok(quicksettings.includes('const syncPulseMotion = () => {'));
+    assert.ok(quicksettings.includes("connect('changed::enable-animations', syncPulseMotion)"));
+    assert.ok(quicksettings.includes("connect('notify::reduced-motion', syncPulseMotion)"));
+    assert.ok(quicksettings.includes('for (const path of [...pulseActors.keys()])'));
+    assert.ok(quicksettings.includes('if (pulseTimers.has(path) || prefersReducedMotion())'));
+});
