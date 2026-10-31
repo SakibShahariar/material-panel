@@ -21,8 +21,24 @@ function scaleOf(c) {
 
 export default class MaterialPanelExtension extends Extension {
     enable() {
+        this._lifecycleGeneration = (this._lifecycleGeneration ?? 0) + 1;
+        const generation = this._lifecycleGeneration;
         this._configStore = new ConfigStore();
-        this._config = this._configStore.load();
+        this._config = null;
+
+        this._configStore.loadAsync().then(config => {
+            if (generation !== this._lifecycleGeneration || !this._configStore)
+                return;
+            this._initialize(config);
+        }).catch(error => {
+            if (generation !== this._lifecycleGeneration)
+                return;
+            logError(error, 'material-panel: asynchronous startup config load failed');
+        });
+    }
+
+    _initialize(config) {
+        this._config = config;
         globalThis._materialPanelWeatherLocation = this._config.weatherLocation ?? {};
         this._sizeDebounceId = 0;
         this._reducedMotionCleanup = watchReducedMotion();
@@ -266,6 +282,8 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        // Invalidate any config load still in flight before releasing services.
+        this._lifecycleGeneration = (this._lifecycleGeneration ?? 0) + 1;
         try { this._reducedMotionCleanup?.(); } catch (e) {}
         this._reducedMotionCleanup = null;
 
@@ -283,10 +301,10 @@ export default class MaterialPanelExtension extends Extension {
             }
             this._trayRescanIds = [];
         }
-        this._configStore.unwatch();
+        this._configStore?.unwatch();
         this._configStore = null;
 
-        this._theme.destroy();
+        this._theme?.destroy();
         this._theme = null;
 
         // Restore tray icons to stock panel BEFORE destroying our chrome
@@ -304,7 +322,7 @@ export default class MaterialPanelExtension extends Extension {
         try { clearPanelMenus(); } catch (e) {}
 
         try {
-            this._builder.destroy();
+            this._builder?.destroy();
         } catch (e) {
             logError(e, 'material-panel: builder.destroy');
         }

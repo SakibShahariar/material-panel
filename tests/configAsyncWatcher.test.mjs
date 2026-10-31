@@ -59,3 +59,18 @@ test('Preferences initial configuration load is asynchronous and cancellable', a
     assert.match(fill, /if \(cancelled\)/);
     assert.doesNotMatch(fill, /store\.load\(\)/);
 });
+
+test('extension startup loads config asynchronously and cancels stale loads on disable', async () => {
+    const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
+    const enableStart = extension.indexOf('    enable() {');
+    const initializeStart = extension.indexOf('    _initialize(config)', enableStart);
+    const enable = extension.slice(enableStart, initializeStart);
+    const disableStart = extension.indexOf('    disable() {');
+    const disable = extension.slice(disableStart);
+    assert.ok(enableStart >= 0 && initializeStart > enableStart);
+    assert.match(enable, /this\._configStore\.loadAsync\(\)\.then/);
+    assert.match(enable, /generation !== this\._lifecycleGeneration/);
+    assert.doesNotMatch(enable, /this\._configStore\.load\(\)/);
+    assert.match(disable, /this\._lifecycleGeneration = .*\+ 1/);
+    assert.match(disable, /this\._configStore\?\.unwatch\(\)/);
+});
