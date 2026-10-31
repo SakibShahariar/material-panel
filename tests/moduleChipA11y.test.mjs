@@ -32,3 +32,10 @@ test('connected headset chip announces the active device and battery level', () 
     assert.ok(headset.includes("setChipA11y(button, 'Connected headset')"));
     assert.ok(headset.includes("setChipA11y(button, `Connected headset: ${best.name}${best.pct != null ? `, battery ${best.pct}%` : ''}`)"));
 });
+
+const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
+
+test('notification and CPU popup search fields have accessible names', () => {
+    assert.ok(notifications.includes("setChipA11y(searchEntry, 'Search notifications')"));
+    assert.ok(cpu.includes("setChipA11y(procSearch, 'Filter processes')"));
+});
