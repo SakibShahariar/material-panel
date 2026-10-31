@@ -22,3 +22,14 @@ test('all Quick Settings layouts reuse the shared slider and configured tile API
     assert.match(ryoku, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
     assert.match(ryoku, /volumeSliderRow,[\s\S]*?brightnessSliderRow,[\s\S]*?powerRow,/);
 });
+
+test('all Quick Settings layouts place the media card before sound and connectivity controls', () => {
+    const end4Build = end4.slice(end4.indexOf('const shell = new St.BoxLayout'));
+    assert.ok(end4Build.indexOf('buildMediaPlayerRow()') < end4Build.indexOf('buildDualSliders()'));
+    const defaultBuild = defaults.slice(defaults.indexOf('export function buildQuickSettings'));
+    assert.ok(defaultBuild.indexOf('buildMediaPlayerRow()') < defaultBuild.indexOf('volumeSliderRow()'));
+    const ryokuBuild = ryoku.slice(ryoku.indexOf('export function fillRyokuQsMenu'));
+    assert.ok(ryokuBuild.indexOf('buildMediaPlayerRow()') < ryokuBuild.indexOf("mk('sound'"));
+    assert.ok(ryokuBuild.indexOf("mk('sound'") < ryokuBuild.indexOf("mk('network'"));
+    assert.ok(ryokuBuild.indexOf("mk('network'") < ryokuBuild.indexOf("mk('bluetooth'"));
+});
