@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireChipPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -132,6 +133,7 @@ export function buildProfileCard({onPrefs = null} = {}) {
             y_align: Clutter.ActorAlign.CENTER,
             child: prefsIcon,
         });
+        setChipA11y(prefsBtn, 'Open panel preferences');
         wireChipPress(prefsBtn, {
             getIcons: () => [{icon: prefsIcon, key: 'settings'}],
             stickyUntilLeave: true,
