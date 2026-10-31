@@ -16,6 +16,7 @@ import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
 import {TILE_STYLES, TILE_STYLE_DEFAULT} from './lib/tileStyleMeta.js';
 import {formatQuickSettingsTileOrder, parseQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
 import {getOptionalModuleDependencies} from './lib/moduleAvailability.js';
+import {serializeLayoutPreset, parseLayoutPreset} from './lib/layoutPresetIo.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const EXT_PREFIX = 'extension:';
@@ -715,6 +716,110 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         deleteRow.add_suffix(deleteBtn);
         presetsGroup.add(deleteRow);
+
+        const presetIoRow = new Adw.ActionRow({
+            title: 'Import and export presets',
+            subtitle: 'Share the active preset as a validated JSON file',
+        });
+        const exportPresetButton = new Gtk.Button({
+            label: 'Export',
+            valign: Gtk.Align.CENTER,
+        });
+        const importPresetButton = new Gtk.Button({
+            label: 'Import',
+            valign: Gtk.Align.CENTER,
+        });
+
+        exportPresetButton.connect('clicked', () => {
+            let data;
+            try {
+                data = serializeLayoutPreset(config.activePreset, config.presets[config.activePreset]);
+            } catch (e) {
+                logError(e, 'material-panel prefs: preset export validation failed');
+                window.add_toast(new Adw.Toast({title: 'Could not export this preset'}));
+                return;
+            }
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Export layout preset',
+                transient_for: window,
+                action: Gtk.FileChooserAction.SAVE,
+                accept_label: 'Export',
+                cancel_label: 'Cancel',
+            });
+            chooser.set_current_name(`${config.activePreset}-material-panel-preset.json`);
+            chooser.connect('response', (_dialog, response) => {
+                if (response !== Gtk.ResponseType.ACCEPT) {
+                    chooser.destroy();
+                    return;
+                }
+                const file = chooser.get_file();
+                chooser.destroy();
+                if (!file)
+                    return;
+                file.replace_contents_async(
+                    data, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION,
+                    null, (source, result) => {
+                        try {
+                            source.replace_contents_finish(result);
+                            window.add_toast(new Adw.Toast({title: 'Preset exported'}));
+                        } catch (e) {
+                            logError(e, 'material-panel prefs: preset export failed');
+                            window.add_toast(new Adw.Toast({title: 'Preset export failed'}));
+                        }
+                    });
+            });
+            chooser.show();
+        });
+
+        importPresetButton.connect('clicked', () => {
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Import layout preset',
+                transient_for: window,
+                action: Gtk.FileChooserAction.OPEN,
+                accept_label: 'Import',
+                cancel_label: 'Cancel',
+            });
+            chooser.connect('response', (_dialog, response) => {
+                if (response !== Gtk.ResponseType.ACCEPT) {
+                    chooser.destroy();
+                    return;
+                }
+                const file = chooser.get_file();
+                chooser.destroy();
+                if (!file)
+                    return;
+                file.load_contents_async(null, (source, result) => {
+                    try {
+                        const [ok, contents] = source.load_contents_finish(result);
+                        if (!ok)
+                            throw new Error('Could not read the selected preset file');
+                        const imported = parseLayoutPreset(new TextDecoder('utf-8').decode(contents));
+                        const baseName = imported.name;
+                        let name = baseName;
+                        let suffix = 2;
+                        while (config.presets[name]) {
+                            name = `${baseName}-${suffix++}`;
+                        }
+                        config.presets[name] = imported.preset;
+                        config.activePreset = name;
+                        preset = config.presets[name];
+                        saveConfig();
+                        fillPresetModel();
+                        refreshZoneEditor();
+                        infoGroup.description = `Preset: ${config.activePreset}`;
+                        window.add_toast(new Adw.Toast({title: `Imported preset: ${name}`}));
+                    } catch (e) {
+                        logError(e, 'material-panel prefs: preset import failed');
+                        window.add_toast(new Adw.Toast({title: 'Invalid preset file'}));
+                    }
+                });
+            });
+            chooser.show();
+        });
+
+        presetIoRow.add_suffix(exportPresetButton);
+        presetIoRow.add_suffix(importPresetButton);
+        presetsGroup.add(presetIoRow);
 
         // --- PAGE 2: Modules ---
         const modulesPage = new Adw.PreferencesPage({
