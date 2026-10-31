@@ -9,6 +9,7 @@ import {menuToggle} from '../lib/shellCompat.js';
 import {iconPath} from '../lib/iconTheme.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {runPowerAction} from '../lib/powerAction.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 // Uses loginctl/systemctl via spawn rather than talking to logind's D-Bus
 // interface directly - much less risk of a subtly wrong method signature,
@@ -31,6 +32,8 @@ export function buildPowerMenu() {
             gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPath('shutdown'))),
         }),
     });
+
+    setChipA11y(button, 'Power menu');
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup');
