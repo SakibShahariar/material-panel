@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {isSessionLocked} from '../lib/shellCompat.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -149,11 +150,18 @@ export function buildProfileCard({onPrefs = null} = {}) {
     }
 
     const updateUptime = () => {
+        if (isSessionLocked() || !row.is_mapped)
+            return GLib.SOURCE_CONTINUE;
         const secs = readUptimeSeconds();
         uptimeLabel.text = secs !== null ? `Uptime ${formatUptime(secs)}` : 'Uptime unknown';
         return GLib.SOURCE_CONTINUE;
     };
-    updateUptime();
+    // Populate the initial label once; periodic /proc reads only run while
+    // the profile card is actually mapped inside an open Quick Settings popup.
+    const initialUptime = readUptimeSeconds();
+    uptimeLabel.text = initialUptime !== null
+        ? `Uptime ${formatUptime(initialUptime)}`
+        : 'Uptime unknown';
     const sourceId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, updateUptime);
     row.connect('destroy', () => GLib.source_remove(sourceId));
 

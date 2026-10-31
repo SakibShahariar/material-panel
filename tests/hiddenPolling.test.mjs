@@ -61,3 +61,10 @@ test('Bluetooth headset discovery pauses on the lock screen, including forced re
     assert.match(bluetooth, /import \{menuOpen, menuClose, isSessionLocked\} from '\.\.\/lib\/shellCompat\.js'/);
     assert.match(bluetooth, /if \(isSessionLocked\(\) \|\| \(!force && !button\.is_mapped && !menu\.isOpen\)\)/);
 });
+
+test('profile card uptime sampling pauses while its popup is hidden or the session is locked', async () => {
+    const profile = await readFile(new URL('../modules/profileCard.js', import.meta.url), 'utf8');
+    assert.match(profile, /import \{isSessionLocked\} from '\.\.\/lib\/shellCompat\.js'/);
+    assert.match(profile, /if \(isSessionLocked\(\) \|\| !row\.is_mapped\)\s*return GLib\.SOURCE_CONTINUE/);
+    assert.match(profile, /const initialUptime = readUptimeSeconds\(\)/);
+});
