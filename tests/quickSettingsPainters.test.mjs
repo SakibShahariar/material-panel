@@ -47,3 +47,13 @@ test('all Quick Settings layouts share the same expandable network builders and 
     assert.ok(slider.includes("global.stage.connect('captured-event'"));
     assert.ok(end4.includes("createSlider({"));
 });
+
+test('notifications and calendar remain available after the core controls in every Quick Settings layout', () => {
+    assert.ok(defaults.includes("new PopupMenu.PopupSubMenuMenuItem('Notifications'"));
+    assert.ok(defaults.includes("new PopupMenu.PopupSubMenuMenuItem('Calendar'"));
+    assert.ok(end4.includes('buildEnd4NotiSection()'));
+    assert.ok(end4.includes('buildEnd4CalendarSection()'));
+    assert.ok(ryoku.includes("new PopupMenu.PopupSubMenuMenuItem('Notifications'"));
+    assert.ok(ryoku.includes("new PopupMenu.PopupSubMenuMenuItem('Calendar'"));
+    assert.ok(ryoku.includes("import {buildEnd4NotiSection, buildEnd4CalendarSection}"));
+});
