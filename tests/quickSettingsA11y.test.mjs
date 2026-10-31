@@ -102,7 +102,7 @@ test('End-4 round and wide toggles share accessible state and interaction wiring
     const round = end4.slice(roundStart, wideStart);
     const wide = end4.slice(wideStart, gridStart);
     assert.ok(binder.includes("setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label)"));
-    assert.ok(binder.includes('toggleBackground(on, pressed, !!btn.hover)'));
+    assert.ok(binder.includes('toggleBackground(on, pressed, hovered)') && binder.includes('bindPressedPaint(btn, (pressed, hovered) =>'));
     assert.ok(round.includes('bindToggleButton(btn, {label, announceState, icon: ic'));
     assert.ok(wide.includes('bindToggleButton(btn, {label, icon: ic'));
     assert.ok(!round.includes("btn.connect('notify::hover'"));
