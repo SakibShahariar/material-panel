@@ -155,14 +155,24 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
                 const key = dateKeyFromYmd(year, month, d);
                 cell.label = String(d);
                 cell.reactive = true;
-                const hasEvents = (eventIndex?.get(key)?.length || 0) > 0;
+                const eventCount = eventIndex?.get(key)?.length || 0;
+                const hasEvents = eventCount > 0;
                 const isToday = isThisMonth && d === todayDay;
+                const isSelected = selectedKey === key;
                 if (isToday)
                     cell.add_style_class_name('today');
-                else if (selectedKey === key)
+                else if (isSelected)
                     cell.add_style_class_name('selected');
                 if (hasEvents)
                     cell.add_style_class_name('has-events');
+                const date = GLib.DateTime.new_local(year, month, d, 0, 0, 0);
+                const dateLabel = date?.format('%A, %B %-d, %Y') ?? `${year}-${month}-${d}`;
+                const state = [
+                    isToday ? 'today' : null,
+                    isSelected ? 'selected' : null,
+                    eventCount ? `${eventCount} events` : null,
+                ].filter(Boolean);
+                setChipA11y(cell, [dateLabel, ...state].join(', '));
                 cell.connect('clicked', () => onSelectKey?.(key));
                 day++;
             }
@@ -444,6 +454,12 @@ export function buildClock(_extensionPath, scale = 1.0) {
             }
             row.set_child(col);
             const url = safeEventUrl(meetingUrl(ev) || ev.htmlLink);
+            setChipA11y(row, [
+                String(ev.title || 'Event'),
+                formatEventTimeRange(ev),
+                ev.location ? String(ev.location) : null,
+                url ? 'Open event link' : null,
+            ].filter(Boolean).join(', '));
             row.connect('clicked', () => {
                 if (url) {
                     try {
