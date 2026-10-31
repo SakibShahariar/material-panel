@@ -809,7 +809,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 retryDelaySeconds = Math.min(retryDelaySeconds * 2, 15 * 60);
                 retryId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, delay, () => {
                     retryId = 0;
-                    if (!destroyed)
+                    if (!destroyed && (button.mapped || menu.isOpen))
                         fetchWeather();
                     return GLib.SOURCE_REMOVE;
                 });
@@ -820,13 +820,28 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
 
+    const refreshIfStale = () => {
+        if (destroyed || (!button.mapped && !menu.isOpen))
+            return;
+        const stale = !detail || detail.source === 'Error' || lastSuccessAt === 0 ||
+            GLib.get_monotonic_time() - lastSuccessAt >= 15 * 60 * 1000000;
+        if (stale)
+            fetchWeather();
+    };
+
+    // Resume with a fresh forecast when the chip becomes visible or its popup opens.
+    button.connect('notify::mapped', refreshIfStale);
+    menu.connect('open-state-changed', (_menu, open) => {
+        if (open)
+            refreshIfStale();
+    });
+
     const networkMonitor = Gio.NetworkMonitor.get_default();
     let networkChangedId = 0;
     try {
         networkChangedId = networkMonitor.connect('network-changed', (_monitor, available) => {
-            if (available && !destroyed && (!detail || detail.source === 'Error' ||
-                (lastSuccessAt > 0 && GLib.get_monotonic_time() - lastSuccessAt >= 15 * 60 * 1000000)))
-                fetchWeather();
+            if (available && !destroyed && (button.mapped || menu.isOpen))
+                refreshIfStale();
         });
     } catch (e) {}
 
@@ -875,7 +890,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         return GLib.SOURCE_REMOVE;
     });
     const refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15 * 60, () => {
-        try { fetchWeather(); } catch (e) {}
+        // Do not poll Open-Meteo while both the chip and popup are hidden.
+        try { refreshIfStale(); } catch (e) {}
         return GLib.SOURCE_CONTINUE;
     });
     button.connect('destroy', () => {
