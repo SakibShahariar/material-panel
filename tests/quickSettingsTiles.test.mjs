@@ -54,3 +54,21 @@ test('Preferences keeps the tile-order editor synchronized with config watcher u
     assert.ok(watcher.indexOf('syncObjectInPlace(config, merged)') <
         watcher.indexOf('tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles))'));
 });
+
+test('End-4 and Ryoku Quick Settings honor the shared configured tile visibility', async () => {
+    const [end4, ryoku] = await Promise.all([
+        readFile(new URL('../modules/quicksettingsEnd4.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettingsRyoku.js', import.meta.url), 'utf8'),
+    ]);
+    for (const source of [end4, ryoku]) {
+        assert.match(source, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
+        assert.match(source, /enabledTiles\.has\('wifi'\)/);
+        assert.match(source, /enabledTiles\.has\('bluetooth'\)/);
+        assert.match(source, /enabledTiles\.has\('dark-mode'\)/);
+        assert.match(source, /enabledTiles\.has\('do-not-disturb'\)/);
+        assert.match(source, /enabledTiles\.has\('night-light'\)/);
+    }
+    assert.match(end4, /if \(wifi\) netCol\.add_child\(wifi\)/);
+    assert.match(end4, /if \(bt\) netCol\.add_child\(bt\)/);
+    assert.match(ryoku, /activeRoutes/);
+});

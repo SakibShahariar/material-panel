@@ -10,6 +10,7 @@ import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 
 const ROUTES = [
     {id: 'sound', label: 'Sound'},
@@ -23,6 +24,13 @@ const ROUTES = [
  * @param {object} api - builders from quicksettings.js
  */
 export function fillRyokuQsMenu(menu, api) {
+    const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
+    const showWifi = enabledTiles.has('wifi');
+    const showBluetooth = enabledTiles.has('bluetooth');
+    const showDarkMode = enabledTiles.has('dark-mode');
+    const showDnd = enabledTiles.has('do-not-disturb');
+    const showNightLight = enabledTiles.has('night-light');
+
     const {
         volumeSliderRow,
         brightnessSliderRow,
@@ -89,24 +97,35 @@ export function fillRyokuQsMenu(menu, api) {
         box.add_child(volumeSliderRow());
         box.add_child(brightnessSliderRow());
     });
-    mk('network', 'Network', box => {
-        box.add_child(wifiQsBlock());
-    });
-    mk('bluetooth', 'Bluetooth', box => {
-        box.add_child(bluetoothTile());
-    });
-    mk('session', 'Session', box => {
-        try { box.add_child(darkModeTile()); } catch (e) {}
-        try { box.add_child(nightLightTile()); } catch (e) {}
-        try { box.add_child(dndTile()); } catch (e) {}
-        try { box.add_child(powerRow(menu)); } catch (e) {}
-    });
+    if (showWifi) {
+        mk('network', 'Network', box => {
+            box.add_child(wifiQsBlock());
+        });
+    }
+    if (showBluetooth) {
+        mk('bluetooth', 'Bluetooth', box => {
+            box.add_child(bluetoothTile());
+        });
+    }
+    if (showDarkMode || showNightLight || showDnd) {
+        mk('session', 'Session', box => {
+            if (showDarkMode) try { box.add_child(darkModeTile()); } catch (e) {}
+            if (showNightLight) try { box.add_child(nightLightTile()); } catch (e) {}
+            if (showDnd) try { box.add_child(dndTile()); } catch (e) {}
+            try { box.add_child(powerRow(menu)); } catch (e) {}
+        });
+    }
 
-    let route = 'sound';
+    const routeIds = ROUTES.map(route => route.id).filter(id =>
+        (id !== 'network' || showWifi) &&
+        (id !== 'bluetooth' || showBluetooth) &&
+        (id !== 'session' || showDarkMode || showNightLight || showDnd));
+    const activeRoutes = routeIds.length > 0 ? ROUTES.filter(route => routeIds.includes(route.id)) : [ROUTES[0]];
+    let route = activeRoutes[0].id;
     const railButtons = {};
     const setRoute = id => {
         route = id;
-        for (const r of ROUTES) {
+        for (const r of activeRoutes) {
             const on = r.id === id;
             try {
                 railButtons[r.id].set_style_class_name(
@@ -117,7 +136,7 @@ export function fillRyokuQsMenu(menu, api) {
         }
     };
 
-    for (const r of ROUTES) {
+    for (const r of activeRoutes) {
         const b = new St.Button({
             style_class: `material-panel-ryoku-rail-btn${r.id === route ? ' active' : ''}`,
             label: r.label,

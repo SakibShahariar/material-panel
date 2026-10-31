@@ -27,6 +27,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
+import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -530,20 +531,27 @@ function buildToggleGrid() {
     let nlSettings = null;
     try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
 
-    // Full Wi‑Fi + Bluetooth (NM / BlueZ) — not stub nmcli toggles
-    // Each has power toggle, status, chevron, and expandable device/network list.
-    const wifi = wifiQsBlock();
-    const bt = bluetoothTile();
+    // Respect the shared tile visibility settings in every Quick Settings layout.
+    const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
+    const showWifi = enabledTiles.has('wifi');
+    const showBluetooth = enabledTiles.has('bluetooth');
+    const showDarkMode = enabledTiles.has('dark-mode');
+    const showDnd = enabledTiles.has('do-not-disturb');
+    const showNightLight = enabledTiles.has('night-light');
+
+    // Full Wi-Fi + Bluetooth (NM / BlueZ) — not stub nmcli toggles.
+    const wifi = showWifi ? wifiQsBlock() : null;
+    const bt = showBluetooth ? bluetoothTile() : null;
     try {
-        wifi.x_expand = true;
-        wifi.width = QS_INNER;
-        if (wifi.style_class && !wifi.style_class.includes('material-panel-qs-wifi-row'))
+        if (wifi) wifi.x_expand = true;
+        if (wifi) wifi.width = QS_INNER;
+        if (wifi?.style_class && !wifi.style_class.includes('material-panel-qs-wifi-row'))
             wifi.add_style_class_name('material-panel-qs-wifi-row');
     } catch (e) {}
     try {
-        bt.x_expand = true;
-        bt.width = QS_INNER;
-        bt.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px;`;
+        if (bt) bt.x_expand = true;
+        if (bt) bt.width = QS_INNER;
+        if (bt) bt.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px;`;
     } catch (e) {}
     try {
         wifi.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px; border-radius: 18px;`;
@@ -551,18 +559,18 @@ function buildToggleGrid() {
 
     const netCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
     style(netCol, `spacing: 8px; width: ${QS_INNER}px;`);
-    netCol.add_child(wifi);
-    netCol.add_child(bt);
+    if (wifi) netCol.add_child(wifi);
+    if (bt) netCol.add_child(bt);
     // Expand panels sit under the tiles (same as default QS)
     try {
-        if (bt.devicePanel) {
+        if (bt?.devicePanel) {
             bt.devicePanel.visible = false;
             try { bt.devicePanel.x_expand = true; bt.devicePanel.width = QS_INNER; } catch (e) {}
             netCol.add_child(bt.devicePanel);
         }
     } catch (e) { logError(e, 'e4 qs bt panel'); }
     try {
-        if (wifi.listPanel) {
+        if (wifi?.listPanel) {
             wifi.listPanel.visible = false;
             try { wifi.listPanel.x_expand = true; wifi.listPanel.width = QS_INNER; } catch (e) {}
             netCol.add_child(wifi.listPanel);
@@ -586,13 +594,14 @@ function buildToggleGrid() {
         },
     });
     row0.add_child(darkRound);
-    root.add_child(netCol);
-    root.add_child(row0);
+    if (netCol.get_n_children() > 0) root.add_child(netCol);
+    if (showDarkMode) row0.add_child(darkRound);
+    if (row0.get_n_children() > 0) root.add_child(row0);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
     const row1 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row1, 'spacing: 8px;');
-    const night = makeRoundToggle({
+    const night = showNightLight ? makeRoundToggle({
         label: 'Night light',
         iconKeys: ['night-light'],
         symbolic: 'night-light-symbolic',
@@ -604,9 +613,9 @@ function buildToggleGrid() {
         setOn: on => {
             try { nlSettings?.set_boolean('night-light-enabled', on); } catch (e) {}
         },
-    });
+    }) : null;
     const dndW = QS_INNER - 52 * 2 - 16;
-    const dnd = makeWideToggle({
+    const dnd = showDnd ? makeWideToggle({
         label: 'Do not disturb',
         sub: 'Hide banners',
         width: Math.max(120, dndW),
@@ -620,7 +629,7 @@ function buildToggleGrid() {
         setOn: on => {
             try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
         },
-    });
+    }) : null;
     const lockBtn = makeRoundToggle({
         label: 'Lock screen',
         announceState: false,
@@ -635,8 +644,8 @@ function buildToggleGrid() {
     try {
         lockBtn.get_child().icon_name = 'system-lock-screen-symbolic';
     } catch (e) {}
-    row1.add_child(night);
-    row1.add_child(dnd);
+    if (night) row1.add_child(night);
+    if (dnd) row1.add_child(dnd);
     row1.add_child(lockBtn);
     root.add_child(row1);
 
