@@ -20,3 +20,24 @@ test('menu open and close transitions honor reduced-motion preference', () => {
     const guardedFlags = source.match(/const a = !!animate && !prefersReducedMotion\(\);/g) || [];
     assert.equal(guardedFlags.length, 2);
 });
+
+const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
+const stylesheet = await readFile(new URL('../stylesheet.css', import.meta.url), 'utf8');
+
+test('reduced-motion watcher updates the stage class when GNOME preferences change', () => {
+    assert.ok(source.includes("connect('changed::enable-animations', apply)"));
+    assert.ok(source.includes("connect('notify::reduced-motion', apply)"));
+    assert.ok(source.includes("stage.add_style_class_name('material-panel-reduced-motion')"));
+    assert.ok(source.includes("stage.remove_style_class_name('material-panel-reduced-motion')"));
+});
+
+test('extension installs and disconnects the reduced-motion watcher', () => {
+    assert.ok(extension.includes('this._reducedMotionCleanup = watchReducedMotion()'));
+    assert.ok(extension.includes('this._reducedMotionCleanup?.()'));
+});
+
+test('reduced-motion stage class disables CSS transitions across panel surfaces', () => {
+    assert.ok(stylesheet.includes('stage.material-panel-reduced-motion *'));
+    assert.ok(stylesheet.includes('transition-duration: 0ms !important'));
+    assert.ok(stylesheet.includes('transition-delay: 0ms !important'));
+});
