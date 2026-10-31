@@ -9,6 +9,17 @@ test('tray bridge attaches newly registered indicators through the addToStatusAr
     assert.match(bridge, /const area = Main\.panel\.statusArea \?\? \{\}/);
     assert.match(bridge, /this\._onButtonAdded\(role, area\[role\]\)/);
     assert.match(bridge, /this\._scanExistingIndicators\(\)/);
+    const stripStart = bridge.indexOf('    setTrayIconStrip(strip) {');
+    const stripEnd = bridge.indexOf('\n    setTrayHost(', stripStart);
+    const stripSetup = bridge.slice(stripStart, stripEnd);
+    assert.match(stripSetup, /this\._scanExistingIndicators\(\)/);
+    assert.doesNotMatch(stripSetup, /this\._later\(/);
+
+    const hostStart = bridge.indexOf('    setTrayHost(host, enabled = true) {');
+    const hostEnd = bridge.indexOf('\n    _resolveZone(', hostStart);
+    const hostSetup = bridge.slice(hostStart, hostEnd);
+    assert.match(hostSetup, /this\._scanExistingIndicators\(\)/);
+    assert.doesNotMatch(hostSetup, /this\._later\(/);
 });
 
 test('tray bridge disconnects its registration hook and clears retries on disable', async () => {
