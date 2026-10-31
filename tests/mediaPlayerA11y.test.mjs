@@ -46,7 +46,7 @@ test('MPRIS player selection preserves a user choice and falls back when it exit
 
 test('media popup exposes a player switcher only when multiple players are active', () => {
     assert.match(source, /PopupSubMenuMenuItem\('Player'/);
-    assert.match(source, /playerMenuItem\.visible = players\.length > 1/);
+    assert.match(source, /playerMenuItem\.actor\.visible = players\.length > 1/);
     assert.match(source, /playerMenuItem\.menu\.addMenuItem\(choice\)/);
     assert.match(source, /selectPreferredPlayer\?\.\(name\)/);
     assert.match(source, /Player: ' \+ playerDisplayName\(selectedName\)/);
