@@ -13,6 +13,13 @@ const modules = await Promise.all(
 
 test('system metric polling skips hidden chips with closed popups', () => {
     for (const [name, source] of modules) {
+        if (name === 'networkSpeed') {
+            assert.ok(
+                source.includes('if (isSessionLocked() || (!autoHideWhenIdle && !button.mapped && !menu.isOpen))'),
+                'network speed should keep sampling only when auto-hide needs activity detection'
+            );
+            continue;
+        }
         assert.ok(
             source.includes('if (isSessionLocked() || (!button.mapped && !menu.isOpen))'),
             `${name} periodic polling should pause while its chip is hidden`
@@ -31,6 +38,10 @@ test('CPU periodic sampling pauses while its chip and popup are hidden', async (
 test('system metric polling also pauses while GNOME is locked', () => {
     assert.match(shellCompat, /Main\.sessionMode\.isLocked/);
     for (const [name, source] of modules) {
+        if (name === 'networkSpeed') {
+            assert.match(source, /if \(isSessionLocked\(\) \|\| \(!autoHideWhenIdle && !button\.mapped && !menu\.isOpen\)\)/);
+            continue;
+        }
         assert.ok(
             source.includes('isSessionLocked() || (!button.mapped && !menu.isOpen)'),
             `${name} periodic polling should pause during the lock screen`
