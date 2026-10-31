@@ -28,3 +28,13 @@ test('Bluetooth popup reuses device row actors by BlueZ object path', () => {
     assert.ok(bluetooth.includes('if (!retainedRows.has(child))'));
     assert.ok(bluetooth.includes('clearDeviceRows();'));
 });
+
+
+test('Quick Settings Bluetooth rows are retained by BlueZ object path across refreshes', () => {
+    assert.ok(quicksettings.includes('const qsDeviceRows = new Map()'));
+    assert.ok(quicksettings.includes('qsDeviceRows.get(path)'));
+    assert.ok(quicksettings.includes('row._mpSnapshot !== snapshot'));
+    assert.ok(quicksettings.includes('getOrCreateQsDeviceRow(path, props, true, batteryPct)'));
+    assert.ok(quicksettings.includes('getOrCreateQsDeviceRow(path, props, false, batteryPct)'));
+    assert.doesNotMatch(quicksettings, /deviceContainer\\.destroy_all_children\\(\\)/);
+});

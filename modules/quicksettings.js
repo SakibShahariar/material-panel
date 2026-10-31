@@ -1353,7 +1353,42 @@ export function bluetoothTile() {
         pulseStMotionId = pulseStSettings.connect('notify::reduced-motion', syncPulseMotion);
     } catch (e) {}
 
-    const buildDeviceRow = (path, props, isPaired = true, batteryPct = null) => {
+    const qsDeviceRows = new Map();
+
+    const clearQsDeviceRows = () => {
+        for (const [path, row] of qsDeviceRows) {
+            stopPulse(path);
+            try { row.destroy(); } catch (e) {}
+        }
+        qsDeviceRows.clear();
+    };
+
+    const deviceRowSnapshot = (path, props, batteryPct) => JSON.stringify([
+        props['Alias']?.deep_unpack?.() ?? null,
+        props['Name']?.deep_unpack?.() ?? null,
+        props['Connected']?.deep_unpack?.() === true,
+        props['Paired']?.deep_unpack?.() === true,
+        batteryPct ?? props['Battery']?.deep_unpack?.() ?? null,
+        connectingPaths.has(path) && props['Connected']?.deep_unpack?.() !== true,
+    ]);
+
+    const getOrCreateQsDeviceRow = (path, props, isPaired, batteryPct) => {
+        const snapshot = deviceRowSnapshot(path, props, batteryPct);
+        let row = qsDeviceRows.get(path);
+        if (row && row._mpSnapshot !== snapshot) {
+            stopPulse(path);
+            row.destroy();
+            qsDeviceRows.delete(path);
+            row = null;
+        }
+        if (!row) {
+            row = buildDeviceRow(path, props, isPaired, batteryPct, snapshot);
+            qsDeviceRows.set(path, row);
+        }
+        return row;
+    };
+
+    const buildDeviceRow = (path, props, isPaired = true, batteryPct = null, snapshot = null) => {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
         const name = props['Name'] ? props['Name'].deep_unpack() : null;
         const displayName = alias ?? name ?? 'Unknown device';
@@ -1449,6 +1484,7 @@ export function bluetoothTile() {
         rowBox.add_child(textBox);
         rowBox.add_child(actionIcon);
         row.set_child(rowBox);
+        row._mpSnapshot = snapshot ?? deviceRowSnapshot(path, props, batteryPct);
         setChipA11y(row, [displayName, statusText].join(', '));
 
         row.connect('clicked', () => {
@@ -1492,15 +1528,22 @@ export function bluetoothTile() {
                     devMgr.call('GetManagedObjects', null, Gio.DBusCallFlags.NONE, -1, null, (proxy, callRes) => {
                         try {
                             const [objects] = proxy.call_finish(callRes).deep_unpack();
-                            deviceContainer.destroy_all_children();
+                            const retainedRows = new Set(qsDeviceRows.values());
+                            for (const child of deviceContainer.get_children()) {
+                                deviceContainer.remove_child(child);
+                                if (!retainedRows.has(child))
+                                    child.destroy();
+                            }
                             const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                             if (!hasAdapter) {
+                                clearQsDeviceRows();
                                 const hint = new St.Label({text: isBlocked ? 'Bluetooth blocked — tap to unblock' : 'No adapter', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded ? true : false;
                                 return;
                             }
                             if (!currentlyPowered) {
+                                clearQsDeviceRows();
                                 const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
@@ -1508,10 +1551,21 @@ export function bluetoothTile() {
                             }
                             const {pairedDevices, nearbyDevices} = getBluetoothDevices(objects);
                             if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
+                                clearQsDeviceRows();
                                 const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded;
                                 return;
+                            }
+                            const visibleNearby = nearbyDevices.slice(0, 6);
+                            const desiredDevices = [...pairedDevices, ...visibleNearby];
+                            const desiredPaths = new Set(desiredDevices.map(device => device.path));
+                            for (const [path, row] of qsDeviceRows) {
+                                if (desiredPaths.has(path))
+                                    continue;
+                                stopPulse(path);
+                                row.destroy();
+                                qsDeviceRows.delete(path);
                             }
                             deviceContainer.visible = expanded;
                             deviceContainer.add_child(new St.Label({
@@ -1536,14 +1590,14 @@ export function bluetoothTile() {
                                 text.text = tileName;
                             } catch (e) {}
                             for (const {path, props, batteryPct} of pairedDevices)
-                                deviceContainer.add_child(buildDeviceRow(path, props, true, batteryPct));
-                            if (nearbyDevices.length > 0) {
+                                deviceContainer.add_child(getOrCreateQsDeviceRow(path, props, true, batteryPct));
+                            if (visibleNearby.length > 0) {
                                 deviceContainer.add_child(new St.Label({
                                     text: 'Nearby',
                                     style_class: 'material-panel-qs-list-header material-panel-qs-list-header-sub',
                                 }));
-                                for (const {path, props, batteryPct} of nearbyDevices.slice(0, 6))
-                                    deviceContainer.add_child(buildDeviceRow(path, props, false, batteryPct));
+                                for (const {path, props, batteryPct} of visibleNearby)
+                                    deviceContainer.add_child(getOrCreateQsDeviceRow(path, props, false, batteryPct));
                             }
                         } catch (e) {
                             logError(e, 'material-panel: bluez GetManagedObjects failed for device list');
@@ -1606,6 +1660,7 @@ export function bluetoothTile() {
             if (pulseStSettings && pulseStMotionId)
                 pulseStSettings.disconnect(pulseStMotionId);
         } catch (e) {}
+        clearQsDeviceRows();
         for (const path of [...pulseActors.keys()])
             stopPulse(path);
     });
