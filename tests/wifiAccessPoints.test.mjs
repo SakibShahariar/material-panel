@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {findBestAccessPoint, getAccessPointInfo} from '../modules/network.js';
+import {findBestAccessPoint, getAccessPointInfo} from '../lib/wifiAccessPoints.js';
 
 const bytes = values => ({get_data: () => new Uint8Array(values)});
 const accessPoint = (ssid, strength, flags = 0, wpa = 0, rsn = 0) => ({

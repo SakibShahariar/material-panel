@@ -12,7 +12,7 @@ import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
-import {findBestAccessPoint, getAccessPointInfo} from '../lib/wifiAccessPoints.js';
+import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -156,6 +156,8 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             for (const signal of ['access-point-added', 'access-point-removed', 'notify::access-points']) {
                 try {
                     wifiDeviceSignalIds.push(wifiDevice.connect(signal, () => {
+                        scanStatus = '';
+                        scanInFlight = false;
                         if (!destroyed)
                             rebuildNetworkList();
                     }));
@@ -187,14 +189,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             for (const connection of savedConnections) {
                 const ap = findBestAccessPoint(connection, accessPoints);
                 if (ap) {
-                    const key = (() => {
-                        try {
-                            const ssid = connection.get_setting_wireless()?.get_ssid()?.get_data?.();
-                            return ssid ? Array.from(ssid).join(',') : null;
-                        } catch (e) {
-                            return null;
-                        }
-                    })();
+                    const key = ssidKey(connection.get_setting_wireless()?.get_ssid());
                     if (key)
                         savedBySsid.set(key, connection);
                 }
@@ -206,14 +201,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 const info = getAccessPointInfo(ap);
                 if (!info?.ssid)
                     continue;
-                const raw = (() => {
-                    try {
-                        const data = ap.get_ssid()?.get_data?.();
-                        return data ? Array.from(data).join(',') : null;
-                    } catch (e) {
-                        return null;
-                    }
-                })();
+                const raw = ssidKey(ap.get_ssid?.());
                 if (!raw || seen.has(raw))
                     continue;
                 seen.add(raw);
