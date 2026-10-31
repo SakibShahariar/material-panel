@@ -441,7 +441,7 @@ function bindToggleButton(btn, {
     const render = bindPressedPaint(btn, (pressed, hovered) => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
-        setChipA11y(btn, announceState ? \`\${label}, \${on ? 'on' : 'off'}\` : label);
+        setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
         try {
             const g = loadGicon(iconKeys, on);
             if (g) {
@@ -464,7 +464,7 @@ function bindToggleButton(btn, {
 
     let settingsSignalId = 0;
     if (settings && settingKey) {
-        try { settingsSignalId = settings.connect(\`changed::\${settingKey}\`, render); } catch (e) {}
+        try { settingsSignalId = settings.connect(`changed::${settingKey}`, render); } catch (e) {}
     }
     btn.connect('destroy', () => {
         if (settings && settingsSignalId) {
@@ -696,7 +696,7 @@ function buildPowerStrip(menu) {
             } else if (hovered) {
                 bg = surfaceHover();
             }
-            style(b, \`border-radius: 999px; height: 42px; width: \${btnW}px; background-color: \${bg};\`);
+            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
             try { tintSymbolic(ic, fg); } catch (e) {}
         });
         b.connect('clicked', () => {
