@@ -21,7 +21,7 @@ import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {fillRyokuQsMenu} from './quicksettingsRyoku.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, prefersReducedMotion} from '../lib/shellCompat.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 
@@ -154,7 +154,17 @@ function attachTileExtras(host, contentBox) {
         bag.eqBars = bars;
         bag.eqTimer = 0;
         bag.eqOn = false;
+        const resetEqBars = () => {
+            bars.forEach((bar, i) => {
+                try { bar.height = 6 + (i % 3) * 3; } catch (e) {}
+            });
+        };
         bag.eqTick = () => {
+            if (prefersReducedMotion()) {
+                bag.eqTimer = 0;
+                resetEqBars();
+                return GLib.SOURCE_REMOVE;
+            }
             if (!bars.length || !bars[0].is_mapped) {
                 // Stop waking the main loop while the popup is hidden. The
                 // mapped notification below restarts animation when visible.
@@ -168,6 +178,11 @@ function attachTileExtras(host, contentBox) {
             return GLib.SOURCE_CONTINUE;
         };
         bag.startEq = () => {
+            if (prefersReducedMotion()) {
+                bag.stopEq();
+                resetEqBars();
+                return;
+            }
             if (bag.eqOn && bars[0]?.is_mapped && !bag.eqTimer)
                 bag.eqTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, bag.eqTick);
         };
@@ -177,6 +192,37 @@ function attachTileExtras(host, contentBox) {
                 bag.eqTimer = 0;
             }
         };
+
+        let motionSettings = null;
+        let motionSettingsId = 0;
+        let stSettings = null;
+        let stMotionId = 0;
+        const syncEqMotion = () => {
+            if (prefersReducedMotion()) {
+                bag.stopEq();
+                resetEqBars();
+            } else {
+                bag.startEq();
+            }
+        };
+        try {
+            motionSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+            motionSettingsId = motionSettings.connect('changed::enable-animations', syncEqMotion);
+        } catch (e) {}
+        try {
+            stSettings = St.Settings.get();
+            stMotionId = stSettings.connect('notify::reduced-motion', syncEqMotion);
+        } catch (e) {}
+        contentBox.connect('destroy', () => {
+            try {
+                if (motionSettings && motionSettingsId)
+                    motionSettings.disconnect(motionSettingsId);
+            } catch (e) {}
+            try {
+                if (stSettings && stMotionId)
+                    stSettings.disconnect(stMotionId);
+            } catch (e) {}
+        });
         bars[0].connect('notify::mapped', () => {
             if (bars[0].is_mapped)
                 bag.startEq();
