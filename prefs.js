@@ -77,7 +77,36 @@ const ALL_MODULES = [
 export default class MaterialPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const store = new ConfigStore();
-        const config = store.load();
+        let cancelled = false;
+        const loadingPage = new Adw.PreferencesPage({title: 'Loading settings'});
+        loadingPage.add(new Adw.PreferencesGroup({
+            description: 'Reading your Material Panel configuration…',
+        }));
+        window.add(loadingPage);
+        window.connect('close-request', () => {
+            cancelled = true;
+            return false;
+        });
+
+        store.loadAsync().then(config => {
+            if (cancelled)
+                return;
+            window.remove(loadingPage);
+            this._buildPreferencesWindow(window, store, config);
+        }).catch(error => {
+            if (cancelled)
+                return;
+            console.error('material-panel prefs: asynchronous config load failed', error);
+            window.remove(loadingPage);
+            const errorPage = new Adw.PreferencesPage({title: 'Settings unavailable'});
+            errorPage.add(new Adw.PreferencesGroup({
+                description: 'Material Panel could not read its configuration. Close and reopen Preferences to try again.',
+            }));
+            window.add(errorPage);
+        });
+    }
+
+    _buildPreferencesWindow(window, store, config) {
         let baseline = JSON.parse(JSON.stringify(config));
         const preferencePages = [];
         const addPreferencesPage = page => {

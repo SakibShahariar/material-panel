@@ -48,3 +48,14 @@ test('Preferences writes configuration asynchronously and serializes rapid saves
     assert.match(prefs, /await store\.saveAsync\(merged\)/);
     assert.doesNotMatch(prefs, /store\.save\(merged\)/);
 });
+
+test('Preferences initial configuration load is asynchronous and cancellable', async () => {
+    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
+    const fillStart = prefs.indexOf('    fillPreferencesWindow(window)');
+    const buildStart = prefs.indexOf('    _buildPreferencesWindow(window, store, config)', fillStart);
+    const fill = prefs.slice(fillStart, buildStart);
+    assert.ok(fillStart >= 0 && buildStart > fillStart);
+    assert.match(fill, /store\.loadAsync\(\)\.then/);
+    assert.match(fill, /if \(cancelled\)/);
+    assert.doesNotMatch(fill, /store\.load\(\)/);
+});
