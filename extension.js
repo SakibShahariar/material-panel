@@ -2,6 +2,7 @@ import GLib from 'gi://GLib';
 import {debugLog} from './lib/debug.js';
 import {closeMixerControl} from './lib/audio.js';
 import {clearPanelMenus} from './lib/popupDismiss.js';
+import {watchReducedMotion} from './lib/shellCompat.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -24,6 +25,7 @@ export default class MaterialPanelExtension extends Extension {
         this._config = this._configStore.load();
         globalThis._materialPanelWeatherLocation = this._config.weatherLocation ?? {};
         this._sizeDebounceId = 0;
+        this._reducedMotionCleanup = watchReducedMotion();
 
         this._bridge = new StatusAreaBridge();
         this._bridge.enable();
@@ -260,6 +262,8 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        try { this._reducedMotionCleanup?.(); } catch (e) {}
+        this._reducedMotionCleanup = null;
 
         if (this._sizeDebounceId) {
             GLib.source_remove(this._sizeDebounceId);
