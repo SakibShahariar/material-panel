@@ -9,6 +9,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {calculateDiskUsage, sameFilesystem} from '../lib/diskUsage.js';
+import {filterLocalMounts} from '../lib/mountedFilesystems.js';
 
 function readDiskAsync(mount, cancellable, callback) {
     const file = Gio.File.new_for_path(mount);
@@ -83,9 +84,11 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     const title = new St.Label({text: 'Storage', style_class: 'material-panel-cpu-popup-title'});
     const rootL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const homeL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
+    const selectedL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     body.add_child(title);
     body.add_child(rootL);
     body.add_child(homeL);
+    body.add_child(selectedL);
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
     menu.addMenuItem(item);
@@ -96,6 +99,14 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     let lastRoot = null;
     let lastHome = null;
     let refreshCancellable = null;
+    let selectedCancellable = null;
+    let selectedGeneration = 0;
+    let selectedMount = {name: 'Root', path: '/'};
+    const volumeMonitor = Gio.VolumeMonitor.get();
+    let mountSignalIds = [];
+    let mountMenuItems = [];
+    const filesystemMenu = new PopupMenu.PopupSubMenuMenuItem('Filesystem: /', false);
+    menu.addMenuItem(filesystemMenu);
 
     const updateLabels = () => {
         if (destroyed)
@@ -123,9 +134,82 @@ export function buildDisk(_extensionPath, scale = 1.0) {
             homeL.text = 'Home  —';
     };
 
+    const refreshSelectedFilesystem = () => {
+        if (destroyed)
+            return;
+        if (selectedCancellable) {
+            try { selectedCancellable.cancel(); } catch (e) {}
+        }
+        const generation = ++selectedGeneration;
+        selectedCancellable = new Gio.Cancellable();
+        const cancellable = selectedCancellable;
+        readDiskAsync(selectedMount.path, cancellable, result => {
+            if (destroyed || generation !== selectedGeneration)
+                return;
+            if (!result) {
+                selectedL.text = `${selectedMount.name}  unavailable`;
+                return;
+            }
+            selectedL.text = `${selectedMount.name}  ${fmt(result.used)} / ${fmt(result.size)}  (${result.pct}%)`;
+        });
+    };
+
+    const rebuildFilesystemMenu = () => {
+        for (const item of mountMenuItems) {
+            try { filesystemMenu.menu.removeMenuItem(item); } catch (e) {}
+        }
+        mountMenuItems = [];
+        let mounts = [];
+        try {
+            mounts = filterLocalMounts(volumeMonitor.get_mounts().map(mount => {
+                try {
+                    const root = mount.get_root();
+                    const path = root?.get_path?.();
+                    if (!path)
+                        return null;
+                    let removable = false;
+                    try { removable = Boolean(mount.get_volume?.()); } catch (e) {}
+                    return {path, name: mount.get_name?.() || path, removable};
+                } catch (e) {
+                    return null;
+                }
+            }));
+        } catch (e) {}
+        if (!mounts.some(mount => mount.path === '/'))
+            mounts.unshift({path: '/', name: 'Root', removable: false});
+        filesystemMenu.visible = mounts.length > 1;
+        if (!mounts.some(mount => mount.path === selectedMount.path)) {
+            selectedMount = mounts.find(mount => mount.path === '/') || mounts[0];
+            filesystemMenu.label.text = `Filesystem: ${selectedMount.path}`;
+            refreshSelectedFilesystem();
+        }
+        for (const mount of mounts) {
+            const selected = mount.path === selectedMount.path;
+            const prefix = selected ? '✓ ' : '';
+            const suffix = mount.removable ? ' · removable' : '';
+            const item = new PopupMenu.PopupMenuItem(
+                `${prefix}${mount.name} — ${mount.path}${suffix}`);
+            item.connect('activate', () => {
+                selectedMount = mount;
+                filesystemMenu.label.text = `Filesystem: ${mount.path}`;
+                refreshSelectedFilesystem();
+                rebuildFilesystemMenu();
+                try { filesystemMenu.menu.close(); } catch (e) {}
+            });
+            filesystemMenu.menu.addMenuItem(item);
+            mountMenuItems.push(item);
+        }
+    };
+    rebuildFilesystemMenu();
+    try {
+        mountSignalIds.push(volumeMonitor.connect('mount-added', rebuildFilesystemMenu));
+        mountSignalIds.push(volumeMonitor.connect('mount-removed', rebuildFilesystemMenu));
+    } catch (e) {}
+
     const refresh = () => {
         if (destroyed || refreshInFlight)
             return GLib.SOURCE_CONTINUE;
+        refreshSelectedFilesystem();
         refreshInFlight = true;
         refreshCancellable = new Gio.Cancellable();
         let rootReady = false;
@@ -190,6 +274,12 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     button.connect('destroy', () => {
         destroyed = true;
         try { refreshCancellable?.cancel(); } catch (e) {}
+        try { selectedCancellable?.cancel(); } catch (e) {}
+        selectedGeneration++;
+        for (const signalId of mountSignalIds) {
+            try { volumeMonitor.disconnect(signalId); } catch (e) {}
+        }
+        mountSignalIds = [];
         try { GLib.source_remove(id); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
