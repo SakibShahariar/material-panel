@@ -80,3 +80,17 @@ test('shared Bluetooth action runner delegates to the tested pure action planner
     assert.ok(runner.includes("import {getBluetoothDeviceActionSteps} from './bluetoothDevices.js'"));
     assert.ok(runner.includes('proxy.call('));
 });
+
+test('both Bluetooth surfaces use the shared asynchronous device action runner', async () => {
+    const [popup, quickSettings, runner] = await Promise.all([
+        readFile(new URL('../modules/bluetooth.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/bluetoothActions.js', import.meta.url), 'utf8'),
+    ]);
+    for (const source of [popup, quickSettings]) {
+        assert.ok(source.includes("import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js'"));
+        assert.ok(source.includes('runBluetoothDeviceAction({'));
+    }
+    assert.ok(runner.includes("import {getBluetoothDeviceActionSteps} from './bluetoothDevices.js'"));
+    assert.ok(runner.includes('proxy.call('));
+});
