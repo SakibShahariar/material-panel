@@ -550,7 +550,7 @@ export function buildMediaPlayerRow() {
                 playerChoices.push({name, item: choice});
             }
         }
-        playerMenuItem.visible = players.length > 1;
+        playerMenuItem.actor.visible = players.length > 1;
         playerMenuItem.label.text = players.length > 1
             ? 'Player: ' + playerDisplayName(selectedName)
             : 'Player';
@@ -732,7 +732,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     menu.addMenuItem(item);
 
     const playerMenuItem = new PopupMenu.PopupSubMenuMenuItem('Player', false);
-    playerMenuItem.visible = false;
+    playerMenuItem.actor.visible = false;
     menu.addMenuItem(playerMenuItem);
     let playerChoices = [];
     let playerNamesSignature = '';
