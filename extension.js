@@ -95,6 +95,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
                 globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
                 globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? [];
+                globalThis._materialPanelAutoHideMedia = newConfig.autoHideMedia === true;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
                 globalThis._materialPanelNetworkSpeedUnit = newConfig.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             } catch (e) {}
@@ -210,6 +211,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelTileStyle = this._config.qsTileStyle ?? 'classic';
             globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
             globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? [];
+            globalThis._materialPanelAutoHideMedia = this._config.autoHideMedia === true;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
             globalThis._materialPanelNetworkSpeedUnit = this._config.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             globalThis._materialPanelHideProfileIdentity = this._config.hideProfileIdentity === true;
