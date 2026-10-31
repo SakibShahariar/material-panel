@@ -10,7 +10,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, prefersReducedMotion} from '../lib/shellCompat.js';
 
 
 function setArtFromUrl(container, artUrl, size = 48) {
@@ -527,8 +527,31 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     try {
         label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     } catch (e) {}
+    const visualizerEnabled = globalThis._materialPanelMediaVisualizer === true;
+    const visualizer = visualizerEnabled
+        ? new St.BoxLayout({
+            style_class: 'material-panel-media-visualizer',
+            orientation: Clutter.Orientation.HORIZONTAL,
+            y_align: Clutter.ActorAlign.CENTER,
+        })
+        : null;
+    const visualizerBars = [];
+    if (visualizer) {
+        try { visualizer.style = 'spacing: 2px; width: 22px; height: 16px;'; } catch (e) {}
+        const heights = [5, 9, 6, 12, 7];
+        const color = globalThis._materialPanelPrimary ?? '#89b4fa';
+        for (const height of heights) {
+            const bar = new St.Widget({width: 3, height});
+            try { bar.style = `background-color: ${color}; border-radius: 2px;`; } catch (e) {}
+            visualizer.add_child(bar);
+            visualizerBars.push(bar);
+        }
+        visualizer.visible = false;
+    }
     box.add_child(icon);
     box.add_child(label);
+    if (visualizer)
+        box.add_child(visualizer);
 
     const button = new St.Button({
         style_class: 'material-panel-media-btn material-panel-chip',
@@ -539,6 +562,53 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     });
     const autoHideWhenInactive = globalThis._materialPanelAutoHideMedia === true;
     button.visible = !autoHideWhenInactive;
+    let visualizerPlaying = false;
+    let visualizerTimerId = 0;
+    const resetVisualizer = () => {
+        const heights = [5, 9, 6, 12, 7];
+        visualizerBars.forEach((bar, index) => {
+            try { bar.height = heights[index]; } catch (e) {}
+        });
+    };
+    const stopVisualizer = () => {
+        if (visualizerTimerId) {
+            try { GLib.source_remove(visualizerTimerId); } catch (e) {}
+            visualizerTimerId = 0;
+        }
+        if (visualizer) {
+            visualizer.visible = false;
+            resetVisualizer();
+        }
+    };
+    const startVisualizer = () => {
+        if (!visualizer || !visualizerPlaying || !button.mapped)
+            return;
+        if (prefersReducedMotion()) {
+            stopVisualizer();
+            return;
+        }
+        visualizer.visible = true;
+        if (visualizerTimerId)
+            return;
+        visualizerTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
+            if (!visualizerPlaying || !button.mapped || prefersReducedMotion()) {
+                visualizerTimerId = 0;
+                visualizer.visible = false;
+                resetVisualizer();
+                return GLib.SOURCE_REMOVE;
+            }
+            for (const bar of visualizerBars) {
+                try { bar.height = 4 + Math.floor(Math.random() * 13); } catch (e) {}
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    };
+    button.connect('notify::mapped', () => {
+        if (button.mapped)
+            startVisualizer();
+        else
+            stopVisualizer();
+    });
     let currentTrackTitle = 'No media';
     let currentPlaybackState = 'paused';
     const updateMediaChipA11y = () => {
@@ -714,6 +784,11 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         updateProgressUi(target);
     });
     const setPlayingUi = playing => {
+        visualizerPlaying = !!playing;
+        if (visualizerPlaying)
+            startVisualizer();
+        else
+            stopVisualizer();
         try {
             playBtn.child.icon_name = playing
                 ? 'media-playback-pause-symbolic'
@@ -839,6 +914,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         stopWatching();
+        stopVisualizer();
         if (progressTimerId) {
             try { GLib.source_remove(progressTimerId); } catch (e) {}
             progressTimerId = 0;
