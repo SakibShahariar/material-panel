@@ -2340,9 +2340,6 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             menu.addMenuItem(audioSelectors.section);
             menu.actor.connect('destroy', () => audioSelectors.destroy());
         }
-    const powerProfiles = buildPowerProfileSelector();
-    menu.addMenuItem(powerProfiles.section);
-    menu.actor.connect('destroy', () => powerProfiles.destroy());
         const powerProfiles = buildPowerProfileSelector();
         menu.addMenuItem(powerProfiles.section);
         menu.actor.connect('destroy', () => powerProfiles.destroy());
@@ -2510,6 +2507,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         menu.addMenuItem(audioSelectors.section);
         menu.actor.connect('destroy', () => audioSelectors.destroy());
     }
+    const powerProfiles = buildPowerProfileSelector();
+    menu.addMenuItem(powerProfiles.section);
+    menu.actor.connect('destroy', () => powerProfiles.destroy());
 
     if (end4) {
         try {
