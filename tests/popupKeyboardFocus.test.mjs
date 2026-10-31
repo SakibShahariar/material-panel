@@ -18,7 +18,7 @@ test('popup teardown cancels a pending focus-restoration callback', () => {
 
 test('popup arrow navigation cycles focusable controls without hijacking sliders or text entry', () => {
     assert.ok(source.includes('_collectFocusableActors(menu.actor)'));
-    assert.ok(source.includes('Clutter.KEY_Up || key === Clutter.KEY_Down'));
+    assert.ok(source.includes('key === Clutter.KEY_Up || key === Clutter.KEY_Down') && source.includes('key === Clutter.KEY_Left || key === Clutter.KEY_Right'));
     assert.ok(source.includes('_focusAdjacentPopupActor(menu, stage, direction)'));
     assert.ok(source.includes('role === Atk.Role.SLIDER'));
     assert.ok(source.includes('role === Atk.Role.TEXT_ENTRY'));
