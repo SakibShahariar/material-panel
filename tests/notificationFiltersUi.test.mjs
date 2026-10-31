@@ -27,3 +27,11 @@ test('notification acknowledgement changes refresh filter results and listeners 
     assert.ok(source.includes("notification.connect('destroy', () => unhookNotification(notification))"));
     assert.ok(source.includes('for (const notification of [...notificationIds.keys()])'));
 });
+
+test('notification cards can expand long bodies and app groups can be cleared independently', () => {
+    assert.ok(source.includes('groupNotificationsByApp(shown)'));
+    assert.ok(source.includes("Clear notifications from ' + group.appName"));
+    assert.ok(source.includes('item.body.length > 160'));
+    assert.ok(source.includes("expandButton.label = expanded ? 'Less' : 'More'"));
+    assert.ok(source.includes("Pango.EllipsizeMode.NONE"));
+});
