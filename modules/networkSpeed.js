@@ -113,7 +113,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         };
         try {
             button.set_tooltip_text(sample.iface
-                ? `${sample.iface}\n↓ ${sample.downText}\n↑ ${sample.upText}`
+                ? `${sample.iface}\n↓ ${last.downText}\n↑ ${last.upText}`
                 : 'Network speed unavailable');
         } catch (e) {}
         if (menu.isOpen)

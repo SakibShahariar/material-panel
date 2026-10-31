@@ -1127,6 +1127,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 let groupLeader = null;
                 // Block toggled handlers while setting initial active state
                 syncingExternal = true;
+                networkSpeedUnitRow.set_selected(config.networkSpeedUnit === 'bits' ? 1 : 0);
                 for (const opt of PLACE_OPTS) {
                     const btn = new Gtk.ToggleButton({
                         label: opt.label,
@@ -1332,7 +1333,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 workspaceDisplayRow.set_selected(Math.max(
                     0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
                 clockClickSwitch.active = config.clockClickCyclesFormat === true;
-                networkSpeedUnitRow.set_selected(config.networkSpeedUnit === 'bits' ? 1 : 0);
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;
