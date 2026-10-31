@@ -26,6 +26,7 @@ import {confirmAndRun} from '../lib/powerConfirm.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
+import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -1151,6 +1152,15 @@ export function bluetoothTile() {
         if (_refreshDevices) _refreshDevices();
     };
 
+    const setBlockedState = () => {
+        isBlocked = true;
+        setChipA11y(mainBtn, 'Bluetooth, blocked');
+        icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
+        tileRow.set_style_class_name('material-panel-qs-tile material-panel-qs-bt-tile-row');
+        text.text = 'Blocked';
+        if (_refreshDevices) _refreshDevices();
+    };
+
     let discoverAttempts = 0;
     const discoverAndBind = () => {
         if (discoverAttempts > 3) return;
@@ -1173,8 +1183,12 @@ export function bluetoothTile() {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         const path = Object.keys(objects).find(p => ADAPTER_IFACE in objects[p]);
                         if (!path) {
-                            logError(new Error('material-panel: no bluez adapter found (GetManagedObjects returned none)'));
-                            setNoAdapterState();
+                            checkBluetoothSoftBlocked(blocked => {
+                                if (blocked)
+                                    setBlockedState();
+                                else
+                                    setNoAdapterState();
+                            });
                             return;
                         }
                         Gio.DBusProxy.new_for_bus(
@@ -1480,7 +1494,7 @@ export function bluetoothTile() {
                             deviceContainer.destroy_all_children();
                             const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                             if (!hasAdapter) {
-                                const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
+                                const hint = new St.Label({text: isBlocked ? 'Bluetooth blocked — tap to unblock' : 'No adapter', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
                                 deviceContainer.visible = expanded ? true : false;
                                 return;
