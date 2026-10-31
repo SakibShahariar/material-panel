@@ -12,7 +12,7 @@ const build = source.slice(buildStart);
 test('clock timer formats time without loading config on every tick', () => {
     assert.doesNotMatch(tick, /store\.load\(/);
     assert.match(tick, /formatClockDisplay\(GLib\.DateTime\.new_now_local\(\), use12h, displayMode, isEnd4\(\)\)/);
-    assert.match(build, /const cfg = store\.load\(\)/);
+    assert.match(build, /store\.loadAsync\(\)\.then/);
 });
 
 test('clock format follows config watcher changes and watcher is disconnected on destroy', () => {

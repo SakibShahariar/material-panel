@@ -880,6 +880,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             if (processDestroyed || generation !== activityConfigGeneration)
                 return;
             globalThis._materialPanelActivityChip = c.activityChip || 'cpu';
+            try { updateLabels(); } catch (e) {}
         } catch (e) {
             if (!processDestroyed && generation === activityConfigGeneration) {
                 globalThis._materialPanelActivityChip = 'cpu';
