@@ -11,6 +11,7 @@ import Shell from 'gi://Shell';
 import Pango from 'gi://Pango';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {wireChipPress} from '../lib/pressFx.js';
+import {setChipA11y} from '../lib/a11y.js';
 import {iconPathPrimary, iconPath} from '../lib/iconTheme.js';
 
 function loadThemedGicon(key) {
@@ -70,6 +71,7 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
         can_focus: true,
         child: box,
     });
+    setChipA11y(button, 'Focused window: Desktop. Activate to toggle Activities overview.');
     try {
         button.style = `max-width: ${Math.round(200 * scale)}px; border-radius: 999px;`;
     } catch (e) {}
@@ -128,6 +130,7 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
 
         if (!win) {
             label.text = 'Desktop';
+            setChipA11y(button, 'Focused window: Desktop. Activate to toggle Activities overview.');
             setDesktopIcon();
             return;
         }
@@ -142,6 +145,7 @@ export function buildFocusedWindow(_extensionPath, scale = 1.0) {
         if (!clean || clean === '~' || clean === '—' )
             clean = 'Desktop';
         label.text = clean;
+        setChipA11y(button, `Focused window: ${clean}. Activate to toggle Activities overview.`);
 
         try {
             const app = tracker.get_window_app(win);
