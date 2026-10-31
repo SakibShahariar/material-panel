@@ -29,3 +29,14 @@ test('weather restores a location-and-units keyed forecast cache before requesti
     assert.match(source, /JSON\.stringify\(\['gnome', gw\.lat, gw\.lon, place, 'metric'\]\)/);
     assert.match(source, /apply\(cached\.data, cached\.savedAt\)/);
 });
+
+
+test('weather forecast popup reuses hourly and daily rows by stable keys', async () => {
+    const source = await readFile(new URL('../modules/weather.js', import.meta.url), 'utf8');
+    assert.match(source, /const hourlyCells = new Map\(\)/);
+    assert.match(source, /const dailyRows = new Map\(\)/);
+    assert.match(source, /reconcileWeatherRows\(\s*hourlyRow, hourlyCells/);
+    assert.match(source, /reconcileWeatherRows\(\s*dailyCol, dailyRows/);
+    assert.doesNotMatch(source, /hourlyRow\.destroy_all_children\(\)/);
+    assert.doesNotMatch(source, /dailyCol\.destroy_all_children\(\)/);
+});

@@ -614,6 +614,102 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         return Gio.ThemedIcon.new('weather-few-clouds-symbolic');
     };
 
+    const hourlyCells = new Map();
+    const dailyRows = new Map();
+
+    const reconcileWeatherRows = (container, cache, items, keyFor, createRow, updateRow) => {
+        const retained = new Set();
+        items.forEach((item, index) => {
+            const key = String(keyFor(item, index));
+            retained.add(key);
+            let actor = cache.get(key);
+            if (!actor) {
+                actor = createRow();
+                cache.set(key, actor);
+            }
+            updateRow(actor, item);
+            const parent = actor.get_parent();
+            if (parent)
+                parent.remove_child(actor);
+            container.add_child(actor);
+        });
+        for (const [key, actor] of cache) {
+            if (retained.has(key))
+                continue;
+            try { actor.destroy(); } catch (e) {}
+            cache.delete(key);
+        }
+    };
+
+    const createHourlyCell = () => {
+        const cell = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            style_class: 'material-panel-weather-hour-cell',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        try { cell.style = 'padding: 6px 8px; border-radius: 12px; spacing: 2px; min-width: 44px;'; } catch (e) {}
+        const time = new St.Label({text: '', x_align: Clutter.ActorAlign.CENTER});
+        try { time.style = 'font-size: 10px; opacity: 0.7;'; } catch (e) {}
+        const iconActor = new St.Icon({icon_size: 18, x_align: Clutter.ActorAlign.CENTER});
+        const temperature = new St.Label({text: '—', x_align: Clutter.ActorAlign.CENTER});
+        try { temperature.style = 'font-size: 12px; font-weight: 700;'; } catch (e) {}
+        const precipitation = new St.Label({text: '', x_align: Clutter.ActorAlign.CENTER});
+        try { precipitation.style = 'font-size: 9px; opacity: 0.65;'; } catch (e) {}
+        cell.add_child(time);
+        cell.add_child(iconActor);
+        cell.add_child(temperature);
+        cell.add_child(precipitation);
+        cell._mpWeatherActors = {time, iconActor, temperature, precipitation};
+        return cell;
+    };
+
+    const updateHourlyCell = (cell, hour) => {
+        const actors = cell._mpWeatherActors;
+        actors.time.text = hour.time || '';
+        actors.iconActor.gicon = iconForKey(hour.iconKey);
+        actors.temperature.text = hour.temp != null ? `${Math.round(hour.temp)}°` : '—';
+        actors.precipitation.text = hour.pop != null && hour.pop > 0 ? `${Math.round(hour.pop)}%` : '';
+        actors.precipitation.visible = hour.pop != null && hour.pop > 0;
+    };
+
+    const createDailyRow = () => {
+        const row = new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            style_class: 'material-panel-weather-day-row',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        try { row.style = 'spacing: 8px; padding: 6px 8px; border-radius: 12px;'; } catch (e) {}
+        const name = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
+        try { name.style = 'font-size: 12px; font-weight: 600; width: 52px; min-width: 52px;'; } catch (e) {}
+        const iconActor = new St.Icon({icon_size: 18, y_align: Clutter.ActorAlign.CENTER});
+        const spacer = new St.Widget({x_expand: true});
+        const high = new St.Label({text: '—', y_align: Clutter.ActorAlign.CENTER});
+        try { high.style = 'font-size: 12px; font-weight: 700; width: 36px; text-align: right;'; } catch (e) {}
+        const low = new St.Label({text: '—', y_align: Clutter.ActorAlign.CENTER});
+        try { low.style = 'font-size: 12px; opacity: 0.6; width: 36px;'; } catch (e) {}
+        const precipitation = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
+        try { precipitation.style = 'font-size: 11px; opacity: 0.65; width: 40px;'; } catch (e) {}
+        row.add_child(name);
+        row.add_child(iconActor);
+        row.add_child(spacer);
+        row.add_child(high);
+        row.add_child(low);
+        row.add_child(precipitation);
+        row._mpWeatherActors = {name, iconActor, high, low, precipitation};
+        return row;
+    };
+
+    const updateDailyRow = (row, day) => {
+        const actors = row._mpWeatherActors;
+        actors.name.text = day.label || day.date || '';
+        actors.iconActor.gicon = iconForKey(day.iconKey);
+        actors.high.text = day.max != null ? `${Math.round(day.max)}°` : '—';
+        actors.low.text = day.min != null ? `${Math.round(day.min)}°` : '—';
+        actors.precipitation.text = day.pop != null ? `${Math.round(day.pop)}%` : '';
+        actors.precipitation.visible = day.pop != null;
+    };
+
     const fillPopup = () => {
         const d = detail;
         if (!d) {
@@ -640,104 +736,16 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
         sourceLbl.text = [d.source, ageLabel].filter(Boolean).join(' · ');
 
-        // Hourly
-        hourlyRow.destroy_all_children();
-        for (const h of d.hourly || []) {
-            const cell = new St.BoxLayout({
-                orientation: Clutter.Orientation.VERTICAL,
-                style_class: 'material-panel-weather-hour-cell',
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                cell.style =
-                    'padding: 6px 8px; border-radius: 12px; spacing: 2px; min-width: 44px;';
-            } catch (e) {}
-            const t = new St.Label({
-                text: h.time || '',
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            try { t.style = 'font-size: 10px; opacity: 0.7;'; } catch (e) {}
-            const ic = new St.Icon({
-                icon_size: 18,
-                gicon: iconForKey(h.iconKey),
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            const tv = new St.Label({
-                text: h.temp != null ? `${Math.round(h.temp)}°` : '—',
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            try { tv.style = 'font-size: 12px; font-weight: 700;'; } catch (e) {}
-            cell.add_child(t);
-            cell.add_child(ic);
-            cell.add_child(tv);
-            if (h.pop != null && h.pop > 0) {
-                const p = new St.Label({
-                    text: `${Math.round(h.pop)}%`,
-                    x_align: Clutter.ActorAlign.CENTER,
-                });
-                try { p.style = 'font-size: 9px; opacity: 0.65;'; } catch (e) {}
-                cell.add_child(p);
-            }
-            hourlyRow.add_child(cell);
-        }
-
-        // Daily
-        dailyCol.destroy_all_children();
-        for (const day of d.daily || []) {
-            const row = new St.BoxLayout({
-                orientation: Clutter.Orientation.HORIZONTAL,
-                style_class: 'material-panel-weather-day-row',
-                x_expand: true,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                row.style =
-                    'spacing: 8px; padding: 6px 8px; border-radius: 12px;';
-            } catch (e) {}
-            const name = new St.Label({
-                text: day.label || day.date,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                name.style = 'font-size: 12px; font-weight: 600; width: 52px; min-width: 52px;';
-            } catch (e) {}
-            const ic = new St.Icon({
-                icon_size: 18,
-                gicon: iconForKey(day.iconKey),
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            const spacer = new St.Widget({x_expand: true});
-            const hi = new St.Label({
-                text: day.max != null ? `${Math.round(day.max)}°` : '—',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                hi.style = 'font-size: 12px; font-weight: 700; width: 36px; text-align: right;';
-            } catch (e) {}
-            const lo = new St.Label({
-                text: day.min != null ? `${Math.round(day.min)}°` : '—',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                lo.style = 'font-size: 12px; opacity: 0.6; width: 36px;';
-            } catch (e) {}
-            row.add_child(name);
-            row.add_child(ic);
-            row.add_child(spacer);
-            row.add_child(hi);
-            row.add_child(lo);
-            if (day.pop != null) {
-                const p = new St.Label({
-                    text: `${Math.round(day.pop)}%`,
-                    y_align: Clutter.ActorAlign.CENTER,
-                });
-                try {
-                    p.style = 'font-size: 11px; opacity: 0.65; width: 40px;';
-                } catch (e) {}
-                row.add_child(p);
-            }
-            dailyCol.add_child(row);
-        }
+        // Reconcile forecast rows by stable timestamps/dates. Existing Clutter
+        // actors are updated and reordered instead of destroyed on each refresh.
+        reconcileWeatherRows(
+            hourlyRow, hourlyCells, d.hourly || [],
+            (hour, index) => hour.time || String(index),
+            createHourlyCell, updateHourlyCell);
+        reconcileWeatherRows(
+            dailyCol, dailyRows, d.daily || [],
+            (day, index) => day.date || day.label || String(index),
+            createDailyRow, updateDailyRow);
     };
 
     const fetchWeather = async () => {
