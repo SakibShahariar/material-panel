@@ -596,25 +596,49 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         networkGroup.add(networkSpeedUnitRow);
 
         const activityGroup = new Adw.PreferencesGroup({
-            title: 'Activity chip',
-            description: 'What the CPU / Activity chip shows on the bar.',
+            title: 'System statistics chip',
+            description: 'Choose which live metrics appear in the compact Activity chip.',
         });
         generalPage.add(activityGroup);
-        if (!['cpu', 'cpu-ram', 'ram'].includes(config.activityChip))
-            config.activityChip = 'cpu';
-        const activityRow = new Adw.ComboRow({
-            title: 'Bar display',
-            model: Gtk.StringList.new(['CPU + temp', 'CPU + RAM', 'RAM only']),
-        });
-        const actMap = ['cpu', 'cpu-ram', 'ram'];
-        activityRow.set_selected(Math.max(0, actMap.indexOf(config.activityChip)));
-        activityRow.connect('notify::selected', () => {
+        const metricOptions = [
+            ['cpu', 'CPU usage'],
+            ['memory', 'RAM usage'],
+            ['temperature', 'CPU temperature'],
+            ['gpu', 'GPU usage'],
+            ['network', 'Network transfer rate'],
+        ];
+        if (!Array.isArray(config.activityChipMetrics))
+            config.activityChipMetrics = ['cpu', 'temperature'];
+        const metricSwitches = new Map();
+        const saveMetricSelection = () => {
             if (syncingExternal) return;
-            const i = activityRow.get_selected();
-            config.activityChip = actMap[i] ?? 'cpu';
+            const selected = metricOptions.filter(([id]) => metricSwitches.get(id)?.active).map(([id]) => id);
+            config.activityChipMetrics = selected.length ? selected : ['cpu'];
+            saveConfig();
+        };
+        for (const [id, title] of metricOptions) {
+            const row = new Adw.ActionRow({title});
+            const toggle = new Gtk.Switch({
+                active: config.activityChipMetrics.includes(id),
+                valign: Gtk.Align.CENTER,
+            });
+            toggle.connect('notify::active', saveMetricSelection);
+            row.add_suffix(toggle);
+            row.activatable_widget = toggle;
+            activityGroup.add(row);
+            metricSwitches.set(id, toggle);
+        }
+        const activityModeRow = new Adw.ComboRow({
+            title: 'Display mode',
+            model: Gtk.StringList.new(['Combined', 'Cycle through selected metrics']),
+        });
+        activityModeRow.set_selected(config.activityChipMode === 'cycle' ? 1 : 0);
+        activityModeRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            config.activityChipMode = activityModeRow.get_selected() === 1 ? 'cycle' : 'combined';
             saveConfig();
         });
-        activityGroup.add(activityRow);
+        activityGroup.add(activityModeRow);
 
         const privacyGroup = new Adw.PreferencesGroup({
             title: 'Privacy',
@@ -1333,6 +1357,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 workspaceDisplayRow.set_selected(Math.max(
                     0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
                 clockClickSwitch.active = config.clockClickCyclesFormat === true;
+                for (const [id, toggle] of metricSwitches)
+                    toggle.active = config.activityChipMetrics.includes(id);
+                activityModeRow.set_selected(config.activityChipMode === 'cycle' ? 1 : 0);
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;

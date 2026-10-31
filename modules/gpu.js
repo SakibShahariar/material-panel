@@ -293,6 +293,12 @@ export function buildGpu(_extensionPath, scale = 1.0) {
             refreshCancellable = null;
             if (result)
                 lastGpuInfo = result;
+            try {
+                globalThis._materialPanelGpuMetrics = lastGpuInfo ? {
+                    util: lastGpuInfo.util,
+                    updatedAt: GLib.get_monotonic_time(),
+                } : null;
+            } catch (e) {}
             render(lastGpuInfo);
         });
         return GLib.SOURCE_CONTINUE;
@@ -313,6 +319,7 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
+        try { globalThis._materialPanelGpuMetrics = null; } catch (e) {}
         try { refreshCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(id); } catch (e) {}
         try { menu.destroy(); } catch (e) {}

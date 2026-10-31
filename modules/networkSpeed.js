@@ -112,6 +112,13 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             iface: sample.iface,
         };
         try {
+            globalThis._materialPanelNetworkMetrics = {
+                down: sample.down,
+                up: sample.up,
+                updatedAt: GLib.get_monotonic_time(),
+            };
+        } catch (e) {}
+        try {
             button.set_tooltip_text(sample.iface
                 ? `${sample.iface}\n↓ ${last.downText}\n↑ ${last.upText}`
                 : 'Network speed unavailable');
@@ -128,6 +135,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
 
     button.connect('destroy', () => {
         try { stopMonitor(); } catch (e) {}
+        try { globalThis._materialPanelNetworkMetrics = null; } catch (e) {}
         menu.destroy();
     });
 

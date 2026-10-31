@@ -376,6 +376,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     let prevCores = [];
     let primed = false;
+    let activityCycleIndex = 0;
 
     const readAll = () => {
         try {
@@ -446,41 +447,59 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         let temp = readTemp(tempPath);
         if (temp === null) temp = readTempHwmon();
         latestMetricSample = {...data, temp};
-        let mode = 'cpu';
-        try {
-            mode = globalThis._materialPanelActivityChip || 'cpu';
-        } catch (e) {}
-        // The default CPU-only chip does not display memory. Avoid even consulting
-        // the shared memory snapshot unless this chip mode needs it; the popup
-        // reads memory separately when it is open.
-        const memSnap = mode === 'cpu' ? null : readMemInfo();
-        if (mode === 'ram') {
-            cpuLabel.text = memSnap ? `${memSnap.usedPct}%` : '—';
-            tempLabel.text = memSnap ? 'RAM' : '';
-            try { tempIcon.visible = false; } catch (e) {}
-        } else if (mode === 'cpu-ram') {
-            cpuLabel.text = totalPct !== null ? `${totalPct}%` : '—';
-            tempLabel.text = memSnap ? `${memSnap.usedPct}%RAM` : (temp !== null ? `${temp}°C` : 'N/A');
-            try { tempIcon.visible = true; } catch (e) {}
-        } else {
-            if (totalPct !== null) cpuLabel.text = `${totalPct}%`;
-            else cpuLabel.text = '—';
-            if (temp !== null) tempLabel.text = `${temp}°C`;
-            else tempLabel.text = 'N/A';
-            try { tempIcon.visible = true; } catch (e) {}
+        const metrics = Array.isArray(globalThis._materialPanelActivityMetrics)
+            ? globalThis._materialPanelActivityMetrics
+            : ['cpu', 'temperature'];
+        const mode = globalThis._materialPanelActivityMode === 'cycle' ? 'cycle' : 'combined';
+        const memSnap = metrics.includes('memory') ? readMemInfo() : null;
+        const gpu = globalThis._materialPanelGpuMetrics;
+        const network = globalThis._materialPanelNetworkMetrics;
+        const now = GLib.get_monotonic_time();
+        const values = [];
+        if (metrics.includes('cpu'))
+            values.push({id: 'cpu', text: 'CPU ' + (totalPct !== null ? totalPct + '%' : '—')});
+        if (metrics.includes('memory'))
+            values.push({id: 'memory', text: 'RAM ' + (memSnap ? memSnap.usedPct + '%' : '—')});
+        if (metrics.includes('temperature'))
+            values.push({id: 'temperature', text: 'TEMP ' + (temp !== null ? temp + '°' : '—')});
+        if (metrics.includes('gpu')) {
+            const freshGpu = gpu && now - gpu.updatedAt < 10000000;
+            values.push({id: 'gpu', text: 'GPU ' + (freshGpu && gpu.util != null ? gpu.util + '%' : '—')});
         }
+        if (metrics.includes('network')) {
+            const freshNetwork = network && now - network.updatedAt < 5000000;
+            const compactRate = value => {
+                const n = Math.max(0, Number(value) || 0);
+                const bits = globalThis._materialPanelNetworkSpeedUnit === 'bits';
+                const amount = bits ? n * 8 : n;
+                if (amount < 1000) return Math.round(amount) + (bits ? 'b' : 'B');
+                if (amount < 1000000) return Math.round(amount / 1000) + 'K';
+                return (amount / 1000000).toFixed(1) + 'M';
+            };
+            values.push({
+                id: 'network',
+                text: freshNetwork ? 'NET ' + compactRate(network.down) + '/' + compactRate(network.up) : 'NET —',
+            });
+        }
+        if (values.length === 0)
+            values.push({id: 'cpu', text: 'CPU ' + (totalPct !== null ? totalPct + '%' : '—')});
+        const displayed = mode === 'cycle' ? [values[activityCycleIndex++ % values.length]] : values;
+        cpuLabel.text = displayed.map(value => value.text).join(' · ');
+        tempLabel.text = '';
+        try { tempIcon.visible = false; } catch (e) {}
         try {
-            const hot = (totalPct != null && totalPct >= 90) ||
-                (mode === 'ram' && memSnap && memSnap.usedPct >= 90) ||
-                (mode === 'cpu-ram' && memSnap && memSnap.usedPct >= 90);
+            const hot = (metrics.includes('cpu') && totalPct != null && totalPct >= 90) ||
+                (metrics.includes('memory') && memSnap && memSnap.usedPct >= 90) ||
+                (metrics.includes('gpu') && gpu && gpu.util >= 90);
             if (hot)
                 button.add_style_class_name('material-panel-chip-warn');
             else
                 button.remove_style_class_name('material-panel-chip-warn');
         } catch (e) {}
         try {
-            button.set_tooltip_text(
-                `CPU ${totalPct !== null ? totalPct + '%' : '—'}  Temp ${temp !== null ? temp + '°C' : 'unavailable (no readable sensor detected)'}`);
+            const summary = values.map(value => value.text).join('  ');
+            button.set_tooltip_text(summary);
+            setChipA11y(button, 'System statistics: ' + summary);
         } catch (e) {}
         try {
             if (menu && menu.isOpen)
@@ -880,10 +899,14 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             if (processDestroyed || generation !== activityConfigGeneration)
                 return;
             globalThis._materialPanelActivityChip = c.activityChip || 'cpu';
+            globalThis._materialPanelActivityMetrics = Array.isArray(c.activityChipMetrics) ? c.activityChipMetrics : ['cpu', 'temperature'];
+            globalThis._materialPanelActivityMode = c.activityChipMode || 'combined';
             try { updateLabels(); } catch (e) {}
         } catch (e) {
             if (!processDestroyed && generation === activityConfigGeneration) {
                 globalThis._materialPanelActivityChip = 'cpu';
+                globalThis._materialPanelActivityMetrics = ['cpu', 'temperature'];
+                globalThis._materialPanelActivityMode = 'combined';
                 logError(e, 'material-panel: asynchronous activity config load');
             }
         }
