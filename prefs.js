@@ -6,7 +6,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 import {ConfigStore} from './lib/configStore.js';
 import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
-import {applyLayoutStyle, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib/layoutPresets.js';
+import {applyLayoutStyle, DEFAULT_ZONES, END4_ZONES, RYOKU_ZONES, LAYOUT_DEFAULT, LAYOUT_END4, LAYOUT_RYOKU} from './lib/layoutPresets.js';
 // Prefer moduleIds over moduleRegistry: the registry imports every panel
 // module (St, Clutter, Main, …) which only exist inside gnome-shell.
 // Preferences run in a separate GTK process and cannot load those typelibs.
@@ -292,12 +292,115 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const style = sel === 1 ? LAYOUT_END4
                 : sel === 2 ? LAYOUT_RYOKU
                     : LAYOUT_DEFAULT;
+            updateLayoutPreviews(style);
             applyLayoutStyle(config, style);
             saveConfig()
         });
         layoutRow.add_suffix(layoutDrop);
         layoutRow.activatable_widget = layoutDrop;
         layoutGroup.add(layoutRow);
+
+        const layoutPreviewGrid = new Gtk.Box({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            spacing: 10,
+            homogeneous: true,
+        });
+        const layoutPreviewViews = new Map();
+        const previewLayouts = [
+            {
+                id: LAYOUT_DEFAULT,
+                title: 'Default',
+                zones: DEFAULT_ZONES,
+                quickSettings: 'Media · Volume · Brightness · Wi-Fi / Bluetooth · Toggles',
+            },
+            {
+                id: LAYOUT_END4,
+                title: 'End-4',
+                zones: END4_ZONES,
+                quickSettings: 'Media · Volume / Brightness · Toggles · Notifications · Calendar',
+            },
+            {
+                id: LAYOUT_RYOKU,
+                title: 'Ryoku',
+                zones: RYOKU_ZONES,
+                quickSettings: 'Media · Sound · Network · Bluetooth · Session',
+            },
+        ];
+        const moduleLabel = id => String(id)
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/^./, letter => letter.toUpperCase());
+        for (const entry of previewLayouts) {
+            const card = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                spacing: 8,
+            });
+            card.add_css_class('card');
+            card.set_margin_top(6);
+            card.set_margin_bottom(6);
+            card.set_margin_start(4);
+            card.set_margin_end(4);
+
+            const title = new Gtk.Label({label: entry.title, xalign: 0});
+            title.add_css_class('heading');
+            card.append(title);
+
+            const bar = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                spacing: 4,
+                homogeneous: true,
+            });
+            for (const zone of ['left', 'center', 'right']) {
+                const zoneCard = new Gtk.Box({
+                    orientation: Gtk.Orientation.VERTICAL,
+                    spacing: 3,
+                });
+                zoneCard.add_css_class('card');
+                zoneCard.set_margin_top(2);
+                zoneCard.set_margin_bottom(2);
+                zoneCard.set_margin_start(2);
+                zoneCard.set_margin_end(2);
+                const zoneTitle = new Gtk.Label({
+                    label: zone[0].toUpperCase() + zone.slice(1),
+                    xalign: 0,
+                });
+                zoneTitle.add_css_class('dim-label');
+                const modules = new Gtk.Label({
+                    label: (entry.zones[zone] || []).map(moduleLabel).join(' · ') || 'Empty',
+                    wrap: true,
+                    xalign: 0,
+                });
+                zoneCard.append(zoneTitle);
+                zoneCard.append(modules);
+                bar.append(zoneCard);
+            }
+            card.append(bar);
+
+            const quickSettings = new Gtk.Label({
+                label: 'Quick Settings\\n' + entry.quickSettings,
+                wrap: true,
+                xalign: 0,
+            });
+            quickSettings.add_css_class('dim-label');
+            card.append(quickSettings);
+
+            const selectedLabel = new Gtk.Label({label: 'Selected'});
+            selectedLabel.add_css_class('accent');
+            card.append(selectedLabel);
+            layoutPreviewGrid.append(card);
+            layoutPreviewViews.set(entry.id, {card, selectedLabel});
+        }
+        const updateLayoutPreviews = selectedStyle => {
+            for (const [styleId, view] of layoutPreviewViews) {
+                const selected = styleId === selectedStyle;
+                view.selectedLabel.set_visible(selected);
+                if (selected)
+                    view.card.add_css_class('suggested-action');
+                else
+                    view.card.remove_css_class('suggested-action');
+            }
+        };
+        updateLayoutPreviews(config.layoutStyle ?? LAYOUT_DEFAULT);
+        layoutGroup.add(layoutPreviewGrid);
 
         const gapSideRow = new Adw.SpinRow({
             title: 'Side inset',
