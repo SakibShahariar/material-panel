@@ -15,3 +15,9 @@ test('hidden End-4 Dark Mode tile is not constructed or connected to settings', 
     assert.match(source, /const darkRound = showDarkMode \? makeRoundToggle\(/);
     assert.match(source, /if \(darkRound\) row0\.add_child\(darkRound\)/);
 });
+
+test('End-4 only opens settings backends for enabled toggle tiles', () => {
+    assert.match(source, /const iface = showDarkMode \? new Gio\.Settings/);
+    assert.match(source, /if \(showDnd\) \{\s*try \{ dndSettings = new Gio\.Settings/);
+    assert.match(source, /if \(showNightLight\) \{\s*try \{ nlSettings = new Gio\.Settings/);
+});

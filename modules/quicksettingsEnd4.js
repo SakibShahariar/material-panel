@@ -526,12 +526,6 @@ function buildToggleGrid() {
     style(root, `spacing: 8px; width: ${QS_INNER}px;`);
     try { root.width = QS_INNER; } catch (e) {}
 
-    const iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-    let dndSettings = null;
-    try { dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'}); } catch (e) {}
-    let nlSettings = null;
-    try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
-
     // Respect the shared tile visibility settings in every Quick Settings layout.
     const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
     const showWifi = enabledTiles.has('wifi');
@@ -539,6 +533,17 @@ function buildToggleGrid() {
     const showDarkMode = enabledTiles.has('dark-mode');
     const showDnd = enabledTiles.has('do-not-disturb');
     const showNightLight = enabledTiles.has('night-light');
+
+    // Avoid opening settings backends for controls that are not configured.
+    const iface = showDarkMode ? new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}) : null;
+    let dndSettings = null;
+    if (showDnd) {
+        try { dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'}); } catch (e) {}
+    }
+    let nlSettings = null;
+    if (showNightLight) {
+        try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
+    }
 
     // Full Wi-Fi + Bluetooth (NM / BlueZ) — not stub nmcli toggles.
     const wifi = showWifi ? wifiQsBlock() : null;
