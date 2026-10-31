@@ -577,6 +577,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         weatherActions.activatable_widget = weatherSave;
         weatherGroup.add(weatherActions);
 
+        const networkGroup = new Adw.PreferencesGroup({
+            title: 'Network speed',
+            description: 'Choose how transfer rates are displayed in the network-speed popup and tooltip.',
+        });
+        generalPage.add(networkGroup);
+        const networkSpeedUnits = ['bytes', 'bits'];
+        const networkSpeedUnitRow = new Adw.ComboRow({
+            title: 'Transfer rate units',
+            model: Gtk.StringList.new(['Bytes per second (KB/s)', 'Bits per second (Mbit/s)']),
+        });
+        networkSpeedUnitRow.set_selected(config.networkSpeedUnit === 'bits' ? 1 : 0);
+        networkSpeedUnitRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            config.networkSpeedUnit = networkSpeedUnits[networkSpeedUnitRow.get_selected()] ?? 'bytes';
+            saveConfig();
+        });
+        networkGroup.add(networkSpeedUnitRow);
+
         const activityGroup = new Adw.PreferencesGroup({
             title: 'Activity chip',
             description: 'What the CPU / Activity chip shows on the bar.',
@@ -1314,6 +1332,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 workspaceDisplayRow.set_selected(Math.max(
                     0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
                 clockClickSwitch.active = config.clockClickCyclesFormat === true;
+                networkSpeedUnitRow.set_selected(config.networkSpeedUnit === 'bits' ? 1 : 0);
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;

@@ -11,6 +11,20 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 
+function formatNetworkRate(bytesPerSec, unit = 'bytes') {
+    const value = Math.max(0, Number(bytesPerSec) || 0);
+    if (unit === 'bits') {
+        const bits = value * 8;
+        if (bits < 1000) return `${Math.round(bits)} bit/s`;
+        if (bits < 1_000_000) return `${(bits / 1000).toFixed(1)} kbit/s`;
+        if (bits < 1_000_000_000) return `${(bits / 1_000_000).toFixed(1)} Mbit/s`;
+        return `${(bits / 1_000_000_000).toFixed(2)} Gbit/s`;
+    }
+    if (value < 1024) return `${Math.round(value)} B/s`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB/s`;
+    return `${(value / (1024 * 1024)).toFixed(1)} MB/s`;
+}
+
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
     let sessionRx = 0, sessionTx = 0;
@@ -89,11 +103,12 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             sessionRx += Math.max(0, Number(sample.rxDelta) || 0);
             sessionTx += Math.max(0, Number(sample.txDelta) || 0);
         }
+        const unit = globalThis._materialPanelNetworkSpeedUnit === 'bits' ? 'bits' : 'bytes';
         last = {
             down: sample.down,
             up: sample.up,
-            downText: sample.downText,
-            upText: sample.upText,
+            downText: formatNetworkRate(sample.down, unit),
+            upText: formatNetworkRate(sample.up, unit),
             iface: sample.iface,
         };
         try {

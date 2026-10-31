@@ -95,6 +95,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
                 globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
+                globalThis._materialPanelNetworkSpeedUnit = newConfig.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             } catch (e) {}
 
             debugLog(`config change classified as "${kind}"`);
@@ -132,6 +133,10 @@ export default class MaterialPanelExtension extends Extension {
             }
             case 'clock':
                 // modules/clock.js has its own ConfigStore.watch — no rebuild
+                return;
+            case 'moduleSetting':
+                // Module-specific presentation settings are consumed live by
+                // their existing monitor callbacks; do not rebuild the panel.
                 return;
             case 'color':
                 this._applyTheme({rebuildPanel: true}); // debounced inside _schedulePanelRebuild
@@ -204,6 +209,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelTileStyle = this._config.qsTileStyle ?? 'classic';
             globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
+            globalThis._materialPanelNetworkSpeedUnit = this._config.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             globalThis._materialPanelHideProfileIdentity = this._config.hideProfileIdentity === true;
         } catch (e) {}
         try {
