@@ -24,7 +24,7 @@ test('CPU periodic sampling pauses while its chip and popup are hidden', async (
     const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
     assert.match(
         cpu,
-        /let timerId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 2, \(\) => \{[\s\S]*?if \(!button\.mapped && !menu\.isOpen\)[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?updateLabels\(\);/
+        /let timerId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 2, \(\) => \{[\s\S]*?if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\)[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?updateLabels\(\);/
     );
 });
 
