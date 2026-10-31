@@ -651,6 +651,7 @@ export function volumeSliderRow() {
         try { pctLabel.visible = false; } catch (e) {}
     }
     const slider = createSlider({
+        accessibleName: 'Volume',
         initialValue: 0,
         style: volStyle.id,
         accent: volStyle.accent,
@@ -843,6 +844,7 @@ export function brightnessSliderRow() {
         } catch (e) {}
     }
     const slider = createSlider({
+        accessibleName: 'Brightness',
         width: (briStyle.id === 'arc') ? 112 : (briStyle.id === 'rails') ? 28 : 200,
         initialValue: currentBrightness ? currentBrightness / maxBrightness : 0.5,
         style: briStyle.id,
