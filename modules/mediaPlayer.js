@@ -232,14 +232,21 @@ function watchPreferredPlayer(callback) {
     let initialized = false;
     let destroyed = false;
     let selectionRevision = 0;
+    let preferredName = null;
 
     const choose = () => {
         if (destroyed)
             return;
         const revision = ++selectionRevision;
         const candidates = [...names];
+        if (preferredName && candidates.includes(preferredName)) {
+            callback(preferredName, candidates);
+            return;
+        }
+        if (preferredName && !candidates.includes(preferredName))
+            preferredName = null;
         if (candidates.length === 0) {
-            callback(null);
+            callback(null, candidates);
             return;
         }
 
@@ -253,7 +260,7 @@ function watchPreferredPlayer(callback) {
                 const finishOne = () => {
                     pending--;
                     if (pending === 0 && !destroyed && revision === selectionRevision)
-                        callback(playing || fallback);
+                        callback(playing || fallback, candidates);
                 };
                 if (!props) {
                     finishOne();
@@ -330,7 +337,7 @@ function watchPreferredPlayer(callback) {
             choose();
         });
 
-    return () => {
+    const stop = () => {
         if (destroyed)
             return;
         destroyed = true;
@@ -338,6 +345,11 @@ function watchPreferredPlayer(callback) {
         dbus.signal_unsubscribe(ownerSignalId);
         dbus.signal_unsubscribe(statusSignalId);
     };
+    stop.select = name => {
+        preferredName = names.has(name) ? name : null;
+        choose();
+    };
+    return stop;
 }
 
 /** QS media card */
@@ -515,10 +527,47 @@ export function buildMediaPlayerRow() {
         }
     });
 
-    const stopWatching = watchPreferredPlayer(name => {
+    let selectPreferredPlayer = null;
+    const playerDisplayName = name => String(name || '')
+        .replace(MPRIS_PREFIX, '')
+        .replace(/[-_]/g, ' ');
+    const updatePlayerChoices = (selectedName, players = []) => {
+        const signature = players.join('|');
+        if (signature !== playerNamesSignature) {
+            for (const choice of playerChoices) {
+                try { playerMenuItem.menu.removeMenuItem(choice.item); } catch (e) {}
+            }
+            playerChoices = [];
+            playerNamesSignature = signature;
+            for (const name of players) {
+                const choice = new PopupMenu.PopupMenuItem(playerDisplayName(name));
+                choice.connect('activate', () => {
+                    selectPreferredPlayer?.(name);
+                    if (menu.isOpen)
+                        menuClose(menu);
+                });
+                playerMenuItem.menu.addMenuItem(choice);
+                playerChoices.push({name, item: choice});
+            }
+        }
+        playerMenuItem.visible = players.length > 1;
+        playerMenuItem.label.text = players.length > 1
+            ? 'Player: ' + playerDisplayName(selectedName)
+            : 'Player';
+        for (const choice of playerChoices) {
+            try {
+                choice.item.setOrnament(choice.name === selectedName
+                    ? PopupMenu.Ornament.DOT
+                    : PopupMenu.Ornament.NONE);
+            } catch (e) {}
+        }
+    };
+    const stopWatching = watchPreferredPlayer((name, players) => {
+        updatePlayerChoices(name, players);
         if (name !== attachedBusName)
             attach(name);
     });
+    selectPreferredPlayer = stopWatching.select;
     row.connect('destroy', () => {
         stopWatching();
         clearCtl();
@@ -681,6 +730,12 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
     menu.addMenuItem(item);
+
+    const playerMenuItem = new PopupMenu.PopupSubMenuMenuItem('Player', false);
+    playerMenuItem.visible = false;
+    menu.addMenuItem(playerMenuItem);
+    let playerChoices = [];
+    let playerNamesSignature = '';
 
     let ctl = null;
     let attachedBusName = null;

@@ -35,3 +35,19 @@ test('media position polling is limited to the open popup and cleaned up on dest
     assert.match(source, /GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 1/);
     assert.match(source, /GLib\.source_remove\(progressTimerId\)/);
 });
+
+
+test('MPRIS player selection preserves a user choice and falls back when it exits', () => {
+    assert.match(source, /let preferredName = null/);
+    assert.match(source, /callback\(preferredName, candidates\)/);
+    assert.match(source, /stop\.select = name =>/);
+    assert.match(source, /preferredName = names\.has\(name\) \? name : null/);
+});
+
+test('media popup exposes a player switcher only when multiple players are active', () => {
+    assert.match(source, /PopupSubMenuMenuItem\('Player'/);
+    assert.match(source, /playerMenuItem\.visible = players\.length > 1/);
+    assert.match(source, /playerMenuItem\.menu\.addMenuItem\(choice\)/);
+    assert.match(source, /selectPreferredPlayer\?\.\(name\)/);
+    assert.match(source, /Player: ' \+ playerDisplayName\(selectedName\)/);
+});
