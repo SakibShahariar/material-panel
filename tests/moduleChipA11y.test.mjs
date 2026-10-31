@@ -25,3 +25,10 @@ test('notification dismiss buttons identify which app notification they dismiss'
 test('notification dismiss controls name the affected application or notification', () => {
     assert.ok(notifications.includes("setChipA11y(dismiss, `Dismiss notification from ${item.appName || item.title || 'application'}`)"));
 });
+
+const headset = await readFile(new URL('../modules/btConnected.js', import.meta.url), 'utf8');
+
+test('connected headset chip announces the active device and battery level', () => {
+    assert.ok(headset.includes("setChipA11y(button, 'Connected headset')"));
+    assert.ok(headset.includes("setChipA11y(button, `Connected headset: ${best.name}${best.pct != null ? `, battery ${best.pct}%` : ''}`)"));
+});
