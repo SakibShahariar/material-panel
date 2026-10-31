@@ -62,3 +62,12 @@ test('unified media card combines artwork, track metadata, seek progress, and tr
     assert.match(source, /nextBtn\.connect\('clicked', \(\) => ctl\?\.next\(\)\)/);
     assert.match(source, /onMeta: \(\{title, artist, artUrl,[\s\S]*?setArtFromUrl\(art, artUrl\)/);
 });
+
+test('remote and local MPRIS album artwork use the returned asynchronous texture actor', () => {
+    assert.match(source, /\^https\?:\\/\\//);
+    assert.match(source, /St\.TextureCache\.get_default\(\)\.load_uri_async\([\s\S]*?uri, size, size, 1\)/);
+    assert.match(source, /texture\.set_size\(size, size\)/);
+    assert.match(source, /setChild\(texture\)/);
+    assert.match(source, /if \(!texture\) \{[\s\S]*?showFallback\(\)/);
+    assert.match(source, /value\.startsWith\('file:\/\/'\)/);
+});
