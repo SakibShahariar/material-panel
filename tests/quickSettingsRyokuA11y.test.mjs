@@ -14,5 +14,6 @@ test('Ryoku navigation announces the selected and unselected sections', () => {
     assert.ok(ryoku.includes("import {setChipA11y} from '../lib/a11y.js'"));
     assert.ok(ryoku.includes("`${r.label}, ${on ? 'selected' : 'not selected'}`"));
     assert.ok(ryoku.includes("setChipA11y(railButtons[r.id],"));
-    assert.ok(ryoku.includes("setRoute('sound')"));
+    assert.ok(ryoku.includes('setRoute(route)'));
+    assert.ok(ryoku.includes('let route = activeRoutes[0].id'));
 });
