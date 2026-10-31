@@ -72,11 +72,11 @@ test('End-4 and Ryoku Quick Settings honor the shared configured tile visibility
         assert.match(source, /enabledTiles\.has\('do-not-disturb'\)/);
         assert.match(source, /enabledTiles\.has\('night-light'\)/);
     }
-    assert.equal((end4.match(/row0\.add_child\(darkRound\)/g) || []).length, 1);
-    assert.match(end4, /const networkTiles = \{wifi, bluetooth: bt\}/);
-    assert.match(end4, /for \(const id of orderQuickSettingsTiles\(/);
-    assert.match(end4, /const groups = \[/);
-    assert.match(end4, /groups\.sort\(/);
+    assert.match(end4, /const networkGroups = \{\}/);
+    assert.match(end4, /const toggleActors = \{/);
+    assert.match(end4, /const orderedToggleIds = orderQuickSettingsTiles\(visibleToggleIds, favorites\)/);
+    assert.match(end4, /for \(const id of orderedToggleIds\)/);
+    assert.match(end4, /flushRoundRow\(\)/);
     assert.match(ryoku, /activeRoutes/);
 });
 
