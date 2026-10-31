@@ -94,3 +94,19 @@ test('both Bluetooth surfaces use the shared asynchronous device action runner',
     assert.ok(runner.includes("import {getBluetoothDeviceActionSteps} from './bluetoothDevices.js'"));
     assert.ok(runner.includes('proxy.call('));
 });
+
+test('Bluetooth popup and Quick Settings share asynchronous rfkill detection', async () => {
+    const [popup, quickSettings, rfkill] = await Promise.all([
+        readFile(new URL('../modules/bluetooth.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/bluetoothRfkill.js', import.meta.url), 'utf8'),
+    ]);
+    for (const source of [popup, quickSettings]) {
+        assert.ok(source.includes("import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js'"));
+        assert.ok(source.includes('checkBluetoothSoftBlocked(blocked =>'));
+    }
+    assert.ok(quickSettings.includes('const setBlockedState = () => {'));
+    assert.ok(quickSettings.includes("if (isBlocked) {"));
+    assert.ok(rfkill.includes('communicate_utf8_async'));
+    assert.ok(!rfkill.includes('spawn_command_line_sync'));
+});
