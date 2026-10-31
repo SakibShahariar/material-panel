@@ -12,7 +12,9 @@ test('orphan cleanup marks its own serialized config write for watcher suppressi
 
 test('config watcher ignores only an unchanged self-written snapshot', () => {
     assert.match(source, /if \(!isLegacyDir && this\._selfWriteContent !== null\)/);
-    assert.match(source, /if \(currentText === this\._selfWriteContent\)\s*return GLib\.SOURCE_REMOVE;/);
+    assert.match(source, /if \(currentText === this\._selfWriteContent\)\s*return;/);
     assert.match(source, /this\._selfWriteContent = null;/);
-    assert.match(source, /this\._callback\(this\.load\(\)\)/);
+    assert.match(source, /await this\._readContentsAsync\(homeFile\)/);
+    assert.match(source, /const config = await this\.loadAsync\(\)/);
+    assert.match(source, /this\._callback\(config\)/);
 });
