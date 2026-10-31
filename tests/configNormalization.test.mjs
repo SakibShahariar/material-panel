@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
 
 import {normalizePanelSize} from '../lib/configNormalization.js';
 
@@ -52,4 +53,11 @@ test('uses defaults for invalid numeric values', () => {
         }, defaults),
         defaults,
     );
+});
+
+test('legacy Activity chip modes migrate to equivalent metric selections', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /merged\.activityChip === 'ram'[\s\S]*?\['memory'\]/);
+    assert.match(source, /merged\.activityChip === 'cpu-ram'[\s\S]*?\['cpu', 'memory'\]/);
+    assert.match(source, /: \['cpu', 'temperature'\]/);
 });
