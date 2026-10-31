@@ -606,100 +606,139 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let objMgrSignalId = 0;
     let _refreshDevices = null;
     let _needsRefresh = false;
+    const deviceRows = new Map();
 
-    const buildDeviceRow = (path, props, batteryPct = null) => {
-        const alias = props['Alias']?.deep_unpack() ?? null;
-        const name = props['Name']?.deep_unpack() ?? null;
-        const displayName = alias ?? name ?? 'Unknown device';
-        const connected = props['Connected']?.deep_unpack() ?? false;
-        const paired = props['Paired']?.deep_unpack() ?? false;
-        let connecting = false;
-        try {
-            connecting = !!(props['Connecting']?.deep_unpack?.() ?? false);
-        } catch (e) {}
-        if (batteryPct == null) {
-            try {
-                if ('Battery' in props && props['Battery'])
-                    batteryPct = props['Battery'].deep_unpack();
-            } catch (e) {}
+    const clearDeviceRows = () => {
+        for (const row of deviceRows.values()) {
+            try { row.destroy(); } catch (e) {}
         }
+        deviceRows.clear();
+    };
+
+    const clearDeviceList = () => {
+        clearDeviceRows();
+        devicesBox.destroy_all_children();
+    };
+
+    const buildDeviceRow = (path, initialProps, initialBatteryPct = null) => {
         const row = new St.Button({
-            style_class: `material-panel-bt-device${connected ? ' connected' : ''}${connecting ? ' connecting' : ''}${paired ? '' : ' unpaired'}`,
             reactive: true,
             track_hover: true,
             x_expand: true,
         });
         const rowBox = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'material-panel-bt-device-box'});
-        // Icon by BlueZ type (Omarchy-style device glyphs)
-        const iconKey = getBluetoothDeviceIcon(props, connected || connecting);
-        const gicon = resolveDeviceGicon(iconKey, connected);
         const devIcon = new St.Icon({
             style_class: 'material-panel-bt-device-icon',
             icon_size: 18,
             y_align: Clutter.ActorAlign.CENTER,
-            gicon,
         });
         const textBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-        const nameLabel = makeWrappingLabel(displayName, 'material-panel-bt-device-name');
+        const nameLabel = makeWrappingLabel('', 'material-panel-bt-device-name');
         nameLabel.x_expand = true;
-        const parts = [];
-        if (connecting)
-            parts.push('Connecting…');
-        else if (connected)
-            parts.push('Connected');
-        else if (paired)
-            parts.push('Paired');
-        else
-            parts.push('Available');
-        if (batteryPct !== null)
-            parts.push(`${batteryPct}%`);
-        if (!connecting && !connected && paired)
-            parts.push('tap to connect');
-        else if (connected)
-            parts.push('tap to disconnect');
-        const subLabel = new St.Label({text: parts.join(' · '), style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
-        if (connected) {
-            probeBluetoothCodecAsync(props['Address']?.deep_unpack?.() ?? props['Address']).then(codec => {
-                if (!codec)
-                    return;
-                try {
-                    const base = parts.filter(p => p !== codec);
-                    if (!base.includes(codec))
-                        base.splice(Math.min(2, base.length), 0, codec);
-                    subLabel.text = base.join(' · ');
-                } catch (e) {}
-            }).catch(() => {});
-        }
+        const subLabel = new St.Label({text: '', style_class: 'material-panel-bt-device-status', y_align: Clutter.ActorAlign.CENTER});
         subLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-        textBox.add_child(nameLabel);
-        textBox.add_child(subLabel);
         const actionIcon = new St.Icon({
             style_class: 'material-panel-bt-device-action',
-            icon_name: connected ? 'media-playback-stop-symbolic' : 'system-run-symbolic',
             icon_size: 14,
             y_align: Clutter.ActorAlign.CENTER,
         });
+        textBox.add_child(nameLabel);
+        textBox.add_child(subLabel);
         rowBox.add_child(devIcon);
         rowBox.add_child(textBox);
         rowBox.add_child(actionIcon);
         row.set_child(rowBox);
-        setChipA11y(row, [displayName, ...parts].join(', '));
+
+        let state = null;
+        let codecRequest = 0;
+        let destroyed = false;
+        const getStatusParts = () => {
+            const parts = [];
+            if (state.connecting)
+                parts.push('Connecting…');
+            else if (state.connected)
+                parts.push('Connected');
+            else if (state.paired)
+                parts.push('Paired');
+            else
+                parts.push('Available');
+            if (state.batteryPct !== null)
+                parts.push(`${state.batteryPct}%`);
+            if (!state.connecting && !state.connected && state.paired)
+                parts.push('tap to connect');
+            else if (state.connected)
+                parts.push('tap to disconnect');
+            return parts;
+        };
+        const update = (props, batteryPct = null) => {
+            if (destroyed)
+                return;
+            if (batteryPct == null) {
+                try {
+                    if ('Battery' in props && props['Battery'])
+                        batteryPct = props['Battery'].deep_unpack();
+                } catch (e) {}
+            }
+            const unpack = key => {
+                try { return props[key]?.deep_unpack?.() ?? props[key] ?? null; }
+                catch (e) { return null; }
+            };
+            state = {
+                props,
+                displayName: unpack('Alias') ?? unpack('Name') ?? 'Unknown device',
+                connected: unpack('Connected') === true,
+                paired: unpack('Paired') === true,
+                connecting: unpack('Connecting') === true,
+                batteryPct,
+            };
+            row.set_style_class_name(`material-panel-bt-device${state.connected ? ' connected' : ''}${state.connecting ? ' connecting' : ''}${state.paired ? '' : ' unpaired'}`);
+            nameLabel.text = state.displayName;
+            const iconKey = getBluetoothDeviceIcon(props, state.connected || state.connecting);
+            devIcon.gicon = resolveDeviceGicon(iconKey, state.connected);
+            actionIcon.icon_name = state.connected ? 'media-playback-stop-symbolic' : 'system-run-symbolic';
+            const parts = getStatusParts();
+            subLabel.text = parts.join(' · ');
+            setChipA11y(row, [state.displayName, ...parts].join(', '));
+
+            const request = ++codecRequest;
+            if (state.connected) {
+                const address = unpack('Address');
+                probeBluetoothCodecAsync(address).then(codec => {
+                    if (!codec || destroyed || request !== codecRequest || !state?.connected)
+                        return;
+                    const latestParts = getStatusParts();
+                    if (!latestParts.includes(codec))
+                        latestParts.splice(Math.min(2, latestParts.length), 0, codec);
+                    subLabel.text = latestParts.join(' · ');
+                }).catch(() => {});
+            }
+        };
+        row._mpUpdate = update;
         row.connect('clicked', () => {
-            const action = connected ? 'Disconnect' : 'Connect';
+            if (!state)
+                return Clutter.EVENT_STOP;
+            const action = state.connected ? 'Disconnect' : 'Connect';
+            const displayName = state.displayName;
             runBluetoothDeviceAction({
-                path, paired, connected, timeoutMs: DBUS_TIMEOUT_MS, cancellable,
+                path, paired: state.paired, connected: state.connected,
+                timeoutMs: DBUS_TIMEOUT_MS, cancellable,
             }, (error, completedAction) => {
-                if (!error)
+                if (!error || destroyed)
                     return;
                 logError(error, `material-panel: bluez ${completedAction} failed for "${displayName}"`);
                 const message = error.message || 'try again';
-                subLabel.text = !paired && action === 'Connect'
+                subLabel.text = !state.paired && action === 'Connect'
                     ? `Pairing or connection failed: ${message}`
                     : `${completedAction} failed: ${message}`;
             });
             // Don't close menu — stay open like Noctalia/End4 so user sees result.
             return Clutter.EVENT_STOP;
         });
+        row.connect('destroy', () => {
+            destroyed = true;
+            codecRequest++;
+        });
+        update(initialProps, initialBatteryPct);
         return row;
     };
 
@@ -718,13 +757,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                             checkBluetoothSoftBlocked(blocked => {
                                 if (blocked) {
                                     setBlockedState();
-                                    devicesBox.destroy_all_children();
+                                    clearDeviceList();
                                     const hint = new St.Label({text: 'Blocked — use switch above to unblock', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                                     devicesBox.add_child(hint);
                                     devicesHeaderCount.text = '';
                                     return;
                                 }
-                                devicesBox.destroy_all_children();
+                                clearDeviceList();
                                 const hint = new St.Label({text: 'No adapter', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                                 devicesBox.add_child(hint);
                                 devicesHeaderCount.text = '';
@@ -732,46 +771,73 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                             return;
                         }
                         if (!currentlyPowered) {
-                            devicesBox.destroy_all_children();
+                            clearDeviceList();
                             const hint = new St.Label({text: 'Bluetooth off — turn on to see devices', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                             devicesBox.add_child(hint);
                             devicesHeaderCount.text = '';
                             return;
                         }
                         const {pairedDevices, nearbyDevices} = getBluetoothDevices(objects);
-                        devicesBox.destroy_all_children();
                         devicesHeaderCount.text = `(${pairedDevices.length})`;
                         if (pairedDevices.length === 0) {
+                            clearDeviceList();
                             const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-bt-device-status material-panel-bt-device-hint'});
                             devicesBox.add_child(hint);
                             return;
                         }
-                        for (const {path, props, batteryPct} of pairedDevices)
-                            devicesBox.add_child(buildDeviceRow(path, props, batteryPct));
-                        try {
-                            let shown = false;
-                            for (const {props, batteryPct} of pairedDevices) {
-                                const connected = props['Connected']?.deep_unpack() ?? false;
-                                const pct = batteryPct;
-                                if (connected && pct != null && pct !== undefined) {
-                                    chipBatt.text = `${Math.round(Number(pct))}%`;
-                                    chipBatt.visible = true;
-                                    shown = true;
-                                    break;
-                                }
+
+                        const visibleNearby = discovering ? nearbyDevices.slice(0, 6) : [];
+                        const desiredDevices = [...pairedDevices, ...visibleNearby];
+                        const desiredPaths = new Set(desiredDevices.map(device => device.path));
+                        for (const [path, row] of deviceRows) {
+                            if (desiredPaths.has(path))
+                                continue;
+                            row.destroy();
+                            deviceRows.delete(path);
+                        }
+
+                        // Detach existing rows without destroying them, then put
+                        // them back in the latest BlueZ order. Only the separator
+                        // is recreated; device actors stay keyed by object path.
+                        const retainedRows = new Set(deviceRows.values());
+                        for (const child of devicesBox.get_children()) {
+                            devicesBox.remove_child(child);
+                            if (!retainedRows.has(child))
+                                child.destroy();
+                        }
+
+                        for (const device of pairedDevices) {
+                            let row = deviceRows.get(device.path);
+                            if (row) {
+                                row._mpUpdate(device.props, device.batteryPct);
+                            } else {
+                                row = buildDeviceRow(device.path, device.props, device.batteryPct);
+                                deviceRows.set(device.path, row);
                             }
-                            if (!shown) {
+                            devicesBox.add_child(row);
+                        }
+                        try {
+                            const connectedWithBattery = pairedDevices.find(device =>
+                                device.connected && device.batteryPct != null);
+                            if (connectedWithBattery) {
+                                chipBatt.text = `${Math.round(Number(connectedWithBattery.batteryPct))}%`;
+                                chipBatt.visible = true;
+                            } else {
                                 chipBatt.text = '';
                                 chipBatt.visible = false;
                             }
                         } catch (e) {}
-                        // Also show unpaired nearby if discovering (End4 style: nearby section)
-                        if (discovering) {
-                            if (nearbyDevices.length > 0) {
-                                const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-bt-nearby-header'});
-                                devicesBox.add_child(sep);
-                                for (const {path, props, batteryPct} of nearbyDevices.slice(0, 6))
-                                    devicesBox.add_child(buildDeviceRow(path, props, batteryPct));
+                        if (visibleNearby.length > 0) {
+                            devicesBox.add_child(new St.Label({text: 'Nearby', style_class: 'material-panel-bt-nearby-header'}));
+                            for (const device of visibleNearby) {
+                                let row = deviceRows.get(device.path);
+                                if (row) {
+                                    row._mpUpdate(device.props, device.batteryPct);
+                                } else {
+                                    row = buildDeviceRow(device.path, device.props, device.batteryPct);
+                                    deviceRows.set(device.path, row);
+                                }
+                                devicesBox.add_child(row);
                             }
                         }
                     } catch (e) { logError(e, 'material-panel: bluez GetManagedObjects failed for bluetooth dropdown'); }
