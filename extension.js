@@ -76,6 +76,7 @@ export default class MaterialPanelExtension extends Extension {
             try {
                 globalThis._materialPanelSliderStyle = newConfig.sliderStyle ?? 'classic';
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
+                globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
             } catch (e) {}
 
             debugLog(`config change classified as "${kind}"`);
@@ -183,6 +184,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
             globalThis._materialPanelSliderStyle = this._config.sliderStyle ?? 'classic';
             globalThis._materialPanelTileStyle = this._config.qsTileStyle ?? 'classic';
+            globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
             globalThis._materialPanelHideProfileIdentity = this._config.hideProfileIdentity === true;
         } catch (e) {}
         try {

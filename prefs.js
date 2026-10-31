@@ -14,6 +14,7 @@ import {hasBuiltin} from './lib/moduleIds.js';
 import {readStatusRolesFile} from './lib/statusRolesFile.js';
 import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
 import {TILE_STYLES, TILE_STYLE_DEFAULT} from './lib/tileStyleMeta.js';
+import {formatQuickSettingsTileOrder, parseQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const EXT_PREFIX = 'extension:';
@@ -1056,6 +1057,27 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         tileStyleRow.add_suffix(tileStyleDrop);
         tileStyleRow.activatable_widget = tileStyleDrop;
         themeGroup.add(tileStyleRow);
+
+        themeGroup.add(new Adw.ActionRow({
+            title: 'Quick Settings tile order and visibility',
+            subtitle: 'Comma-separated names. Reorder tiles or remove a name to hide it. Leave empty to restore all defaults.',
+        }));
+        const tileOrderRow = new Adw.EntryRow({
+            title: 'Tile order',
+            text: formatQuickSettingsTileOrder(config.qsTiles),
+            show_apply_button: true,
+        });
+        tileOrderRow.connect('apply', () => {
+            const parsed = parseQuickSettingsTileOrder(tileOrderRow.get_text());
+            if (parsed === null) {
+                tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
+                return;
+            }
+            config.qsTiles = parsed;
+            saveConfig();
+            tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
+        });
+        themeGroup.add(tileOrderRow);
 
         const flushPendingSave = () => {
             if (saveDebounceId) {

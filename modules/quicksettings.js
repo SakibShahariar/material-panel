@@ -12,6 +12,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
+import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
@@ -2386,10 +2387,14 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }),
     });
     const gl = grid.layout_manager;
+    const configuredIds = normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles);
+    const configuredRegistry = configuredIds
+        .map(id => QUICK_SETTINGS_TILE_REGISTRY.find(tile => tile.id === id))
+        .filter(Boolean);
     const tileActors = new Map(
-        QUICK_SETTINGS_TILE_REGISTRY.map(({id, build}) => [id, build()]),
+        configuredRegistry.map(({id, build}) => [id, build()]),
     );
-    const tiles = QUICK_SETTINGS_TILE_REGISTRY.map(({id}) => tileActors.get(id));
+    const tiles = configuredIds.map(id => tileActors.get(id)).filter(Boolean);
     const btTile = tileActors.get('bluetooth');
     const wifiRow = tileActors.get('wifi');
     tiles.forEach((tile, i) => {
@@ -2401,15 +2406,22 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }
     });
 
+    if (tiles.length === 0) {
+        grid.add_child(new St.Label({
+            text: 'No tiles enabled — configure Quick Settings in Preferences',
+            style_class: 'material-panel-qs-empty',
+            x_expand: true,
+        }));
+    }
     menu.addMenuItem(wrapAsMenuItem(qsSection(null, grid)));
 
     // Expand panels under grid (not part of cell size)
-    if (btTile.devicePanel) {
+    if (btTile?.devicePanel) {
         const devicesItem = wrapAsMenuItem(btTile.devicePanel);
         devicesItem.visible = false;
         menu.addMenuItem(devicesItem);
     }
-    if (wifiRow.listPanel) {
+    if (wifiRow?.listPanel) {
         const wifiListItem = wrapAsMenuItem(wifiRow.listPanel);
         wifiListItem.visible = false;
         menu.addMenuItem(wifiListItem);
