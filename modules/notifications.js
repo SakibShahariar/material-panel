@@ -518,6 +518,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             icon_name: 'window-close-symbolic',
             icon_size: 14,
         }));
+        setChipA11y(dismiss, `Dismiss notification from ${item.appName || item.title || 'application'}`);
         try {
             dismiss.style = 'padding: 4px; border-radius: 999px;';
         } catch (e) {}
