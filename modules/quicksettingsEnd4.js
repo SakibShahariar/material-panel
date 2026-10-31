@@ -581,7 +581,7 @@ function buildToggleGrid() {
     // Row of round toggles: dark / dnd / night (former third slot + rest)
     const row0 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row0, 'spacing: 8px;');
-    const darkRound = makeRoundToggle({
+    const darkRound = showDarkMode ? makeRoundToggle({
         label: 'Dark style',
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
@@ -593,9 +593,9 @@ function buildToggleGrid() {
         setOn: on => {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
         },
-    });
+    }) : null;
     if (netCol.get_n_children() > 0) root.add_child(netCol);
-    if (showDarkMode) row0.add_child(darkRound);
+    if (darkRound) row0.add_child(darkRound);
     if (row0.get_n_children() > 0) root.add_child(row0);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round

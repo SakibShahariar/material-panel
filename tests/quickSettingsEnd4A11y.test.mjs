@@ -10,3 +10,8 @@ test('End-4 Quick Settings header icon buttons have accessible names', () => {
     assert.ok(source.includes("'Power off'));"));
     assert.ok(source.includes('setChipA11y(b, accessibleName)'));
 });
+
+test('hidden End-4 Dark Mode tile is not constructed or connected to settings', () => {
+    assert.match(source, /const darkRound = showDarkMode \? makeRoundToggle\(/);
+    assert.match(source, /if \(darkRound\) row0\.add_child\(darkRound\)/);
+});
