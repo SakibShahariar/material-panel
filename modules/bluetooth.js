@@ -782,7 +782,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                             devicesBox.add_child(buildDeviceRow(path, props, batteryPct));
                         try {
                             let shown = false;
-                            for (const {props} of pairedDevices) {
+                            for (const {props, batteryPct} of pairedDevices) {
                                 const connected = props['Connected']?.deep_unpack() ?? false;
                                 const pct = batteryPct;
                                 if (connected && pct != null && pct !== undefined) {
