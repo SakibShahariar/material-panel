@@ -301,6 +301,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         child: buttonBox,
     });
 
+    setChipA11y(button, 'Bluetooth, status unavailable');
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     _btPopupMenu = menu;
     _btPopupButton = button;
@@ -450,6 +451,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         x_expand: true,
         child: new St.Label({text: 'Open Bluetooth Settings…', style_class: 'material-panel-bt-footer-label'}),
     });
+    setChipA11y(footerBtn, 'Open Bluetooth Settings');
     footerBtn.connect('clicked', () => {
         try { GLib.spawn_command_line_async('gnome-control-center bluetooth'); }
         catch (e) { logError(e, 'material-panel: failed to open Bluetooth settings'); }
@@ -469,6 +471,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const setPowered = powered => {
         currentlyPowered = powered;
         isBlocked = false;
+        setChipA11y(button, `Bluetooth, ${powered ? 'on' : 'off'}`);
         blockedHint.visible = false;
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath(powered ? 'bluetooth-on' : 'bluetooth-off')));
         button.set_style_class_name(`material-panel-bluetooth-btn material-panel-chip${powered ? ' active' : ''}`);
@@ -488,6 +491,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     const setBlockedState = () => {
         isBlocked = true;
         currentlyPowered = false;
+        setChipA11y(button, 'Bluetooth, blocked');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
@@ -501,6 +505,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
 
     const setNoAdapterState = () => {
         isBlocked = false;
+        setChipA11y(button, 'Bluetooth, no adapter');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
@@ -513,6 +518,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
 
     const setBluezUnavailableState = () => {
         isBlocked = false;
+        setChipA11y(button, 'Bluetooth, unavailable');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
@@ -692,6 +698,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         rowBox.add_child(textBox);
         rowBox.add_child(actionIcon);
         row.set_child(rowBox);
+        setChipA11y(row, [displayName, ...parts].join(', '));
         row.connect('clicked', () => {
             const method = connected ? 'Disconnect' : 'Connect';
             let timedOut = false;
