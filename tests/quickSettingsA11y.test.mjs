@@ -87,3 +87,13 @@ test('Default and End-4 Quick Settings name volume and brightness sliders', () =
         assert.ok(moduleSource.includes("accessibleName: 'Brightness'"));
     }
 });
+
+test('Default Quick Settings builds tiles from a stable-ID registry', () => {
+    assert.ok(defaultQsModule.includes('export const QUICK_SETTINGS_TILE_REGISTRY = Object.freeze(['));
+    for (const id of ['dark-mode', 'do-not-disturb', 'night-light', 'bluetooth', 'wifi'])
+        assert.ok(defaultQsModule.includes(`id: '${id}'`));
+    assert.ok(defaultQsModule.includes('QUICK_SETTINGS_TILE_REGISTRY.map(({id, build}) => [id, build()])'));
+    assert.ok(defaultQsModule.includes("tileActors.get('bluetooth')"));
+    assert.ok(defaultQsModule.includes("tileActors.get('wifi')"));
+    assert.ok(!defaultQsModule.includes('const tiles = [\n        darkModeTile()'));
+});
