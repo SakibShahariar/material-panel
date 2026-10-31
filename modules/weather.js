@@ -11,6 +11,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
+import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -408,12 +409,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         } catch (e) {}
     };
 
-    const apply = data => {
+    const apply = (data, savedAt = 0) => {
         if (destroyed)
             return;
         detail = data;
         if (data?.temp != null)
-            lastSuccessAt = GLib.get_monotonic_time();
+            lastSuccessAt = savedAt || GLib.get_monotonic_time();
         if (data?.temp != null)
             label.text = `${Math.round(data.temp)}°`;
         else
@@ -764,7 +765,19 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     lat < -90 || lat > 90 || lon < -180 || lon > 180)
                     throw new Error('Manual weather coordinates are invalid; check Preferences');
                 const place = String(manual.name ?? '').trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-                apply(await fetchOpenMeteo(lat, lon, place, 'Open-Meteo · manual location', cancellable));
+                const cacheKey = JSON.stringify(['manual', lat, lon, place, 'metric']);
+                const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
+                if (cached) {
+                    apply(cached.data, cached.savedAt);
+                    if (GLib.get_monotonic_time() - cached.savedAt < 15 * 60 * 1000000) {
+                        retryDelaySeconds = 60;
+                        if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+                        return;
+                    }
+                }
+                const data = await fetchOpenMeteo(lat, lon, place, 'Open-Meteo · manual location', cancellable);
+                setWeatherCache(cacheKey, data, GLib.get_monotonic_time());
+                apply(data);
                 retryDelaySeconds = 60;
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
@@ -774,8 +787,21 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 throw new Error('Manual weather location needs valid coordinates; set them in Preferences');
             const gw = await loadGnomeWeatherLocation();
             if (gw?.lat != null && gw?.lon != null) {
-                apply(await fetchOpenMeteo(
-                    gw.lat, gw.lon, gw.name || 'Local', 'Open-Meteo · GNOME Weather', cancellable));
+                const place = gw.name || 'Local';
+                const cacheKey = JSON.stringify(['gnome', gw.lat, gw.lon, place, 'metric']);
+                const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
+                if (cached) {
+                    apply(cached.data, cached.savedAt);
+                    if (GLib.get_monotonic_time() - cached.savedAt < 15 * 60 * 1000000) {
+                        retryDelaySeconds = 60;
+                        if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+                        return;
+                    }
+                }
+                const data = await fetchOpenMeteo(
+                    gw.lat, gw.lon, place, 'Open-Meteo · GNOME Weather', cancellable);
+                setWeatherCache(cacheKey, data, GLib.get_monotonic_time());
+                apply(data);
                 retryDelaySeconds = 60;
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;

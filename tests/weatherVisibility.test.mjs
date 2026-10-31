@@ -19,3 +19,13 @@ test('Weather still avoids overlapping refreshes and cancels requests on destroy
     assert.ok(weather.includes('if (destroyed || fetchInFlight)'));
     assert.ok(weather.includes('cancellable.cancel()'));
 });
+
+
+test('weather restores a location-and-units keyed forecast cache before requesting fresh data', async () => {
+    const source = await readFile(new URL('../modules/weather.js', import.meta.url), 'utf8');
+    assert.match(source, /getWeatherCache\(cacheKey, GLib\.get_monotonic_time\(\)\)/);
+    assert.match(source, /setWeatherCache\(cacheKey, data, GLib\.get_monotonic_time\(\)\)/);
+    assert.match(source, /JSON\.stringify\(\['manual', lat, lon, place, 'metric'\]\)/);
+    assert.match(source, /JSON\.stringify\(\['gnome', gw\.lat, gw\.lon, place, 'metric'\]\)/);
+    assert.match(source, /apply\(cached\.data, cached\.savedAt\)/);
+});
