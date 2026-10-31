@@ -41,3 +41,13 @@ test('reduced-motion stage class disables CSS transitions across panel surfaces'
     assert.ok(stylesheet.includes('transition-duration: 0ms !important'));
     assert.ok(stylesheet.includes('transition-delay: 0ms !important'));
 });
+
+const quicksettings = await readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8');
+
+test('Quick Settings EQ bars stop and reset when reduced motion is enabled', () => {
+    assert.ok(quicksettings.includes('if (prefersReducedMotion()) {'));
+    assert.ok(quicksettings.includes('bag.stopEq();'));
+    assert.ok(quicksettings.includes('resetEqBars();'));
+    assert.ok(quicksettings.includes("connect('changed::enable-animations', syncEqMotion)"));
+    assert.ok(quicksettings.includes("connect('notify::reduced-motion', syncEqMotion)"));
+});
