@@ -25,3 +25,14 @@ test('popup arrow navigation cycles focusable controls without hijacking sliders
     assert.ok(source.includes('actors[next].grab_key_focus()'));
     assert.ok(source.includes('Enter/Space remain native St.Button activations'));
 });
+
+test('shared popup keyboard handling is attached to the major module popups', async () => {
+    const modules = [
+        'powermenu', 'memory', 'networkSpeed', 'disk', 'gpu', 'battery',
+        'network', 'clock', 'btConnected', 'cpu', 'weather', 'bluetooth',
+        'mediaPlayer', 'notifications', 'quicksettingsEnd4', 'quicksettings',
+    ];
+    const sources = await Promise.all(modules.map(name =>
+        readFile(new URL('../modules/' + name + '.js', import.meta.url), 'utf8')));
+    assert.ok(sources.every(moduleSource => moduleSource.includes('attachPopupDismiss')));
+});
