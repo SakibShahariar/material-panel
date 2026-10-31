@@ -943,6 +943,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         mediaVisibilityRow.activatable_widget = mediaVisibilitySwitch;
         privacyGroup.add(mediaVisibilityRow);
 
+        const bluetoothVisibilityRow = new Adw.ActionRow({
+            title: 'Hide Bluetooth when no adapter is detected',
+            subtitle: 'Keep the panel chip visible when BlueZ is unavailable or Bluetooth is blocked.',
+        });
+        const bluetoothVisibilitySwitch = new Gtk.Switch({
+            active: config.autoHideBluetooth === true,
+            valign: Gtk.Align.CENTER,
+        });
+        bluetoothVisibilitySwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.autoHideBluetooth = bluetoothVisibilitySwitch.active;
+            saveConfig();
+        });
+        bluetoothVisibilityRow.add_suffix(bluetoothVisibilitySwitch);
+        bluetoothVisibilityRow.activatable_widget = bluetoothVisibilitySwitch;
+        privacyGroup.add(bluetoothVisibilityRow);
+
+
 
         // --- Presets ---
         if (!config.presets || typeof config.presets !== 'object')
@@ -1592,6 +1610,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
                 tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
                 mediaVisibilitySwitch.active = config.autoHideMedia === true;
+                bluetoothVisibilitySwitch.active = config.autoHideBluetooth === true;
                 return;
             }
             config.qsTiles = parsed;
