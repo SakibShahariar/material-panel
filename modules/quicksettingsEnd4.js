@@ -416,27 +416,9 @@ function toggleBackground(on, pressed, hovered) {
     return on ? accent() : surface();
 }
 
-function bindToggleButton(btn, {
-    label, announceState = true, icon, iconKeys, symbolic,
-    getOn, setOn, settings = null, settingKey = null, paint,
-}) {
+function bindPressedPaint(btn, paint) {
     let pressed = false;
-    const render = () => {
-        let on = false;
-        try { on = !!getOn(); } catch (e) {}
-        setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
-        try {
-            const g = loadGicon(iconKeys, on);
-            if (g) {
-                icon.gicon = g;
-            } else if (symbolic) {
-                icon.icon_name = symbolic;
-                tintSymbolic(icon, on || pressed ? onPrimaryColor() : primaryColor());
-            }
-        } catch (e) {}
-        paint(on, pressed, toggleBackground(on, pressed, !!btn.hover));
-    };
-
+    const render = () => paint(pressed, !!btn.hover);
     btn.connect('notify::hover', render);
     btn.connect('button-press-event', () => {
         pressed = true;
@@ -448,6 +430,30 @@ function bindToggleButton(btn, {
         render();
         return Clutter.EVENT_PROPAGATE;
     });
+    render();
+    return render;
+}
+
+function bindToggleButton(btn, {
+    label, announceState = true, icon, iconKeys, symbolic,
+    getOn, setOn, settings = null, settingKey = null, paint,
+}) {
+    const render = bindPressedPaint(btn, (pressed, hovered) => {
+        let on = false;
+        try { on = !!getOn(); } catch (e) {}
+        setChipA11y(btn, announceState ? \`\${label}, \${on ? 'on' : 'off'}\` : label);
+        try {
+            const g = loadGicon(iconKeys, on);
+            if (g) {
+                icon.gicon = g;
+            } else if (symbolic) {
+                icon.icon_name = symbolic;
+                tintSymbolic(icon, on || pressed ? onPrimaryColor() : primaryColor());
+            }
+        } catch (e) {}
+        paint(on, pressed, toggleBackground(on, pressed, hovered));
+    });
+
     btn.connect('clicked', () => {
         try { setOn(!getOn()); } catch (e) {}
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
@@ -455,11 +461,10 @@ function bindToggleButton(btn, {
             return GLib.SOURCE_REMOVE;
         });
     });
-    render();
 
     let settingsSignalId = 0;
     if (settings && settingKey) {
-        try { settingsSignalId = settings.connect(`changed::${settingKey}`, render); } catch (e) {}
+        try { settingsSignalId = settings.connect(\`changed::\${settingKey}\`, render); } catch (e) {}
     }
     btn.connect('destroy', () => {
         if (settings && settingsSignalId) {
@@ -468,7 +473,6 @@ function bindToggleButton(btn, {
         }
     });
 }
-
 function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
     const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const ic = makeIcon(iconKeys, 20, false, symbolic);
@@ -674,32 +678,27 @@ function buildPowerStrip(menu) {
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: false});
         setChipA11y(b, a.title);
-        let pressed = false;
         const ic = new St.Icon({
             icon_name: a.icon,
             icon_size: 16,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        const paintP = () => {
+        try { b.width = btnW; b.height = 42; } catch (e) {}
+        b.set_child(ic);
+        try { b.track_hover = true; } catch (e) {}
+        bindPressedPaint(b, (pressed, hovered) => {
             let bg = surface();
             let fg = accent();
             if (pressed) {
                 bg = accent();
                 fg = onAccent();
-            } else if (b.hover) {
+            } else if (hovered) {
                 bg = surfaceHover();
             }
-            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
+            style(b, \`border-radius: 999px; height: 42px; width: \${btnW}px; background-color: \${bg};\`);
             try { tintSymbolic(ic, fg); } catch (e) {}
-        };
-        paintP();
-        try { b.width = btnW; b.height = 42; } catch (e) {}
-        b.set_child(ic);
-        try { b.track_hover = true; } catch (e) {}
-        b.connect('notify::hover', paintP);
-        b.connect('button-press-event', () => { pressed = true; paintP(); return Clutter.EVENT_PROPAGATE; });
-        b.connect('button-release-event', () => { pressed = false; paintP(); return Clutter.EVENT_PROPAGATE; });
+        });
         b.connect('clicked', () => {
             try { menuClose(menu); } catch (e) {}
             confirmAndRun(a.title, a.body, a.confirm, a.cmd);
