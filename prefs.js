@@ -613,7 +613,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         const saveMetricSelection = () => {
             if (syncingExternal) return;
             const selected = metricOptions.filter(([id]) => metricSwitches.get(id)?.active).map(([id]) => id);
-            config.activityChipMetrics = selected.length ? selected : ['cpu'];
+            if (selected.length === 0) {
+                config.activityChipMetrics = ['cpu'];
+                syncingExternal = true;
+                metricSwitches.get('cpu').active = true;
+                syncingExternal = false;
+            } else {
+                config.activityChipMetrics = selected;
+            }
             saveConfig();
         };
         for (const [id, title] of metricOptions) {

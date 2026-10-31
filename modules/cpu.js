@@ -453,6 +453,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const mode = globalThis._materialPanelActivityMode === 'cycle' ? 'cycle' : 'combined';
         const memSnap = metrics.includes('memory') ? readMemInfo() : null;
         const gpu = globalThis._materialPanelGpuMetrics;
+        const freshGpu = gpu && GLib.get_monotonic_time() - gpu.updatedAt < 10000000;
         const network = globalThis._materialPanelNetworkMetrics;
         const now = GLib.get_monotonic_time();
         const values = [];
@@ -463,7 +464,6 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         if (metrics.includes('temperature'))
             values.push({id: 'temperature', text: 'TEMP ' + (temp !== null ? temp + '°' : '—')});
         if (metrics.includes('gpu')) {
-            const freshGpu = gpu && now - gpu.updatedAt < 10000000;
             values.push({id: 'gpu', text: 'GPU ' + (freshGpu && gpu.util != null ? gpu.util + '%' : '—')});
         }
         if (metrics.includes('network')) {
@@ -490,7 +490,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         try {
             const hot = (metrics.includes('cpu') && totalPct != null && totalPct >= 90) ||
                 (metrics.includes('memory') && memSnap && memSnap.usedPct >= 90) ||
-                (metrics.includes('gpu') && gpu && gpu.util >= 90);
+                (metrics.includes('gpu') && freshGpu && gpu.util >= 90);
             if (hot)
                 button.add_style_class_name('material-panel-chip-warn');
             else

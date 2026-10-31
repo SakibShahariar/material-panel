@@ -291,14 +291,15 @@ export function buildGpu(_extensionPath, scale = 1.0) {
                 return;
             refreshInFlight = false;
             refreshCancellable = null;
-            if (result)
+            if (result) {
                 lastGpuInfo = result;
-            try {
-                globalThis._materialPanelGpuMetrics = lastGpuInfo ? {
-                    util: lastGpuInfo.util,
-                    updatedAt: GLib.get_monotonic_time(),
-                } : null;
-            } catch (e) {}
+                try {
+                    globalThis._materialPanelGpuMetrics = {
+                        util: result.util,
+                        updatedAt: GLib.get_monotonic_time(),
+                    };
+                } catch (e) {}
+            }
             render(lastGpuInfo);
         });
         return GLib.SOURCE_CONTINUE;

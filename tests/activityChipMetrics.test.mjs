@@ -21,9 +21,10 @@ test('system statistics chip reuses existing GPU, network and memory samples', (
     assert.match(cpu, /readMemInfo\(\)/);
     assert.match(cpu, /_materialPanelGpuMetrics/);
     assert.match(cpu, /_materialPanelNetworkMetrics/);
-    assert.match(gpu, /_materialPanelGpuMetrics = lastGpuInfo \?/);
+    assert.match(gpu, /if \(result\) \{\s*lastGpuInfo = result;\s*try \{\s*globalThis\._materialPanelGpuMetrics = \{/);
     assert.match(network, /_materialPanelNetworkMetrics =/);
     assert.match(cpu, /activityCycleIndex\+\+ % values\.length/);
+    assert.match(cpu, /freshGpu && gpu\.util >= 90/);
 });
 
 test('Preferences exposes metric selection and combined/cycling display', () => {
