@@ -63,3 +63,11 @@ test('Default Quick Settings power, device, network, and preferences actions are
     assert.ok(defaultQs.includes("setChipA11y(settingsBtn, 'Open Wi-Fi settings')"));
     assert.ok(defaultQs.includes("setChipA11y(button, 'Quick Settings')"));
 });
+
+const trayDrawer = await readFile(new URL('../lib/trayDrawer.js', import.meta.url), 'utf8');
+
+test('system tray drawer chevron announces its expanded and collapsed action', () => {
+    assert.ok(trayDrawer.includes("import {setChipA11y} from './a11y.js'"));
+    assert.ok(trayDrawer.includes("setChipA11y(this.chevron, 'Show system tray')"));
+    assert.ok(trayDrawer.includes("setChipA11y(this.chevron, 'Hide system tray')"));
+});
