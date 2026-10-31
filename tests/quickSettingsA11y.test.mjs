@@ -39,3 +39,27 @@ test('Bluetooth device and settings buttons expose descriptive names', () => {
     assert.ok(bluetooth.includes("setChipA11y(footerBtn, 'Open Bluetooth Settings')"));
     assert.ok(bluetooth.includes("setChipA11y(row, [displayName, ...parts].join(', '))"));
 });
+
+const defaultQs = source;
+
+test('Default Quick Settings imports the shared accessible-name helper', () => {
+    assert.ok(defaultQs.includes("import {setChipA11y} from '../lib/a11y.js'"));
+});
+
+test('Default Bluetooth and Wi-Fi controls expose state and expansion labels', () => {
+    assert.ok(defaultQs.includes("setChipA11y(mainBtn, `Bluetooth, ${powered ? 'on' : 'off'}`)"));
+    assert.ok(defaultQs.includes("setChipA11y(mainBtn, 'Bluetooth, no adapter')"));
+    assert.ok(defaultQs.includes("setChipA11y(dropBtn, expanded ? 'Hide Bluetooth devices' : 'Show Bluetooth devices')"));
+    assert.ok(defaultQs.includes("setChipA11y(mainBtn, `Wi-Fi, ${on ? 'on' : 'off'}`)"));
+    assert.ok(defaultQs.includes("setChipA11y(dropBtn, expanded ? 'Hide saved Wi-Fi networks' : 'Show saved Wi-Fi networks')"));
+    assert.ok(defaultQs.includes("setChipA11y(mainBtn, 'Bluetooth, checking status')"));
+    assert.ok(defaultQs.includes("setChipA11y(mainBtn, 'Wi-Fi, checking status')"));
+});
+
+test('Default Quick Settings power, device, network, and preferences actions are named', () => {
+    assert.ok(defaultQs.includes("const actionLabels = {lock: 'Lock screen', suspend: 'Suspend', restart: 'Restart', shutdown: 'Power off'}"));
+    assert.ok(defaultQs.includes("setChipA11y(row, [displayName, statusText].join(', '))"));
+    assert.ok(defaultQs.includes("setChipA11y(btn, `${conn.get_id()}, ${isActive ? 'connected' : 'saved network'}`)"));
+    assert.ok(defaultQs.includes("setChipA11y(settingsBtn, 'Open Wi-Fi settings')"));
+    assert.ok(defaultQs.includes("setChipA11y(button, 'Quick Settings')"));
+});
