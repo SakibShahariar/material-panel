@@ -117,7 +117,7 @@ test('favorites flow through config, preferences, and every Quick Settings layou
     assert.ok(extension.includes('globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? []'));
     assert.ok(quickSettings.includes('orderQuickSettingsTiles('));
     assert.ok(end4.includes('orderQuickSettingsTiles('));
-    assert.ok(end4.includes('const groups = ['));
+    assert.ok(end4.includes('const orderedToggleIds = orderQuickSettingsTiles(visibleToggleIds, favorites)'));
     assert.ok(ryoku.includes('orderQuickSettingsTiles('));
     assert.ok(ryoku.includes('activeRoutes.sort('));
 });
