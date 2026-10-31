@@ -154,7 +154,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                         cleanup();
                         // Wait for queued async edits before replacing them with defaults.
                         await saveQueue;
-                        store.resetDefaults();
+                        await store.resetDefaultsAsync();
                         for (const page of preferencePages)
                             window.remove(page);
                         const header = resetBtn.get_parent?.();

@@ -85,3 +85,10 @@ test('clock and CPU module config reads are asynchronous and ignore stale comple
     assert.match(cpu, /generation !== activityConfigGeneration/);
     assert.doesNotMatch(cpu, /_cfgStore\.load\(\)/);
 });
+
+test('Preferences reset uses the asynchronous config writer', async () => {
+    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
+    assert.match(source, /async resetDefaultsAsync\(\)[\s\S]*?await this\.saveAsync\(fresh\)/);
+    assert.match(prefs, /await store\.resetDefaultsAsync\(\)/);
+    assert.doesNotMatch(prefs, /store\.resetDefaults\(\)/);
+});
