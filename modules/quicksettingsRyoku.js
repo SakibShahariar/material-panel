@@ -12,6 +12,7 @@ import {menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
+import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 
 const ROUTES = [
@@ -166,4 +167,16 @@ export function fillRyokuQsMenu(menu, api) {
         menu.addMenuItem(appVolumeMixer.section);
         menu.actor.connect('destroy', () => appVolumeMixer.destroy());
     }
+
+    const notificationsMenu = new PopupMenu.PopupSubMenuMenuItem('Notifications', false);
+    const notificationsItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    notificationsItem.add_child(buildEnd4NotiSection());
+    notificationsMenu.menu.addMenuItem(notificationsItem);
+    menu.addMenuItem(notificationsMenu);
+
+    const calendarMenu = new PopupMenu.PopupSubMenuMenuItem('Calendar', false);
+    const calendarItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    calendarItem.add_child(buildEnd4CalendarSection());
+    calendarMenu.menu.addMenuItem(calendarItem);
+    menu.addMenuItem(calendarMenu);
 }
