@@ -630,6 +630,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         can_focus: true,
         x_expand: true,
     });
+    setChipA11y(procSearch, 'Filter processes');
     try {
         procSearch.clutter_text.connect('text-changed', () => {
             try {
