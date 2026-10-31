@@ -16,6 +16,7 @@ import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
+import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -2343,6 +2344,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         const powerProfiles = buildPowerProfileSelector();
         menu.addMenuItem(powerProfiles.section);
         menu.actor.connect('destroy', () => powerProfiles.destroy());
+        const keepAwake = buildKeepAwakeMenu();
+        menu.addMenuItem(keepAwake.section);
+        menu.actor.connect('destroy', () => keepAwake.destroy());
         menu.connect('open-state-changed', (_m, open) => {
             if (open)
                 applyQsChrome();
@@ -2510,6 +2514,9 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const powerProfiles = buildPowerProfileSelector();
     menu.addMenuItem(powerProfiles.section);
     menu.actor.connect('destroy', () => powerProfiles.destroy());
+    const keepAwake = buildKeepAwakeMenu();
+    menu.addMenuItem(keepAwake.section);
+    menu.actor.connect('destroy', () => keepAwake.destroy());
 
     if (end4) {
         try {

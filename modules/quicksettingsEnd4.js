@@ -22,6 +22,7 @@ import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
+import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
@@ -780,6 +781,9 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     const powerProfiles = buildPowerProfileSelector();
     menu.addMenuItem(powerProfiles.section);
     menu.actor.connect('destroy', () => powerProfiles.destroy());
+    const keepAwake = buildKeepAwakeMenu();
+    menu.addMenuItem(keepAwake.section);
+    menu.actor.connect('destroy', () => keepAwake.destroy());
 
     menu.connect('open-state-changed', (_m, open) => {
         if (!open)

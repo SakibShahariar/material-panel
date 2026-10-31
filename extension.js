@@ -7,6 +7,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {ConfigStore, resolveColorSource} from './lib/configStore.js';
+import {stopKeepAwake} from './lib/keepAwake.js';
 import {PanelBuilder} from './lib/panelBuilder.js';
 import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
@@ -282,6 +283,8 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        // Release the session inhibitor when the extension is disabled.
+        stopKeepAwake();
         // Invalidate any config load still in flight before releasing services.
         this._lifecycleGeneration = (this._lifecycleGeneration ?? 0) + 1;
         try { this._reducedMotionCleanup?.(); } catch (e) {}
