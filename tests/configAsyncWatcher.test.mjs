@@ -30,3 +30,10 @@ test('new watcher events supersede stale in-flight reloads and unwatch invalidat
     assert.match(source, /this\._reloadGeneration\+\+/);
     assert.match(source, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, 300/);
 });
+
+test('async self-writes do not discard the external change that triggered reload', () => {
+    assert.match(source, /this\._selfWriteContent = legacyText;\s*await this\._replaceContentsAsync\(file, legacyText\)/);
+    assert.match(watcher, /let isCurrentGeneration = generation === this\._reloadGeneration/);
+    assert.match(watcher, /isCurrentGeneration = currentText === this\._selfWriteContent/);
+    assert.match(watcher, /const config = await this\.loadAsync\(\)/);
+});
