@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
-import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
+import {getBluetoothDevices, getBluetoothDeviceActionSteps} from '../lib/bluetoothDevices.js';
 
 const variant = value => ({deep_unpack: () => value});
 
@@ -66,4 +66,25 @@ test('Bluetooth popup and Quick Settings consume the same device normalization',
     }
     assert.ok(!popup.includes("Object.entries(objects)\n                            .filter(([, ifaces]) => DEVICE_IFACE in ifaces)"));
     assert.ok(!quickSettings.includes("Object.entries(objects)\n                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)"));
+});
+
+test('Bluetooth action planner pairs unpaired devices before connecting', () => {
+    assert.deepEqual(getBluetoothDeviceActionSteps({paired: false, connected: false}), ['Pair', 'Connect']);
+    assert.deepEqual(getBluetoothDeviceActionSteps({paired: true, connected: false}), ['Connect']);
+    assert.deepEqual(getBluetoothDeviceActionSteps({paired: true, connected: true}), ['Disconnect']);
+    assert.deepEqual(getBluetoothDeviceActionSteps({paired: false, connected: true}), ['Disconnect']);
+});
+
+test('both Bluetooth surfaces use the shared asynchronous device action runner', async () => {
+    const [popup, quickSettings, runner] = await Promise.all([
+        readFile(new URL('../modules/bluetooth.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/bluetoothActions.js', import.meta.url), 'utf8'),
+    ]);
+    for (const source of [popup, quickSettings]) {
+        assert.ok(source.includes("import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js'"));
+        assert.ok(source.includes('runBluetoothDeviceAction({'));
+    }
+    assert.ok(runner.includes("import {getBluetoothDeviceActionSteps} from './bluetoothDevices.js'"));
+    assert.ok(runner.includes('proxy.call('));
 });
