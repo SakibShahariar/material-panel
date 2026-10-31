@@ -1,5 +1,6 @@
 import St from 'gi://St';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
+import {setChipA11y} from '../lib/a11y.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
@@ -1045,6 +1046,7 @@ export function bluetoothTile() {
     let expanded = false;
     const updateArrow = () => {
         dropIcon.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
+        setChipA11y(dropBtn, expanded ? 'Hide Bluetooth devices' : 'Show Bluetooth devices');
     };
 
     const BLUEZ_SERVICE = 'org.bluez';
@@ -1059,6 +1061,7 @@ export function bluetoothTile() {
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        setChipA11y(mainBtn, `Bluetooth, ${powered ? 'on' : 'off'}`);
         if (!powered) {
             try { text.text = 'Bluetooth'; } catch (e) {}
         }
@@ -1089,6 +1092,7 @@ export function bluetoothTile() {
 
     const setNoAdapterState = () => {
         isBlocked = false;
+        setChipA11y(mainBtn, 'Bluetooth, no adapter');
         icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPath('bluetooth-off')));
         tileRow.set_style_class_name('material-panel-qs-tile material-panel-qs-bt-tile-row');
         text.text = 'No adapter';
@@ -1333,6 +1337,7 @@ export function bluetoothTile() {
         rowBox.add_child(textBox);
         rowBox.add_child(actionIcon);
         row.set_child(rowBox);
+        setChipA11y(row, [displayName, statusText].join(', '));
 
         row.connect('clicked', () => {
             if (connectingPaths.has(path))
@@ -1607,6 +1612,8 @@ export function powerRow(menu = null) {
             x_expand: true,
             child: icon,
         });
+        const actionLabels = {lock: 'Lock screen', suspend: 'Suspend', restart: 'Restart', shutdown: 'Power off'};
+        setChipA11y(btn, actionLabels[iconKey] ?? 'Power action');
         try {
             wireChipPress(btn, {
                 stickyUntilLeave: false,
@@ -1781,6 +1788,7 @@ export function wifiQsBlock() {
     let wifiActionError = '';
 
     const setActive = on => {
+        setChipA11y(mainBtn, `Wi-Fi, ${on ? 'on' : 'off'}`);
         const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
         if (on)
             row.add_style_class_name('active');
@@ -1875,6 +1883,7 @@ export function wifiQsBlock() {
                 box.add_child(name);
                 box.add_child(status);
                 btn.set_child(box);
+                setChipA11y(btn, `${conn.get_id()}, ${isActive ? 'connected' : 'saved network'}`);
                 btn.connect('clicked', () => {
                     if (isActive)
                         return Clutter.EVENT_STOP;
@@ -1910,6 +1919,7 @@ export function wifiQsBlock() {
             reactive: true,
             x_expand: true,
         });
+        setChipA11y(settingsBtn, 'Open Wi-Fi settings');
         settingsBtn.set_child(new St.Label({
             text: 'Wi-Fi settings…',
             style_class: 'material-panel-qs-bt-device-name',
@@ -1928,6 +1938,7 @@ export function wifiQsBlock() {
 
     const setExpanded = v => {
         expanded = !!v;
+        setChipA11y(dropBtn, expanded ? 'Hide saved Wi-Fi networks' : 'Show saved Wi-Fi networks');
         listPanel.visible = expanded;
         dropIcon.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
         const parent = listPanel.get_parent();
@@ -2101,6 +2112,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: qsIcon,
     });
+    setChipA11y(button, 'Quick Settings');
     wireChipPress(button, {
         getIcons: () => [{icon: qsIcon, key: 'quicksettings'}],
         stickyUntilLeave: true,
