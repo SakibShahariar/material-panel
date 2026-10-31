@@ -51,3 +51,14 @@ test('media popup exposes a player switcher only when multiple players are activ
     assert.match(source, /selectPreferredPlayer\?\.\(name\)/);
     assert.match(source, /Player: ' \+ playerDisplayName\(selectedName\)/);
 });
+
+test('unified media card combines artwork, track metadata, seek progress, and transport controls', () => {
+    assert.match(source, /const art = new St\.Bin\([\s\S]*?material-panel-media-popup-art/);
+    assert.match(source, /const pTitle = new St\.Label\([\s\S]*?material-panel-media-popup-title/);
+    assert.match(source, /const pArtist = new St\.Label\([\s\S]*?material-panel-media-popup-artist/);
+    assert.match(source, /const progressSlider = new PopupMenu\.PopupSliderMenuItem/);
+    assert.match(source, /prevBtn\.connect\('clicked', \(\) => ctl\?\.previous\(\)\)/);
+    assert.match(source, /playBtn\.connect\('clicked', \(\) => ctl\?\.playPause\(\)\)/);
+    assert.match(source, /nextBtn\.connect\('clicked', \(\) => ctl\?\.next\(\)\)/);
+    assert.match(source, /onMeta: \(\{title, artist, artUrl,[\s\S]*?setArtFromUrl\(art, artUrl\)/);
+});
