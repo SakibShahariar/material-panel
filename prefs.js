@@ -977,6 +977,29 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         networkSpeedVisibilityRow.activatable_widget = networkSpeedVisibilitySwitch;
         privacyGroup.add(networkSpeedVisibilityRow);
 
+        const mediaVisualGroup = new Adw.PreferencesGroup({
+            title: 'Media',
+            description: 'Now-playing chip presentation.',
+        });
+        generalPage.add(mediaVisualGroup);
+        const mediaVisualizerRow = new Adw.ActionRow({
+            title: 'Show playback visualizer',
+            subtitle: 'Animate a compact equalizer only while a player is playing and the chip is visible.',
+        });
+        const mediaVisualizerSwitch = new Gtk.Switch({
+            active: config.mediaVisualizer === true,
+            valign: Gtk.Align.CENTER,
+        });
+        mediaVisualizerSwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.mediaVisualizer = mediaVisualizerSwitch.active;
+            saveConfig();
+        });
+        mediaVisualizerRow.add_suffix(mediaVisualizerSwitch);
+        mediaVisualizerRow.activatable_widget = mediaVisualizerSwitch;
+        mediaVisualGroup.add(mediaVisualizerRow);
+
+
 
 
 
@@ -1630,6 +1653,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 mediaVisibilitySwitch.active = config.autoHideMedia === true;
                 bluetoothVisibilitySwitch.active = config.autoHideBluetooth === true;
                 networkSpeedVisibilitySwitch.active = config.autoHideNetworkSpeed === true;
+                mediaVisualizerSwitch.active = config.mediaVisualizer === true;
                 return;
             }
             config.qsTiles = parsed;
