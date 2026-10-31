@@ -224,7 +224,7 @@ function buildHeader(menu) {
     };
     row.add_child(mkBtn('document-edit-symbolic', openPrefs, 'Edit panel preferences'));
     // Don't present a refresh control until it has a real refresh operation.
-    row.add_child(mkBtn('emblem-system-symbolic', openPrefs, 'Open system settings'));
+    row.add_child(mkBtn('emblem-system-symbolic', openPrefs, 'Open panel preferences'));
     row.add_child(mkBtn('system-shutdown-symbolic', () => {
         try { menuClose(menu); } catch (e) {}
         confirmAndRun('Power off', 'Power off this system?', 'Power off', 'systemctl poweroff');
