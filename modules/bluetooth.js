@@ -850,9 +850,11 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                     refresh();
             });
             devicesBox.connect('destroy', () => {
+                clearDeviceRows();
                 if (objMgrProxy && objMgrSignalId) try { objMgrProxy.disconnect(objMgrSignalId); } catch (e) {}
             });
             menu.actor.connect('destroy', () => {
+                clearDeviceRows();
                 try { if (objMgrProxy && objMgrSignalId) objMgrProxy.disconnect(objMgrSignalId); } catch (e) {}
             });
             // Refresh on menu open — ensures fresh list after rfkill unblock

@@ -32,7 +32,7 @@ test('Bluetooth chip announces changing adapter states', () => {
 
 test('Bluetooth device and settings buttons expose descriptive names', () => {
     assert.ok(bluetooth.includes("setChipA11y(footerBtn, 'Open Bluetooth Settings')"));
-    assert.ok(bluetooth.includes("setChipA11y(row, [displayName, ...parts].join(', '))"));
+    assert.ok(bluetooth.includes("setChipA11y(row, [state.displayName, ...parts].join(', '))"));
 });
 
 const defaultQs = source;
