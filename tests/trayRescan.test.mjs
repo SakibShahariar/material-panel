@@ -50,7 +50,7 @@ test('tray bridge handles existing, newly registered, destroyed, and recreated i
     const enableStart = bridge.indexOf('    enable() {');
     const disableStart = bridge.indexOf('    disable() {', enableStart);
     const enable = bridge.slice(enableStart, disableStart);
-    assert.match(enable, /this\._origAdd\.call\(this, role, indicator, position, box\)/);
+    assert.match(enable, /self\._origAdd\.call\(this, role, indicator, position, box\)/);
     assert.match(enable, /self\._onButtonAdded\(role, button \?\? indicator\)/);
     assert.match(enable, /for \(const role of Object\.keys\(area\)\)/);
     assert.match(enable, /this\._onButtonAdded\(role, area\[role\]\)/);
