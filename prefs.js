@@ -84,18 +84,22 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             preferencePages.push(page);
             window.add(page);
         };
+        // Serialize saves so rapid control changes cannot race and overwrite
+        // one another with stale snapshots of the same config file.
+        let saveQueue = Promise.resolve();
         const saveConfig = () => {
-            try {
+            saveQueue = saveQueue.then(async () => {
                 // Merge local edits over the latest disk state to preserve unrelated external edits.
-                const latest = store.load();
+                const latest = await store.loadAsync();
                 const merged = mergeConfigChanges(baseline, config, latest);
-                store.save(merged);
-                const saved = store.load();
+                await store.saveAsync(merged);
+                const saved = await store.loadAsync();
                 syncObjectInPlace(config, saved);
                 baseline = JSON.parse(JSON.stringify(saved));
-            } catch (e) {
-                console.error('material-panel prefs: save failed', e);
-            }
+            }).catch(e => {
+                console.error('material-panel prefs: asynchronous save failed', e);
+            });
+            return saveQueue;
         };
         // Header: reset to defaults
         try {
@@ -112,13 +116,15 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 dialog.add_response('cancel', 'Cancel');
                 dialog.add_response('reset', 'Reset');
                 dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
-                dialog.connect('response', (_d, response) => {
+                dialog.connect('response', async (_d, response) => {
                     if (response !== 'reset')
                         return;
                     try {
                         // Flush pending edits and stop the old watcher before
                         // resetting, or its final save could overwrite defaults.
                         cleanup();
+                        // Wait for queued async edits before replacing them with defaults.
+                        await saveQueue;
                         store.resetDefaults();
                         for (const page of preferencePages)
                             window.remove(page);

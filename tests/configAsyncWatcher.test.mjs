@@ -38,3 +38,13 @@ test('async self-writes do not discard the external change that triggered reload
     assert.match(watcher, /isCurrentGeneration = currentText === this\._selfWriteContent/);
     assert.match(watcher, /const config = await this\.loadAsync\(\)/);
 });
+
+test('Preferences writes configuration asynchronously and serializes rapid saves', async () => {
+    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
+    assert.match(source, /async saveAsync\(config, \{suppressWatcher = false\} = \{\}\)/);
+    assert.match(source, /await this\._replaceContentsAsync\(file, text\)/);
+    assert.match(prefs, /let saveQueue = Promise\.resolve\(\)/);
+    assert.match(prefs, /await store\.loadAsync\(\)/);
+    assert.match(prefs, /await store\.saveAsync\(merged\)/);
+    assert.doesNotMatch(prefs, /store\.save\(merged\)/);
+});
