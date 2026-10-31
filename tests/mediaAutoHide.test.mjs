@@ -8,6 +8,8 @@ test('media auto-hide is opt-in and normalized to a strict boolean', async () =>
     assert.match(config, /merged\.autoHideMedia = merged\.autoHideMedia === true/);
     assert.match(config, /autoHideBluetooth: false/);
     assert.match(config, /merged\.autoHideBluetooth = merged\.autoHideBluetooth === true/);
+    assert.match(config, /autoHideNetworkSpeed: false/);
+    assert.match(config, /merged\.autoHideNetworkSpeed = merged\.autoHideNetworkSpeed === true/);
 });
 
 test('Preferences exposes the inactive-player visibility option and syncs external changes', async () => {
@@ -18,6 +20,9 @@ test('Preferences exposes the inactive-player visibility option and syncs extern
     assert.match(prefs, /Hide Bluetooth when no adapter is detected/);
     assert.match(prefs, /config\.autoHideBluetooth = bluetoothVisibilitySwitch\.active/);
     assert.match(prefs, /bluetoothVisibilitySwitch\.active = config\.autoHideBluetooth === true/);
+    assert.match(prefs, /Hide Network Speed while idle/);
+    assert.match(prefs, /config\.autoHideNetworkSpeed = networkSpeedVisibilitySwitch\.active/);
+    assert.match(prefs, /networkSpeedVisibilitySwitch\.active = config\.autoHideNetworkSpeed === true/);
 });
 
 test('media chip hides only when configured and reappears when an MPRIS player is available', async () => {
@@ -52,4 +57,19 @@ test('Bluetooth auto-hide applies only to the no-adapter state', async () => {
     assert.equal((bindBlock.match(/setBluezUnavailableState\(\);/g) || []).length, 2);
     assert.doesNotMatch(bindBlock, /setNoAdapterState\(\)/);
     assert.match(bluetooth, /if \(!adapters\.length\) \{[\s\S]*?else setNoAdapterState\(\)/);
+});
+
+
+test('Network Speed auto-hide waits for idle and keeps sampling while the chip is hidden', async () => {
+    const [extension, network] = await Promise.all([
+        readFile(new URL('../extension.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/networkSpeed.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(extension, /globalThis\._materialPanelAutoHideNetworkSpeed = this\._config\.autoHideNetworkSpeed === true/);
+    assert.match(extension, /globalThis\._materialPanelAutoHideNetworkSpeed = newConfig\.autoHideNetworkSpeed === true/);
+    assert.match(network, /const autoHideWhenIdle = globalThis\._materialPanelAutoHideNetworkSpeed === true/);
+    assert.match(network, /const IDLE_HIDE_AFTER_US = 30 \* 1000 \* 1000/);
+    assert.match(network, /if \(!autoHideWhenIdle \|\| !sample\.iface \|\| down > 0 \|\| up > 0\)/);
+    assert.match(network, /button\.visible = now - idleSince < IDLE_HIDE_AFTER_US/);
+    assert.match(network, /!autoHideWhenIdle && !button\.mapped && !menu\.isOpen/);
 });
