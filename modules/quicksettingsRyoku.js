@@ -13,7 +13,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
-import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 
 const ROUTES = [
     {id: 'sound', label: 'Sound'},
@@ -28,6 +28,7 @@ const ROUTES = [
  */
 export function fillRyokuQsMenu(menu, api) {
     const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
+    const favorites = normalizeQuickSettingsFavorites(globalThis._materialPanelQsFavorites);
     const showWifi = enabledTiles.has('wifi');
     const showBluetooth = enabledTiles.has('bluetooth');
     const showDarkMode = enabledTiles.has('dark-mode');
@@ -112,9 +113,16 @@ export function fillRyokuQsMenu(menu, api) {
     }
     if (showDarkMode || showNightLight || showDnd) {
         mk('session', 'Session', box => {
-            if (showDarkMode) try { box.add_child(darkModeTile()); } catch (e) {}
-            if (showNightLight) try { box.add_child(nightLightTile()); } catch (e) {}
-            if (showDnd) try { box.add_child(dndTile()); } catch (e) {}
+            const builders = {
+                'dark-mode': darkModeTile,
+                'night-light': nightLightTile,
+                'do-not-disturb': dndTile,
+            };
+            const available = ['dark-mode', 'night-light', 'do-not-disturb']
+                .filter(id => enabledTiles.has(id));
+            for (const id of orderQuickSettingsTiles(available, favorites)) {
+                try { box.add_child(builders[id]()); } catch (e) {}
+            }
             try { box.add_child(powerRow(menu)); } catch (e) {}
         });
     }
@@ -124,6 +132,20 @@ export function fillRyokuQsMenu(menu, api) {
         (id !== 'bluetooth' || showBluetooth) &&
         (id !== 'session' || showDarkMode || showNightLight || showDnd));
     const activeRoutes = routeIds.length > 0 ? ROUTES.filter(route => routeIds.includes(route.id)) : [ROUTES[0]];
+    const routeFavorites = {
+        network: ['wifi'],
+        bluetooth: ['bluetooth'],
+        session: ['dark-mode', 'night-light', 'do-not-disturb'],
+        sound: [],
+    };
+    const routeRank = route => Math.min(
+        ...routeFavorites[route.id].map(id => {
+            const index = favorites.indexOf(id);
+            return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+        }),
+    );
+    activeRoutes.sort((a, b) => routeRank(a) - routeRank(b) ||
+        ROUTES.findIndex(route => route.id === a.id) - ROUTES.findIndex(route => route.id === b.id));
     let route = activeRoutes[0].id;
     const railButtons = {};
     const setRoute = id => {
@@ -157,7 +179,7 @@ export function fillRyokuQsMenu(menu, api) {
     body.add_child(rail);
     body.add_child(stageHost);
     root.add_child(body);
-    setRoute('sound');
+    setRoute(route);
 
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(root);
