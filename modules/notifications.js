@@ -331,7 +331,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     const updateFilterControls = items => {
         const apps = notificationAppNames(items);
-        const signature = apps.join('\\u0000');
+        const signature = JSON.stringify(apps);
         const supportsUnread = hasUnreadNotificationState(items);
         if (selectedApp && !apps.includes(selectedApp))
             selectedApp = null;
@@ -367,7 +367,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 unreadOnly = false;
             }
             for (const appName of apps) {
-                addFilterButton(\`app:\${appName}\`, appName, () => {
+                addFilterButton(`app:${appName}`, appName, () => {
                     selectedApp = selectedApp === appName ? null : appName;
                     updateFilterControls(listNotifications());
                     scheduleSearchRebuild();
@@ -385,18 +385,18 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                     : selectedApp === key.slice(4);
             try {
                 button.set_style_class_name(
-                    \`material-panel-nc-filter-chip\${active ? ' active' : ''}\`);
+                    `material-panel-nc-filter-chip${active ? ' active' : ''}`);
                 setChipA11y(button, key === 'unread'
-                    ? \`Show unread notifications, \${unreadOnly ? 'selected' : 'not selected'}\`
+                    ? `Show unread notifications, ${unreadOnly ? 'selected' : 'not selected'}`
                     : key === 'all'
                         ? 'Show notifications from all apps'
-                        : \`Filter notifications from \${key.slice(4)}\`);
+                        : `Filter notifications from ${key.slice(4)}`);
             } catch (e) {}
         }
         filterScroll.visible = apps.length > 0 || supportsUnread;
         clearBtn.label = selectedApp ? 'Clear app' : 'Clear';
         setChipA11y(clearBtn, selectedApp
-            ? \`Clear notifications from \${selectedApp}\`
+            ? `Clear notifications from ${selectedApp}`
             : 'Clear all notifications');
     };
 
