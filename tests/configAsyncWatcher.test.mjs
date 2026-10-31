@@ -26,7 +26,8 @@ test('async config loader preserves malformed-config backup and orphan cleanup',
 
 test('new watcher events supersede stale in-flight reloads and unwatch invalidates them', () => {
     assert.match(source, /const generation = \+\+this\._reloadGeneration/);
-    assert.match(watcher, /generation !== this\._reloadGeneration/);
+    assert.match(watcher, /let isCurrentGeneration = generation === this\._reloadGeneration/);
+    assert.match(watcher, /if \(!isCurrentGeneration \|\| !this\._callback\)/);
     assert.match(source, /this\._reloadGeneration\+\+/);
     assert.match(source, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, 300/);
 });
