@@ -1004,6 +1004,7 @@ export function bluetoothTile() {
     mainBox.add_child(text);
     try { attachTileExtras(tileRow, mainBox); } catch (e) {}
     mainBtn.set_child(mainBox);
+    setChipA11y(mainBtn, 'Bluetooth, checking status');
     try {
         mainBtn.x_expand = true;
         mainBtn.y_expand = true;
@@ -1024,6 +1025,7 @@ export function bluetoothTile() {
         style_class: 'material-panel-qs-bt-drop-icon material-panel-drop-chevron',
     });
     dropBtn.set_child(dropIcon);
+    setChipA11y(dropBtn, 'Show Bluetooth devices');
     tileRow.add_child(mainBtn);
     tileRow.add_child(dropBtn);
     outer.add_child(tileRow);
@@ -1768,6 +1770,8 @@ export function wifiQsBlock() {
         style_class: 'material-panel-drop-chevron',
     });
     dropBtn.set_child(dropIcon);
+    setChipA11y(mainBtn, 'Wi-Fi, checking status');
+    setChipA11y(dropBtn, 'Show saved Wi-Fi networks');
     row.add_child(mainBtn);
     row.add_child(dropBtn);
     wireQsInteractive(mainBtn);
