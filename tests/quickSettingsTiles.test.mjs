@@ -45,3 +45,10 @@ test('config store, preferences, and default Quick Settings consume the same til
     assert.ok(quickSettings.includes('if (btTile?.devicePanel)'));
     assert.ok(quickSettings.includes('if (wifiRow?.listPanel)'));
 });
+
+test('Preferences keeps the tile-order editor synchronized with config watcher updates', async () => {
+    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
+    assert.match(prefs, /tileOrderRow\.set_text\(formatQuickSettingsTileOrder\(config\.qsTiles\)\)/);
+    assert.ok(prefs.indexOf('syncObjectInPlace(config, merged)') <
+        prefs.indexOf('tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles))'));
+});

@@ -1114,6 +1114,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 const merged = mergeConfigChanges(baseline, config, newConfig);
                 syncObjectInPlace(config, merged);
                 baseline = JSON.parse(JSON.stringify(newConfig));
+                // Keep the editable tile-order field in sync with external
+                // config edits without discarding any pending local changes.
+                tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;
