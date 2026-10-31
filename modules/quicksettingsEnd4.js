@@ -401,52 +401,60 @@ function buildDualSliders() {
 
 // ── Toggles (end-4 style: round + labeled wide) ──
 
-function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
-    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
-    const ic = makeIcon(iconKeys, 20, false, symbolic);
-    btn.set_child(ic);
-    let pressed = false;
+function toggleBackground(on, pressed, hovered) {
+    if (pressed)
+        return on ? accent() : surfaceHoverStrong();
+    if (hovered && !on)
+        return surfaceHover();
+    if (hovered && on)
+        return accent();
+    return on ? accent() : surface();
+}
 
-    const paint = () => {
+function bindToggleButton(btn, {
+    label, announceState = true, icon, iconKeys, symbolic,
+    getOn, setOn, settings = null, settingKey = null, paint,
+}) {
+    let pressed = false;
+    const render = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
         setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
-        let bg = on ? accent() : surface();
-        if (pressed)
-            bg = on ? accent() : surfaceHoverStrong();
-        else if (btn.hover && !on)
-            bg = surfaceHover();
-        else if (btn.hover && on)
-            bg = accent();
-        style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
-        try { btn.width = 52; btn.height = 52; } catch (e) {}
-        const g = loadGicon(iconKeys, on);
-        if (g) {
-            ic.gicon = g;
-        } else if (symbolic) {
-            ic.icon_name = symbolic;
-            // on = primary bg → icon must be on_primary (not default white)
-            tintSymbolic(ic, on || pressed ? onPrimaryColor() : primaryColor());
-        }
-        try { btn.remove_style_class_name('pressed'); } catch (e) {}
-        if (pressed) {
-            try { btn.add_style_class_name('pressed'); } catch (e) {}
-        }
+        try {
+            const g = loadGicon(iconKeys, on);
+            if (g) {
+                icon.gicon = g;
+            } else if (symbolic) {
+                icon.icon_name = symbolic;
+                tintSymbolic(icon, on || pressed ? onPrimaryColor() : primaryColor());
+            }
+        } catch (e) {}
+        paint(on, pressed, toggleBackground(on, pressed, !!btn.hover));
     };
-    btn.connect('notify::hover', paint);
-    btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });
-    btn.connect('button-release-event', () => { pressed = false; paint(); return Clutter.EVENT_PROPAGATE; });
+
+    btn.connect('notify::hover', render);
+    btn.connect('button-press-event', () => {
+        pressed = true;
+        render();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    btn.connect('button-release-event', () => {
+        pressed = false;
+        render();
+        return Clutter.EVENT_PROPAGATE;
+    });
     btn.connect('clicked', () => {
         try { setOn(!getOn()); } catch (e) {}
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
-            paint();
+            render();
             return GLib.SOURCE_REMOVE;
         });
     });
-    paint();
+    render();
+
     let settingsSignalId = 0;
     if (settings && settingKey) {
-        try { settingsSignalId = settings.connect(`changed::${settingKey}`, paint); } catch (e) {}
+        try { settingsSignalId = settings.connect(`changed::${settingKey}`, render); } catch (e) {}
     }
     btn.connect('destroy', () => {
         if (settings && settingsSignalId) {
@@ -454,6 +462,22 @@ function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn
             settingsSignalId = 0;
         }
     });
+}
+
+function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
+    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
+    const ic = makeIcon(iconKeys, 20, false, symbolic);
+    btn.set_child(ic);
+
+    const paint = (on, pressed, bg) => {
+        style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
+        try { btn.width = 52; btn.height = 52; } catch (e) {}
+        try { btn.remove_style_class_name('pressed'); } catch (e) {}
+        if (pressed) {
+            try { btn.add_style_class_name('pressed'); } catch (e) {}
+        }
+    };
+    bindToggleButton(btn, {label, announceState, icon: ic, iconKeys, symbolic, getOn, setOn, settings, settingKey, paint});
     return btn;
 }
 
@@ -475,29 +499,11 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, se
     }
     box.add_child(col);
     btn.set_child(box);
-    let pressed = false;
 
-    const paint = () => {
-        let on = false;
-        try { on = !!getOn(); } catch (e) {}
-        setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`);
+    const paint = (on, _pressed, bg) => {
         const w = width || 140;
-        let bg = on ? accent() : surface();
-        if (pressed)
-            bg = on ? accent() : surfaceHoverStrong();
-        else if (btn.hover && !on)
-            bg = surfaceHover();
-        else if (btn.hover && on)
-            bg = accent();
         style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
         try { btn.width = w; btn.height = 52; } catch (e) {}
-        const g = loadGicon(iconKeys, on);
-        if (g) {
-            ic.gicon = g;
-        } else if (symbolic) {
-            ic.icon_name = symbolic;
-            tintSymbolic(ic, on || pressed ? onPrimaryColor() : primaryColor());
-        }
         style(title, on
             ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
             : `font-size: 12px; font-weight: 700; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
@@ -506,27 +512,7 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, se
                 ? `font-size: 11px; color: ${onAccent()}; opacity: 0.85;`
                 : `font-size: 11px; opacity: 0.75; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
     };
-    btn.connect('notify::hover', paint);
-    btn.connect('button-press-event', () => { pressed = true; paint(); return Clutter.EVENT_PROPAGATE; });
-    btn.connect('button-release-event', () => { pressed = false; paint(); return Clutter.EVENT_PROPAGATE; });
-    btn.connect('clicked', () => {
-        try { setOn(!getOn()); } catch (e) {}
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
-            paint();
-            return GLib.SOURCE_REMOVE;
-        });
-    });
-    paint();
-    let settingsSignalId = 0;
-    if (settings && settingKey) {
-        try { settingsSignalId = settings.connect(`changed::${settingKey}`, paint); } catch (e) {}
-    }
-    btn.connect('destroy', () => {
-        if (settings && settingsSignalId) {
-            try { settings.disconnect(settingsSignalId); } catch (e) {}
-            settingsSignalId = 0;
-        }
-    });
+    bindToggleButton(btn, {label, icon: ic, iconKeys, symbolic, getOn, setOn, settings, settingKey, paint});
     return btn;
 }
 
