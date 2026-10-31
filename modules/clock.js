@@ -252,7 +252,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     const tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15, () => {
         // The clock chip is visible UI, but its calendar/event lookup is
         // unnecessary while the panel is hidden or the session is locked.
-        if (isSessionLocked() || !button.mapped)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         tick();
         return GLib.SOURCE_CONTINUE;
