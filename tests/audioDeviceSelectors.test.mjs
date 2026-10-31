@@ -7,10 +7,11 @@ const quicksettings = await readFile(new URL('../modules/quicksettings.js', impo
 const end4 = await readFile(new URL('../modules/quicksettingsEnd4.js', import.meta.url), 'utf8');
 
 test('shared audio selectors enumerate and switch default output and input streams', () => {
-    assert.match(helper, /control\.get_sinks/);
-    assert.match(helper, /control\.get_sources/);
-    assert.match(helper, /control\.set_default_sink/);
-    assert.match(helper, /control\.set_default_source/);
+    assert.match(helper, /listStreams\('get_sinks'\)/);
+    assert.match(helper, /listStreams\('get_sources'\)/);
+    assert.match(helper, /control\[setter\]\(stream\)/);
+    assert.match(helper, /'set_default_sink'/);
+    assert.match(helper, /'set_default_source'/);
     assert.match(helper, /get_default_sink/);
     assert.match(helper, /get_default_source/);
 });
