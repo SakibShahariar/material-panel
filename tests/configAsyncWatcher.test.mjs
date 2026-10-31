@@ -74,3 +74,14 @@ test('extension startup loads config asynchronously and cancels stale loads on d
     assert.match(disable, /this\._lifecycleGeneration = .*\+ 1/);
     assert.match(disable, /this\._configStore\?\.unwatch\(\)/);
 });
+
+test('clock and CPU module config reads are asynchronous and ignore stale completions', async () => {
+    const clock = await readFile(new URL('../modules/clock.js', import.meta.url), 'utf8');
+    const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
+    assert.match(clock, /store\.loadAsync\(\)\.then/);
+    assert.match(clock, /generation !== configLoadGeneration/);
+    assert.doesNotMatch(clock, /store\.load\(\)/);
+    assert.match(cpu, /await _cfgStore\.loadAsync\(\)/);
+    assert.match(cpu, /generation !== activityConfigGeneration/);
+    assert.doesNotMatch(cpu, /_cfgStore\.load\(\)/);
+});

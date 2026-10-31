@@ -872,12 +872,19 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     };
 
     const _cfgStore = new ConfigStore();
-    const _applyActivityMode = () => {
+    let activityConfigGeneration = 0;
+    const _applyActivityMode = async () => {
+        const generation = ++activityConfigGeneration;
         try {
-            const c = _cfgStore.load();
+            const c = await _cfgStore.loadAsync();
+            if (processDestroyed || generation !== activityConfigGeneration)
+                return;
             globalThis._materialPanelActivityChip = c.activityChip || 'cpu';
         } catch (e) {
-            globalThis._materialPanelActivityChip = 'cpu';
+            if (!processDestroyed && generation === activityConfigGeneration) {
+                globalThis._materialPanelActivityChip = 'cpu';
+                logError(e, 'material-panel: asynchronous activity config load');
+            }
         }
     };
     _applyActivityMode();
@@ -924,6 +931,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
         processDestroyed = true;
+        activityConfigGeneration++;
         if (processSearchDebounceId) {
             try { GLib.source_remove(processSearchDebounceId); } catch (e) {}
             processSearchDebounceId = 0;

@@ -178,11 +178,8 @@ export function buildClock(_extensionPath, scale = 1.0) {
     let use12h = false;
     let clickCyclesFormat = false;
     let displayMode = 'date-time';
-    try {
-        const cfg = store.load();
-        use12h = cfg?.clockFormat === '12h';
-        clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
-    } catch (e) {}
+    let configLoadGeneration = 0;
+    let destroyed = false;
 
     const isEnd4 = () => globalThis._materialPanelLayoutStyle === 'end4';
     const label = new St.Label({
@@ -228,6 +225,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     // only formats the current time and calendar countdown.
     try {
         store.watch(cfg => {
+            configLoadGeneration++;
             const nextUse12h = cfg?.clockFormat === '12h';
             const nextClickCyclesFormat = cfg?.clockClickCyclesFormat === true;
             if (nextUse12h !== use12h || nextClickCyclesFormat !== clickCyclesFormat) {
@@ -235,6 +233,17 @@ export function buildClock(_extensionPath, scale = 1.0) {
                 clickCyclesFormat = nextClickCyclesFormat;
                 tick();
             }
+        });
+        const generation = ++configLoadGeneration;
+        store.loadAsync().then(cfg => {
+            if (destroyed || generation !== configLoadGeneration)
+                return;
+            use12h = cfg?.clockFormat === '12h';
+            clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            tick();
+        }).catch(error => {
+            if (!destroyed)
+                logError(error, 'material-panel: asynchronous clock config load');
         });
     } catch (e) {
         logError(e, 'material-panel: clock config watcher');
@@ -536,6 +545,8 @@ export function buildClock(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
     button.connect('destroy', () => {
+        destroyed = true;
+        configLoadGeneration++;
         try { GLib.source_remove(tickId); } catch (e) {}
         try { store.unwatch(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
