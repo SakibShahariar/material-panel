@@ -13,6 +13,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {ConfigStore} from '../lib/configStore.js';
+import {formatClockDisplay, nextClockDisplayMode} from '../lib/clockDisplay.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {wirePressedClass} from '../lib/pressFx.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
@@ -31,18 +32,6 @@ import {safeEventUrl} from '../lib/safeEventUrl.js';
 
 const CELL = 36;
 
-function formatEnd4(use12h) {
-    const now = GLib.DateTime.new_now_local();
-    const time = (now.format(use12h ? '%-I:%M %p' : '%H:%M') ?? '').replace(/\s+/g, ' ').trim();
-    const date = (now.format('%a, %d %b') ?? '').replace(/\s+/g, ' ').trim();
-    return `${time} · ${date}`;
-}
-
-function formatNow(use12h) {
-    const now = GLib.DateTime.new_now_local();
-    const fmt = use12h ? '%a, %d %b  %l:%M %p' : '%a, %d %b  %H:%M';
-    return (now.format(fmt) ?? '').replace(/\s+/g, ' ').trim();
-}
 
 function daysInMonth(year, month) {
     try {
@@ -187,16 +176,19 @@ function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, o
 export function buildClock(_extensionPath, scale = 1.0) {
     const store = new ConfigStore();
     let use12h = false;
+    let clickCyclesFormat = false;
+    let displayMode = 'date-time';
     try {
         const cfg = store.load();
         use12h = cfg?.clockFormat === '12h';
+        clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
     } catch (e) {}
 
     const isEnd4 = () => globalThis._materialPanelLayoutStyle === 'end4';
     const label = new St.Label({
         style_class: 'material-panel-clock',
         y_align: Clutter.ActorAlign.CENTER,
-        text: isEnd4() ? formatEnd4(use12h) : formatNow(use12h),
+        text: formatClockDisplay(GLib.DateTime.new_now_local(), use12h, displayMode, isEnd4()),
     });
 
     const button = new St.Button({
@@ -209,7 +201,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     // Tick
     const tick = () => {
-        label.text = isEnd4() ? formatEnd4(use12h) : formatNow(use12h);
+        label.text = formatClockDisplay(GLib.DateTime.new_now_local(), use12h, displayMode, isEnd4());
         // Optional: announce next event on chip when close
         try {
             const doc = loadCalendarDocument();
@@ -237,8 +229,10 @@ export function buildClock(_extensionPath, scale = 1.0) {
     try {
         store.watch(cfg => {
             const nextUse12h = cfg?.clockFormat === '12h';
-            if (nextUse12h !== use12h) {
+            const nextClickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            if (nextUse12h !== use12h || nextClickCyclesFormat !== clickCyclesFormat) {
                 use12h = nextUse12h;
+                clickCyclesFormat = nextClickCyclesFormat;
                 tick();
             }
         });
@@ -522,12 +516,24 @@ export function buildClock(_extensionPath, scale = 1.0) {
     });
 
     button.connect('clicked', () => {
-        if (menu.isOpen)
+        if (clickCyclesFormat) {
+            displayMode = nextClockDisplayMode(displayMode);
+            tick();
+        } else if (menu.isOpen) {
             menuClose(menu);
-        else {
+        } else {
             openRefresh();
             menuOpen(menu);
         }
+    });
+    // When click-to-cycle is enabled, keep the calendar available by
+    // opening it with the secondary mouse button.
+    button.connect('button-press-event', (_actor, event) => {
+        if (!clickCyclesFormat || event.get_button() !== 3)
+            return Clutter.EVENT_PROPAGATE;
+        openRefresh();
+        menuOpen(menu);
+        return Clutter.EVENT_STOP;
     });
     button.connect('destroy', () => {
         try { GLib.source_remove(tickId); } catch (e) {}
@@ -537,6 +543,8 @@ export function buildClock(_extensionPath, scale = 1.0) {
 
     try { wirePressedClass(button); } catch (e) {}
 
-    try { setChipA11y(button, 'Clock'); } catch (e) {}
+    try { setChipA11y(button, clickCyclesFormat
+        ? 'Clock. Click to cycle display format; right-click to open calendar'
+        : 'Clock. Click to open calendar'); } catch (e) {}
     return button;
 }

@@ -419,6 +419,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockRow.activatable_widget = clockSwitch;
         clockGroup.add(clockRow);
 
+        const clockClickRow = new Adw.ActionRow({
+            title: 'Click to cycle display format',
+            subtitle: 'Click cycles time only, time and date, then weekday, date and time. Right-click still opens the calendar.',
+        });
+        const clockClickSwitch = new Gtk.Switch({
+            active: config.clockClickCyclesFormat === true,
+            valign: Gtk.Align.CENTER,
+        });
+        clockClickSwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.clockClickCyclesFormat = clockClickSwitch.active;
+            saveConfig();
+        });
+        clockClickRow.add_suffix(clockClickSwitch);
+        clockClickRow.activatable_widget = clockClickSwitch;
+        clockGroup.add(clockClickRow);
+
         const workspaceGroup = new Adw.PreferencesGroup({
             title: 'Workspace indicator',
             description: 'Choose how workspaces are represented. Automatic keeps the current layout-specific presentation.',
@@ -1156,6 +1173,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
                 workspaceDisplayRow.set_selected(Math.max(
                     0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
+                clockClickSwitch.active = config.clockClickCyclesFormat === true;
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;
