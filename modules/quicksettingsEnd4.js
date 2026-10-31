@@ -568,17 +568,15 @@ function buildToggleGrid() {
         wifi.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px; border-radius: 18px;`;
     } catch (e) {}
 
-    const netCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-    style(netCol, `spacing: 8px; width: ${QS_INNER}px;`);
+    const networkGroups = {};
     const networkTiles = {wifi, bluetooth: bt};
-    for (const id of orderQuickSettingsTiles(
-        ['wifi', 'bluetooth'].filter(tileId => enabledTiles.has(tileId)),
-        favorites,
-    )) {
+    for (const id of ['wifi', 'bluetooth']) {
         const tile = networkTiles[id];
         if (!tile)
             continue;
-        netCol.add_child(tile);
+        const group = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+        style(group, 'spacing: 8px;');
+        group.add_child(tile);
         const panel = id === 'wifi' ? tile.listPanel : tile.devicePanel;
         if (panel) {
             try {
@@ -586,13 +584,12 @@ function buildToggleGrid() {
                 panel.x_expand = true;
                 panel.width = QS_INNER;
             } catch (e) {}
-            netCol.add_child(panel);
+            group.add_child(panel);
         }
+        networkGroups[id] = group;
     }
 
     // Row of round toggles: dark / dnd / night (former third slot + rest)
-    const row0 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
-    style(row0, 'spacing: 8px;');
     const darkRound = showDarkMode ? makeRoundToggle({
         label: 'Dark style',
         iconKeys: ['dark-mode', 'light-mode'],
@@ -606,11 +603,8 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
         },
     }) : null;
-    if (darkRound) row0.add_child(darkRound);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
-    const row1 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
-    style(row1, 'spacing: 8px;');
     const night = showNightLight ? makeRoundToggle({
         label: 'Night light',
         iconKeys: ['night-light'],
@@ -654,28 +648,36 @@ function buildToggleGrid() {
     try {
         lockBtn.get_child().icon_name = 'system-lock-screen-symbolic';
     } catch (e) {}
-    const sessionTileActors = {'night-light': night, 'do-not-disturb': dnd};
-    for (const id of orderQuickSettingsTiles(
-        ['night-light', 'do-not-disturb'].filter(tileId => enabledTiles.has(tileId)),
-        favorites,
-    )) {
-        if (sessionTileActors[id])
-            row1.add_child(sessionTileActors[id]);
+    const toggleActors = {
+        wifi: networkGroups.wifi,
+        bluetooth: networkGroups.bluetooth,
+        'dark-mode': darkRound,
+        'night-light': night,
+        'do-not-disturb': dnd,
+    };
+    const visibleToggleIds = Object.keys(toggleActors).filter(id => toggleActors[id]);
+    const orderedToggleIds = orderQuickSettingsTiles(visibleToggleIds, favorites);
+    let roundRow = null;
+    const flushRoundRow = () => {
+        if (roundRow && roundRow.get_n_children() > 0)
+            root.add_child(roundRow);
+        roundRow = null;
+    };
+    for (const id of orderedToggleIds) {
+        const actor = toggleActors[id];
+        if (id === 'dark-mode' || id === 'night-light') {
+            if (!roundRow) {
+                roundRow = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
+                style(roundRow, 'spacing: 8px;');
+            }
+            roundRow.add_child(actor);
+        } else {
+            flushRoundRow();
+            root.add_child(actor);
+        }
     }
-    row1.add_child(lockBtn);
-
-    const groups = [
-        {ids: ['wifi', 'bluetooth'], actor: netCol, order: 0},
-        {ids: ['dark-mode'], actor: row0, order: 1},
-        {ids: ['night-light', 'do-not-disturb'], actor: row1, order: 2},
-    ].filter(group => group.actor.get_n_children() > 0);
-    const favoriteRank = new Map(favorites.map((id, index) => [id, index]));
-    const groupRank = group => Math.min(
-        ...group.ids.map(id => favoriteRank.get(id) ?? Number.MAX_SAFE_INTEGER),
-    );
-    groups.sort((a, b) => groupRank(a) - groupRank(b) || a.order - b.order);
-    for (const group of groups)
-        root.add_child(group.actor);
+    flushRoundRow();
+    root.add_child(lockBtn);
 
     return root;
 }
