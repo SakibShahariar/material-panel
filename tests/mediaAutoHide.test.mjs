@@ -46,4 +46,7 @@ test('Bluetooth auto-hide applies only to the no-adapter state', async () => {
     assert.match(bluetooth, /const setPowered = powered => \{\s*currentlyPowered = powered;\s*button\.visible = true/);
     assert.match(bluetooth, /const setBlockedState = \(\) => \{\s*isBlocked = true;\s*currentlyPowered = false;\s*button\.visible = true/);
     assert.match(bluetooth, /const setBluezUnavailableState = \(\) => \{\s*button\.visible = true/);
+    const bindBlock = bluetooth.slice(bluetooth.indexOf('const bindAdapter = path => {'), bluetooth.indexOf('// Device l'));
+    assert.equal((bindBlock.match(/setBluezUnavailableState\(\);/g) || []).length, 2);
+    assert.equal((bindBlock.match(/setNoAdapterState\(\);/g) || []).length, 1);
 });
