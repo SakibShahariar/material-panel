@@ -55,3 +55,9 @@ test('manual refresh remains available when opening directly refreshed module po
         'battery should refresh when its popup opens'
     );
 });
+
+test('Bluetooth headset discovery pauses on the lock screen, including forced refreshes', async () => {
+    const bluetooth = await readFile(new URL('../modules/btConnected.js', import.meta.url), 'utf8');
+    assert.match(bluetooth, /import \{menuOpen, menuClose, isSessionLocked\} from '\.\.\/lib\/shellCompat\.js'/);
+    assert.match(bluetooth, /if \(isSessionLocked\(\) \|\| \(!force && !button\.is_mapped && !menu\.isOpen\)\)/);
+});

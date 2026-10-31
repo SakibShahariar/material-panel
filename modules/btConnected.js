@@ -11,7 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {wireChipPress, giconForKey} from '../lib/pressFx.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 
 const BLUEZ = 'org.bluez';
 const DEVICE_IFACE = 'org.bluez.Device1';
@@ -219,7 +219,9 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
     const scan = (force = false) => {
         if (destroyed)
             return GLib.SOURCE_REMOVE;
-        if (!force && !button.is_mapped && !menu.isOpen)
+        // BlueZ enumeration is system-bus I/O; do not keep scanning behind
+        // the lock screen even though the panel chip remains mapped.
+        if (isSessionLocked() || (!force && !button.is_mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         if (scanInFlight) {
             if (force)
