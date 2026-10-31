@@ -9,6 +9,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {menuClose} from '../lib/shellCompat.js';
+import {setChipA11y} from '../lib/a11y.js';
 
 const ROUTES = [
     {id: 'sound', label: 'Sound'},
@@ -110,6 +111,7 @@ export function fillRyokuQsMenu(menu, api) {
             try {
                 railButtons[r.id].set_style_class_name(
                     `material-panel-ryoku-rail-btn${on ? ' active' : ''}`);
+                setChipA11y(railButtons[r.id], `${r.label}, ${on ? 'selected' : 'not selected'}`);
             } catch (e) {}
             try { stages[r.id].visible = on; } catch (e) {}
         }
