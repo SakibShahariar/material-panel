@@ -21,7 +21,7 @@ test('system statistics chip reuses existing GPU, network and memory samples', (
     assert.match(cpu, /readMemInfo\(\)/);
     assert.match(cpu, /_materialPanelGpuMetrics/);
     assert.match(cpu, /_materialPanelNetworkMetrics/);
-    assert.match(gpu, /_materialPanelGpuMetrics = lastGpuInfo/);
+    assert.match(gpu, /_materialPanelGpuMetrics = lastGpuInfo \?/);
     assert.match(network, /_materialPanelNetworkMetrics =/);
     assert.match(cpu, /activityCycleIndex\+\+ % values\.length/);
 });
