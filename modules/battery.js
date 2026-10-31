@@ -50,27 +50,28 @@ function makeStat(title) {
 export function buildBattery(extensionPath, scale = 1.0) {
     const client = UPowerGlib.Client.new();
     let device = null;
-    // Prefer real battery (BAT*) so % matches `upower -i BAT0`, not a composite DisplayDevice
-    try {
+    let batteryCount = 0;
+    const selectDevice = () => {
         const devices = client.get_devices?.() || [];
-        for (let i = 0; i < devices.length; i++) {
-            const d = devices[i];
+        const physical = devices.filter(d => {
             try {
-                if (d.is_present === false)
-                    continue;
-                if (d.kind === UPowerGlib.DeviceKind.BATTERY ||
-                    (d.native_path && String(d.native_path).includes('BAT'))) {
-                    device = d;
-                    break;
-                }
-            } catch (e) {}
-        }
-    } catch (e) {}
-    if (!device) {
-        try {
-            device = client.get_display_device();
-        } catch (e) {}
-    }
+                return d.is_present !== false &&
+                    (d.kind === UPowerGlib.DeviceKind.BATTERY ||
+                        (d.native_path && String(d.native_path).includes('BAT')));
+            } catch (e) {
+                return false;
+            }
+        });
+        let displayDevice = null;
+        try { displayDevice = client.get_display_device(); } catch (e) {}
+        batteryCount = physical.length;
+        // UPower's DisplayDevice is its capacity-aware aggregate. Use it for
+        // multi-battery systems instead of choosing BAT0 or averaging percents.
+        device = physical.length > 1
+            ? (displayDevice || physical[0])
+            : (physical[0] || displayDevice);
+    };
+    try { selectDevice(); } catch (e) {}
     if (!device)
         return null;
 
@@ -169,7 +170,9 @@ export function buildBattery(extensionPath, scale = 1.0) {
         try {
             const model = device.model || device.vendor || '';
             const path = device.native_path || '';
-            modelLabel.text = [model, path].filter(Boolean).join(' · ');
+            modelLabel.text = batteryCount > 1
+                ? `${batteryCount} batteries · combined UPower status`
+                : [model, path].filter(Boolean).join(' · ');
         } catch (e) {
             modelLabel.text = '';
         }
@@ -218,11 +221,32 @@ export function buildBattery(extensionPath, scale = 1.0) {
         }
     };
 
-    refresh();
     let notifyId = 0;
     try {
         notifyId = device.connect('notify', refresh);
     } catch (e) {}
+    refresh();
+
+    const syncDeviceSelection = () => {
+        const previous = device;
+        const previousCount = batteryCount;
+        try { selectDevice(); } catch (e) {}
+        if (previous !== device || previousCount !== batteryCount) {
+            if (notifyId && previous) {
+                try { previous.disconnect(notifyId); } catch (e) {}
+            }
+            notifyId = 0;
+            if (device) {
+                try { notifyId = device.connect('notify', refresh); } catch (e) {}
+            }
+        }
+        refresh();
+    };
+    let deviceAddedId = 0;
+    let deviceRemovedId = 0;
+    try { deviceAddedId = client.connect('device-added', syncDeviceSelection); } catch (e) {}
+    try { deviceRemovedId = client.connect('device-removed', syncDeviceSelection); } catch (e) {}
+
     const timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
         // UPower notifications still update the chip; avoid periodic refreshes
         // while the panel item is hidden and its details popup is closed.
@@ -281,7 +305,9 @@ export function buildBattery(extensionPath, scale = 1.0) {
             menuOpen(menu);
     });
     button.connect('destroy', () => {
-        if (notifyId) try { device.disconnect(notifyId); } catch (e) {}
+        if (notifyId && device) try { device.disconnect(notifyId); } catch (e) {}
+        if (deviceAddedId) try { client.disconnect(deviceAddedId); } catch (e) {}
+        if (deviceRemovedId) try { client.disconnect(deviceRemovedId); } catch (e) {}
         try { GLib.source_remove(timerId); } catch (e) {}
         menu.destroy();
     });
