@@ -18,3 +18,20 @@ test('Media chip accessibility state tracks title and playback changes', () => {
     assert.ok(source.includes('Media: ${track}, ${currentPlaybackState}'));
     assert.ok(!source.includes("setChipA11y(button, 'Media')"));
 });
+
+test('MPRIS media popup exposes elapsed progress and seeking only for seekable tracks', () => {
+    assert.match(source, /mpris:length/);
+    assert.match(source, /mpris:trackid/);
+    assert.match(source, /PopupSliderMenuItem/);
+    assert.match(source, /'CanSeek'/);
+    assert.match(source, /'Position'/);
+    assert.match(source, /'SetPosition'/);
+    assert.match(source, /'Seek'/);
+    assert.match(source, /formatMediaTime/);
+});
+
+test('media position polling is limited to the open popup and cleaned up on destroy', () => {
+    assert.match(source, /menu\.connect\('open-state-changed'/);
+    assert.match(source, /GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 1/);
+    assert.match(source, /GLib\.source_remove\(progressTimerId\)/);
+});

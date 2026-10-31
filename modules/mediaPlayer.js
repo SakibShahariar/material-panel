@@ -95,6 +95,11 @@ function makePropsProxy(busName, callback) {
         });
 }
 
+function formatMediaTime(positionUs) {
+    const seconds = Math.max(0, Math.floor((Number(positionUs) || 0) / 1000000));
+    return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+}
+
 function metaField(meta, key) {
     try {
         if (!meta || !(key in meta))
@@ -126,7 +131,10 @@ function bindPlayer(busName, hooks) {
                     const title = metaField(meta, 'xesam:title') || 'Unknown';
                     const artist = metaField(meta, 'xesam:artist');
                     const artUrl = metaField(meta, 'mpris:artUrl');
-                    hooks.onMeta?.({title, artist, artUrl, busName: name});
+                    const trackId = metaField(meta, 'mpris:trackid');
+                    let lengthUs = 0;
+                    try { lengthUs = Number(meta['mpris:length']?.deep_unpack?.()) || 0; } catch (e) {}
+                    hooks.onMeta?.({title, artist, artUrl, trackId, lengthUs, busName: name});
                 } catch (e) {}
             };
             const applyStatus = variant => {
@@ -134,6 +142,12 @@ function bindPlayer(busName, hooks) {
                     const st = variant.deep_unpack();
                     hooks.onStatus?.(st === 'Playing');
                 } catch (e) {}
+            };
+            const applyPosition = variant => {
+                try { hooks.onPosition?.(Number(variant.deep_unpack()) || 0); } catch (e) {}
+            };
+            const applyCanSeek = variant => {
+                try { hooks.onCanSeek?.(Boolean(variant.deep_unpack())); } catch (e) {}
             };
 
             propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, 'Metadata']),
@@ -150,6 +164,15 @@ function bindPlayer(busName, hooks) {
                         applyStatus(v);
                     } catch (e) {}
                 });
+            for (const [property, apply] of [['Position', applyPosition], ['CanSeek', applyCanSeek]]) {
+                propsProxy.call('Get', new GLib.Variant('(ss)', [PLAYER_IFACE, property]),
+                    Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
+                        try {
+                            const [value] = p.call_finish(r).deep_unpack();
+                            apply(value);
+                        } catch (e) {}
+                    });
+            }
 
             const sigId = propsProxy.connect('g-signal', (_p, _sender, signal, params) => {
                 if (signal !== 'PropertiesChanged')
@@ -161,6 +184,10 @@ function bindPlayer(busName, hooks) {
                     applyMeta(changed['Metadata']);
                 if ('PlaybackStatus' in changed)
                     applyStatus(changed['PlaybackStatus']);
+                if ('Position' in changed)
+                    applyPosition(changed['Position']);
+                if ('CanSeek' in changed)
+                    applyCanSeek(changed['CanSeek']);
             });
 
             hooks.onReady?.({
@@ -171,6 +198,28 @@ function bindPlayer(busName, hooks) {
                 previous: () => player.call('Previous', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
                 playPause: () => player.call('PlayPause', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
                 next: () => player.call('Next', null, Gio.DBusCallFlags.NONE, -1, null, () => {}),
+                getPosition: callback => propsProxy.call('Get',
+                    new GLib.Variant('(ss)', [PLAYER_IFACE, 'Position']),
+                    Gio.DBusCallFlags.NONE, 2000, null, (proxy, result) => {
+                        try {
+                            const [value] = proxy.call_finish(result).deep_unpack();
+                            callback(Number(value.deep_unpack()) || 0);
+                        } catch (e) {}
+                    }),
+                setPosition: (positionUs, trackId) => {
+                    const target = Math.max(0, Math.round(positionUs));
+                    const seekRelative = () => player.call('Seek',
+                        new GLib.Variant('(x)', [target - (hooks.currentPosition?.() || 0)]),
+                        Gio.DBusCallFlags.NONE, 3000, null, () => {});
+                    if (!trackId) {
+                        seekRelative();
+                        return;
+                    }
+                    player.call('SetPosition', new GLib.Variant('(ox)', [trackId, target]),
+                        Gio.DBusCallFlags.NONE, 3000, null, (_proxy, result) => {
+                            try { player.call_finish(result); } catch (e) { seekRelative(); }
+                        });
+                },
             });
         });
     });
@@ -375,6 +424,36 @@ export function buildMediaPlayerRow() {
 
     let ctl = null;
     let attachedBusName = null;
+    let durationUs = 0;
+    let trackId = '';
+    let currentPositionUs = 0;
+    let canSeek = false;
+    let updatingProgress = false;
+    let progressTimerId = 0;
+    const updateProgressUi = positionUs => {
+        currentPositionUs = Math.max(0, Math.min(durationUs || Number.MAX_SAFE_INTEGER, Number(positionUs) || 0));
+        if (durationUs <= 0) {
+            progressSlider.actor.visible = false;
+            timeLabel.text = '—:— / —:—';
+            return;
+        }
+        progressSlider.actor.visible = canSeek;
+        updatingProgress = true;
+        try { progressSlider.setValue(Math.max(0, Math.min(1, currentPositionUs / durationUs))); } catch (e) {}
+        updatingProgress = false;
+        timeLabel.text = formatMediaTime(currentPositionUs) + ' / ' + formatMediaTime(durationUs);
+    };
+    const pollPosition = () => {
+        if (ctl?.getPosition)
+            ctl.getPosition(updateProgressUi);
+    };
+    progressSlider.connect('value-changed', (_item, value) => {
+        if (updatingProgress || !canSeek || durationUs <= 0 || !ctl?.setPosition)
+            return;
+        const target = Math.max(0, Math.min(1, Number(value) || 0)) * durationUs;
+        ctl.setPosition(target, trackId);
+        updateProgressUi(target);
+    });
     const clearCtl = () => {
         try { ctl?.destroy(); } catch (e) {}
         ctl = null;
@@ -416,6 +495,25 @@ export function buildMediaPlayerRow() {
     prevBtn.connect('clicked', () => ctl?.previous());
     playBtn.connect('clicked', () => ctl?.playPause());
     nextBtn.connect('clicked', () => ctl?.next());
+
+    menu.connect('open-state-changed', (_menu, open) => {
+        if (open) {
+            pollPosition();
+            if (!progressTimerId) {
+                progressTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                    if (!menu.isOpen) {
+                        progressTimerId = 0;
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    pollPosition();
+                    return GLib.SOURCE_CONTINUE;
+                });
+            }
+        } else if (progressTimerId) {
+            GLib.source_remove(progressTimerId);
+            progressTimerId = 0;
+        }
+    });
 
     const stopWatching = watchPreferredPlayer(name => {
         if (name !== attachedBusName)
@@ -526,6 +624,23 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     head.add_child(textCol);
     body.add_child(head);
 
+    const progressSlider = new PopupMenu.PopupSliderMenuItem(0);
+    progressSlider.actor.visible = false;
+    const timeLabel = new St.Label({
+        text: '0:00 / 0:00',
+        style_class: 'material-panel-media-popup-time',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const progressRow = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-media-popup-progress',
+        x_expand: true,
+    });
+    progressRow.add_child(progressSlider.actor);
+    progressRow.add_child(timeLabel);
+    body.add_child(progressRow);
+
     const controls = new St.BoxLayout({
         style_class: 'material-panel-popup-card material-panel-media-popup-controls',
         x_align: Clutter.ActorAlign.CENTER,
@@ -598,6 +713,11 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         clearCtl();
         attachedBusName = busName || null;
         if (!busName) {
+            durationUs = 0;
+            trackId = '';
+            currentPositionUs = 0;
+            canSeek = false;
+            updateProgressUi(0);
             label.text = 'No media';
             pTitle.text = 'No media';
             pArtist.text = '';
@@ -608,7 +728,10 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             return;
         }
         bindPlayer(busName, {
-            onMeta: ({title, artist, artUrl}) => {
+            onMeta: ({title, artist, artUrl, trackId: nextTrackId, lengthUs}) => {
+                durationUs = Math.max(0, Number(lengthUs) || 0);
+                trackId = nextTrackId || '';
+                updateProgressUi(currentPositionUs);
                 const t = title || 'Media';
                 currentTrackTitle = title || 'Unknown track';
                 label.text = t.length > 22 ? `${t.slice(0, 20)}…` : t;
@@ -621,8 +744,19 @@ export function buildMedia(_extensionPath, scale = 1.0) {
                 currentPlaybackState = playing ? 'playing' : 'paused';
                 updateMediaChipA11y();
                 setPlayingUi(!!playing);
+                if (playing && menu.isOpen)
+                    pollPosition();
             },
-            onReady: c => { ctl = c; },
+            onPosition: updateProgressUi,
+            onCanSeek: value => {
+                canSeek = value;
+                updateProgressUi(currentPositionUs);
+            },
+            currentPosition: () => currentPositionUs,
+            onReady: c => {
+                ctl = c;
+                pollPosition();
+            },
         });
     };
 
@@ -644,6 +778,10 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         stopWatching();
+        if (progressTimerId) {
+            try { GLib.source_remove(progressTimerId); } catch (e) {}
+            progressTimerId = 0;
+        }
         clearCtl();
         try { menu.destroy(); } catch (e) {}
     });
