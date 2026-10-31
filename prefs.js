@@ -14,7 +14,7 @@ import {hasBuiltin} from './lib/moduleIds.js';
 import {readStatusRolesFile} from './lib/statusRolesFile.js';
 import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
 import {TILE_STYLES, TILE_STYLE_DEFAULT} from './lib/tileStyleMeta.js';
-import {formatQuickSettingsTileOrder, parseQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
+import {formatQuickSettingsFavorites, formatQuickSettingsTileOrder, parseQuickSettingsFavorites, parseQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
 import {getOptionalModuleDependencies} from './lib/moduleAvailability.js';
 import {serializeLayoutPreset, parseLayoutPreset} from './lib/layoutPresetIo.js';
 import {createSafeModeConfig, parsePanelConfig, serializePanelConfig} from './lib/configImportExport.js';
@@ -1572,6 +1572,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const parsed = parseQuickSettingsTileOrder(tileOrderRow.get_text());
             if (parsed === null) {
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
+                tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
                 return;
             }
             config.qsTiles = parsed;
@@ -1579,6 +1580,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
         });
         themeGroup.add(tileOrderRow);
+
+        const tileFavoritesRow = new Adw.EntryRow({
+            title: 'Favorite tiles (pinned first)',
+            text: formatQuickSettingsFavorites(config.qsFavorites),
+            show_apply_button: true,
+        });
+        tileFavoritesRow.connect('apply', () => {
+            const parsed = parseQuickSettingsFavorites(tileFavoritesRow.get_text());
+            if (parsed === null) {
+                tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
+                return;
+            }
+            config.qsFavorites = parsed;
+            saveConfig();
+            tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
+        });
+        themeGroup.add(tileFavoritesRow);
 
         const flushPendingSave = () => {
             if (saveDebounceId) {
