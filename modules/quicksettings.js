@@ -24,6 +24,7 @@ import {fillRyokuQsMenu} from './quicksettingsRyoku.js';
 import {menuOpen, menuClose, prefersReducedMotion} from '../lib/shellCompat.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
+import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -1533,31 +1534,7 @@ export function bluetoothTile() {
                                 deviceContainer.visible = expanded;
                                 return;
                             }
-                            const pairedDevices = Object.entries(objects)
-                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => {
-                                    let batteryPct = null;
-                                    try {
-                                        const bat = ifaces['org.bluez.Battery1'];
-                                        if (bat && bat['Percentage'])
-                                            batteryPct = bat['Percentage'].deep_unpack();
-                                    } catch (e) {}
-                                    return {path, props: ifaces[DEVICE_IFACE], batteryPct};
-                                })
-                                .filter(({props}) => props['Paired']?.deep_unpack());
-                            // Also show unpaired nearby devices
-                            const nearbyDevices = Object.entries(objects)
-                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => {
-                                    let batteryPct = null;
-                                    try {
-                                        const bat = ifaces['org.bluez.Battery1'];
-                                        if (bat && bat['Percentage'])
-                                            batteryPct = bat['Percentage'].deep_unpack();
-                                    } catch (e) {}
-                                    return {path, props: ifaces[DEVICE_IFACE], batteryPct};
-                                })
-                                .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
+                            const {pairedDevices, nearbyDevices} = getBluetoothDevices(objects);
                             if (pairedDevices.length === 0 && nearbyDevices.length === 0) {
                                 const hint = new St.Label({text: 'No paired devices — pair in Settings', style_class: 'material-panel-qs-bt-empty material-panel-qs-bt-empty-hint'});
                                 deviceContainer.add_child(hint);
