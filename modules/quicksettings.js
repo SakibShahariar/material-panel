@@ -15,6 +15,7 @@ import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
+import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
 import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {buildProfileCard} from './profileCard.js';
@@ -2341,6 +2342,11 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             menu.addMenuItem(audioSelectors.section);
             menu.actor.connect('destroy', () => audioSelectors.destroy());
         }
+        const appVolumeMixer = buildAppVolumeMixer(getMixerControl());
+        if (appVolumeMixer) {
+            menu.addMenuItem(appVolumeMixer.section);
+            menu.actor.connect('destroy', () => appVolumeMixer.destroy());
+        }
         const powerProfiles = buildPowerProfileSelector();
         menu.addMenuItem(powerProfiles.section);
         menu.actor.connect('destroy', () => powerProfiles.destroy());
@@ -2510,6 +2516,11 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menu.addMenuItem(audioSelectors.section);
         menu.actor.connect('destroy', () => audioSelectors.destroy());
+    }
+    const appVolumeMixer = buildAppVolumeMixer(getMixerControl());
+    if (appVolumeMixer) {
+        menu.addMenuItem(appVolumeMixer.section);
+        menu.actor.connect('destroy', () => appVolumeMixer.destroy());
     }
     const powerProfiles = buildPowerProfileSelector();
     menu.addMenuItem(powerProfiles.section);

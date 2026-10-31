@@ -10,6 +10,8 @@ import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {getMixerControl} from '../lib/audio.js';
+import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 
 const ROUTES = [
@@ -159,4 +161,9 @@ export function fillRyokuQsMenu(menu, api) {
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(root);
     menu.addMenuItem(item);
+    const appVolumeMixer = buildAppVolumeMixer(getMixerControl());
+    if (appVolumeMixer) {
+        menu.addMenuItem(appVolumeMixer.section);
+        menu.actor.connect('destroy', () => appVolumeMixer.destroy());
+    }
 }

@@ -21,6 +21,7 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
+import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
 import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
@@ -785,6 +786,11 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menu.addMenuItem(audioSelectors.section);
         menu.actor.connect('destroy', () => audioSelectors.destroy());
+    }
+    const appVolumeMixer = buildAppVolumeMixer(getMixerControl());
+    if (appVolumeMixer) {
+        menu.addMenuItem(appVolumeMixer.section);
+        menu.actor.connect('destroy', () => appVolumeMixer.destroy());
     }
     const powerProfiles = buildPowerProfileSelector();
     menu.addMenuItem(powerProfiles.section);
