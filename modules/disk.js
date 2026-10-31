@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuToggle} from '../lib/shellCompat.js';
+import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {calculateDiskUsage, sameFilesystem} from '../lib/diskUsage.js';
@@ -178,7 +178,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     refresh();
     const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
         // Do not query filesystem metadata for a chip hidden with the panel.
-        if (!button.mapped && !menu.isOpen)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         return refresh();
     });

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
+const shellCompat = await readFile(new URL('../lib/shellCompat.js', import.meta.url), 'utf8');
+
 const modules = await Promise.all(
     ['gpu', 'disk', 'battery', 'memory', 'cpu', 'networkSpeed'].map(async name => [
         name,
@@ -12,7 +14,7 @@ const modules = await Promise.all(
 test('system metric polling skips hidden chips with closed popups', () => {
     for (const [name, source] of modules) {
         assert.ok(
-            source.includes('if (!button.mapped && !menu.isOpen)'),
+            source.includes('if (isSessionLocked() || (!button.mapped && !menu.isOpen))'),
             `${name} periodic polling should pause while its chip is hidden`
         );
     }
@@ -24,6 +26,16 @@ test('CPU periodic sampling pauses while its chip and popup are hidden', async (
         cpu,
         /let timerId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 2, \(\) => \{[\s\S]*?if \(!button\.mapped && !menu\.isOpen\)[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?updateLabels\(\);/
     );
+});
+
+test('system metric polling also pauses while GNOME is locked', () => {
+    assert.match(shellCompat, /Main\.sessionMode\.isLocked/);
+    for (const [name, source] of modules) {
+        assert.ok(
+            source.includes('isSessionLocked() || (!button.mapped && !menu.isOpen)'),
+            `${name} periodic polling should pause during the lock screen`
+        );
+    }
 });
 
 test('manual refresh remains available when opening directly refreshed module popups', () => {

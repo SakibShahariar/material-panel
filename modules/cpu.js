@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuToggle} from '../lib/shellCompat.js';
+import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -435,7 +435,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     let updateLabels = () => {
         // Avoid repeated /proc and sysfs reads when neither chip nor popup is visible.
-        if (!button.mapped && !menu.isOpen)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         try {
             getCoreClasses();
@@ -893,7 +893,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         // Avoid CPU, temperature, and memory reads while the chip and popup
         // are hidden. Reset the CPU baseline so the next visible sample does
         // not average activity across the entire hidden interval.
-        if (!button.mapped && !menu.isOpen) {
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
             primed = false;
             prevCores = [];
             return GLib.SOURCE_CONTINUE;

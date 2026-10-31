@@ -8,7 +8,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
@@ -105,7 +105,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             refreshPopup();
     }, 1, () => {
         // Avoid /proc route and interface reads while the chip and popup are hidden.
-        if (!button.mapped && !menu.isOpen)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return true;
         try { return Boolean(Main.layoutManager.primaryMonitor?.inFullscreen); }
         catch (e) { return false; }

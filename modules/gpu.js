@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuToggle} from '../lib/shellCompat.js';
+import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {parseNvidiaSmiOutput} from '../lib/gpuMetrics.js';
@@ -302,7 +302,7 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
         // GPU polling can spawn nvidia-smi and read sysfs; skip it while the
         // chip is hidden and its popup is closed. Clicks still refresh at once.
-        if (!button.mapped && !menu.isOpen)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         return refresh();
     });

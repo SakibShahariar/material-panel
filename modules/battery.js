@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
 
 function formatSeconds(sec) {
@@ -226,7 +226,7 @@ export function buildBattery(extensionPath, scale = 1.0) {
     const timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
         // UPower notifications still update the chip; avoid periodic refreshes
         // while the panel item is hidden and its details popup is closed.
-        if (!button.mapped && !menu.isOpen)
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
             return GLib.SOURCE_CONTINUE;
         refresh();
         return GLib.SOURCE_CONTINUE;
