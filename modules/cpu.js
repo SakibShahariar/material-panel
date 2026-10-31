@@ -13,7 +13,6 @@ import {setChipA11y} from '../lib/a11y.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
 import {readMemInfo} from '../lib/memInfo.js';
-import {readProcNetDevText} from '../lib/procNetDev.js';
 
 function findTempFile() {
     const candidates = [];
@@ -211,28 +210,6 @@ function formatBytes(n) {
     return `${(n / (1024 ** 3)).toFixed(1)} GB`;
 }
 
-function readNetRates() {
-    // cumulative bytes; caller diffs
-    try {
-        const text = readProcNetDevText();
-        if (text === null) return null;
-        let rx = 0, tx = 0;
-        for (const line of text.split('\n').slice(2)) {
-            const t = line.trim();
-            if (!t) continue;
-            const [iface, rest] = t.split(':');
-            if (!rest) continue;
-            const name = iface.trim();
-            if (name === 'lo') continue;
-            const parts = rest.trim().split(/\s+/);
-            rx += parseInt(parts[0], 10) || 0;
-            tx += parseInt(parts[8], 10) || 0;
-        }
-        return {rx, tx, t: GLib.get_monotonic_time()};
-    } catch (e) {
-        return null;
-    }
-}
 
 // CPU topology/capacity metadata is stable for the lifetime of this module.
 // Cache it so popup refreshes do not repeatedly walk sysfs.
