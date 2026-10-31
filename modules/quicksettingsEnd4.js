@@ -411,7 +411,6 @@ function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn
         let on = false;
         try { on = !!getOn(); } catch (e) {}
         setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
-        setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`);
         let bg = on ? accent() : surface();
         if (pressed)
             bg = on ? accent() : surfaceHoverStrong();
@@ -481,6 +480,7 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, se
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
+        setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`);
         const w = width || 140;
         let bg = on ? accent() : surface();
         if (pressed)
