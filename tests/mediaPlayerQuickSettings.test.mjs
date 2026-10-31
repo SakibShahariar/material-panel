@@ -31,3 +31,14 @@ test('Quick Settings media row keeps player controls connected to the active MPR
     assert.match(row, /nextBtn\.connect\('clicked', \(\) => ctl\?\.next\(\)\)/);
     assert.match(row, /onGone: \(\) =>/);
 });
+
+test('the full media popup owns and populates the player switcher', async () => {
+    const source = await readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8');
+    const start = source.indexOf('export function buildMedia(');
+    const popup = source.slice(start);
+    assert.match(popup, /PopupSubMenuMenuItem\('Player'/);
+    assert.match(popup, /playerMenuItem\.actor\.visible = players\.length > 1/);
+    assert.match(popup, /playerMenuItem\.menu\.addMenuItem\(choice\)/);
+    assert.match(popup, /selectPreferredPlayer\?\.\(name\)/);
+    assert.match(popup, /updatePlayerChoices\(name, players\)/);
+});
