@@ -15,7 +15,7 @@ import {wireChipPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
-import {filterNotifications, hasUnreadNotificationState, notificationAppNames} from '../lib/notificationFilters.js';
+import {filterNotifications, groupNotificationsByApp, hasUnreadNotificationState, notificationAppNames} from '../lib/notificationFilters.js';
 
 const MAX_SHOWN = 60;
 const PANEL_MIN_W = 340;
@@ -604,6 +604,33 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 body.style = 'font-size: 11px; opacity: 0.85;';
             } catch (e) {}
             mid.add_child(body);
+            if (item.body.length > 160) {
+                let expanded = false;
+                const expandButton = new St.Button({
+                    label: 'More',
+                    style_class: 'material-panel-nc-expand',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                setChipA11y(expandButton, 'Expand notification body');
+                expandButton.connect('button-press-event', () => Clutter.EVENT_STOP);
+                expandButton.connect('clicked', () => {
+                    expanded = !expanded;
+                    body.text = expanded ? item.body : item.body.slice(0, 160);
+                    try {
+                        body.clutter_text.ellipsize = expanded
+                            ? Pango.EllipsizeMode.NONE
+                            : Pango.EllipsizeMode.END;
+                    } catch (e) {}
+                    expandButton.label = expanded ? 'Less' : 'More';
+                    setChipA11y(expandButton, expanded
+                        ? 'Collapse notification body'
+                        : 'Expand notification body');
+                    return Clutter.EVENT_STOP;
+                });
+                mid.add_child(expandButton);
+            }
         }
         card.add_child(mid);
 
@@ -692,17 +719,36 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             return;
         }
 
-        for (const group of groupByDay(shown)) {
-            const dayLbl = new St.Label({
-                text: group.label,
+        for (const group of groupNotificationsByApp(shown)) {
+            const groupHeader = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+            });
+            try { groupHeader.style = 'spacing: 8px; padding: 8px 4px 4px 4px;'; } catch (e) {}
+            const appLabel = new St.Label({
+                text: group.appName + ' · ' + group.items.length,
                 style_class: 'material-panel-nc-day',
                 x_expand: true,
             });
-            try {
-                dayLbl.style =
-                    'font-size: 11px; font-weight: 700; opacity: 0.55; padding: 8px 4px 4px 4px;';
-            } catch (e) {}
-            listBox.add_child(dayLbl);
+            try { appLabel.style = 'font-size: 11px; font-weight: 700; opacity: 0.7;'; } catch (e) {}
+            groupHeader.add_child(appLabel);
+            const clearAppButton = new St.Button({
+                label: 'Clear',
+                style_class: 'material-panel-nc-clear',
+                reactive: true,
+                track_hover: true,
+                can_focus: true,
+            });
+            setChipA11y(clearAppButton, 'Clear notifications from ' + group.appName);
+            clearAppButton.connect('button-press-event', () => Clutter.EVENT_STOP);
+            clearAppButton.connect('clicked', () => {
+                for (const item of listNotifications().filter(entry => entry.appName === group.appName))
+                    destroyNotification(item.notification);
+                scheduleRebuild(40);
+                return Clutter.EVENT_STOP;
+            });
+            groupHeader.add_child(clearAppButton);
+            listBox.add_child(groupHeader);
             for (const item of group.items)
                 listBox.add_child(makeCard(item));
         }
