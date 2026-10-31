@@ -15,3 +15,13 @@ test('popup teardown cancels a pending focus-restoration callback', () => {
     assert.match(source, /if \(restoreFocusId\) \{[\s\S]*?GLib\.source_remove\(restoreFocusId\)/);
     assert.match(source, /const dispose = \(\) => \{[\s\S]*?restoreFocusId = 0;/);
 });
+
+test('popup arrow navigation cycles focusable controls without hijacking sliders or text entry', () => {
+    assert.ok(source.includes('_collectFocusableActors(menu.actor)'));
+    assert.ok(source.includes('Clutter.KEY_Up || key === Clutter.KEY_Down'));
+    assert.ok(source.includes('_focusAdjacentPopupActor(menu, stage, direction)'));
+    assert.ok(source.includes('role === Atk.Role.SLIDER'));
+    assert.ok(source.includes('role === Atk.Role.TEXT_ENTRY'));
+    assert.ok(source.includes('actors[next].grab_key_focus()'));
+    assert.ok(source.includes('Enter/Space remain native St.Button activations'));
+});
