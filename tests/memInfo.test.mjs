@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {parseMemInfoText} from '../lib/memInfoParser.js';
 
 test('parses memory and swap values from proc meminfo', () => {
@@ -37,4 +38,18 @@ test('does not produce negative used memory when available exceeds total', () =>
     const result = parseMemInfoText('MemTotal: 100 kB\nMemAvailable: 150 kB');
     assert.equal(result.usedKb, 0);
     assert.equal(result.usedPct, 0);
+});
+
+const [memInfoSource, cpuSource, memorySource] = await Promise.all([
+    readFile(new URL('../lib/memInfo.js', import.meta.url), 'utf8'),
+    readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8'),
+    readFile(new URL('../modules/memory.js', import.meta.url), 'utf8'),
+]);
+
+test('CPU and Memory chips share one short-lived proc meminfo snapshot', () => {
+    assert.ok(memInfoSource.includes('const CACHE_WINDOW_US = 1_000_000'));
+    assert.ok(memInfoSource.includes('now - cachedAt < CACHE_WINDOW_US'));
+    assert.equal((memInfoSource.match(/load_contents\(null\)/g) || []).length, 1);
+    assert.ok(cpuSource.includes("import {readMemInfo} from '../lib/memInfo.js'"));
+    assert.ok(memorySource.includes("import {readMemInfo} from '../lib/memInfo.js'"));
 });
