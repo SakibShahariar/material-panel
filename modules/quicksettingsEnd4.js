@@ -399,7 +399,7 @@ function buildDualSliders() {
 
 // ── Toggles (end-4 style: round + labeled wide) ──
 
-function makeRoundToggle({iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
+function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
     const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
     const ic = makeIcon(iconKeys, 20, false, symbolic);
     btn.set_child(ic);
@@ -408,6 +408,8 @@ function makeRoundToggle({iconKeys, symbolic, getOn, setOn, settings = null, set
     const paint = () => {
         let on = false;
         try { on = !!getOn(); } catch (e) {}
+        setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
+        setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`);
         let bg = on ? accent() : surface();
         if (pressed)
             bg = on ? accent() : surfaceHoverStrong();
@@ -580,6 +582,7 @@ function buildToggleGrid() {
     const row0 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row0, 'spacing: 8px;');
     const darkRound = makeRoundToggle({
+        label: 'Dark style',
         iconKeys: ['dark-mode', 'light-mode'],
         symbolic: 'weather-clear-night-symbolic',
         settings: iface,
@@ -599,6 +602,7 @@ function buildToggleGrid() {
     const row1 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
     style(row1, 'spacing: 8px;');
     const night = makeRoundToggle({
+        label: 'Night light',
         iconKeys: ['night-light'],
         symbolic: 'night-light-symbolic',
         settings: nlSettings,
@@ -627,6 +631,8 @@ function buildToggleGrid() {
         },
     });
     const lockBtn = makeRoundToggle({
+        label: 'Lock screen',
+        announceState: false,
         iconKeys: ['lock'],
         symbolic: 'system-lock-screen-symbolic',
         getOn: () => false,
@@ -662,6 +668,7 @@ function buildPowerStrip(menu) {
     ];
     for (const a of actions) {
         const b = new St.Button({reactive: true, x_expand: false});
+        setChipA11y(b, a.title);
         let pressed = false;
         const ic = new St.Icon({
             icon_name: a.icon,
@@ -720,6 +727,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
             : [{icon: qsIcon, key: 'quicksettings'}]);
     } catch (e) {}
 
+    setChipA11y(button, 'Quick Settings');
     const menu = new PopupMenu.PopupMenu(button, 1.0, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-e4qs-menu material-panel-popup material-panel-qs-end4');
     Main.uiGroup.add_child(menu.actor);
