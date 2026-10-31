@@ -15,6 +15,7 @@ import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
+import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -2339,6 +2340,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             menu.addMenuItem(audioSelectors.section);
             menu.actor.connect('destroy', () => audioSelectors.destroy());
         }
+    const powerProfiles = buildPowerProfileSelector();
+    menu.addMenuItem(powerProfiles.section);
+    menu.actor.connect('destroy', () => powerProfiles.destroy());
+        const powerProfiles = buildPowerProfileSelector();
+        menu.addMenuItem(powerProfiles.section);
+        menu.actor.connect('destroy', () => powerProfiles.destroy());
         menu.connect('open-state-changed', (_m, open) => {
             if (open)
                 applyQsChrome();
