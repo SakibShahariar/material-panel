@@ -591,6 +591,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
+    const changeLocationItem = new PopupMenu.PopupMenuItem('Change location…');
+    changeLocationItem.connect('activate', () => {
+        menu.close();
+        try {
+            Main.extensionManager.openExtensionPrefs('material-panel@SakibShahariar', '', {});
+        } catch (e) {
+            logError(e, 'material-panel: open weather location preferences');
+        }
+    });
+    menu.addMenuItem(changeLocationItem);
+
     const iconForKey = key => {
         try {
             let pth = iconPathPrimary(key);
