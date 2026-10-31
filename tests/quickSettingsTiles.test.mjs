@@ -6,6 +6,10 @@ import {
     formatQuickSettingsTileOrder,
     normalizeQuickSettingsTiles,
     parseQuickSettingsTileOrder,
+    normalizeQuickSettingsFavorites,
+    parseQuickSettingsFavorites,
+    formatQuickSettingsFavorites,
+    orderQuickSettingsTiles,
 } from '../lib/quickSettingsTiles.js';
 
 test('missing or malformed Quick Settings tile order restores the defaults', () => {
@@ -72,4 +76,46 @@ test('End-4 and Ryoku Quick Settings honor the shared configured tile visibility
     assert.match(end4, /if \(wifi\) netCol\.add_child\(wifi\)/);
     assert.match(end4, /if \(bt\) netCol\.add_child\(bt\)/);
     assert.match(ryoku, /activeRoutes/);
+});
+
+
+test('favorites accept only known tile IDs, preserve favorite order, and clear on empty input', () => {
+    assert.deepEqual(normalizeQuickSettingsFavorites(undefined), []);
+    assert.deepEqual(normalizeQuickSettingsFavorites(['wifi', 'wifi', 'unknown']), ['wifi']);
+    assert.deepEqual(parseQuickSettingsFavorites('Bluetooth, Wi-Fi, bluetooth'),
+        ['bluetooth', 'wifi']);
+    assert.deepEqual(parseQuickSettingsFavorites(''), []);
+    assert.equal(parseQuickSettingsFavorites('Wi-Fi, unknown'), null);
+    assert.equal(formatQuickSettingsFavorites(['night-light', 'wifi']), 'Night light, Wi-Fi');
+});
+
+test('favorite ordering pins favorites first without reordering the remaining tiles', () => {
+    assert.deepEqual(orderQuickSettingsTiles(
+        ['dark-mode', 'do-not-disturb', 'night-light', 'bluetooth', 'wifi'],
+        ['wifi', 'night-light'],
+    ), ['wifi', 'night-light', 'dark-mode', 'do-not-disturb', 'bluetooth']);
+    assert.deepEqual(orderQuickSettingsTiles(['wifi', 'bluetooth'], []), ['wifi', 'bluetooth']);
+});
+
+test('favorites flow through config, preferences, and every Quick Settings layout', async () => {
+    const [config, prefs, extension, quickSettings, end4, ryoku] = await Promise.all([
+        readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../extension.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettingsEnd4.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettingsRyoku.js', import.meta.url), 'utf8'),
+    ]);
+    assert.ok(config.includes('qsFavorites: []'));
+    assert.ok(config.includes('merged.qsFavorites = normalizeQuickSettingsFavorites(merged.qsFavorites)'));
+    assert.ok(prefs.includes('parseQuickSettingsFavorites(tileFavoritesRow.get_text())'));
+    assert.ok(prefs.includes('config.qsFavorites = parsed'));
+    assert.ok(prefs.includes('tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites))'));
+    assert.ok(extension.includes('globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? []'));
+    assert.ok(extension.includes('globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? []'));
+    assert.ok(quickSettings.includes('orderQuickSettingsTiles('));
+    assert.ok(end4.includes('orderQuickSettingsTiles('));
+    assert.ok(end4.includes('const groups = ['));
+    assert.ok(ryoku.includes('orderQuickSettingsTiles('));
+    assert.ok(ryoku.includes('activeRoutes.sort('));
 });
