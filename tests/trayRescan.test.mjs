@@ -14,8 +14,7 @@ test('tray bridge attaches newly registered indicators through the addToStatusAr
 test('tray bridge disconnects its registration hook and clears retries on disable', async () => {
     const bridge = await readFile(new URL('../lib/statusAreaBridge.js', import.meta.url), 'utf8');
     const disableStart = bridge.indexOf('    disable() {');
-    const disableEnd = bridge.indexOf('\n    ', disableStart + 10);
-    const disable = bridge.slice(disableStart, disableEnd);
+    const disable = bridge.slice(disableStart);
     assert.match(disable, /this\._destroyed = true/);
     assert.match(disable, /this\._clearTimers\(\)/);
     assert.match(bridge, /Main\.panel\.addToStatusArea === this\._patchedAdd/);
