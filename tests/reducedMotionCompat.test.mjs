@@ -15,3 +15,8 @@ test('Shell 51+ reduced motion keeps the St.Settings path', () => {
     assert.ok(source.includes('const {reducedMotion} = St.Settings.get()'));
     assert.ok(source.includes('St.ReducedMotion.REDUCE'));
 });
+
+test('menu open and close transitions honor reduced-motion preference', () => {
+    const guardedFlags = source.match(/const a = !!animate && !prefersReducedMotion\(\);/g) || [];
+    assert.equal(guardedFlags.length, 2);
+});
