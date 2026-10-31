@@ -22,6 +22,7 @@ test('multiple batteries use UPower DisplayDevice for capacity-aware combined st
     const selected = selectBatteryDevice([first, second], display, batteryKind);
     assert.equal(selected.device, display);
     assert.equal(selected.batteryCount, 2);
+    assert.equal(selected.isAggregate, true);
 });
 
 test('absent batteries are ignored and display device remains a safe fallback', () => {

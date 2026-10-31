@@ -11,6 +11,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {selectBatteryDevice} from '../lib/batteryDevice.js';
 
 function formatSeconds(sec) {
     if (!sec || sec <= 0 || sec > 60 * 60 * 48)
@@ -51,25 +52,16 @@ export function buildBattery(extensionPath, scale = 1.0) {
     const client = UPowerGlib.Client.new();
     let device = null;
     let batteryCount = 0;
+    let usesAggregate = false;
     const selectDevice = () => {
         const devices = client.get_devices?.() || [];
-        const physical = devices.filter(d => {
-            try {
-                return d.is_present !== false &&
-                    (d.kind === UPowerGlib.DeviceKind.BATTERY ||
-                        (d.native_path && String(d.native_path).includes('BAT')));
-            } catch (e) {
-                return false;
-            }
-        });
         let displayDevice = null;
         try { displayDevice = client.get_display_device(); } catch (e) {}
-        batteryCount = physical.length;
-        // UPower's DisplayDevice is its capacity-aware aggregate. Use it for
-        // multi-battery systems instead of choosing BAT0 or averaging percents.
-        device = physical.length > 1
-            ? (displayDevice || physical[0])
-            : (physical[0] || displayDevice);
+        const selected = selectBatteryDevice(
+            devices, displayDevice, UPowerGlib.DeviceKind.BATTERY);
+        device = selected.device;
+        batteryCount = selected.batteryCount;
+        usesAggregate = selected.isAggregate;
     };
     try { selectDevice(); } catch (e) {}
     if (!device)
@@ -141,6 +133,17 @@ export function buildBattery(extensionPath, scale = 1.0) {
     const modelLabel = new St.Label({text: '', style_class: 'material-panel-battery-popup-model'});
 
     const refresh = () => {
+        if (!device) {
+            setIconKey('battery-full');
+            label.text = '—';
+            pctHero.text = '—';
+            stateHero.text = 'No battery detected';
+            modelLabel.text = '';
+            try { barFill.width = 4; } catch (e) {}
+            for (const stat of [sTime, sEnergy, sRate, sHealth])
+                stat.value.text = '—';
+            return;
+        }
         let pct = 0;
         try {
             pct = Math.round(device.percentage);
@@ -171,7 +174,9 @@ export function buildBattery(extensionPath, scale = 1.0) {
             const model = device.model || device.vendor || '';
             const path = device.native_path || '';
             modelLabel.text = batteryCount > 1
-                ? `${batteryCount} batteries · combined UPower status`
+                ? (usesAggregate
+                    ? `${batteryCount} batteries · combined UPower status`
+                    : `${batteryCount} batteries · showing ${model || path || "first battery"}`)
                 : [model, path].filter(Boolean).join(' · ');
         } catch (e) {
             modelLabel.text = '';
