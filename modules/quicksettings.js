@@ -2206,6 +2206,16 @@ export function wifiQsBlock() {
     return row;
 }
 
+// Stable IDs make the default tile set orderable/configurable without
+// coupling layout placement to builder function positions.
+export const QUICK_SETTINGS_TILE_REGISTRY = Object.freeze([
+    Object.freeze({id: 'dark-mode', build: darkModeTile}),
+    Object.freeze({id: 'do-not-disturb', build: dndTile}),
+    Object.freeze({id: 'night-light', build: nightLightTile}),
+    Object.freeze({id: 'bluetooth', build: bluetoothTile}),
+    Object.freeze({id: 'wifi', build: wifiQsBlock}),
+]);
+
 export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const qsIcon = new St.Icon({
         icon_size: Math.round(17 * scale),
@@ -2428,15 +2438,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }),
     });
     const gl = grid.layout_manager;
-    const tiles = [
-        darkModeTile(),
-        dndTile(),
-        nightLightTile(),
-        bluetoothTile(),
-        wifiQsBlock(),
-    ];
-    const btTile = tiles[3];
-    const wifiRow = tiles[4];
+    const tileActors = new Map(
+        QUICK_SETTINGS_TILE_REGISTRY.map(({id, build}) => [id, build()]),
+    );
+    const tiles = QUICK_SETTINGS_TILE_REGISTRY.map(({id}) => tileActors.get(id));
+    const btTile = tileActors.get('bluetooth');
+    const wifiRow = tileActors.get('wifi');
     tiles.forEach((tile, i) => {
         if (iconOnly) {
             // Single row of circles
