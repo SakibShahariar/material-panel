@@ -44,3 +44,35 @@ test('panel rebuild keeps only one bounded fallback tray rescan', async () => {
     assert.match(scheduler, /this\._bridge\?\.reattachAll\?\.\(\)/);
     assert.doesNotMatch(scheduler, /\[400, 1200, 2500\]/);
 });
+
+test('tray bridge handles existing, newly registered, destroyed, and recreated indicators', async () => {
+    const bridge = await readFile(new URL('../lib/statusAreaBridge.js', import.meta.url), 'utf8');
+    const enableStart = bridge.indexOf('    enable() {');
+    const disableStart = bridge.indexOf('    disable() {', enableStart);
+    const enable = bridge.slice(enableStart, disableStart);
+    assert.match(enable, /this\._origAdd\.call\(this, role, indicator, position, box\)/);
+    assert.match(enable, /self\._onButtonAdded\(role, button \?\? indicator\)/);
+    assert.match(enable, /for \(const role of Object\.keys\(area\)\)/);
+    assert.match(enable, /this\._onButtonAdded\(role, area\[role\]\)/);
+
+    const scanStart = bridge.indexOf('    _scanExistingIndicators() {');
+    const scanEnd = bridge.indexOf('\n    _wantedPlacement(', scanStart);
+    const scan = bridge.slice(scanStart, scanEnd);
+    assert.match(scan, /for \(const role of Object\.keys\(area\)\)/);
+    assert.match(scan, /if \(!this\._known\.has\(role\)\)/);
+    assert.match(scan, /this\._applyRole\(role, area\[role\]\)/);
+
+    const signalStart = bridge.indexOf('    _bindActorSignals(role, actor, wrap) {');
+    const signalEnd = bridge.indexOf('\n    _ensureWrapper(', signalStart);
+    const signals = bridge.slice(signalStart, signalEnd);
+    assert.match(signals, /actor\.connect\('destroy'/);
+    assert.match(signals, /this\._known\.delete\(role\)/);
+    assert.match(signals, /this\._unwrap\(role\)/);
+
+    const reattachStart = bridge.indexOf('    reattachAll() {');
+    const reattachEnd = bridge.indexOf('\n    /**', reattachStart);
+    const reattach = bridge.slice(reattachStart, reattachEnd);
+    assert.match(reattach, /this\._scanExistingIndicators\(\)/);
+    assert.match(reattach, /for \(const \[role, actor\] of this\._known\.entries\(\)\)/);
+    assert.match(reattach, /this\._applyRole\(role, actor\)/);
+});
