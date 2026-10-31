@@ -15,6 +15,7 @@ import {readStatusRolesFile} from './lib/statusRolesFile.js';
 import {SLIDER_STYLES, SLIDER_STYLE_DEFAULT} from './lib/sliderStyleMeta.js';
 import {TILE_STYLES, TILE_STYLE_DEFAULT} from './lib/tileStyleMeta.js';
 import {formatQuickSettingsTileOrder, parseQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
+import {getOptionalModuleDependencies} from './lib/moduleAvailability.js';
 
 const ZONE_NAMES = ['left', 'center', 'right'];
 const EXT_PREFIX = 'extension:';
@@ -663,9 +664,21 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const zones = activePreset?.zones ?? {};
             const isPlaced = ZONE_NAMES.some(zone => (zones[zone] ?? []).includes(module.id));
             const isHidden = config.hiddenModules.includes(module.id) || !isPlaced;
+            const optionalDependencies = getOptionalModuleDependencies(
+                module.id,
+                program => Boolean(GLib.find_program_in_path(program)),
+            );
+            const dependencyHint = optionalDependencies.map(dependency =>
+                dependency.available
+                    ? `${dependency.label}: available`
+                    : `${dependency.label} unavailable (${dependency.program} not found). ${dependency.installHint}`,
+            ).join(' • ');
             const row = new Adw.ActionRow({
                 title: module.name,
-                subtitle: `${hasBuiltin(module.id) ? 'Built-in' : 'External'} • Default zone: ${module.zone} • ${module.requirement}`,
+                subtitle: [
+                    `${hasBuiltin(module.id) ? 'Built-in' : 'External'} • Default zone: ${module.zone} • ${module.requirement}`,
+                    dependencyHint,
+                ].filter(Boolean).join(' • '),
             });
 
             const toggle = new Gtk.Switch({
