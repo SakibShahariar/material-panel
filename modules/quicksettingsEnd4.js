@@ -593,7 +593,6 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
         },
     });
-    row0.add_child(darkRound);
     if (netCol.get_n_children() > 0) root.add_child(netCol);
     if (showDarkMode) row0.add_child(darkRound);
     if (row0.get_n_children() > 0) root.add_child(row0);

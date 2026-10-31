@@ -68,6 +68,7 @@ test('End-4 and Ryoku Quick Settings honor the shared configured tile visibility
         assert.match(source, /enabledTiles\.has\('do-not-disturb'\)/);
         assert.match(source, /enabledTiles\.has\('night-light'\)/);
     }
+    assert.equal((end4.match(/row0\.add_child\(darkRound\)/g) || []).length, 1);
     assert.match(end4, /if \(wifi\) netCol\.add_child\(wifi\)/);
     assert.match(end4, /if \(bt\) netCol\.add_child\(bt\)/);
     assert.match(ryoku, /activeRoutes/);
