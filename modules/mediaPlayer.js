@@ -208,8 +208,9 @@ function bindPlayer(busName, hooks) {
                     }),
                 setPosition: (positionUs, trackId) => {
                     const target = Math.max(0, Math.round(positionUs));
+                    const origin = hooks.currentPosition?.() || 0;
                     const seekRelative = () => player.call('Seek',
-                        new GLib.Variant('(x)', [target - (hooks.currentPosition?.() || 0)]),
+                        new GLib.Variant('(x)', [target - origin]),
                         Gio.DBusCallFlags.NONE, 3000, null, () => {});
                     if (!trackId) {
                         seekRelative();
