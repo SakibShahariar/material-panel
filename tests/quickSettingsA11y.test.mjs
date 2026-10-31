@@ -71,3 +71,19 @@ test('system tray drawer chevron announces its expanded and collapsed action', (
     assert.ok(trayDrawer.includes("setChipA11y(this.chevron, 'Show system tray')"));
     assert.ok(trayDrawer.includes("setChipA11y(this.chevron, 'Hide system tray')"));
 });
+
+const sliderHelper = await readFile(new URL('../lib/simpleSlider.js', import.meta.url), 'utf8');
+const defaultQsModule = await readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8');
+const end4Module = await readFile(new URL('../modules/quicksettingsEnd4.js', import.meta.url), 'utf8');
+
+test('shared slider helper accepts a meaningful accessible name', () => {
+    assert.ok(sliderHelper.includes("accessibleName = 'Slider'"));
+    assert.ok(sliderHelper.includes("container.accessible_name = String(accessibleName || 'Slider')"));
+});
+
+test('Default and End-4 Quick Settings name volume and brightness sliders', () => {
+    for (const moduleSource of [defaultQsModule, end4Module]) {
+        assert.ok(moduleSource.includes("accessibleName: 'Volume'"));
+        assert.ok(moduleSource.includes("accessibleName: 'Brightness'"));
+    }
+});
