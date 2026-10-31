@@ -59,3 +59,12 @@ test('Bluetooth connection pulse stops for reduced motion and resumes on prefere
     assert.ok(quicksettings.includes('for (const path of [...pulseActors.keys()])'));
     assert.ok(quicksettings.includes('if (pulseTimers.has(path) || prefersReducedMotion())'));
 });
+
+const trayBridge = await readFile(new URL('../lib/statusAreaBridge.js', import.meta.url), 'utf8');
+
+test('foreign tray app menus open and close without animation under reduced motion', () => {
+    assert.ok(trayBridge.includes("import {prefersReducedMotion} from './shellCompat.js'"));
+    assert.ok(trayBridge.includes('if (prefersReducedMotion()) {'));
+    assert.ok(trayBridge.includes('actor.menu.close({animate: false})'));
+    assert.ok(trayBridge.includes('actor.menu.open({animate: false})'));
+});
