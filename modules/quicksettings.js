@@ -12,7 +12,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
-import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
@@ -2463,7 +2463,10 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }),
     });
     const gl = grid.layout_manager;
-    const configuredIds = normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles);
+    const configuredIds = orderQuickSettingsTiles(
+        normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles),
+        globalThis._materialPanelQsFavorites,
+    );
     const configuredRegistry = configuredIds
         .map(id => QUICK_SETTINGS_TILE_REGISTRY.find(tile => tile.id === id))
         .filter(Boolean);
