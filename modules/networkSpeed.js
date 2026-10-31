@@ -44,6 +44,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: icon,
     });
+    const autoHideWhenIdle = globalThis._materialPanelAutoHideNetworkSpeed === true;
+    let idleSince = null;
+    const IDLE_HIDE_AFTER_US = 30 * 1000 * 1000;
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-net-speed-popup');
@@ -103,6 +106,17 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             sessionRx += Math.max(0, Number(sample.rxDelta) || 0);
             sessionTx += Math.max(0, Number(sample.txDelta) || 0);
         }
+        const down = Math.max(0, Number(sample.down) || 0);
+        const up = Math.max(0, Number(sample.up) || 0);
+        if (!autoHideWhenIdle || !sample.iface || down > 0 || up > 0) {
+            idleSince = null;
+            button.visible = true;
+        } else {
+            const now = GLib.get_monotonic_time();
+            if (idleSince === null)
+                idleSince = now;
+            button.visible = now - idleSince < IDLE_HIDE_AFTER_US;
+        }
         const unit = globalThis._materialPanelNetworkSpeedUnit === 'bits' ? 'bits' : 'bytes';
         last = {
             down: sample.down,
@@ -127,7 +141,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             refreshPopup();
     }, 1, () => {
         // Avoid /proc route and interface reads while the chip and popup are hidden.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
+        if (isSessionLocked() || (!autoHideWhenIdle && !button.mapped && !menu.isOpen))
             return true;
         try { return Boolean(Main.layoutManager.primaryMonitor?.inFullscreen); }
         catch (e) { return false; }
