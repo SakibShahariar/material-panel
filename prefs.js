@@ -926,6 +926,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         privacyRow.activatable_widget = privacySwitch;
         privacyGroup.add(privacyRow);
 
+        const mediaVisibilityRow = new Adw.ActionRow({
+            title: 'Hide Media when no player is active',
+            subtitle: 'Remove the panel media chip until an MPRIS player appears.',
+        });
+        const mediaVisibilitySwitch = new Gtk.Switch({
+            active: config.autoHideMedia === true,
+            valign: Gtk.Align.CENTER,
+        });
+        mediaVisibilitySwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.autoHideMedia = mediaVisibilitySwitch.active;
+            saveConfig();
+        });
+        mediaVisibilityRow.add_suffix(mediaVisibilitySwitch);
+        mediaVisibilityRow.activatable_widget = mediaVisibilitySwitch;
+        privacyGroup.add(mediaVisibilityRow);
+
+
         // --- Presets ---
         if (!config.presets || typeof config.presets !== 'object')
             config.presets = {};
@@ -1573,6 +1591,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             if (parsed === null) {
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
                 tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
+                mediaVisibilitySwitch.active = config.autoHideMedia === true;
                 return;
             }
             config.qsTiles = parsed;
