@@ -740,10 +740,47 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     playBtn.connect('clicked', () => ctl?.playPause());
     nextBtn.connect('clicked', () => ctl?.next());
 
-    const stopWatching = watchPreferredPlayer(name => {
+    let selectPreferredPlayer = null;
+    const playerDisplayName = name => String(name || '')
+        .replace(MPRIS_PREFIX, '')
+        .replace(/[-_]/g, ' ');
+    const updatePlayerChoices = (selectedName, players = []) => {
+        const signature = players.join('|');
+        if (signature !== playerNamesSignature) {
+            for (const choice of playerChoices) {
+                try { playerMenuItem.menu.removeMenuItem(choice.item); } catch (e) {}
+            }
+            playerChoices = [];
+            playerNamesSignature = signature;
+            for (const name of players) {
+                const choice = new PopupMenu.PopupMenuItem(playerDisplayName(name));
+                choice.connect('activate', () => {
+                    selectPreferredPlayer?.(name);
+                    if (menu.isOpen)
+                        menuClose(menu);
+                });
+                playerMenuItem.menu.addMenuItem(choice);
+                playerChoices.push({name, item: choice});
+            }
+        }
+        playerMenuItem.actor.visible = players.length > 1;
+        playerMenuItem.label.text = players.length > 1
+            ? 'Player: ' + playerDisplayName(selectedName)
+            : 'Player';
+        for (const choice of playerChoices) {
+            try {
+                choice.item.setOrnament(choice.name === selectedName
+                    ? PopupMenu.Ornament.DOT
+                    : PopupMenu.Ornament.NONE);
+            } catch (e) {}
+        }
+    };
+    const stopWatching = watchPreferredPlayer((name, players) => {
+        updatePlayerChoices(name, players);
         if (name !== attachedBusName)
             attach(name);
     });
+    selectPreferredPlayer = stopWatching.select;
 
     button.connect('clicked', () => {
         if (menu.isOpen)
