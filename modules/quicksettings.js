@@ -2536,6 +2536,15 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         } catch (e) {
             logError(e, 'material-panel: end4 QS extras failed');
         }
+    } else {
+        // Keep notifications and calendar available after the core controls in
+        // the Default layout without forcing their tall content into the popup.
+        const notificationsMenu = new PopupMenu.PopupSubMenuMenuItem('Notifications', false);
+        notificationsMenu.menu.addMenuItem(wrapAsMenuItem(buildEnd4NotiSection()));
+        menu.addMenuItem(notificationsMenu);
+        const calendarMenu = new PopupMenu.PopupSubMenuMenuItem('Calendar', false);
+        calendarMenu.menu.addMenuItem(wrapAsMenuItem(buildEnd4CalendarSection()));
+        menu.addMenuItem(calendarMenu);
     }
 
     if (end4) {
