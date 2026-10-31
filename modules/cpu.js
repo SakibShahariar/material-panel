@@ -889,7 +889,18 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     updateLabels();
-    let timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, updateLabels);
+    let timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
+        // Avoid CPU, temperature, and memory reads while the chip and popup
+        // are hidden. Reset the CPU baseline so the next visible sample does
+        // not average activity across the entire hidden interval.
+        if (!button.mapped && !menu.isOpen) {
+            primed = false;
+            prevCores = [];
+            return GLib.SOURCE_CONTINUE;
+        }
+        updateLabels();
+        return GLib.SOURCE_CONTINUE;
+    });
     let fastTimerId = 0;
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {

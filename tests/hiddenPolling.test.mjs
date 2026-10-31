@@ -18,6 +18,14 @@ test('system metric polling skips hidden chips with closed popups', () => {
     }
 });
 
+test('CPU periodic sampling pauses while its chip and popup are hidden', async () => {
+    const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
+    assert.match(
+        cpu,
+        /let timerId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 2, \(\) => \{[\s\S]*?if \(!button\.mapped && !menu\.isOpen\)[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?updateLabels\(\);/
+    );
+});
+
 test('manual refresh remains available when opening directly refreshed module popups', () => {
     for (const name of ['gpu', 'disk', 'memory']) {
         const source = modules.find(([moduleName]) => moduleName === name)[1];
