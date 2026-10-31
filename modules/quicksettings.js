@@ -25,6 +25,7 @@ import {menuOpen, menuClose, prefersReducedMotion} from '../lib/shellCompat.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
+import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
@@ -1438,67 +1439,23 @@ export function bluetoothTile() {
         row.connect('clicked', () => {
             if (connectingPaths.has(path))
                 return Clutter.EVENT_STOP;
-            const method = connected ? 'Disconnect' : 'Connect';
-            if (method === 'Connect') {
+            const action = connected ? 'Disconnect' : 'Connect';
+            if (action === 'Connect') {
                 connectingPaths.add(path);
                 statusLabel.text = 'Connecting…';
                 row.add_style_class_name('connecting');
                 actionIcon.icon_name = 'content-loading-symbolic';
                 startPulse(path, devIcon);
             }
-            Gio.DBusProxy.new_for_bus(
-                Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
-                BLUEZ_SERVICE, path, DEVICE_IFACE, null,
-                (_s, res) => {
-                    let deviceProxy;
-                    try {
-                        deviceProxy = Gio.DBusProxy.new_for_bus_finish(res);
-                    } catch (e) {
-                        logError(e, `material-panel: bluez device proxy failed for "${displayName}"`);
-                        connectingPaths.delete(path);
-                        stopPulse(path);
-                        if (_refreshDevices) _refreshDevices();
-                        return;
-                    }
-                    const done = (ok) => {
-                        if (!ok) {
-                            connectingPaths.delete(path);
-                            stopPulse(path);
-                        }
-                        if (_refreshDevices)
-                            _refreshDevices();
-                    };
-                    if (!paired && method === 'Connect') {
-                        deviceProxy.call('Pair', null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                            try {
-                                p.call_finish(r);
-                            } catch (e) {
-                                logError(e, `material-panel: bluez Pair failed for "${displayName}"`);
-                                done(false);
-                                return;
-                            }
-                            deviceProxy.call('Connect', null, Gio.DBusCallFlags.NONE, -1, null, (p2, r2) => {
-                                try {
-                                    p2.call_finish(r2);
-                                    done(true);
-                                } catch (e) {
-                                    logError(e, `material-panel: bluez Connect failed for "${displayName}"`);
-                                    done(false);
-                                }
-                            });
-                        });
-                        return;
-                    }
-                    deviceProxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, (p, r) => {
-                        try {
-                            p.call_finish(r);
-                            done(true);
-                        } catch (e) {
-                            logError(e, `material-panel: bluez ${method} failed for "${displayName}"`);
-                            done(false);
-                        }
-                    });
-                });
+            runBluetoothDeviceAction({path, paired, connected, timeoutMs: 10_000}, (error, completedAction) => {
+                if (error) {
+                    logError(error, `material-panel: bluez ${completedAction} failed for "${displayName}"`);
+                    connectingPaths.delete(path);
+                    stopPulse(path);
+                }
+                if (_refreshDevices)
+                    _refreshDevices();
+            });
             return Clutter.EVENT_STOP;
         });
         return row;
