@@ -9,6 +9,7 @@ import Shell from 'gi://Shell';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 import {wirePressedClass} from '../lib/pressFx.js';
+import {resolveWorkspaceDisplayMode} from '../lib/workspaceDisplay.js';
 
 const MAX_ICONS = 5;
 // App icon GIcons are stable for the lifetime of a Shell.App object; cache
@@ -175,6 +176,8 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     };
     const rebuild = () => {
         const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+        const displayMode = resolveWorkspaceDisplayMode(
+            globalThis._materialPanelWorkspaceDisplay, end4);
         const activeIndex = manager.get_active_workspace_index();
         const n = manager.get_n_workspaces();
         const focusId = _focusAppId();
@@ -206,7 +209,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         focusRings = [];
         box.destroy_all_children();
 
-        if (!end4) {
+        if (displayMode === 'numbers') {
             for (let i = 0; i < n; i++) {
                 const active = i === activeIndex;
                 const ws = manager.get_workspace_by_index(i);
@@ -223,6 +226,32 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
                 setChipA11y(btn, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
                 btn.connect('clicked', () => ws.activate(global.get_current_time()));
                 box.add_child(btn);
+            }
+            return;
+        }
+
+        if (displayMode === 'dots') {
+            for (let i = 0; i < n; i++) {
+                const active = i === activeIndex;
+                const ws = manager.get_workspace_by_index(i);
+                const dot = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-dot active'
+                        : 'material-panel-workspace-dot',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                const d = active ? 10 : 8;
+                try {
+                    dot.style =
+                        `width: ${d}px; height: ${d}px; min-width: ${d}px; min-height: ${d}px;` +
+                        'padding: 0; border-radius: 999px; border: none;';
+                } catch (e) {}
+                wirePressedClass(dot);
+                setChipA11y(dot, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
+                dot.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(dot);
             }
             return;
         }

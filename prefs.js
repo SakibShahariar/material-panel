@@ -419,6 +419,30 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         clockRow.activatable_widget = clockSwitch;
         clockGroup.add(clockRow);
 
+        const workspaceGroup = new Adw.PreferencesGroup({
+            title: 'Workspace indicator',
+            description: 'Choose how workspaces are represented. Automatic keeps the current layout-specific presentation.',
+        });
+        generalPage.add(workspaceGroup);
+        const workspaceDisplayModes = ['auto', 'numbers', 'dots', 'apps'];
+        const workspaceDisplayRow = new Adw.ComboRow({
+            title: 'Display style',
+            model: Gtk.StringList.new([
+                'Automatic (layout default)',
+                'Numbered indicators',
+                'Simple dots',
+                'Application icon clusters',
+            ]),
+        });
+        workspaceDisplayRow.set_selected(Math.max(
+            0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
+        workspaceDisplayRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            config.workspaceDisplay = workspaceDisplayModes[workspaceDisplayRow.get_selected()] ?? 'auto';
+            saveConfig();
+        });
+        workspaceGroup.add(workspaceDisplayRow);
+
         const weatherGroup = new Adw.PreferencesGroup({
             title: 'Weather location',
             description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. No IP geolocation is used.',
@@ -1130,6 +1154,8 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 // Keep the editable tile-order field in sync with external
                 // config edits without discarding any pending local changes.
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
+                workspaceDisplayRow.set_selected(Math.max(
+                    0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
 
                 const newSize = config.panelSize ?? {};
                 syncingExternal = true;
