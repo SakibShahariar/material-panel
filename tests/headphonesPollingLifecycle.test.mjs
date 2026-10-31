@@ -11,7 +11,8 @@ const lifecycleEnd = source.indexOf('\n    button.connect(\'clicked\'', lifecycl
 const lifecycle = source.slice(lifecycleStart, lifecycleEnd);
 
 test('hidden headphones chip skips BlueZ polling and uses a slower visible fallback', () => {
-    assert.match(scan, /if \(!force && !button\.is_mapped && !menu\.isOpen\)\s*return GLib\.SOURCE_CONTINUE/);
+    assert.match(scan, /if \(isSessionLocked\(\) \|\| \(!force && !button\.is_mapped && !menu\.isOpen\)\)\s*return GLib\.SOURCE_CONTINUE/);
+    assert.match(source, /import \{menuOpen, menuClose, isSessionLocked\} from '\.\.\/lib\/shellCompat\.js'/);
     assert.match(lifecycle, /timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 15, \(\) => scan\(false\)\)/);
     assert.match(lifecycle, /scan\(true\)/);
 });
