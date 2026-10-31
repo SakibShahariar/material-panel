@@ -13,7 +13,9 @@ test('End-4 Quick Settings header icon buttons have accessible names', () => {
 
 test('hidden End-4 Dark Mode tile is not constructed or connected to settings', () => {
     assert.match(source, /const darkRound = showDarkMode \? makeRoundToggle\(/);
-    assert.match(source, /if \(darkRound\) row0\.add_child\(darkRound\)/);
+    assert.match(source, /const toggleActors = \{/);
+    assert.match(source, /'dark-mode': darkRound/);
+    assert.match(source, /const orderedToggleIds = orderQuickSettingsTiles\(visibleToggleIds, favorites\)/);
 });
 
 test('End-4 only opens settings backends for enabled toggle tiles', () => {
