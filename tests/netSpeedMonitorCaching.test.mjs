@@ -20,3 +20,14 @@ test('route discovery is rate-limited while missing interfaces are re-resolved i
     assert.match(monitor, /!iface \|\| !stats \|\| now - lastRouteCheckAt >= ROUTE_RECHECK_INTERVAL_US/);
     assert.match(monitor, /hasInterfaceChanged\(iface, activeIface\)/);
 });
+
+const procSnapshot = await readFile(new URL('../lib/procNetDev.js', import.meta.url), 'utf8');
+const cpuSource = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
+
+test('CPU and network speed consumers share a short-lived proc net dev snapshot', () => {
+    assert.ok(procSnapshot.includes('const CACHE_WINDOW_US = 200_000'));
+    assert.ok(procSnapshot.includes('now - cachedAt < CACHE_WINDOW_US'));
+    assert.equal((procSnapshot.match(/load_contents\(null\)/g) || []).length, 1);
+    assert.ok(cpuSource.includes("import {readProcNetDevText} from '../lib/procNetDev.js'"));
+    assert.ok(source.includes("import {readProcNetDevText} from './procNetDev.js'"));
+});
