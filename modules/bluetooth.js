@@ -530,7 +530,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         let timedOut = false;
         const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DBUS_TIMEOUT_MS, () => {
             timedOut = true;
-            setNoAdapterState();
+            setBluezUnavailableState();
             return GLib.SOURCE_REMOVE;
         });
 
@@ -544,7 +544,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                     propsProxy = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
                     logError(e, 'material-panel: bluez properties proxy failed');
-                    setNoAdapterState();
+                    setBluezUnavailableState();
                     return;
                 }
                 const readProps = () => {
