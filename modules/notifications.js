@@ -15,6 +15,7 @@ import {wireChipPress} from '../lib/pressFx.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {filterNotifications, hasUnreadNotificationState, notificationAppNames} from '../lib/notificationFilters.js';
 
 const MAX_SHOWN = 60;
 const PANEL_MIN_W = 340;
@@ -84,6 +85,7 @@ export function listNotifications() {
                         body: String(body),
                         unix,
                         gicon,
+                        unread: typeof n.acknowledged === 'boolean' ? !n.acknowledged : null,
                     });
                 } catch (e) {}
             }
@@ -299,6 +301,104 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     } catch (e) {}
     searchWrap.add_child(searchEntry);
     root.add_child(searchWrap);
+
+    let filterText = '';
+    let selectedApp = null;
+    let unreadOnly = false;
+    let filterAppsSignature = '';
+    let unreadStateAvailable = false;
+    const filterButtons = new Map();
+    const filterScroll = new St.ScrollView({
+        style_class: 'material-panel-nc-filter-scroll',
+        x_expand: true,
+        overlay_scrollbars: true,
+    });
+    const filterBar = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        style_class: 'material-panel-nc-filter-bar',
+        x_expand: true,
+    });
+    try {
+        filterScroll.hscrollbar_policy = St.PolicyType.AUTOMATIC;
+        filterScroll.vscrollbar_policy = St.PolicyType.NEVER;
+        filterScroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
+        filterBar.style = 'spacing: 6px; padding: 0 14px 8px 14px;';
+    } catch (e) {}
+    try { filterScroll.add_child(filterBar); } catch (e) {
+        try { filterScroll.add_actor(filterBar); } catch (e2) {}
+    }
+    root.add_child(filterScroll);
+
+    const updateFilterControls = items => {
+        const apps = notificationAppNames(items);
+        const signature = apps.join('\\u0000');
+        const supportsUnread = hasUnreadNotificationState(items);
+        if (selectedApp && !apps.includes(selectedApp))
+            selectedApp = null;
+
+        if (signature !== filterAppsSignature || supportsUnread !== unreadStateAvailable) {
+            filterBar.destroy_all_children();
+            filterButtons.clear();
+            const addFilterButton = (key, label, onClick) => {
+                const button = new St.Button({
+                    style_class: 'material-panel-nc-filter-chip',
+                    label,
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                try { button.style = 'font-size: 11px; padding: 5px 10px; border-radius: 999px;'; } catch (e) {}
+                button.connect('clicked', onClick);
+                filterBar.add_child(button);
+                filterButtons.set(key, button);
+            };
+            addFilterButton('all', 'All apps', () => {
+                selectedApp = null;
+                updateFilterControls(listNotifications());
+                scheduleSearchRebuild();
+            });
+            if (supportsUnread) {
+                addFilterButton('unread', 'Unread', () => {
+                    unreadOnly = !unreadOnly;
+                    updateFilterControls(listNotifications());
+                    scheduleSearchRebuild();
+                });
+            } else {
+                unreadOnly = false;
+            }
+            for (const appName of apps) {
+                addFilterButton(\`app:\${appName}\`, appName, () => {
+                    selectedApp = selectedApp === appName ? null : appName;
+                    updateFilterControls(listNotifications());
+                    scheduleSearchRebuild();
+                });
+            }
+            filterAppsSignature = signature;
+            unreadStateAvailable = supportsUnread;
+        }
+
+        for (const [key, button] of filterButtons) {
+            const active = key === 'all'
+                ? selectedApp === null
+                : key === 'unread'
+                    ? unreadOnly
+                    : selectedApp === key.slice(4);
+            try {
+                button.set_style_class_name(
+                    \`material-panel-nc-filter-chip\${active ? ' active' : ''}\`);
+                setChipA11y(button, key === 'unread'
+                    ? \`Show unread notifications, \${unreadOnly ? 'selected' : 'not selected'}\`
+                    : key === 'all'
+                        ? 'Show notifications from all apps'
+                        : \`Filter notifications from \${key.slice(4)}\`);
+            } catch (e) {}
+        }
+        filterScroll.visible = apps.length > 0 || supportsUnread;
+        clearBtn.label = selectedApp ? 'Clear app' : 'Clear';
+        setChipA11y(clearBtn, selectedApp
+            ? \`Clear notifications from \${selectedApp}\`
+            : 'Clear all notifications');
+    };
 
     // ── Scroll list ──
     const scroll = new St.ScrollView({
@@ -567,7 +667,6 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         return card;
     };
 
-    let filterText = '';
     const rebuild = () => {
         if (destroyed)
             return;
@@ -575,20 +674,14 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         let items = listNotifications();
         setCount(items.length);
         applyMaxHeight();
-
-        if (filterText) {
-            const q = filterText.toLowerCase();
-            items = items.filter(it =>
-                (it.title || '').toLowerCase().includes(q) ||
-                (it.body || '').toLowerCase().includes(q) ||
-                (it.appName || '').toLowerCase().includes(q));
-        }
+        updateFilterControls(items);
+        items = filterNotifications(items, {query: filterText, appName: selectedApp, unreadOnly});
 
         const shown = items.slice(0, MAX_SHOWN);
 
         if (shown.length === 0) {
             const empty = new St.Label({
-                text: filterText ? 'No matches' : 'No notifications',
+                text: filterText || selectedApp || unreadOnly ? 'No matching notifications' : 'No notifications',
                 style_class: 'material-panel-nc-empty',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -627,7 +720,9 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     };
 
     clearBtn.connect('clicked', () => {
-        clearAllNotifications();
+        const items = listNotifications().filter(item => !selectedApp || item.appName === selectedApp);
+        for (const item of items)
+            destroyNotification(item.notification);
         scheduleRebuild(60);
     });
 
@@ -641,6 +736,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {
             filterText = '';
+            selectedApp = null;
+            unreadOnly = false;
             try { searchEntry.set_text(''); } catch (e) {}
             cancelSearchRebuild();
             rebuild();
@@ -680,30 +777,61 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             return GLib.SOURCE_REMOVE;
         });
     };
-    const unhookSource = (source) => {
-        const ids = sourceIds.get(source);
+    const notificationIds = new Map();
+    const unhookNotification = notification => {
+        const ids = notificationIds.get(notification);
         if (!ids)
             return;
         for (const id of ids) {
-            try { source.disconnect(id); } catch (e) {}
+            try { notification.disconnect(id); } catch (e) {}
         }
-        sourceIds.delete(source);
+        notificationIds.delete(notification);
     };
-    const hookSource = (source) => {
+    const hookNotification = notification => {
+        if (!notification || notificationIds.has(notification))
+            return;
+        const ids = [];
+        try { ids.push(notification.connect('notify::acknowledged', scheduleCount)); } catch (e) {}
+        try { ids.push(notification.connect('destroy', () => unhookNotification(notification))); } catch (e) {}
+        if (ids.length)
+            notificationIds.set(notification, ids);
+    };
+    const unhookSource = source => {
+        const ids = sourceIds.get(source);
+        if (ids) {
+            for (const id of ids) {
+                try { source.disconnect(id); } catch (e) {}
+            }
+            sourceIds.delete(source);
+        }
+        const notifications = source?.notifications ?? source?._notifications ?? [];
+        for (const notification of notifications)
+            unhookNotification(notification);
+    };
+    const hookSource = source => {
         if (!source || sourceIds.has(source))
             return;
         const ids = [];
-        for (const sig of ['notification-added', 'notification-removed', 'destroy']) {
-            try {
-                ids.push(source.connect(sig, () => {
-                    if (destroyed)
-                        return;
-                    if (sig === 'destroy')
-                        unhookSource(source);
-                    scheduleCount();
-                }));
-            } catch (e) {}
-        }
+        for (const notification of source.notifications ?? source._notifications ?? [])
+            hookNotification(notification);
+        try {
+            ids.push(source.connect('notification-added', (_source, notification) => {
+                hookNotification(notification);
+                scheduleCount();
+            }));
+        } catch (e) {}
+        try {
+            ids.push(source.connect('notification-removed', (_source, notification) => {
+                unhookNotification(notification);
+                scheduleCount();
+            }));
+        } catch (e) {}
+        try {
+            ids.push(source.connect('destroy', () => {
+                unhookSource(source);
+                scheduleCount();
+            }));
+        } catch (e) {}
         if (ids.length)
             sourceIds.set(source, ids);
     };
@@ -742,6 +870,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         }
         for (const source of [...sourceIds.keys()])
             unhookSource(source);
+        for (const notification of [...notificationIds.keys()])
+            unhookNotification(notification);
         for (const id of trayIds) {
             try { Main.messageTray?.disconnect?.(id); } catch (e) {}
         }
