@@ -6,6 +6,20 @@ test('tray bridge attaches newly registered indicators through the addToStatusAr
     const bridge = await readFile(new URL('../lib/statusAreaBridge.js', import.meta.url), 'utf8');
     assert.match(bridge, /Main\.panel\.addToStatusArea = this\._patchedAdd/);
     assert.match(bridge, /self\._onButtonAdded\(role, button \?\? indicator\)/);
+    assert.match(bridge, /const area = Main\.panel\.statusArea \?\? \{\}/);
+    assert.match(bridge, /this\._onButtonAdded\(role, area\[role\]\)/);
+    assert.match(bridge, /this\._scanExistingIndicators\(\)/);
+});
+
+test('tray bridge disconnects its registration hook and clears retries on disable', async () => {
+    const bridge = await readFile(new URL('../lib/statusAreaBridge.js', import.meta.url), 'utf8');
+    const disableStart = bridge.indexOf('    disable() {');
+    const disableEnd = bridge.indexOf('\n    ', disableStart + 10);
+    const disable = bridge.slice(disableStart, disableEnd);
+    assert.match(disable, /this\._destroyed = true/);
+    assert.match(disable, /this\._clearTimers\(\)/);
+    assert.match(bridge, /Main\.panel\.addToStatusArea === this\._patchedAdd/);
+    assert.match(bridge, /this\._patchedAdd = null/);
 });
 
 test('panel rebuild keeps only one bounded fallback tray rescan', async () => {
