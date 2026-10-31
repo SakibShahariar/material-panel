@@ -97,3 +97,14 @@ test('Default Quick Settings builds tiles from a stable-ID registry', () => {
     assert.ok(defaultQsModule.includes("tileActors.get('wifi')"));
     assert.ok(!defaultQsModule.includes('const tiles = [\n        darkModeTile()'));
 });
+
+test('End-4 round and wide toggle builders each retain their intended accessible state', () => {
+    const roundStart = end4.indexOf('function makeRoundToggle');
+    const wideStart = end4.indexOf('function makeWideToggle');
+    const gridStart = end4.indexOf('function buildToggleGrid', wideStart);
+    const round = end4.slice(roundStart, wideStart);
+    const wide = end4.slice(wideStart, gridStart);
+    assert.ok(round.includes("setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label)"));
+    assert.ok(!round.includes("setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`)"));
+    assert.ok(wide.includes("setChipA11y(btn, `${label}, ${on ? 'on' : 'off'}`)"));
+});
