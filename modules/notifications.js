@@ -292,6 +292,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         can_focus: true,
         x_expand: true,
     });
+    setChipA11y(searchEntry, 'Search notifications');
     try {
         searchEntry.style =
             'border-radius: 12px; padding: 8px 12px; font-size: 12px;';
