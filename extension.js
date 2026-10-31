@@ -276,16 +276,19 @@ export default class MaterialPanelExtension extends Extension {
             }
         }
         this._trayRescanIds = [];
-        for (const ms of [400, 1200, 2500]) {
-            const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
-                try {
-                    this._bridge?.reattachAll?.();
-                    debugLog(`tray rescan +${ms}ms`);
-                } catch (e) {}
-                return GLib.SOURCE_REMOVE;
-            });
-            this._trayRescanIds.push(id);
-        }
+        // StatusAreaBridge observes addToStatusArea and attaches new indicators
+        // immediately. Keep one bounded retry for indicators registered outside
+        // that path instead of waking the Shell three times after every rebuild.
+        const ms = 900;
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+            this._trayRescanIds = (this._trayRescanIds ?? []).filter(timerId => timerId !== id);
+            try {
+                this._bridge?.reattachAll?.();
+                debugLog(`tray fallback rescan +${ms}ms`);
+            } catch (e) {}
+            return GLib.SOURCE_REMOVE;
+        });
+        this._trayRescanIds.push(id);
     }
 
     disable() {
