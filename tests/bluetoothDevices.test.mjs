@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
 import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 
 const variant = value => ({deep_unpack: () => value});
@@ -52,4 +53,17 @@ test('normalizes paired, connected, nearby, and battery data from BlueZ objects'
 test('handles empty or malformed ObjectManager data without throwing', () => {
     assert.deepEqual(getBluetoothDevices(), {pairedDevices: [], nearbyDevices: []});
     assert.deepEqual(getBluetoothDevices({broken: null}), {pairedDevices: [], nearbyDevices: []});
+});
+
+test('Bluetooth popup and Quick Settings consume the same device normalization', async () => {
+    const [popup, quickSettings] = await Promise.all([
+        readFile(new URL('../modules/bluetooth.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
+    ]);
+    for (const source of [popup, quickSettings]) {
+        assert.ok(source.includes("import {getBluetoothDevices} from '../lib/bluetoothDevices.js'"));
+        assert.ok(source.includes('getBluetoothDevices(objects)'));
+    }
+    assert.ok(!popup.includes("Object.entries(objects)\n                            .filter(([, ifaces]) => DEVICE_IFACE in ifaces)"));
+    assert.ok(!quickSettings.includes("Object.entries(objects)\n                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)"));
 });
