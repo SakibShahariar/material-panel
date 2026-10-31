@@ -14,6 +14,7 @@ import {codecFromPactlText} from '../lib/bluetoothCodec.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
 import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
+import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
@@ -189,24 +190,7 @@ function findAdapterPaths(callback, cancellable = null) {
         });
 }
 
-function isSoftBlocked(callback) {
-    try {
-        const proc = Gio.Subprocess.new(
-            ['env', 'LC_ALL=C', 'rfkill', 'list', 'bluetooth'],
-            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
-        proc.communicate_utf8_async(null, null, (p, res) => {
-            try {
-                const [, stdout] = p.communicate_utf8_finish(res);
-                callback(String(stdout || '').includes('Soft blocked: yes'));
-            } catch (e) {
-                callback(false);
-            }
-        });
-    } catch (e) {
-        // Do not fall back to a blocking subprocess on the Shell thread.
-        callback(false);
-    }
-}
+
 
 
 
@@ -600,7 +584,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                 return;
             }
             if (!adapters.length) {
-                isSoftBlocked(blocked => {
+                checkBluetoothSoftBlocked(blocked => {
                     if (blocked) setBlockedState();
                     else setNoAdapterState();
                 });
