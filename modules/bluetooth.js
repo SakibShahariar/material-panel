@@ -715,7 +715,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         const [objects] = proxy.call_finish(callRes).deep_unpack();
                         const hasAdapter = Object.values(objects).some(ifaces => ADAPTER_IFACE in ifaces);
                         if (!hasAdapter) {
-                            isSoftBlocked(blocked => {
+                            checkBluetoothSoftBlocked(blocked => {
                                 if (blocked) {
                                     setBlockedState();
                                     devicesBox.destroy_all_children();
