@@ -107,6 +107,8 @@ test('Bluetooth popup and Quick Settings share asynchronous rfkill detection', a
     }
     assert.ok(quickSettings.includes('const setBlockedState = () => {'));
     assert.ok(quickSettings.includes("if (isBlocked) {"));
+    assert.ok(!popup.includes('isSoftBlocked('));
+    assert.ok(!quickSettings.includes('isBluetoothSoftBlocked'));
     assert.ok(rfkill.includes('communicate_utf8_async'));
     assert.ok(!rfkill.includes('spawn_command_line_sync'));
 });
