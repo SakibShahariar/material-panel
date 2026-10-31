@@ -556,6 +556,26 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
+    menu.connect('open-state-changed', (_menu, open) => {
+        if (open) {
+            pollPosition();
+            if (!progressTimerId) {
+                progressTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                    if (!menu.isOpen) {
+                        progressTimerId = 0;
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    pollPosition();
+                    return GLib.SOURCE_CONTINUE;
+                });
+            }
+        } else if (progressTimerId) {
+            GLib.source_remove(progressTimerId);
+            progressTimerId = 0;
+        }
+    });
+
+
     const body = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-media-popup-body',
@@ -660,12 +680,36 @@ export function buildMedia(_extensionPath, scale = 1.0) {
 
     let ctl = null;
     let attachedBusName = null;
-    const clearCtl = () => {
-        try { ctl?.destroy(); } catch (e) {}
-        ctl = null;
-        attachedBusName = null;
+    let durationUs = 0;
+    let trackId = '';
+    let currentPositionUs = 0;
+    let canSeek = false;
+    let updatingProgress = false;
+    let progressTimerId = 0;
+    const updateProgressUi = positionUs => {
+        currentPositionUs = Math.max(0, Math.min(durationUs || Number.MAX_SAFE_INTEGER, Number(positionUs) || 0));
+        if (durationUs <= 0) {
+            progressSlider.actor.visible = false;
+            timeLabel.text = '—:— / —:—';
+            return;
+        }
+        progressSlider.actor.visible = canSeek;
+        updatingProgress = true;
+        try { progressSlider.setValue(Math.max(0, Math.min(1, currentPositionUs / durationUs))); } catch (e) {}
+        updatingProgress = false;
+        timeLabel.text = formatMediaTime(currentPositionUs) + ' / ' + formatMediaTime(durationUs);
     };
-
+    const pollPosition = () => {
+        if (ctl?.getPosition)
+            ctl.getPosition(updateProgressUi);
+    };
+    progressSlider.connect('value-changed', (_item, value) => {
+        if (updatingProgress || !canSeek || durationUs <= 0 || !ctl?.setPosition)
+            return;
+        const target = Math.max(0, Math.min(1, Number(value) || 0)) * durationUs;
+        ctl.setPosition(target, trackId);
+        updateProgressUi(target);
+    });
     const setPlayingUi = playing => {
         try {
             playBtn.child.icon_name = playing
