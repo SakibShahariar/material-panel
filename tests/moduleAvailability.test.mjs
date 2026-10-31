@@ -19,3 +19,10 @@ test('Quick Settings reports brightnessctl as an optional control dependency', (
 test('modules without optional external tools do not show a misleading missing dependency', () => {
     assert.deepEqual(getOptionalModuleDependencies('clock', () => false), []);
 });
+
+test('Bluetooth reports rfkill as optional software-block recovery support', () => {
+    const [dependency] = getOptionalModuleDependencies('bluetooth', () => false);
+    assert.equal(dependency.program, 'rfkill');
+    assert.equal(dependency.available, false);
+    assert.match(dependency.installHint, /normal BlueZ controls remain available/);
+});
