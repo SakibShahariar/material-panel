@@ -960,6 +960,24 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         bluetoothVisibilityRow.activatable_widget = bluetoothVisibilitySwitch;
         privacyGroup.add(bluetoothVisibilityRow);
 
+        const networkSpeedVisibilityRow = new Adw.ActionRow({
+            title: 'Hide Network Speed while idle',
+            subtitle: 'Hide the chip after 30 seconds without network traffic.',
+        });
+        const networkSpeedVisibilitySwitch = new Gtk.Switch({
+            active: config.autoHideNetworkSpeed === true,
+            valign: Gtk.Align.CENTER,
+        });
+        networkSpeedVisibilitySwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.autoHideNetworkSpeed = networkSpeedVisibilitySwitch.active;
+            saveConfig();
+        });
+        networkSpeedVisibilityRow.add_suffix(networkSpeedVisibilitySwitch);
+        networkSpeedVisibilityRow.activatable_widget = networkSpeedVisibilitySwitch;
+        privacyGroup.add(networkSpeedVisibilityRow);
+
+
 
 
         // --- Presets ---
@@ -1611,6 +1629,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites));
                 mediaVisibilitySwitch.active = config.autoHideMedia === true;
                 bluetoothVisibilitySwitch.active = config.autoHideBluetooth === true;
+                networkSpeedVisibilitySwitch.active = config.autoHideNetworkSpeed === true;
                 return;
             }
             config.qsTiles = parsed;
