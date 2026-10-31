@@ -68,3 +68,11 @@ test('profile card uptime sampling pauses while its popup is hidden or the sessi
     assert.match(profile, /if \(isSessionLocked\(\) \|\| !row\.is_mapped\)\s*return GLib\.SOURCE_CONTINUE/);
     assert.match(profile, /const initialUptime = readUptimeSeconds\(\)/);
 });
+
+
+test('clock calendar/event polling pauses while its chip is hidden or the session is locked', async () => {
+    const clock = await readFile(new URL('../modules/clock.js', import.meta.url), 'utf8');
+    assert.match(clock, /import \{menuOpen, menuClose, isSessionLocked\} from '\.\.\/lib\/shellCompat\.js'/);
+    assert.match(clock, /const tickId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 15, \(\) => \{[\s\S]*?if \(isSessionLocked\(\) \|\| !button\.mapped\)[\s\S]*?tick\(\);/);
+    assert.match(clock, /button\.connect\('clicked',[\s\S]*?tick\(\)/);
+});

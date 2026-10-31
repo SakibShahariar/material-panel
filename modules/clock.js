@@ -16,7 +16,7 @@ import {ConfigStore} from '../lib/configStore.js';
 import {formatClockDisplay, nextClockDisplayMode} from '../lib/clockDisplay.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {wirePressedClass} from '../lib/pressFx.js';
-import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {
     loadCalendarDocument,
     indexEventsByDate,
@@ -250,6 +250,10 @@ export function buildClock(_extensionPath, scale = 1.0) {
     }
 
     const tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15, () => {
+        // The clock chip is visible UI, but its calendar/event lookup is
+        // unnecessary while the panel is hidden or the session is locked.
+        if (isSessionLocked() || !button.mapped)
+            return GLib.SOURCE_CONTINUE;
         tick();
         return GLib.SOURCE_CONTINUE;
     });
