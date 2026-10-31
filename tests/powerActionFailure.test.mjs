@@ -14,6 +14,12 @@ test('power actions use argv-based async subprocess completion and report failur
     assert.ok(!runner.includes('spawn_command_line_async'));
 });
 
+test('Lock and Suspend use the shared argv runner without an undefined command', () => {
+    assert.ok(power.includes('runPowerAction(label, argv)'));
+    assert.ok(!power.includes('spawn_command_line_async(command)'));
+    assert.ok(!power.includes('${command}'));
+});
+
 test('power menu actions use fixed argv and preserve destructive-action confirmation', () => {
     assert.ok(power.includes("argv: ['loginctl', 'lock-session']"));
     assert.ok(power.includes("argv: ['systemctl', 'suspend']"));
