@@ -150,7 +150,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
                 selectedL.text = `${selectedMount.name}  unavailable`;
                 return;
             }
-            selectedL.text = `${selectedMount.name}  ${fmt(result.used)} / ${fmt(result.size)}  (${result.pct}%)`;
+            selectedL.text = `${selectedMount.name}  ${fmt(result.used)} used / ${fmt(result.avail)} free / ${fmt(result.size)} total  (${result.pct}%)`;
         });
     };
 
