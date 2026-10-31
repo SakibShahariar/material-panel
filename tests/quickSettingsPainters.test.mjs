@@ -33,3 +33,17 @@ test('all Quick Settings layouts place the media card before sound and connectiv
     assert.ok(ryokuBuild.indexOf("mk('sound'") < ryokuBuild.indexOf("mk('network'"));
     assert.ok(ryokuBuild.indexOf("mk('network'") < ryokuBuild.indexOf("mk('bluetooth'"));
 });
+
+test('all Quick Settings layouts share the same expandable network builders and slider input contract', async () => {
+    const slider = await readFile(new URL('../lib/simpleSlider.js', import.meta.url), 'utf8');
+    assert.ok(defaults.includes("getQsExpandController().register('wifi'"));
+    assert.ok(defaults.includes("getQsExpandController().register('bt'"));
+    assert.ok(end4.includes("import {wifiQsBlock, bluetoothTile} from './quicksettings.js'"));
+    assert.ok(ryoku.includes('wifiQsBlock,'));
+    assert.ok(ryoku.includes('bluetoothTile,'));
+    assert.ok(slider.includes("container.connect('key-press-event'"));
+    assert.ok(slider.includes("container.connect('scroll-event'"));
+    assert.ok(slider.includes("container.connect('button-press-event'"));
+    assert.ok(slider.includes("global.stage.connect('captured-event'"));
+    assert.ok(end4.includes("createSlider({"));
+});
