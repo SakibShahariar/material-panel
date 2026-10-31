@@ -1,6 +1,5 @@
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -51,11 +50,7 @@ export function buildPowerMenu() {
                     argv);
                 return;
             }
-            try {
-                GLib.spawn_command_line_async(command);
-            } catch (e) {
-                logError(e, `material-panel: failed to run "${command}"`);
-            }
+            runPowerAction(label, argv);
         }));
         menu.addMenuItem(item);
     }
