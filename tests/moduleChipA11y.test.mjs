@@ -21,3 +21,7 @@ const notifications = await readFile(new URL('../modules/notifications.js', impo
 test('notification dismiss buttons identify which app notification they dismiss', () => {
     assert.ok(notifications.includes("setChipA11y(dismiss, `Dismiss notification from ${item.appName || item.title || 'application'}`)"));
 });
+
+test('notification dismiss controls name the affected application or notification', () => {
+    assert.ok(notifications.includes("setChipA11y(dismiss, `Dismiss notification from ${item.appName || item.title || 'application'}`)"));
+});
