@@ -1264,8 +1264,9 @@ export function bluetoothTile() {
 // Device list logic — inline, toggled by dropBtn (10% area)
     const connectingPaths = new Set();
     const pulseTimers = new Map();
+    const pulseActors = new Map();
 
-    const stopPulse = path => {
+    const stopPulseTimer = path => {
         const id = pulseTimers.get(path);
         if (id) {
             try { GLib.source_remove(id); } catch (e) {}
@@ -1273,13 +1274,27 @@ export function bluetoothTile() {
         }
     };
 
-    const startPulse = (path, iconActor) => {
-        stopPulse(path);
+    const stopPulse = path => {
+        stopPulseTimer(path);
+        const actor = pulseActors.get(path);
+        try { if (actor) actor.opacity = 255; } catch (e) {}
+        pulseActors.delete(path);
+    };
+
+    const startPulseTimer = (path, iconActor) => {
+        if (pulseTimers.has(path) || prefersReducedMotion())
+            return;
         let tick = 0;
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 90, () => {
+            if (prefersReducedMotion()) {
+                pulseTimers.delete(path);
+                try { iconActor.opacity = 255; } catch (e) {}
+                return GLib.SOURCE_REMOVE;
+            }
             if (!connectingPaths.has(path)) {
                 try { iconActor.opacity = 255; } catch (e) {}
                 pulseTimers.delete(path);
+                pulseActors.delete(path);
                 return GLib.SOURCE_REMOVE;
             }
             tick++;
@@ -1290,6 +1305,36 @@ export function bluetoothTile() {
         });
         pulseTimers.set(path, id);
     };
+
+    const startPulse = (path, iconActor) => {
+        stopPulse(path);
+        pulseActors.set(path, iconActor);
+        try { iconActor.opacity = 255; } catch (e) {}
+        startPulseTimer(path, iconActor);
+    };
+
+    const syncPulseMotion = () => {
+        for (const [path, actor] of pulseActors) {
+            if (prefersReducedMotion()) {
+                stopPulseTimer(path);
+                try { actor.opacity = 255; } catch (e) {}
+            } else if (connectingPaths.has(path)) {
+                startPulseTimer(path, actor);
+            }
+        }
+    };
+    let pulseMotionSettings = null;
+    let pulseMotionSettingsId = 0;
+    let pulseStSettings = null;
+    let pulseStMotionId = 0;
+    try {
+        pulseMotionSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        pulseMotionSettingsId = pulseMotionSettings.connect('changed::enable-animations', syncPulseMotion);
+    } catch (e) {}
+    try {
+        pulseStSettings = St.Settings.get();
+        pulseStMotionId = pulseStSettings.connect('notify::reduced-motion', syncPulseMotion);
+    } catch (e) {}
 
     const buildDeviceRow = (path, props, isPaired = true, batteryPct = null) => {
         const alias = props['Alias'] ? props['Alias'].deep_unpack() : null;
@@ -1604,6 +1649,16 @@ export function bluetoothTile() {
     outer.connect('destroy', () => {
         getQsExpandController().unregister('bt');
         if (objMgrProxy && objMgrSignalId) try { objMgrProxy.disconnect(objMgrSignalId); } catch (e) {}
+        try {
+            if (pulseMotionSettings && pulseMotionSettingsId)
+                pulseMotionSettings.disconnect(pulseMotionSettingsId);
+        } catch (e) {}
+        try {
+            if (pulseStSettings && pulseStMotionId)
+                pulseStSettings.disconnect(pulseStMotionId);
+        } catch (e) {}
+        for (const path of [...pulseActors.keys()])
+            stopPulse(path);
     });
 
     return outer;
