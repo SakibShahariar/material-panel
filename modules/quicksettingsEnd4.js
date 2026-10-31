@@ -279,6 +279,7 @@ function buildDualSliders() {
     const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
     const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
     const volSlider = createSlider({
+        accessibleName: 'Volume',
         initialValue: 0.7,
         width: volW,
         style: volStyle.id,
@@ -325,6 +326,7 @@ function buildDualSliders() {
     const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
     const briW = briStyle.id === 'arc' ? 112 : (briStyle.id === 'rails' ? 28 : trackW);
     const briSlider = createSlider({
+        accessibleName: 'Brightness',
         // Safe fallback while brightnessctl is probed without blocking Shell.
         initialValue: 0.5,
         width: briW,
