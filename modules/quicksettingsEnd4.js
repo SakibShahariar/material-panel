@@ -746,7 +746,8 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 10px; border-radius: 22px;`);
 
     shell.add_child(buildHeader(menu));
-    shell.add_child(buildDualSliders());
+    // Keep the same primary content order as Default and Ryoku: media first,
+    // then volume/brightness, connectivity, and the remaining controls.
     try {
         const media = buildMediaPlayerRow();
         if (media) {
@@ -754,6 +755,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
             shell.add_child(media);
         }
     } catch (e) { logError(e, 'e4 qs media'); }
+    shell.add_child(buildDualSliders());
     shell.add_child(buildToggleGrid());
     shell.add_child(buildPowerStrip(menu));
     try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
