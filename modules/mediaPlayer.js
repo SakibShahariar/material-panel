@@ -454,6 +454,7 @@ export function buildMediaPlayerRow() {
             setArtFromUrl(artIcon, null, 40);
             return;
         }
+        button.visible = true;
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
@@ -536,6 +537,8 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         can_focus: true,
         child: box,
     });
+    const autoHideWhenInactive = globalThis._materialPanelAutoHideMedia === true;
+    button.visible = !autoHideWhenInactive;
     let currentTrackTitle = 'No media';
     let currentPlaybackState = 'paused';
     const updateMediaChipA11y = () => {
@@ -733,6 +736,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         clearCtl();
         attachedBusName = busName || null;
         if (!busName) {
+            button.visible = !autoHideWhenInactive;
             durationUs = 0;
             trackId = '';
             currentPositionUs = 0;
