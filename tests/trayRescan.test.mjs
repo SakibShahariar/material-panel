@@ -10,7 +10,7 @@ test('tray bridge attaches newly registered indicators through the addToStatusAr
 
 test('panel rebuild keeps only one bounded fallback tray rescan', async () => {
     const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
-    const start = extension.indexOf('_scheduleTrayRescan()');
+    const start = extension.indexOf('    _scheduleTrayRescan() {');
     const end = extension.indexOf('\n    disable()', start);
     const scheduler = extension.slice(start, end);
 
