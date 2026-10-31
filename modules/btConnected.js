@@ -263,6 +263,7 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
                             label.text = best.pct != null
                                 ? `${best.name} · ${best.pct}%`
                                 : best.name;
+                            setChipA11y(button, `Connected headset: ${best.name}${best.pct != null ? `, battery ${best.pct}%` : ''}`);
                             const g = giconForKey('headphones', false);
                             if (g)
                                 icon.gicon = g;
@@ -353,6 +354,6 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         return Clutter.EVENT_STOP;
     });
 
-    try { setChipA11y(button, 'Bluetooth device'); } catch (e) {}
+    try { setChipA11y(button, 'Connected headset'); } catch (e) {}
     return button;
 }
