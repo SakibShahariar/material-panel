@@ -966,3 +966,13 @@
 .material-panel-qs-media-title {
     font-size: 14px;
 }
+
+
+/* Live GNOME reduced-motion preference: remove decorative CSS transitions
+   across panel chips, Quick Settings, popup controls, and tray surfaces. */
+stage.material-panel-reduced-motion *,
+stage.material-panel-reduced-motion *:hover,
+stage.material-panel-reduced-motion *:active {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+}
