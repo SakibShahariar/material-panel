@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     filterNotifications,
+    groupNotificationsByApp,
     hasUnreadNotificationState,
     notificationAppNames,
 } from '../lib/notificationFilters.js';
@@ -39,4 +40,10 @@ test('app, unread, and text filters combine without overriding one another', () 
         filterNotifications(items, {query: 'pdf'}),
         [items[1]],
     );
+});
+
+test('notifications group by app while preserving newest-first order within each group', () => {
+    const grouped = groupNotificationsByApp(items);
+    assert.deepEqual(grouped.map(group => group.appName), ['Mail', 'Browser']);
+    assert.deepEqual(grouped[0].items, [items[0], items[2]]);
 });
