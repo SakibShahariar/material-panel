@@ -28,7 +28,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
-import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -532,6 +532,7 @@ function buildToggleGrid() {
 
     // Respect the shared tile visibility settings in every Quick Settings layout.
     const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
+    const favorites = normalizeQuickSettingsFavorites(globalThis._materialPanelQsFavorites);
     const showWifi = enabledTiles.has('wifi');
     const showBluetooth = enabledTiles.has('bluetooth');
     const showDarkMode = enabledTiles.has('dark-mode');
@@ -569,23 +570,25 @@ function buildToggleGrid() {
 
     const netCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
     style(netCol, `spacing: 8px; width: ${QS_INNER}px;`);
-    if (wifi) netCol.add_child(wifi);
-    if (bt) netCol.add_child(bt);
-    // Expand panels sit under the tiles (same as default QS)
-    try {
-        if (bt?.devicePanel) {
-            bt.devicePanel.visible = false;
-            try { bt.devicePanel.x_expand = true; bt.devicePanel.width = QS_INNER; } catch (e) {}
-            netCol.add_child(bt.devicePanel);
+    const networkTiles = {wifi, bluetooth: bt};
+    for (const id of orderQuickSettingsTiles(
+        ['wifi', 'bluetooth'].filter(tileId => enabledTiles.has(tileId)),
+        favorites,
+    )) {
+        const tile = networkTiles[id];
+        if (!tile)
+            continue;
+        netCol.add_child(tile);
+        const panel = id === 'wifi' ? tile.listPanel : tile.devicePanel;
+        if (panel) {
+            try {
+                panel.visible = false;
+                panel.x_expand = true;
+                panel.width = QS_INNER;
+            } catch (e) {}
+            netCol.add_child(panel);
         }
-    } catch (e) { logError(e, 'e4 qs bt panel'); }
-    try {
-        if (wifi?.listPanel) {
-            wifi.listPanel.visible = false;
-            try { wifi.listPanel.x_expand = true; wifi.listPanel.width = QS_INNER; } catch (e) {}
-            netCol.add_child(wifi.listPanel);
-        }
-    } catch (e) { logError(e, 'e4 qs wifi panel'); }
+    }
 
     // Row of round toggles: dark / dnd / night (former third slot + rest)
     const row0 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
@@ -603,9 +606,7 @@ function buildToggleGrid() {
             try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
         },
     }) : null;
-    if (netCol.get_n_children() > 0) root.add_child(netCol);
     if (darkRound) row0.add_child(darkRound);
-    if (row0.get_n_children() > 0) root.add_child(row0);
 
     // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
     const row1 = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
@@ -653,10 +654,28 @@ function buildToggleGrid() {
     try {
         lockBtn.get_child().icon_name = 'system-lock-screen-symbolic';
     } catch (e) {}
-    if (night) row1.add_child(night);
-    if (dnd) row1.add_child(dnd);
+    const sessionTileActors = {'night-light': night, 'do-not-disturb': dnd};
+    for (const id of orderQuickSettingsTiles(
+        ['night-light', 'do-not-disturb'].filter(tileId => enabledTiles.has(tileId)),
+        favorites,
+    )) {
+        if (sessionTileActors[id])
+            row1.add_child(sessionTileActors[id]);
+    }
     row1.add_child(lockBtn);
-    root.add_child(row1);
+
+    const groups = [
+        {ids: ['wifi', 'bluetooth'], actor: netCol, order: 0},
+        {ids: ['dark-mode'], actor: row0, order: 1},
+        {ids: ['night-light', 'do-not-disturb'], actor: row1, order: 2},
+    ].filter(group => group.actor.get_n_children() > 0);
+    const favoriteRank = new Map(favorites.map((id, index) => [id, index]));
+    const groupRank = group => Math.min(
+        ...group.ids.map(id => favoriteRank.get(id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    groups.sort((a, b) => groupRank(a) - groupRank(b) || a.order - b.order);
+    for (const group of groups)
+        root.add_child(group.actor);
 
     return root;
 }
