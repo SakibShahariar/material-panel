@@ -14,6 +14,7 @@ import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getMixerControl} from '../lib/audio.js';
+import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -2332,6 +2333,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             bluetoothTile,
             openExtensionPrefs,
         });
+        const audioSelectors = buildAudioDeviceSelectors(getMixerControl());
+        if (audioSelectors) {
+            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            menu.addMenuItem(audioSelectors.section);
+            menu.actor.connect('destroy', () => audioSelectors.destroy());
+        }
         menu.connect('open-state-changed', (_m, open) => {
             if (open)
                 applyQsChrome();
@@ -2489,6 +2496,13 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         'material-panel-qs-section-power',
         powerRow(menu),
     )));
+
+    const audioSelectors = buildAudioDeviceSelectors(getMixerControl());
+    if (audioSelectors) {
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        menu.addMenuItem(audioSelectors.section);
+        menu.actor.connect('destroy', () => audioSelectors.destroy());
+    }
 
     if (end4) {
         try {

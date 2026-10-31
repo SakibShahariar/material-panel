@@ -20,6 +20,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
+import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
@@ -768,6 +769,13 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try { scroll.add_child(shell); } catch (e2) {}
     }
     menu.addMenuItem(wrapShell(scroll));
+
+    const audioSelectors = buildAudioDeviceSelectors(getMixerControl());
+    if (audioSelectors) {
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        menu.addMenuItem(audioSelectors.section);
+        menu.actor.connect('destroy', () => audioSelectors.destroy());
+    }
 
     menu.connect('open-state-changed', (_m, open) => {
         if (!open)
