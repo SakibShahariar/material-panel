@@ -12,6 +12,7 @@ import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {codecFromPactlText} from '../lib/bluetoothCodec.js';
 import {makeWrappingLabel, wrapAsMenuItem} from '../lib/bluetoothUi.js';
+import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
@@ -621,7 +622,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let _refreshDevices = null;
     let _needsRefresh = false;
 
-    const buildDeviceRow = (path, props) => {
+    const buildDeviceRow = (path, props, batteryPct = null) => {
         const alias = props['Alias']?.deep_unpack() ?? null;
         const name = props['Name']?.deep_unpack() ?? null;
         const displayName = alias ?? name ?? 'Unknown device';
@@ -631,13 +632,12 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         try {
             connecting = !!(props['Connecting']?.deep_unpack?.() ?? false);
         } catch (e) {}
-        let batteryPct = null;
-        try {
-            if (props && props._mpBatteryPct != null)
-                batteryPct = props._mpBatteryPct;
-            else if ('Battery' in props && props['Battery'])
-                batteryPct = props['Battery'].deep_unpack();
-        } catch (e) {}
+        if (batteryPct == null) {
+            try {
+                if ('Battery' in props && props['Battery'])
+                    batteryPct = props['Battery'].deep_unpack();
+            } catch (e) {}
+        }
         const row = new St.Button({
             style_class: `material-panel-bt-device${connected ? ' connected' : ''}${connecting ? ' connecting' : ''}${paired ? '' : ' unpaired'}`,
             reactive: true,
@@ -770,24 +770,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                             devicesHeaderCount.text = '';
                             return;
                         }
-                        const pairedDevices = Object.entries(objects)
-                            .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                            .map(([path, ifaces]) => {
-                                const props = ifaces[DEVICE_IFACE];
-                                try {
-                                    const bat = ifaces['org.bluez.Battery1'];
-                                    if (bat && bat['Percentage'])
-                                        props._mpBatteryPct = bat['Percentage'].deep_unpack();
-                                } catch (e) {}
-                                return {path, props};
-                            })
-                            .filter(({props}) => props['Paired']?.deep_unpack());
-                        // Show paired first, connected at top (Noctalia order)
-                        pairedDevices.sort((a, b) => {
-                            const ac = a.props['Connected']?.deep_unpack() ? 0 : 1;
-                            const bc = b.props['Connected']?.deep_unpack() ? 0 : 1;
-                            return ac - bc;
-                        });
+                        const {pairedDevices, nearbyDevices} = getBluetoothDevices(objects);
                         devicesBox.destroy_all_children();
                         devicesHeaderCount.text = `(${pairedDevices.length})`;
                         if (pairedDevices.length === 0) {
@@ -795,13 +778,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                             devicesBox.add_child(hint);
                             return;
                         }
-                        for (const {path, props} of pairedDevices)
-                            devicesBox.add_child(buildDeviceRow(path, props));
+                        for (const {path, props, batteryPct} of pairedDevices)
+                            devicesBox.add_child(buildDeviceRow(path, props, batteryPct));
                         try {
                             let shown = false;
                             for (const {props} of pairedDevices) {
                                 const connected = props['Connected']?.deep_unpack() ?? false;
-                                const pct = props._mpBatteryPct;
+                                const pct = batteryPct;
                                 if (connected && pct != null && pct !== undefined) {
                                     chipBatt.text = `${Math.round(Number(pct))}%`;
                                     chipBatt.visible = true;
@@ -816,23 +799,11 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
                         } catch (e) {}
                         // Also show unpaired nearby if discovering (End4 style: nearby section)
                         if (discovering) {
-                            const nearby = Object.entries(objects)
-                                .filter(([, ifaces]) => DEVICE_IFACE in ifaces)
-                                .map(([path, ifaces]) => {
-                                const props = ifaces[DEVICE_IFACE];
-                                try {
-                                    const bat = ifaces['org.bluez.Battery1'];
-                                    if (bat && bat['Percentage'])
-                                        props._mpBatteryPct = bat['Percentage'].deep_unpack();
-                                } catch (e) {}
-                                return {path, props};
-                            })
-                                .filter(({props}) => !props['Paired']?.deep_unpack() && props['Name']?.deep_unpack());
-                            if (nearby.length > 0) {
+                            if (nearbyDevices.length > 0) {
                                 const sep = new St.Label({text: 'Nearby', style_class: 'material-panel-bt-nearby-header'});
                                 devicesBox.add_child(sep);
-                                for (const {path, props} of nearby.slice(0, 6))
-                                    devicesBox.add_child(buildDeviceRow(path, props));
+                                for (const {path, props, batteryPct} of nearbyDevices.slice(0, 6))
+                                    devicesBox.add_child(buildDeviceRow(path, props, batteryPct));
                             }
                         }
                     } catch (e) { logError(e, 'material-panel: bluez GetManagedObjects failed for bluetooth dropdown'); }
