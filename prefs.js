@@ -753,6 +753,23 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         workspaceGroup.add(workspaceDisplayRow);
 
+        const workspaceScrollRow = new Adw.ActionRow({
+            title: 'Scroll to switch workspaces',
+            subtitle: 'Use the mouse wheel over the workspace indicator to move between existing workspaces.',
+        });
+        const workspaceScrollSwitch = new Gtk.Switch({
+            active: config.workspaceScrollSwitch !== false,
+            valign: Gtk.Align.CENTER,
+        });
+        workspaceScrollSwitch.connect('notify::active', () => {
+            if (syncingExternal) return;
+            config.workspaceScrollSwitch = workspaceScrollSwitch.active;
+            saveConfig();
+        });
+        workspaceScrollRow.add_suffix(workspaceScrollSwitch);
+        workspaceScrollRow.activatable_widget = workspaceScrollSwitch;
+        workspaceGroup.add(workspaceScrollRow);
+
         const weatherGroup = new Adw.PreferencesGroup({
             title: 'Weather location',
             description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. No IP geolocation is used.',
@@ -1719,6 +1736,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 tileOrderRow.set_text(formatQuickSettingsTileOrder(config.qsTiles));
                 workspaceDisplayRow.set_selected(Math.max(
                     0, workspaceDisplayModes.indexOf(config.workspaceDisplay ?? 'auto')));
+                workspaceScrollSwitch.active = config.workspaceScrollSwitch !== false;
                 clockClickSwitch.active = config.clockClickCyclesFormat === true;
                 for (const [id, toggle] of metricSwitches)
                     toggle.active = config.activityChipMetrics.includes(id);

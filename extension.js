@@ -100,6 +100,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelAutoHideNetworkSpeed = newConfig.autoHideNetworkSpeed === true;
                 globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
+                globalThis._materialPanelWorkspaceScrollSwitch = newConfig.workspaceScrollSwitch !== false;
                 globalThis._materialPanelNetworkSpeedUnit = newConfig.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             } catch (e) {}
 
@@ -219,6 +220,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelAutoHideNetworkSpeed = this._config.autoHideNetworkSpeed === true;
             globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
+            globalThis._materialPanelWorkspaceScrollSwitch = this._config.workspaceScrollSwitch !== false;
             globalThis._materialPanelNetworkSpeedUnit = this._config.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
             globalThis._materialPanelHideProfileIdentity = this._config.hideProfileIdentity === true;
         } catch (e) {}

@@ -33,13 +33,23 @@ test('workspace display preference reaches the shell builder and is synchronized
         readFile(new URL('../modules/workspaces.js', import.meta.url), 'utf8'),
     ]);
     assert.ok(config.includes("workspaceDisplay: 'auto'"));
+    assert.ok(config.includes('workspaceScrollSwitch: true'));
+    assert.ok(config.includes('merged.workspaceScrollSwitch = merged.workspaceScrollSwitch !== false'));
     assert.ok(config.includes('merged.workspaceDisplay = normalizeWorkspaceDisplayMode(merged.workspaceDisplay)'));
     assert.ok(extension.includes("globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto'"));
     assert.ok(extension.includes("globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto'"));
+    assert.ok(extension.includes('globalThis._materialPanelWorkspaceScrollSwitch = newConfig.workspaceScrollSwitch !== false'));
+    assert.ok(extension.includes('globalThis._materialPanelWorkspaceScrollSwitch = this._config.workspaceScrollSwitch !== false'));
     assert.ok(prefs.includes("const workspaceDisplayModes = ['auto', 'numbers', 'dots', 'apps']"));
     assert.ok(prefs.includes("config.workspaceDisplay = workspaceDisplayModes[workspaceDisplayRow.get_selected()] ?? 'auto'"));
     assert.ok(prefs.includes('workspaceDisplayRow.set_selected'));
+    assert.ok(prefs.includes("title: 'Scroll to switch workspaces'"));
+    assert.ok(prefs.includes('config.workspaceScrollSwitch = workspaceScrollSwitch.active'));
+    assert.ok(prefs.includes('workspaceScrollSwitch.active = config.workspaceScrollSwitch !== false'));
     assert.ok(builder.includes('resolveWorkspaceDisplayMode('));
     assert.ok(builder.includes("if (displayMode === 'numbers')"));
     assert.ok(builder.includes("if (displayMode === 'dots')"));
+    assert.ok(builder.includes('if (globalThis._materialPanelWorkspaceScrollSwitch !== false)'));
+    assert.ok(builder.includes('scrollSignalId = box.connect(\'scroll-event\''));
+    assert.ok(builder.includes('box.disconnect(scrollSignalId)'));
 });

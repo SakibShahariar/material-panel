@@ -119,7 +119,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
 
     // Scroll over the workspace chip to switch workspaces. Keep the range
     // bounded; unlike app windows, the panel should not create new workspaces.
-    box.connect('scroll-event', (_actor, event) => {
+    // Retain the signal ID so teardown explicitly disconnects the handler.
+    let scrollSignalId = 0;
+    if (globalThis._materialPanelWorkspaceScrollSwitch !== false) {
+        scrollSignalId = box.connect('scroll-event', (_actor, event) => {
         try {
             const direction = event.get_scroll_direction();
             let delta = 0;
@@ -139,7 +142,8 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         } catch (e) {
             return Clutter.EVENT_PROPAGATE;
         }
-    });
+        });
+    }
 
     const iconSize = Math.max(16, Math.round(20 * (scale || 1)));
     // Overlap amount — keep modest so layout stays valid
@@ -368,6 +372,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     try { ids.push(['w', global.window_manager.connect('switch-workspace', scheduleRebuild)]); } catch (e) {}
 
     box.connect('destroy', () => {
+        if (scrollSignalId) {
+            try { box.disconnect(scrollSignalId); } catch (e) {}
+            scrollSignalId = 0;
+        }
         if (rebuildTimer) {
             try { GLib.source_remove(rebuildTimer); } catch (e) {}
             rebuildTimer = 0;
