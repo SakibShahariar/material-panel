@@ -300,10 +300,16 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         layoutRow.activatable_widget = layoutDrop;
         layoutGroup.add(layoutRow);
 
-        const layoutPreviewGrid = new Gtk.Box({
-            orientation: Gtk.Orientation.HORIZONTAL,
-            spacing: 10,
-            homogeneous: true,
+        // FlowBox wraps preview cards on narrow Preferences windows instead
+        // of compressing three full layout summaries into unreadable columns.
+        const layoutPreviewGrid = new Gtk.FlowBox({
+            selection_mode: Gtk.SelectionMode.NONE,
+            min_children_per_line: 1,
+            max_children_per_line: 3,
+            row_spacing: 10,
+            column_spacing: 10,
+            homogeneous: false,
+            hexpand: true,
         });
         const layoutPreviewViews = new Map();
         const previewLayouts = [
@@ -339,6 +345,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             card.set_margin_bottom(6);
             card.set_margin_start(4);
             card.set_margin_end(4);
+            card.set_hexpand(true);
 
             const title = new Gtk.Label({label: entry.title, xalign: 0});
             title.add_css_class('heading');
@@ -386,7 +393,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             const selectedLabel = new Gtk.Label({label: 'Selected'});
             selectedLabel.add_css_class('accent');
             card.append(selectedLabel);
-            layoutPreviewGrid.append(card);
+            layoutPreviewGrid.insert(card, -1);
             layoutPreviewViews.set(entry.id, {card, selectedLabel});
         }
         const updateLayoutPreviews = selectedStyle => {
