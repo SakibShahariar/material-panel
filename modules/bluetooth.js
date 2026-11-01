@@ -1,4 +1,5 @@
 import {setChipA11y} from '../lib/a11y.js';
+import {createStatusState} from '../lib/statusState.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -416,36 +417,13 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     devicesHeader.add_child(devicesHeaderCount);
     devicesOuter.add_child(devicesHeader);
 
-    // Explain unavailable adapter states in the device list; the persistent
-    // footer below remains the single entry point to GNOME Bluetooth settings.
-    const adapterState = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
-        x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
-        style_class: 'material-panel-bt-state',
-        style: 'spacing: 8px; padding: 8px 10px;',
+    // Explain unavailable adapter states with the shared popup status row.
+    const adapterState = createStatusState({
+        styleClass: 'material-panel-bt-state',
+        labelStyleClass: 'material-panel-bt-device-status',
     });
-    const adapterStateIcon = new St.Icon({
-        icon_name: 'dialog-information-symbolic',
-        icon_size: 18,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    const adapterStateLabel = new St.Label({
-        text: '',
-        x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
-        style_class: 'material-panel-bt-device-status',
-        wrap: true,
-    });
-    adapterState.add_child(adapterStateIcon);
-    adapterState.add_child(adapterStateLabel);
-    adapterState.visible = false;
-    devicesOuter.add_child(adapterState);
-    const showAdapterState = (message, iconName = 'dialog-information-symbolic') => {
-        adapterStateLabel.text = message;
-        adapterStateIcon.icon_name = iconName;
-        adapterState.visible = !!message;
-    };
+    devicesOuter.add_child(adapterState.actor);
+    const showAdapterState = adapterState.setMessage;
 
     const scroll = new St.ScrollView({
         style_class: 'material-panel-bt-scroll',
