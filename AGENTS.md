@@ -30,6 +30,24 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - Static checks do not prove runtime, graphical, hardware, or platform integration behavior. In particular, do not claim GNOME Shell/session compatibility without testing in a real GNOME session.
 - If a necessary test cannot be run in the available environment, state the limitation clearly and leave validation-dependent work unresolved.
 
+## GNOME Shell UX and Lifecycle
+
+- Keep panel chips and popups consistent with the existing Material Panel design language, theme variables, spacing, and interaction patterns. Inspect neighboring modules before introducing a new pattern.
+- For empty, loading, unavailable, and error states, explain what happened in concise user-facing language. Provide a relevant next action when one genuinely exists; do not add dead-end or misleading actions.
+- Prefer reusable helpers or shared components when the same state pattern is needed in multiple modules. Avoid creating a generic abstraction for a single isolated use case unless it materially improves clarity.
+- Preserve keyboard navigation, focus behavior, accessible names, and useful tooltips when changing interactive controls.
+- Respect GNOME Shell actor ownership and lifecycle. Disconnect signal handlers, remove timers/sources, cancel asynchronous work, and destroy owned actors during teardown.
+- Avoid blocking the Shell main loop with synchronous I/O or expensive work. Preserve existing refresh throttling and avoid unnecessary polling or background activity.
+- Treat GNOME Shell version compatibility as a runtime claim: inspect supported APIs and compatibility helpers, but report runtime testing separately from syntax or unit-test results.
+
+## Maintenance Session Continuity
+
+- At the start of each continuation, verify the current default branch, latest commit, relevant open issue, and any work left incomplete by the previous session.
+- Keep a clear distinction between commits made, issues fully closed, and issues partially addressed. A commit is not an issue closure.
+- Prioritize reducing actionable backlog through verified completions, not merely increasing commit count. Do not spend a session repeatedly polishing already-completed work while straightforward open issues remain.
+- Before ending a maintenance run, identify the next actionable issue and any validation needed to finish it. Do not claim the backlog is exhausted without reviewing the remaining open issues.
+- If GitHub returns no status checks or workflow runs for a commit, report the CI result as unavailable or not verified. Never infer success, failure, or that workflows were disabled from an empty result alone.
+
 ## Git and Commit Practices
 
 - Commit directly to the repository's existing default branch; do not force-push, rewrite history, reset away others' work, or amend published commits.
