@@ -416,6 +416,36 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     devicesHeader.add_child(devicesHeaderCount);
     devicesOuter.add_child(devicesHeader);
 
+    // Explain unavailable adapter states in the device list; the persistent
+    // footer below remains the single entry point to GNOME Bluetooth settings.
+    const adapterState = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-bt-state',
+    });
+    const adapterStateIcon = new St.Icon({
+        icon_name: 'dialog-information-symbolic',
+        icon_size: 18,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const adapterStateLabel = new St.Label({
+        text: '',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'material-panel-bt-device-status',
+        wrap: true,
+    });
+    adapterState.add_child(adapterStateIcon);
+    adapterState.add_child(adapterStateLabel);
+    adapterState.visible = false;
+    devicesOuter.add_child(adapterState);
+    const showAdapterState = (message, iconName = 'dialog-information-symbolic') => {
+        adapterStateLabel.text = message;
+        adapterStateIcon.icon_name = iconName;
+        adapterState.visible = !!message;
+    };
+
     const scroll = new St.ScrollView({
         style_class: 'material-panel-bt-scroll',
         x_expand: true,
@@ -457,6 +487,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
 
     const setPowered = powered => {
         currentlyPowered = powered;
+        showAdapterState('');
         button.visible = true;
         isBlocked = false;
         setChipA11y(button, `Bluetooth, ${powered ? 'on' : 'off'}`);
@@ -488,6 +519,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         blockedHint.visible = true;
         scanSwitch.visible = false;
         devicesOuter.opacity = 90;
+        showAdapterState('Bluetooth is blocked by the system. Use the switch above to unblock it.', 'changes-prevent-symbolic');
         devicesHeaderLabel.text = 'Paired devices — blocked';
         log('material-panel: bluetooth — rfkill soft blocked, tap switch to unblock');
     };
@@ -504,6 +536,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         scanSwitch.visible = false;
         devicesHeaderLabel.text = 'Paired devices — no adapter';
         devicesOuter.opacity = 90;
+        showAdapterState('No Bluetooth adapter was detected. Check that an adapter is connected and enabled.');
     };
 
     const setBluezUnavailableState = () => {
@@ -518,6 +551,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         scanSwitch.visible = false;
         devicesHeaderLabel.text = 'Paired devices — BlueZ unavailable';
         devicesOuter.opacity = 90;
+        showAdapterState('The Bluetooth service (BlueZ) is not responding. Check the system service and try again.', 'dialog-warning-symbolic');
     };
 
     const bindAdapter = path => {
