@@ -14,3 +14,13 @@ test('Gvc initialization failures permit rate-limited retries', () => {
 test('audio teardown cancels retry timer and resets failure state', () => {
     assert.match(source, /export function closeMixerControl\(\)\s*\{[\s\S]*?GLib\.source_remove\(_retryId\)[\s\S]*?_openFailed = false;/);
 });
+
+
+test('a successful delayed Gvc retry notifies the extension to rebuild audio consumers', async () => {
+    const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
+    assert.match(source, /const control = getMixerControl\(\)/);
+    assert.match(source, /_onMixerControlAvailable\?\.\(control\)/);
+    assert.match(source, /export function setMixerControlReadyCallback\(callback\)/);
+    assert.match(extension, /setMixerControlReadyCallback\(\(\) => this\._schedulePanelRebuild\('audio-recovered'\)\)/);
+    assert.match(extension, /setMixerControlReadyCallback\(null\)/);
+});

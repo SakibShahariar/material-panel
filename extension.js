@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
 import {debugLog} from './lib/debug.js';
-import {closeMixerControl} from './lib/audio.js';
+import {closeMixerControl, setMixerControlReadyCallback} from './lib/audio.js';
 import {clearPanelMenus} from './lib/popupDismiss.js';
 import {watchReducedMotion} from './lib/shellCompat.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -40,6 +40,9 @@ export default class MaterialPanelExtension extends Extension {
 
     _initialize(config) {
         this._config = config;
+        // If Gvc is unavailable during startup, retry later and rebuild the
+        // panel once the shared mixer control becomes available.
+        setMixerControlReadyCallback(() => this._schedulePanelRebuild('audio-recovered'));
         globalThis._materialPanelWeatherLocation = this._config.weatherLocation ?? {};
         this._sizeDebounceId = 0;
         this._reducedMotionCleanup = watchReducedMotion();
@@ -306,6 +309,7 @@ export default class MaterialPanelExtension extends Extension {
     disable() {
         // Release the session inhibitor when the extension is disabled.
         stopKeepAwake();
+        setMixerControlReadyCallback(null);
         // Invalidate any config load still in flight before releasing services.
         this._lifecycleGeneration = (this._lifecycleGeneration ?? 0) + 1;
         try { this._reducedMotionCleanup?.(); } catch (e) {}
