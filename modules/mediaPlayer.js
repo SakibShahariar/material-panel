@@ -1,4 +1,5 @@
 import {setChipA11y} from '../lib/a11y.js';
+import {createStatusState} from '../lib/statusState.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 
 import St from 'gi://St';
@@ -687,28 +688,15 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     head.add_child(textCol);
     body.add_child(head);
 
-    const noMediaState = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
-        style_class: 'material-panel-media-empty-state',
-        x_expand: true,
+    const noMediaState = createStatusState({
+        message: 'No media player is active. Open a player that supports MPRIS to see playback controls here.',
+        iconName: 'media-playback-start-symbolic',
+        styleClass: 'material-panel-media-empty-state',
+        labelStyleClass: 'material-panel-media-popup-artist',
+        iconSize: 20,
+        style: 'spacing: 10px; padding: 8px 10px; border-radius: 10px;',
     });
-    try { noMediaState.style = 'spacing: 10px; padding: 8px 10px; border-radius: 10px;'; } catch (e) {}
-    const noMediaIcon = new St.Icon({
-        icon_name: 'media-playback-start-symbolic',
-        icon_size: 20,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    const noMediaText = new St.Label({
-        text: 'No media player is active. Open a player that supports MPRIS to see playback controls here.',
-        style_class: 'material-panel-media-popup-artist',
-        x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
-        wrap: true,
-    });
-    noMediaState.add_child(noMediaIcon);
-    noMediaState.add_child(noMediaText);
-    noMediaState.visible = true;
-    body.add_child(noMediaState);
+    body.add_child(noMediaState.actor);
 
     const progressSlider = new PopupMenu.PopupSliderMenuItem(0);
     progressSlider.actor.visible = false;
@@ -841,7 +829,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             currentPositionUs = 0;
             canSeek = false;
             updateProgressUi(0);
-            noMediaState.visible = true;
+            noMediaState.setMessage('No media player is active. Open a player that supports MPRIS to see playback controls here.');
             controls.visible = false;
             progressRow.visible = false;
             label.text = 'No media';
@@ -853,7 +841,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             setPlayingUi(false);
             return;
         }
-        noMediaState.visible = false;
+        noMediaState.setMessage('');
         controls.visible = true;
         progressRow.visible = true;
         bindPlayer(busName, {
