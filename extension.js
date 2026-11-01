@@ -13,6 +13,7 @@ import {StatusAreaBridge} from './lib/statusAreaBridge.js';
 import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js';
+import {clearSharedState} from './lib/sharedState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -363,11 +364,8 @@ export default class MaterialPanelExtension extends Extension {
             try { Main.panel.show(); } catch (e2) {}
         }
 
-        // Clear shared theme globals so next enable does not paint stale palette
-        try {
-            for (const k of Object.keys(globalThis).filter(x => String(x).startsWith('_materialPanel')))
-                try { globalThis[k] = undefined; } catch (e) {}
-        } catch (e) {}
+        // Remove shared globals so they cannot leak across extension lifecycles.
+        clearSharedState();
 
         this._config = null;
     }
