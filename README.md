@@ -7,6 +7,30 @@ A modern, configurable GNOME Shell panel with flexible module placement, Quick S
 > [!NOTE]
 > Material Panel is actively developed. Some features are still in progress; see [known limitations](docs/KNOWN-LIMITATIONS.md) and [open issues](https://github.com/SakibShahariar/material-panel/issues). Automated tests do not replace testing inside GNOME Shell.
 
+## GNOME Shell compatibility
+
+The versions below are declared in `metadata.json`. A declared version is not necessarily a runtime-tested version.
+
+| GNOME Shell | Declared support | Runtime-tested status |
+| --- | --- | --- |
+| 49 | Yes | Not verified in this repository |
+| 50 | Yes | Not verified in this repository |
+| 51 | Yes | Not verified in this repository |
+
+No per-version runtime test results or confirmed version-specific feature limitations are currently recorded. The general implementation gaps in [known limitations](docs/KNOWN-LIMITATIONS.md) apply independently of this table. The automated tests listed below are source-level tests; they do not establish GNOME Shell runtime compatibility.
+
+After a GNOME Shell upgrade, manually check:
+
+- [ ] Enable, disable, and reload the extension; confirm the panel is restored cleanly.
+- [ ] Check panel zones, layouts, visibility, and monitor/work-area changes.
+- [ ] Open preferences, change settings, save, and confirm the panel reloads them.
+- [ ] Open and operate the default, End-4, and Ryoku Quick Settings implementations.
+- [ ] Verify the tray bridge with a supported AppIndicator/KStatusNotifierItem provider.
+- [ ] Exercise key modules: clock/calendar, weather, media, Bluetooth, Wi-Fi/network, audio, battery, and notifications.
+- [ ] Review GNOME Shell logs for errors, then repeat enable/disable to catch lifecycle leaks.
+
+Only update a version's runtime-tested status after this checklist has been exercised in that version's GNOME Shell session.
+
 ## Highlights
 
 - **Your layout:** arrange modules in left, center, and right zones.
