@@ -7,7 +7,7 @@ test('Preferences renders previews for Default, End-4, and Ryoku without applyin
     assert.ok(prefs.includes("title: 'Default'"));
     assert.ok(prefs.includes("title: 'End-4'"));
     assert.ok(prefs.includes("title: 'Ryoku'"));
-    assert.ok(prefs.includes('layoutPreviewGrid.append(card)'));
+    assert.ok(prefs.includes('layoutPreviewGrid.insert(card, -1)'));
     assert.ok(prefs.includes('updateLayoutPreviews(config.layoutStyle ?? LAYOUT_DEFAULT)'));
     assert.ok(prefs.includes('updateLayoutPreviews(style)'));
     assert.ok(prefs.includes('quickSettings:'));
