@@ -10,6 +10,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
 import {readMemInfo} from '../lib/memInfo.js';
@@ -544,25 +545,13 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         summary.add_child(col);
     }
     headerBox.add_child(summary);
-    const tempUnavailableRow = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
+    const tempUnavailableState = createStatusState({
+        styleClass: 'material-panel-cpu-popup-thermal-row',
+        labelStyleClass: 'material-panel-cpu-popup-thermal-row',
+        iconSize: 14,
         style: 'spacing: 8px; padding: 4px 2px;',
     });
-    const tempUnavailableIcon = new St.Icon({
-        icon_name: 'dialog-information-symbolic',
-        icon_size: 14,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    const tempUnavailableHint = new St.Label({
-        text: 'No readable CPU thermal sensor was found.',
-        style: 'font-size: 11px; opacity: 0.75;',
-        y_align: Clutter.ActorAlign.CENTER,
-        x_expand: true,
-    });
-    tempUnavailableRow.add_child(tempUnavailableIcon);
-    tempUnavailableRow.add_child(tempUnavailableHint);
-    tempUnavailableRow.visible = false;
-    headerBox.add_child(tempUnavailableRow);
+    headerBox.add_child(tempUnavailableState.actor);
     header.actor.add_child(headerBox);
     menu.addMenuItem(header);
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -858,7 +847,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
         usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
         tempValue.text = temp !== null ? `${temp}°C` : 'Unavailable';
-        tempUnavailableRow.visible = temp === null;
+        tempUnavailableState.setMessage(temp === null ? 'No readable CPU thermal sensor was found.' : '');
         try {
             tempValue.set_tooltip_text(temp !== null
                 ? 'CPU temperature from available thermal sensors'
