@@ -35,6 +35,8 @@ test('media chip hides only when configured and reappears when an MPRIS player i
     assert.match(media, /const autoHideWhenInactive = globalThis\._materialPanelAutoHideMedia === true/);
     assert.match(media, /button\.visible = !autoHideWhenInactive/);
     assert.match(media, /button\.visible = true;\s*bindPlayer\(busName/);
+    assert.match(media, /noMediaState\.visible = true;\s*controls\.visible = false;\s*progressRow\.visible = false/);
+    assert.match(media, /noMediaState\.visible = false;\s*controls\.visible = true;\s*progressRow\.visible = true/);
     assert.match(media, /button\.visible = !autoHideWhenInactive;\s*durationUs = 0/);
 });
 
@@ -48,7 +50,10 @@ test('Bluetooth auto-hide applies only to the no-adapter state', async () => {
     assert.match(extension, /globalThis\._materialPanelAutoHideBluetooth = newConfig\.autoHideBluetooth === true/);
     assert.match(bluetooth, /const autoHideWhenUnavailable = globalThis\._materialPanelAutoHideBluetooth === true/);
     assert.match(bluetooth, /const setNoAdapterState = \(\) => \{\s*button\.visible = !autoHideWhenUnavailable/);
-    assert.match(bluetooth, /const setPowered = powered => \{\s*currentlyPowered = powered;\s*button\.visible = true/);
+    assert.match(bluetooth, /const setPowered = powered => \{\s*currentlyPowered = powered;\s*showAdapterState\(''\);\s*button\.visible = true/);
+    assert.match(bluetooth, /showAdapterState\('No Bluetooth adapter was detected/);
+    assert.match(bluetooth, /showAdapterState\('The Bluetooth service \(BlueZ\) is not responding/);
+    assert.match(bluetooth, /showAdapterState\('Bluetooth is blocked by the system/);
     assert.match(bluetooth, /const setBlockedState = \(\) => \{\s*isBlocked = true;\s*currentlyPowered = false;\s*button\.visible = true/);
     assert.match(bluetooth, /const setBluezUnavailableState = \(\) => \{\s*button\.visible = true/);
     const bindStart = bluetooth.indexOf('const bindAdapter = path => {');
