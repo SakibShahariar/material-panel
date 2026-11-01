@@ -826,13 +826,21 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             // Only show the unavailable state when we have no good data yet.
             if (!detail || detail.source === 'Error') {
                 label.text = '—°';
+                const message = String(e?.message || '');
+                let reason = 'Weather data is unavailable. Check your connection or location settings.';
+                if (message.includes('No weather location configured'))
+                    reason = 'No location configured. Set one in GNOME Weather or Preferences.';
+                else if (message.includes('disabled'))
+                    reason = 'Weather lookup is disabled. Choose a location in Preferences to enable it.';
+                else if (message.includes('coordinates are invalid') || message.includes('needs valid coordinates'))
+                    reason = 'Manual coordinates are invalid. Check the weather location in Preferences.';
                 detail = {
-                    condition: 'Unavailable',
+                    condition: reason,
                     place: 'Location unavailable',
                     source: 'Error',
                 };
                 try {
-                    button.set_tooltip_text('Weather unavailable — configure coordinates in Preferences or set a location in GNOME Weather');
+                    button.set_tooltip_text(reason);
                 } catch (e2) {}
             }
             fillPopup();
