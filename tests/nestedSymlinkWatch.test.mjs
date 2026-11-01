@@ -20,3 +20,14 @@ test('both config and Matugen watchers use the shared nested-symlink resolver', 
     assert.match(theme, /import \{resolveSymlinkPath\} from '\.\/realPath\.js';/);
     assert.match(theme, /function resolveRealDir\(dirPath\) \{\s*return resolveSymlinkPath\(dirPath\);/);
 });
+
+
+test('resolution failures fall back to the original canonical path with a diagnostic', () => {
+    assert.match(helper, /function fallbackPath\(originalPath, reason, error = null\)/);
+    assert.match(helper, /a symlink cycle was detected/);
+    assert.match(helper, /could not read symlink component/);
+    assert.match(helper, /exceeded the \\?\$\{maxHops\}-hop limit/);
+    assert.match(helper, /return fallbackPath\(originalPath,/);
+    assert.match(helper, /logError\(error, message\)/);
+    assert.match(helper, /log\(message\)/);
+});
