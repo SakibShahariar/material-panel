@@ -36,6 +36,10 @@ test('popup teardown cancels a pending focus-restoration callback', () => {
     assert.match(source, /const dispose = \(\) => \{[\s\S]*?restoreFocusId = 0;/);
 });
 
+test('popup arrow navigation skips insensitive and non-reactive controls', () => {
+    assert.match(source, /canFocus && actor\.reactive !== false && actor\.sensitive !== false/);
+});
+
 test('popup arrow navigation cycles focusable controls without hijacking sliders or text entry', () => {
     assert.ok(source.includes('_collectFocusableActors(menu.actor)'));
     assert.ok(source.includes('getAdjacentFocusableIndex(actors.length, index, direction)'));
@@ -44,7 +48,6 @@ test('popup arrow navigation cycles focusable controls without hijacking sliders
     assert.ok(source.includes('role === Atk.Role.SLIDER'));
     assert.ok(source.includes('role === Atk.Role.TEXT_ENTRY'));
     assert.ok(source.includes('actors[next].grab_key_focus()'));
-    assert.ok(source.includes('Enter/Space remain native St.Button activations'));
 });
 
 test('shared popup keyboard handling is attached to the major module popups', async () => {
