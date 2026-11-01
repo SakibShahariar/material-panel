@@ -1,5 +1,7 @@
 # Material Panel
 
+[![Release](https://img.shields.io/github/v/release/SakibShahariar/material-panel?display_name=tag)](https://github.com/SakibShahariar/material-panel/releases/latest) [![Release workflow](https://github.com/SakibShahariar/material-panel/actions/workflows/release.yml/badge.svg)](https://github.com/SakibShahariar/material-panel/actions/workflows/release.yml)
+
 A modern, configurable GNOME Shell panel with flexible module placement, Quick Settings, and support for third-party tray icons.
 
 **GNOME Shell:** 49 · 50 · 51
