@@ -455,9 +455,6 @@ export function buildMediaPlayerRow() {
             return;
         }
         button.visible = true;
-        noMediaState.visible = false;
-        controls.visible = true;
-        progressRow.visible = true;
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
@@ -856,6 +853,9 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             setPlayingUi(false);
             return;
         }
+        noMediaState.visible = false;
+        controls.visible = true;
+        progressRow.visible = true;
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl, trackId: nextTrackId, lengthUs}) => {
                 durationUs = Math.max(0, Number(lengthUs) || 0);
