@@ -1,4 +1,5 @@
 import {setChipA11y} from '../lib/a11y.js';
+import {createStatusState} from '../lib/statusState.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -498,6 +499,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     hero.add_child(heroIcon);
     hero.add_child(heroText);
 
+    const weatherState = createStatusState({
+        styleClass: 'material-panel-weather-popup-state',
+        labelStyleClass: 'material-panel-weather-popup-cond',
+        style: 'spacing: 8px; padding: 8px 10px;',
+    });
+
     // Stats row
     const stats = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
@@ -581,6 +588,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     body.add_child(placeLbl);
     body.add_child(hero);
+    body.add_child(weatherState.actor);
     body.add_child(stats);
     body.add_child(hourlyTitle);
     body.add_child(hourlyScroll);
@@ -714,12 +722,16 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         const d = detail;
         if (!d) {
             tempLbl.text = '—°';
-            condLbl.text = 'Loading…';
+            condLbl.text = '';
+            weatherState.setMessage('Loading weather forecast…', 'content-loading-symbolic');
             return;
         }
         placeLbl.text = d.place || 'Weather';
         tempLbl.text = d.temp != null ? `${Math.round(d.temp)}°` : '—°';
-        condLbl.text = d.condition || '';
+        const unavailable = d.source === 'Error';
+        condLbl.text = unavailable ? '' : (d.condition || '');
+        weatherState.setMessage(unavailable ? (d.condition || 'Weather data is unavailable.') : '',
+            unavailable ? 'dialog-warning-symbolic' : 'dialog-information-symbolic');
         feelsLbl.text = d.feelsLike != null
             ? `Feels like ${Math.round(d.feelsLike)}°`
             : '';
