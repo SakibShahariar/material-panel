@@ -455,6 +455,9 @@ export function buildMediaPlayerRow() {
             return;
         }
         button.visible = true;
+        noMediaState.visible = false;
+        controls.visible = true;
+        progressRow.visible = true;
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
@@ -687,6 +690,29 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     head.add_child(textCol);
     body.add_child(head);
 
+    const noMediaState = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        style_class: 'material-panel-media-empty-state',
+        x_expand: true,
+    });
+    try { noMediaState.style = 'spacing: 10px; padding: 8px 10px; border-radius: 10px;'; } catch (e) {}
+    const noMediaIcon = new St.Icon({
+        icon_name: 'media-playback-start-symbolic',
+        icon_size: 20,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const noMediaText = new St.Label({
+        text: 'No media player is active. Open a player that supports MPRIS to see playback controls here.',
+        style_class: 'material-panel-media-popup-artist',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+        wrap: true,
+    });
+    noMediaState.add_child(noMediaIcon);
+    noMediaState.add_child(noMediaText);
+    noMediaState.visible = true;
+    body.add_child(noMediaState);
+
     const progressSlider = new PopupMenu.PopupSliderMenuItem(0);
     progressSlider.actor.visible = false;
     const timeLabel = new St.Label({
@@ -740,6 +766,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     controls.add_child(playBtn);
     controls.add_child(nextBtn);
     body.add_child(controls);
+    controls.visible = false;
 
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
@@ -817,6 +844,9 @@ export function buildMedia(_extensionPath, scale = 1.0) {
             currentPositionUs = 0;
             canSeek = false;
             updateProgressUi(0);
+            noMediaState.visible = true;
+            controls.visible = false;
+            progressRow.visible = false;
             label.text = 'No media';
             pTitle.text = 'No media';
             pArtist.text = '';
