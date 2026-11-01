@@ -24,7 +24,16 @@ test('GPU fallback retries discovery after sensor failure and negative-caches un
     assert.match(source, /cachedHwmonTempPath = null;\s*lastHwmonDiscoveryAt = 0;/);
 });
 
-test('NVIDIA metrics remain preferred before the sysfs fallback', () => {
-    assert.match(source, /parseNvidiaSmiOutput\(stdout\) \|\| readGpuInfoFallback\(\)/);
-    assert.match(source, /source\.get_successful\(\)[\s\S]*?readGpuInfoFallback\(\)/);
+test('NVIDIA and DRM candidates are compared using available metric coverage', () => {
+    assert.match(source, /parseNvidiaSmiOutputs\(stdout\)/);
+    assert.match(source, /const drmCandidate = readGpuInfoFallback\(\)/);
+    assert.match(source, /selectGpuCandidate\(/);
+    assert.match(source, /\[\.\.\.nvidiaCandidates, \.\.\.\(drmCandidate \? \[drmCandidate\] : \[\]\)\]/);
+});
+
+test('DRM fallback evaluates all detected cards before caching the selected device', () => {
+    assert.match(fallback, /const candidates = \[\]/);
+    assert.match(fallback, /candidates\.push\(result\)/);
+    assert.match(fallback, /selectGpuCandidate\(candidates, cachedGpuCard\)/);
+    assert.match(fallback, /cachedGpuBasePath = selected\.base/);
 });
