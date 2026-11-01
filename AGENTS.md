@@ -68,3 +68,15 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - Summarize concrete changes with file paths and commit identifiers.
 - Distinguish verified results from assumptions and unrun checks.
 - List remaining manual validation, blockers, and issues intentionally left open.
+
+
+
+## Acceptance-Criteria Checklist Discipline
+
+- Treat every issue acceptance criterion written as a Markdown task-list item as a completion gate, not merely descriptive text.
+- Before implementation, record the issue's acceptance criteria and map each one to the code, tests, or documentation that will satisfy it.
+- Before closing an issue, verify every criterion individually against the final implementation and available test evidence. Change each satisfied item from `- [ ]` to `- [x]` in the issue body before or as part of closing it.
+- Never tick a criterion based only on a commit message, an intended design, or the fact that the issue is already closed. Leave unsupported, untested, or environment-dependent criteria unchecked and explain the remaining validation.
+- For already-closed issues, perform a retrospective audit. Edit the issue body to tick only criteria supported by the merged code and test evidence; do not reopen an issue solely to correct its checklist. Reopen only when the audit finds genuinely incomplete work that still needs implementation.
+- After editing an issue checklist, fetch the issue again and verify that the updated body and issue state were saved. Report the number of issues and criteria audited, and distinguish verified completions from unresolved items.
+- When an issue has no explicit acceptance checklist, do not invent checked boxes. If useful, propose criteria in a separate issue-body edit only when they can be grounded in the original scope and completed work.
