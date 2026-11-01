@@ -8,7 +8,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
-import {parseNvidiaSmiOutput} from '../lib/gpuMetrics.js';
+import {parseNvidiaSmiOutputs, selectGpuCandidate} from '../lib/gpuMetrics.js';
 
 let cachedGpuBasePath = null;
 let cachedGpuCard = null;
@@ -109,10 +109,7 @@ function readGpuCard(base, card, knownName = null) {
     temp = readGpuTemperature(base);
     if (util == null && temp == null && memUsed == null)
         return null;
-    cachedGpuBasePath = base;
-    cachedGpuCard = card;
-    cachedGpuName = name;
-    return {vendor: name, name: name + ' (' + card + ')', util, memUsed, memTotal, temp};
+    return {vendor: name, name: name + ' (' + card + ')', card, util, memUsed, memTotal, temp, base};
 }
 
 function readGpuInfoFallback() {
@@ -148,10 +145,22 @@ function readGpuInfoFallback() {
         }
         try { en.close(null); } catch (e) {}
         cards.sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+        const candidates = [];
         for (const card of cards) {
-            const result = readGpuCard('/sys/class/drm/' + card + '/device', card);
+            const base = '/sys/class/drm/' + card + '/device';
+            const result = readGpuCard(base, card);
             if (result)
-                return result;
+                candidates.push(result);
+        }
+        const selected = selectGpuCandidate(candidates, cachedGpuCard);
+        if (selected) {
+            cachedGpuBasePath = selected.base;
+            cachedGpuCard = selected.card;
+            cachedGpuName = selected.vendor;
+            cachedHwmonBasePath = null;
+            cachedHwmonTempPath = null;
+            lastHwmonDiscoveryAt = 0;
+            return selected;
         }
     } catch (e) {}
     return null;
@@ -176,9 +185,13 @@ function readGpuInfoAsync(cancellable, callback) {
                     finish(null);
                     return;
                 }
-                finish(source.get_successful()
-                    ? (parseNvidiaSmiOutput(stdout) || readGpuInfoFallback())
-                    : readGpuInfoFallback());
+                const nvidiaCandidates = source.get_successful()
+                    ? parseNvidiaSmiOutputs(stdout)
+                    : [];
+                const drmCandidate = readGpuInfoFallback();
+                finish(selectGpuCandidate(
+                    [...nvidiaCandidates, ...(drmCandidate ? [drmCandidate] : [])],
+                    cachedGpuCard));
             } catch (e) {
                 finish(cancellable.is_cancelled() ? null : readGpuInfoFallback());
             }
