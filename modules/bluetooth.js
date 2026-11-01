@@ -423,6 +423,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: 'material-panel-bt-state',
+        style: 'spacing: 8px; padding: 8px 10px;',
     });
     const adapterStateIcon = new St.Icon({
         icon_name: 'dialog-information-symbolic',
