@@ -22,6 +22,7 @@ import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit
 import {setWorkspaceDisplayMode, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
 import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
+import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -104,10 +105,10 @@ export default class MaterialPanelExtension extends Extension {
             }
 
             try {
-                globalThis._materialPanelSliderStyle = newConfig.sliderStyle ?? 'classic';
-                globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
-                globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
-                globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? [];
+                setQuickSettingsSliderStyle(newConfig.sliderStyle);
+                setQuickSettingsTileStyle(newConfig.qsTileStyle);
+                setQuickSettingsTiles(newConfig.qsTiles);
+                setQuickSettingsFavorites(newConfig.qsFavorites);
                 setMediaAutoHide(newConfig.autoHideMedia === true);
                 setBluetoothAutoHide(newConfig.autoHideBluetooth === true);
                 setNetworkSpeedAutoHide(newConfig.autoHideNetworkSpeed === true);
@@ -224,10 +225,10 @@ export default class MaterialPanelExtension extends Extension {
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
             globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
-            globalThis._materialPanelSliderStyle = this._config.sliderStyle ?? 'classic';
-            globalThis._materialPanelTileStyle = this._config.qsTileStyle ?? 'classic';
-            globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
-            globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? [];
+            setQuickSettingsSliderStyle(this._config.sliderStyle);
+            setQuickSettingsTileStyle(this._config.qsTileStyle);
+            setQuickSettingsTiles(this._config.qsTiles);
+            setQuickSettingsFavorites(this._config.qsFavorites);
             setMediaAutoHide(this._config.autoHideMedia === true);
             setBluetoothAutoHide(this._config.autoHideBluetooth === true);
             setNetworkSpeedAutoHide(this._config.autoHideNetworkSpeed === true);
@@ -383,6 +384,7 @@ export default class MaterialPanelExtension extends Extension {
         clearWorkspaceState();
         clearMediaVisualizerState();
         clearWeatherLocation();
+        clearQuickSettingsState();
 
         this._config = null;
     }

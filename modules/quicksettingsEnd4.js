@@ -29,6 +29,7 @@ import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
 import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {getQuickSettingsSliderStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
@@ -281,7 +282,7 @@ function buildDualSliders() {
     let sink = null;
     let control = null;
     const controlSignalIds = [];
-    const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
+    const volStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'volume');
     const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
     const volSlider = createSlider({
         accessibleName: 'Volume',
@@ -328,7 +329,7 @@ function buildDualSliders() {
         }
     } catch (e) {}
 
-    const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
+    const briStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'brightness');
     const briW = briStyle.id === 'arc' ? 112 : (briStyle.id === 'rails' ? 28 : trackW);
     const briSlider = createSlider({
         accessibleName: 'Brightness',
@@ -531,8 +532,8 @@ function buildToggleGrid() {
     try { root.width = QS_INNER; } catch (e) {}
 
     // Respect the shared tile visibility settings in every Quick Settings layout.
-    const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
-    const favorites = normalizeQuickSettingsFavorites(globalThis._materialPanelQsFavorites);
+    const enabledTiles = new Set(normalizeQuickSettingsTiles(getQuickSettingsTiles()));
+    const favorites = normalizeQuickSettingsFavorites(getQuickSettingsFavorites());
     const showWifi = enabledTiles.has('wifi');
     const showBluetooth = enabledTiles.has('bluetooth');
     const showDarkMode = enabledTiles.has('dark-mode');

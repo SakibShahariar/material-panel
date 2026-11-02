@@ -17,9 +17,9 @@ test('End-4 toggle and power controls share one hover/pressed interaction binder
 test('all Quick Settings layouts reuse the shared slider and configured tile APIs', () => {
     assert.match(defaults, /import \{createSlider, sliderStyleFor\} from '\.\.\/lib\/simpleSlider\.js'/);
     assert.match(end4, /import \{createSlider, sliderStyleFor\} from '\.\.\/lib\/simpleSlider\.js'/);
-    assert.match(defaults, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
-    assert.match(end4, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
-    assert.match(ryoku, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
+    assert.match(defaults, /normalizeQuickSettingsTiles\(getQuickSettingsTiles\(\)\)/);
+    assert.match(end4, /normalizeQuickSettingsTiles\(getQuickSettingsTiles\(\)\)/);
+    assert.match(ryoku, /normalizeQuickSettingsTiles\(getQuickSettingsTiles\(\)\)/);
     assert.match(ryoku, /volumeSliderRow,[\s\S]*?brightnessSliderRow,[\s\S]*?powerRow,/);
 });
 

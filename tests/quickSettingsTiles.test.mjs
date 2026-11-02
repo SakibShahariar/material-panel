@@ -42,9 +42,11 @@ test('config store, preferences, and default Quick Settings consume the same til
     assert.ok(config.includes('merged.qsTiles = normalizeQuickSettingsTiles(merged.qsTiles)'));
     assert.ok(prefs.includes('parseQuickSettingsTileOrder(tileOrderRow.get_text())'));
     assert.ok(prefs.includes('config.qsTiles = parsed'));
-    assert.ok(extension.includes('globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null'));
-    assert.ok(extension.includes('globalThis._materialPanelQsTiles = this._config.qsTiles ?? null'));
-    assert.ok(quickSettings.includes('normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles)'));
+    assert.ok(extension.includes('setQuickSettingsTiles(newConfig.qsTiles)'));
+    assert.ok(extension.includes('setQuickSettingsTiles(this._config.qsTiles)'));
+    assert.ok(extension.includes('clearQuickSettingsState()'));
+    assert.ok(!extension.includes('_materialPanelQsTiles'));
+    assert.ok(quickSettings.includes('normalizeQuickSettingsTiles(getQuickSettingsTiles())'));
     assert.ok(quickSettings.includes('const configuredRegistry = configuredIds'));
     assert.ok(quickSettings.includes('if (btTile?.devicePanel)'));
     assert.ok(quickSettings.includes('if (wifiRow?.listPanel)'));
@@ -65,7 +67,7 @@ test('End-4 and Ryoku Quick Settings honor the shared configured tile visibility
         readFile(new URL('../modules/quicksettingsRyoku.js', import.meta.url), 'utf8'),
     ]);
     for (const source of [end4, ryoku]) {
-        assert.match(source, /normalizeQuickSettingsTiles\(globalThis\._materialPanelQsTiles\)/);
+        assert.match(source, /normalizeQuickSettingsTiles\(getQuickSettingsTiles\(\)\)/);
         assert.match(source, /enabledTiles\.has\('wifi'\)/);
         assert.match(source, /enabledTiles\.has\('bluetooth'\)/);
         assert.match(source, /enabledTiles\.has\('dark-mode'\)/);
@@ -113,8 +115,9 @@ test('favorites flow through config, preferences, and every Quick Settings layou
     assert.ok(prefs.includes('parseQuickSettingsFavorites(tileFavoritesRow.get_text())'));
     assert.ok(prefs.includes('config.qsFavorites = parsed'));
     assert.ok(prefs.includes('tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites))'));
-    assert.ok(extension.includes('globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? []'));
-    assert.ok(extension.includes('globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? []'));
+    assert.ok(extension.includes('setQuickSettingsFavorites(newConfig.qsFavorites)'));
+    assert.ok(extension.includes('setQuickSettingsFavorites(this._config.qsFavorites)'));
+    assert.ok(!extension.includes('_materialPanelQsFavorites'));
     assert.ok(quickSettings.includes('orderQuickSettingsTiles('));
     assert.ok(end4.includes('orderQuickSettingsTiles('));
     assert.ok(end4.includes('const orderedToggleIds = orderQuickSettingsTiles(visibleToggleIds, favorites)'));

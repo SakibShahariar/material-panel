@@ -13,6 +13,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {getQuickSettingsSliderStyle, getQuickSettingsTileStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
@@ -73,7 +74,7 @@ function isSolidFillTileStyle(id) {
 }
 
 function currentTileStyleId() {
-    const id = globalThis._materialPanelTileStyle ?? 'classic';
+    const id = getQuickSettingsTileStyle();
     return isValidTileStyle(id) ? id : 'classic';
 }
 
@@ -689,7 +690,7 @@ export function volumeSliderRow() {
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
-    const volStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'volume');
+    const volStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'volume');
     // Tall styles need a vertical row so they don't crush icon/% in one line
     if (volStyle.id === 'rails' || volStyle.id === 'arc') {
         try {
@@ -888,7 +889,7 @@ export function brightnessSliderRow() {
     });
     if (globalThis._materialPanelLayoutStyle === 'end4')
         pctLabel.visible = false;
-    const briStyle = sliderStyleFor(globalThis._materialPanelSliderStyle ?? 'classic', 'brightness');
+    const briStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'brightness');
     let brightnessWriteId = 0;
     let pendingBrightnessPct = null;
     if (briStyle.id === 'rails' || briStyle.id === 'arc') {
@@ -2409,7 +2410,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         )));
     } else {
         // Default layout: tall styles (arc / rails) sit side-by-side as a pair
-        const styleId = globalThis._materialPanelSliderStyle ?? 'classic';
+        const styleId = getQuickSettingsSliderStyle();
         const tall = styleId === 'rails' || styleId === 'arc';
         if (tall) {
             const dual = new St.BoxLayout({
@@ -2464,8 +2465,8 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     });
     const gl = grid.layout_manager;
     const configuredIds = orderQuickSettingsTiles(
-        normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles),
-        globalThis._materialPanelQsFavorites,
+        normalizeQuickSettingsTiles(getQuickSettingsTiles()),
+        getQuickSettingsFavorites(),
     );
     const configuredRegistry = configuredIds
         .map(id => QUICK_SETTINGS_TILE_REGISTRY.find(tile => tile.id === id))

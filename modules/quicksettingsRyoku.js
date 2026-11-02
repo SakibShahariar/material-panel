@@ -14,6 +14,7 @@ import {getMixerControl} from '../lib/audio.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
 import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 
 const ROUTES = [
     {id: 'sound', label: 'Sound'},
@@ -27,8 +28,8 @@ const ROUTES = [
  * @param {object} api - builders from quicksettings.js
  */
 export function fillRyokuQsMenu(menu, api) {
-    const enabledTiles = new Set(normalizeQuickSettingsTiles(globalThis._materialPanelQsTiles));
-    const favorites = normalizeQuickSettingsFavorites(globalThis._materialPanelQsFavorites);
+    const enabledTiles = new Set(normalizeQuickSettingsTiles(getQuickSettingsTiles()));
+    const favorites = normalizeQuickSettingsFavorites(getQuickSettingsFavorites());
     const showWifi = enabledTiles.has('wifi');
     const showBluetooth = enabledTiles.has('bluetooth');
     const showDarkMode = enabledTiles.has('dark-mode');
