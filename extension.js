@@ -69,6 +69,7 @@ export default class MaterialPanelExtension extends Extension {
                 ? incomingConfig
                 : {};
             this._config = newConfig;
+            setProfileIdentityHidden(newConfig.hideProfileIdentity === true);
             globalThis._materialPanelWeatherLocation = newConfig.weatherLocation ?? {};
 
             // Classification must never strand the watcher. Unknown or malformed
