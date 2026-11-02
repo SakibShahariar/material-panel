@@ -1,3 +1,4 @@
+import {getThemeColor} from '../lib/themeColorState.js';
 /**
  * End-4 QS — structured to match end-4 sidebarRight reference:
  *   header (uptime + icon actions + battery)
@@ -38,20 +39,20 @@ const QS_W = 380;
 const QS_PAD = 12;
 const QS_INNER = QS_W - QS_PAD * 2;
 function accent() {
-    return globalThis._materialPanelPrimary ?? '#89b4fa';
+    return getThemeColor('primary', '#89b4fa');
 }
 function onAccent() {
-    return globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+    return getThemeColor('onPrimary', '#1e1e2e');
 }
 /** Matugen-driven surfaces (set in theme.apply). Never hardcode white alpha. */
 function surface() {
-    return globalThis._materialPanelQsSurface ?? 'rgba(49, 50, 68, 0.55)';
+    return getThemeColor('qsSurface', 'rgba(49, 50, 68, 0.55)');
 }
 function surfaceHover() {
-    return globalThis._materialPanelHoverBg ?? 'rgba(205, 214, 244, 0.14)';
+    return getThemeColor('hoverBg', 'rgba(205, 214, 244, 0.14)');
 }
 function surfaceHoverStrong() {
-    return globalThis._materialPanelHoverBgStrong ?? 'rgba(205, 214, 244, 0.22)';
+    return getThemeColor('hoverBgStrong', 'rgba(205, 214, 244, 0.22)');
 }
 function style(actor, css) {
     try { actor.style = css; } catch (e) {}
@@ -516,11 +517,11 @@ function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, se
         try { btn.width = w; btn.height = 52; } catch (e) {}
         style(title, on
             ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
-            : `font-size: 12px; font-weight: 700; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
+            : `font-size: 12px; font-weight: 700; color: ${getThemeColor('onSurface', '#cdd6f4')};`);
         if (subLab)
             style(subLab, on
                 ? `font-size: 11px; color: ${onAccent()}; opacity: 0.85;`
-                : `font-size: 11px; opacity: 0.75; color: ${globalThis._materialPanelOnSurface ?? '#cdd6f4'};`);
+                : `font-size: 11px; opacity: 0.75; color: ${getThemeColor('onSurface', '#cdd6f4')};`);
     };
     bindToggleButton(btn, {label, icon: ic, iconKeys, symbolic, getOn, setOn, settings, settingKey, paint});
     return btn;
@@ -732,7 +733,7 @@ function buildPowerStrip(menu) {
 
 export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     const qsSize = Math.round(17 * scale);
-    let qsSymbol = createMaterialSymbol('quicksettings', qsSize, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+    let qsSymbol = createMaterialSymbol('quicksettings', qsSize, getThemeColor('primary', '#89b4fa'), 1);
     let qsIcon = null;
     if (!qsSymbol) {
         qsIcon = new St.Icon({

@@ -1,3 +1,4 @@
+import {getThemeColor} from '../lib/themeColorState.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
@@ -27,7 +28,7 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         accessible_role: St.AccessibleRole.BUTTON,
     });
     const iconSize = Math.round(17 * scale);
-    let symbol = createMaterialSymbol('volume-high', iconSize, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+    let symbol = createMaterialSymbol('volume-high', iconSize, getThemeColor('primary', '#89b4fa'), 1);
     let icon = null;
     if (symbol) {
         box.add_child(symbol);
@@ -47,7 +48,7 @@ export function buildVolume(_extensionPath, scale = 1.0) {
             if (press?.applyIcons) {
                 try { press.applyIcons(); } catch (e) {}
             } else {
-                setMaterialSymbolColor(symbol, globalThis._materialPanelPrimary ?? '#89b4fa', 1);
+                setMaterialSymbolColor(symbol, getThemeColor('primary', '#89b4fa'), 1);
             }
             return;
         }

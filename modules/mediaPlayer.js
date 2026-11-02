@@ -1,3 +1,4 @@
+import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {isMediaAutoHideEnabled} from '../lib/mediaVisibilityState.js';
 import {isMediaVisualizerEnabled} from '../lib/mediaVisualizerState.js';
@@ -543,7 +544,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     if (visualizer) {
         try { visualizer.style = 'spacing: 2px; width: 22px; height: 16px;'; } catch (e) {}
         const heights = [5, 9, 6, 12, 7];
-        const color = globalThis._materialPanelPrimary ?? '#89b4fa';
+        const color = getThemeColor('primary', '#89b4fa');
         for (const height of heights) {
             const bar = new St.Widget({width: 3, height});
             try { bar.style = `background-color: ${color}; border-radius: 2px;`; } catch (e) {}

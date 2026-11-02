@@ -1,3 +1,4 @@
+import {getThemeColor} from '../lib/themeColorState.js';
 import St from 'gi://St';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 import {setChipA11y} from '../lib/a11y.js';
@@ -341,7 +342,7 @@ function syncTileExtras(host, on) {
         if (bag.dots) {
             bag.dots.forEach((d, i) => {
                 d.style = on
-                    ? `background-color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; width: 5px; height: 5px; border-radius: 50%;`
+                    ? `background-color: ${getThemeColor('onPrimary', '#1e1e2e')}; width: 5px; height: 5px; border-radius: 50%;`
                     : 'width: 5px; height: 5px; border-radius: 50%;';
             });
         }
@@ -552,7 +553,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         } catch (e) {}
         try {
             if (on && solid)
-                text.style = `color: ${globalThis._materialPanelOnPrimary ?? '#1e1e2e'}; font-weight: 700;`;
+                text.style = `color: ${getThemeColor('onPrimary', '#1e1e2e')}; font-weight: 700;`;
             else if (sid === 'icon-top' || sid === 'glass' || sid === 'recessed')
                 text.style = 'font-size: 11.5px; font-weight: 600;';
             else
@@ -561,8 +562,8 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         // icon-top chip fill when on
         try {
             if (sid === 'icon-top' && iconHost !== icon) {
-                const a = globalThis._materialPanelPrimary ?? '#cba6f7';
-                const chipBg = on ? a : (globalThis._materialPanelQsSurface ?? 'rgba(58,60,78,0.9)');
+                const a = getThemeColor('primary', '#cba6f7');
+                const chipBg = on ? a : (getThemeColor('qsSurface', 'rgba(58,60,78,0.9)'));
                 iconHost.style = `width: 38px; height: 38px; border-radius: 19px; background-color: ${chipBg};`;
             }
         } catch (e) {}
@@ -570,7 +571,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         if (getLayoutStyle() === 'end4') {
             try {
                 tile.style = on
-                    ? `border-radius: 22px; min-height: 66px; background-color: ${globalThis._materialPanelPrimary ?? '#89b4fa'};`
+                    ? `border-radius: 22px; min-height: 66px; background-color: ${getThemeColor('primary', '#89b4fa')};`
                     : 'border-radius: 22px; min-height: 66px;';
             } catch (e) {}
         }
@@ -1137,7 +1138,7 @@ export function bluetoothTile() {
         text.text = 'Bluetooth';
         // Force matugen primary when on — CSS alone was losing specificity → wrong/pink fills
         try {
-            const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+            const onP = getThemeColor('onPrimary', '#1e1e2e');
             text.style = powered
                 ? `font-weight: 700; color: ${onP};`
                 : 'font-weight: 600;';
@@ -1909,7 +1910,7 @@ export function wifiQsBlock() {
 
     const setActive = on => {
         setChipA11y(mainBtn, `Wi-Fi, ${on ? 'on' : 'off'}`);
-        const onP = globalThis._materialPanelOnPrimary ?? '#1e1e2e';
+        const onP = getThemeColor('onPrimary', '#1e1e2e');
         if (on)
             row.add_style_class_name('active');
         else
@@ -2306,7 +2307,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                 if (sc.includes('material-panel-qs-power-btn'))
                     actor.style = 'border-radius: 999px; min-width: 52px; min-height: 52px;';
                 if (sc.includes('material-panel-qs-dual-slider')) {
-                    const cap = globalThis._materialPanelQsSurface ?? 'rgba(56, 59, 76, 0.9)';
+                    const cap = getThemeColor('qsSurface', 'rgba(56, 59, 76, 0.9)');
                     actor.style = `background-color: ${cap}; border-radius: 999px; padding: 8px 12px;`;
                 }
                 if (sc.includes('material-panel-qs-slider-row'))
@@ -2402,7 +2403,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         dual.add_child(bri);
         try {
             // Stronger than slider track (10% white) so unfilled range stays visible
-            const cap = globalThis._materialPanelQsSurface ?? 'rgba(56, 59, 76, 0.9)';
+            const cap = getThemeColor('qsSurface', 'rgba(56, 59, 76, 0.9)');
             dual.style = `background-color: ${cap}; border-radius: 999px; padding: 8px 12px;`;
         } catch (e) {}
         menu.addMenuItem(wrapAsMenuItem(qsSection(
