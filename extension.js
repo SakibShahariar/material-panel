@@ -18,6 +18,7 @@ import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profile
 import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoothVisibilityState.js';
 import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibilityState.js';
 import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/networkSpeedVisibilityState.js';
+import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -110,7 +111,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
                 globalThis._materialPanelWorkspaceScrollSwitch = newConfig.workspaceScrollSwitch !== false;
-                globalThis._materialPanelNetworkSpeedUnit = newConfig.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
+                setNetworkSpeedUnit(newConfig.networkSpeedUnit);
             } catch (e) {}
 
             debugLog(`config change classified as "${kind}"`);
@@ -230,7 +231,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
             globalThis._materialPanelWorkspaceScrollSwitch = this._config.workspaceScrollSwitch !== false;
-            globalThis._materialPanelNetworkSpeedUnit = this._config.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
+            setNetworkSpeedUnit(this._config.networkSpeedUnit);
             setProfileIdentityHidden(this._config.hideProfileIdentity === true);
         } catch (e) {}
         try {
@@ -375,6 +376,7 @@ export default class MaterialPanelExtension extends Extension {
         clearBluetoothVisibilityState();
         clearMediaVisibilityState();
         clearNetworkSpeedVisibilityState();
+        clearNetworkSpeedUnit();
 
         this._config = null;
     }

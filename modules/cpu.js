@@ -10,6 +10,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
@@ -471,7 +472,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             const freshNetwork = network && now - network.updatedAt < 5000000;
             const compactRate = value => {
                 const n = Math.max(0, Number(value) || 0);
-                const bits = globalThis._materialPanelNetworkSpeedUnit === 'bits';
+                const bits = getNetworkSpeedUnit() === 'bits';
                 const amount = bits ? n * 8 : n;
                 if (amount < 1000) return Math.round(amount) + (bits ? 'b' : 'B');
                 if (amount < 1000000) return Math.round(amount / 1000) + 'K';

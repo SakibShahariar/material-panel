@@ -11,6 +11,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {isNetworkSpeedAutoHideEnabled} from '../lib/networkSpeedVisibilityState.js';
+import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 
 function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     const value = Math.max(0, Number(bytesPerSec) || 0);
@@ -118,7 +119,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
                 idleSince = now;
             button.visible = now - idleSince < IDLE_HIDE_AFTER_US;
         }
-        const unit = globalThis._materialPanelNetworkSpeedUnit === 'bits' ? 'bits' : 'bytes';
+        const unit = getNetworkSpeedUnit();
         last = {
             down: sample.down,
             up: sample.up,

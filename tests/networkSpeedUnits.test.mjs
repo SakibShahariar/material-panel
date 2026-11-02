@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
-const [config, change, extension, prefs, network] = await Promise.all([
+const [config, change, extension, prefs, network, cpu] = await Promise.all([
     readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/configChange.js', import.meta.url), 'utf8'),
     readFile(new URL('../extension.js', import.meta.url), 'utf8'),
     readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
     readFile(new URL('../modules/networkSpeed.js', import.meta.url), 'utf8'),
+    readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8'),
 ]);
 
 test('network speed unit setting is normalized and defaults to bytes per second', () => {
@@ -18,7 +19,9 @@ test('network speed unit setting is normalized and defaults to bytes per second'
 test('network speed unit preference updates live without rebuilding the panel', () => {
     assert.match(prefs, /Transfer rate units/);
     assert.match(prefs, /config\.networkSpeedUnit = networkSpeedUnits/);
-    assert.match(extension, /_materialPanelNetworkSpeedUnit = newConfig\.networkSpeedUnit/);
+    assert.match(extension, /setNetworkSpeedUnit\(newConfig\.networkSpeedUnit\)/);
+    assert.match(network, /getNetworkSpeedUnit\(\)/);
+    assert.match(cpu, /getNetworkSpeedUnit\(\)/);
     assert.match(extension, /case 'moduleSetting'/);
     assert.match(change, /only\(\['networkSpeedUnit'\]\)/);
 });
