@@ -3,12 +3,13 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
 const source = await readFile(new URL('../lib/theme.js', import.meta.url), 'utf8');
+const stylesheet = await readFile(new URL('../lib/themeStylesheet.js', import.meta.url), 'utf8');
 const readStart = source.indexOf('    _loadMatugenCssAsync(');
 const readEnd = source.indexOf('\n    // Maps matugen', readStart);
 const readMethod = source.slice(readStart, readEnd);
-const writeStart = source.indexOf('    _writeGeneratedAsync(');
-const writeEnd = source.indexOf('\n    _reloadStylesheet(', writeStart);
-const writeMethod = source.slice(writeStart, writeEnd);
+const writeStart = stylesheet.indexOf('    write(css, isCurrent, callback) {');
+const writeEnd = stylesheet.indexOf('\n    _reloadStylesheet(', writeStart);
+const writeMethod = stylesheet.slice(writeStart, writeEnd);
 
 test('Matugen CSS is read with GIO asynchronous APIs', () => {
     assert.match(readMethod, /load_contents_async\(/);
@@ -22,7 +23,8 @@ test('generated stylesheet writes are asynchronous and serialize latest theme up
     assert.match(writeMethod, /replace_contents_finish\(result\)/);
     assert.match(writeMethod, /_writeInFlight/);
     assert.match(writeMethod, /_pendingWrite/);
-    assert.match(writeMethod, /generation === this\._applyGeneration/);
+    assert.match(source, /this\._stylesheet\.write\(css, \(\) => generation === this\._applyGeneration/);
+    assert.match(writeMethod, /isCurrent\(\)/);
     assert.doesNotMatch(writeMethod, /\.replace_contents\(/);
 });
 
