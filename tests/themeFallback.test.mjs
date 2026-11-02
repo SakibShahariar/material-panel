@@ -3,7 +3,8 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
 const source = await readFile(new URL('../lib/theme.js', import.meta.url), 'utf8');
-const [renderer, stylesheet] = await Promise.all([
+const [palette, renderer, stylesheet] = await Promise.all([
+    readFile(new URL('../lib/themePalette.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/themeRenderer.js', import.meta.url), 'utf8'),
     readFile(new URL('../stylesheet.css', import.meta.url), 'utf8'),
 ]);
@@ -18,7 +19,7 @@ test('theme fallback reads foreground, popup surface and accent colors from GNOM
 });
 
 test('partial Matugen hex roles get matching RGB values instead of mixed theme colors', () => {
-    assert.ok(source.includes('function cssColorRgb(value)'));
+    assert.ok(palette.includes('function cssColorRgb(value)'));
     assert.ok(source.includes("if (inputVars[role] && !inputVars[role + '_rgb'])"));
     assert.ok(source.includes('if (inputVars.primary && !inputVars.on_primary)'));
 });

@@ -3,10 +3,11 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
 const theme = await readFile(new URL('../lib/theme.js', import.meta.url), 'utf8');
+const watcher = await readFile(new URL('../lib/themeWatcher.js', import.meta.url), 'utf8');
 const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
-const watchStart = theme.indexOf('    watch(sourcePath, onChange) {');
-const watchEnd = theme.indexOf('\n    unwatch() {', watchStart);
-const watch = theme.slice(watchStart, watchEnd);
+const watchStart = watcher.indexOf('    watch(sourcePath, onChange) {');
+const watchEnd = watcher.indexOf('\n    unwatch() {', watchStart);
+const watch = watcher.slice(watchStart, watchEnd);
 
 test('Matugen watcher is reused for the same source and replaced for a new source', () => {
     assert.match(watch, /if \(this\._watchedSource === sourcePath && this\._monitor\)\s*return;/);
@@ -17,5 +18,7 @@ test('Matugen watcher is reused for the same source and replaced for a new sourc
 
 test('theme teardown and switching to fixed colors cancel Matugen watching', () => {
     assert.match(theme, /destroy\(\) \{\s*this\.unwatch\(\)/);
+    assert.match(theme, /this\._watcher = new ThemeFileWatcher\(\)/);
+    assert.match(theme, /this\._watcher\.watch\(sourcePath, onChange\)/);
     assert.match(extension, /Do not keep watching a palette file after switching to fixed colors\.[\s\S]*?this\._theme\.unwatch\(\)/);
 });
