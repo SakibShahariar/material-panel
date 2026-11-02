@@ -80,7 +80,8 @@ The parser currently does not expand `RRULE` recurrence sets or apply `EXDATE` e
 - `lib/theme.js` / `lib/iconTheme.js` — palette and generated icon handling
 - `lib/simpleSlider.js` / `lib/trayDrawer.js` — shared slider and tray drawer
 - `modules/` — panel and Quick Settings modules
-- `prefs.js` — GTK4/Adwaita preferences
+- `prefs.js` — preferences-window initialization and shared configuration save/watch lifecycle
+- `prefs/` — focused GTK4/Adwaita page builders and the shared module catalog
 - `scripts/calendar-sync-ics.py` — optional ICS import
 
 GNOME's `Main.panel` is a singleton used by extensions through `addToStatusArea`. Material Panel keeps it alive and hides it rather than destroying it. Its bridge reparents supported third-party actors; extensions that access panel internals directly may not be compatible.
