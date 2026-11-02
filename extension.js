@@ -14,6 +14,7 @@ import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js';
 import {clearSharedState} from './lib/sharedState.js';
+import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profileIdentityState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -226,7 +227,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
             globalThis._materialPanelWorkspaceScrollSwitch = this._config.workspaceScrollSwitch !== false;
             globalThis._materialPanelNetworkSpeedUnit = this._config.networkSpeedUnit === 'bits' ? 'bits' : 'bytes';
-            globalThis._materialPanelHideProfileIdentity = this._config.hideProfileIdentity === true;
+            setProfileIdentityHidden(this._config.hideProfileIdentity === true);
         } catch (e) {}
         try {
             // Only adjust in-memory layout placement — never save here (save → watch → rebuild loop)
@@ -366,6 +367,7 @@ export default class MaterialPanelExtension extends Extension {
 
         // Remove shared globals so they cannot leak across extension lifecycles.
         clearSharedState();
+        clearProfileIdentityState();
 
         this._config = null;
     }

@@ -8,6 +8,7 @@ import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {isSessionLocked} from '../lib/shellCompat.js';
+import {isProfileIdentityHidden} from '../lib/profileIdentityState.js';
 
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -93,7 +94,7 @@ export function buildProfileCard({onPrefs = null} = {}) {
     const username = GLib.get_user_name() || 'user';
     const hostname = GLib.get_host_name() || 'localhost';
     const realName = (() => { try { const rn = GLib.get_real_name(); if (rn && rn !== username && rn.trim()) return rn; } catch (e) {} return username; })();
-    const hideIdentity = globalThis._materialPanelHideProfileIdentity === true;
+    const hideIdentity = isProfileIdentityHidden();
     const initial = hideIdentity ? 'U' : (realName || username).charAt(0).toUpperCase();
 
     const avatar = buildAvatar(initial);
