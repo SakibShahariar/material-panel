@@ -20,6 +20,7 @@ import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibility
 import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/networkSpeedVisibilityState.js';
 import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit.js';
 import {setWorkspaceDisplayMode, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
+import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -109,7 +110,7 @@ export default class MaterialPanelExtension extends Extension {
                 setMediaAutoHide(newConfig.autoHideMedia === true);
                 setBluetoothAutoHide(newConfig.autoHideBluetooth === true);
                 setNetworkSpeedAutoHide(newConfig.autoHideNetworkSpeed === true);
-                globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
+                setMediaVisualizerEnabled(newConfig.mediaVisualizer);
                 setWorkspaceDisplayMode(newConfig.workspaceDisplay);
                 setWorkspaceScrollSwitch(newConfig.workspaceScrollSwitch);
                 setNetworkSpeedUnit(newConfig.networkSpeedUnit);
@@ -229,7 +230,7 @@ export default class MaterialPanelExtension extends Extension {
             setMediaAutoHide(this._config.autoHideMedia === true);
             setBluetoothAutoHide(this._config.autoHideBluetooth === true);
             setNetworkSpeedAutoHide(this._config.autoHideNetworkSpeed === true);
-            globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
+            setMediaVisualizerEnabled(this._config.mediaVisualizer);
             setWorkspaceDisplayMode(this._config.workspaceDisplay);
             setWorkspaceScrollSwitch(this._config.workspaceScrollSwitch);
             setNetworkSpeedUnit(this._config.networkSpeedUnit);
@@ -379,6 +380,7 @@ export default class MaterialPanelExtension extends Extension {
         clearNetworkSpeedVisibilityState();
         clearNetworkSpeedUnit();
         clearWorkspaceState();
+        clearMediaVisualizerState();
 
         this._config = null;
     }

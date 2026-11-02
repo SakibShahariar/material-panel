@@ -20,9 +20,12 @@ test('visualizer animation is opt-in, playback-aware, reduced-motion-aware, and 
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(extension, /globalThis\._materialPanelMediaVisualizer = this\._config\.mediaVisualizer === true/);
-    assert.match(extension, /globalThis\._materialPanelMediaVisualizer = newConfig\.mediaVisualizer === true/);
-    assert.match(media, /const visualizerEnabled = globalThis\._materialPanelMediaVisualizer === true/);
+    assert.match(extension, /setMediaVisualizerEnabled\(this\._config\.mediaVisualizer\)/);
+    assert.match(extension, /setMediaVisualizerEnabled\(newConfig\.mediaVisualizer\)/);
+    assert.match(extension, /clearMediaVisualizerState\(\)/);
+    assert.doesNotMatch(extension, /_materialPanelMediaVisualizer/);
+    assert.match(media, /const visualizerEnabled = isMediaVisualizerEnabled\(\)/);
+    assert.doesNotMatch(media, /_materialPanelMediaVisualizer/);
     assert.match(media, /if \(!visualizer \|\| !visualizerPlaying \|\| !button\.mapped\)/);
     assert.match(media, /if \(prefersReducedMotion\(\)\)/);
     assert.match(media, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, 180/);

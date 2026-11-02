@@ -1,5 +1,6 @@
 import {setChipA11y} from '../lib/a11y.js';
 import {isMediaAutoHideEnabled} from '../lib/mediaVisibilityState.js';
+import {isMediaVisualizerEnabled} from '../lib/mediaVisualizerState.js';
 import {createStatusState} from '../lib/statusState.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 
@@ -529,7 +530,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     try {
         label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     } catch (e) {}
-    const visualizerEnabled = globalThis._materialPanelMediaVisualizer === true;
+    const visualizerEnabled = isMediaVisualizerEnabled();
     const visualizer = visualizerEnabled
         ? new St.BoxLayout({
             style_class: 'material-panel-media-visualizer',
