@@ -36,6 +36,6 @@ test('dimension renderer preserves default and End-4 geometry contracts', () => 
 
 test('dimension renderer keeps legacy gap migration behavior', () => {
     const css = renderDimensionsCss({gap: 8, gapTop: null, gapBottom: null});
-    assert.match(css, /margin-top: 8px/);
-    assert.match(css, /margin-bottom: 7px/);
+    assert.match(css, /gapTop=8 gapBottom=7/);
+    assert.match(css, /margin: 8px 3px 7px 3px/);
 });
