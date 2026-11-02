@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the five commits listed below.
-- Checkpoint SHA: `cbc7c632d1a88d700ac70b086a497bbbcb760fc0`
+- Checkpoint SHA: `ccf2a8b0889b32e528bedbe5084cc76379552704`
 - Checkpoint date: 2026-11-02
-- Next session: start with commits after this checkpoint. The ledger/agent-instructions documentation commit created alongside this file is newer than the checkpoint and should be included in that next incremental check.
+- Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
 ## Initial audit baseline
 
@@ -40,6 +40,15 @@ On 2026-11-02, the combined commit-status lookup was queried for each SHA below.
 | `52726593` | `test(a11y): cover popup focus navigation boundaries (Refs #217)` | unavailable | 2026-11-02 | No status entries returned. |
 | `a9c9a21e` | `fix(release): use test discovery for packager checks (Refs #241)` | unavailable | 2026-11-02 | No status entries returned. |
 | `c652ce1f` | `feat(release): add versioned extension packaging workflow (Refs #241)` | unavailable | 2026-11-02 | No status entries returned. |
+
+## Incremental review: 2026-11-02
+
+The following commits newer than the previous checkpoint were reviewed. The combined-status endpoint and commit-associated workflow-run lookup returned empty results for both; both are recorded as **unavailable**, not green or red. The focused local Node test run for the new coordinator passed 3/3 tests. The repository-wide GitHub Actions suite was not observed running.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `82cc6fd7` | `docs: add persistent commit CI audit ledger` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `ccf2a8b0` | `refactor(state): replace global menu callback (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Focused coordinator tests passed locally (3/3); full repository workflow remains unverified. |
 
 ## Red-cross investigation log
 
@@ -64,3 +73,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | Date | Reviewed range / checkpoint | Result summary |
 |---|---|---|
 | 2026-11-02 | Baseline through `cbc7c632d1a88d700ac70b086a497bbbcb760fc0` | Queried five commits; all returned empty status lists. Recorded as unavailable, not passing. |
+| 2026-11-02 | Incremental review through `ccf2a8b0889b32e528bedbe5084cc76379552704` | Reviewed the ledger setup commit and one code commit. Both CI lookups unavailable; 3 focused local unit tests passed. Full workflow result remains unverified. |
