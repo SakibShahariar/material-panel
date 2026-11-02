@@ -1,6 +1,7 @@
 import {setChipA11y} from '../lib/a11y.js';
 import {isMediaAutoHideEnabled} from '../lib/mediaVisibilityState.js';
 import {isMediaVisualizerEnabled} from '../lib/mediaVisualizerState.js';
+import {refreshQuickSettingsChrome} from '../lib/quickSettingsRechrome.js';
 import {createStatusState} from '../lib/statusState.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 
@@ -451,7 +452,7 @@ export function buildMediaPlayerRow() {
         attachedBusName = busName || null;
         if (!busName) {
             row.visible = false;
-            try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
+            refreshQuickSettingsChrome();
             titleLabel.text = 'No media';
             artistLabel.text = '';
             setArtFromUrl(artIcon, null, 40);
@@ -461,7 +462,7 @@ export function buildMediaPlayerRow() {
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
-                try { globalThis._materialPanelQsRechrome?.(); } catch (e) {}
+                refreshQuickSettingsChrome();
                 titleLabel.text = title || 'Media';
                 artistLabel.text = artist || '';
                 setArtFromUrl(artIcon, artUrl, 40);

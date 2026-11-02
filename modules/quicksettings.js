@@ -15,6 +15,7 @@ import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getQuickSettingsSliderStyle, getQuickSettingsTileStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 import {getLayoutStyle} from '../lib/layoutStyleState.js';
+import {registerQuickSettingsRechrome} from '../lib/quickSettingsRechrome.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
@@ -37,9 +38,11 @@ import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
+let qsExpandController = null;
+
 function getQsExpandController() {
-    if (!globalThis._materialPanelQsExpand) {
-        globalThis._materialPanelQsExpand = {
+    if (!qsExpandController) {
+        qsExpandController = {
             _apis: new Map(),
             register(id, api) {
                 this._apis.set(id, api);
@@ -56,7 +59,7 @@ function getQsExpandController() {
             },
         };
     }
-    return globalThis._materialPanelQsExpand;
+    return qsExpandController;
 }
 
 // A real quick-settings panel: one button in the bar opens a small floating
@@ -2286,12 +2289,12 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             logError(e, 'material-panel: applyQsChrome');
         }
     };
-    globalThis._materialPanelQsRechrome = () => {
+    const unregisterQuickSettingsRechrome = registerQuickSettingsRechrome(() => {
         try {
             if (menu.isOpen)
                 applyQsChrome();
         } catch (e) {}
-    };
+    });
 
     const walkAndStyleTiles = (root) => {
         const walk = actor => {
@@ -2366,10 +2369,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
                 menuOpen(menu);
         });
         button.connect('destroy', () => {
-            try {
-                if (globalThis._materialPanelQsRechrome)
-                    globalThis._materialPanelQsRechrome = null;
-            } catch (e) {}
+            unregisterQuickSettingsRechrome();
             menu.destroy();
         });
         try { setChipA11y(button, 'Quick Settings'); } catch (e) {}
@@ -2578,10 +2578,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
             menuOpen(menu);
     });
     button.connect('destroy', () => {
-        try {
-            if (globalThis._materialPanelQsRechrome)
-                globalThis._materialPanelQsRechrome = null;
-        } catch (e) {}
+        unregisterQuickSettingsRechrome();
         menu.destroy();
     });
 
