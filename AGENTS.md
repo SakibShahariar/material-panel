@@ -81,3 +81,14 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - After editing an issue checklist, fetch the issue again and verify that the updated body and issue state were saved. Report the number of issues and criteria audited, and distinguish verified completions from unresolved items.
 - When an issue has no explicit acceptance checklist, do not invent checked boxes. If useful, propose criteria in a separate issue-body edit only when they can be grounded in the original scope and completed work.
 - For issues closed as duplicates, identify and link the canonical issue. Keep the duplicate's acceptance checklist unchecked unless its criteria were independently implemented and verified; completion should normally be recorded on the canonical issue.
+
+## Maintenance Session Execution
+
+- Start by reviewing actionable open issues in batches. Identify dependencies, shared root causes, acceptance criteria, and tasks that do not require unavailable runtime access.
+- Do not limit a maintenance session to one issue when several independent, source-verifiable issues are ready. Implement multiple useful fixes in the same session and continue until actionable work is exhausted or a genuine blocker remains.
+- Group related fixes into coherent commits when they share a root cause or change set. Keep unrelated work in separate focused commits; do not create a commit for every trivial edit or combine unrelated issues merely to increase issue count. Preserve any stricter repository-specific commit requirements above.
+- Do not pause for approval or send a progress report after every issue or commit. Continue through the planned batch, verify the work, and report at a meaningful stopping point.
+- If an issue requires unavailable hardware, credentials, a live desktop session, or user confirmation, leave it open and continue with independently verifiable work.
+- Treat each commit as unfinished until its associated CI and checks reach a final state. Inspect failed job details, fix regressions introduced by the change, and rerun relevant checks. Pending checks are not passing checks.
+- Before ending a session, review all commits made during that session, their CI results, remaining actionable issues, and required manual validation.
+- Optimize for verified issue completion and a healthy default branch, not commit volume, issue-closure volume, or frequent status messages.
