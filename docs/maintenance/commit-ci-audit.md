@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `e083ec8698efccb8130b5ab7c42a811cd64b8330`
+- Checkpoint SHA: `22c687fe3b14e968411b8eca62d55dd0a5925ed1`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -56,6 +56,8 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 | `df740f85` | `refactor(state): localize Bluetooth visibility preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. One isolated Node state test passed (1/1); full repository tests and GNOME runtime remain unverified. |
 | `851785c9` | `docs: record Bluetooth state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `e083ec86` | `refactor(state): localize media visibility preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. One isolated Node state test passed (1/1); the focused source-wiring test was updated but the complete mediaAutoHide test file and full suite were not run. GNOME runtime remains unverified. |
+| `1ee94b2e` | `docs: record media state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `22c687fe` | `refactor(state): localize network speed visibility preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. One isolated Node state test passed (1/1); the complete mediaAutoHide test file and full suite were not run. GNOME runtime remains unverified. |
 
 ## Red-cross investigation log
 
@@ -84,3 +86,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | 2026-11-02 | Incremental review through `aa8ead3516527c2e97fecd96841188969a3a38e3` | Reviewed the previous ledger update and two state-migration commits. All CI lookups unavailable; 2 isolated state tests passed; GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `df740f85414b598835f58c664e91606e59b13539` | Reviewed the previous ledger update and Bluetooth state migration. Both CI lookups unavailable; 1 isolated state test passed; GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `e083ec8698efccb8130b5ab7c42a811cd64b8330` | Reviewed the prior ledger update and media visibility migration. Both CI lookups unavailable; 1 isolated state test passed; GNOME runtime unverified. |
+| 2026-11-02 | Incremental review through `22c687fe3b14e968411b8eca62d55dd0a5925ed1` | Reviewed the prior ledger update and Network Speed visibility migration. Both CI lookups unavailable; 1 isolated state test passed; GNOME runtime unverified. |
