@@ -9,10 +9,14 @@ test('media visualizer is disabled by default and normalized as a boolean', asyn
 });
 
 test('Preferences exposes the visualizer toggle and synchronizes external changes', async () => {
-    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
-    assert.match(prefs, /Show playback visualizer/);
-    assert.match(prefs, /config\.mediaVisualizer = mediaVisualizerSwitch\.active/);
-    assert.match(prefs, /mediaVisualizerSwitch\.active = config\.mediaVisualizer === true/);
+    const [prefs, appearance] = await Promise.all([
+        readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs/appearancePage.js', import.meta.url), 'utf8'),
+    ]);
+    const pageSource = prefs + appearance;
+    assert.match(pageSource, /Show playback visualizer/);
+    assert.match(pageSource, /config\.mediaVisualizer = mediaVisualizerSwitch\.active/);
+    assert.match(pageSource, /mediaVisualizerSwitch\.active = config\.mediaVisualizer === true/);
 });
 
 test('visualizer animation is opt-in, playback-aware, reduced-motion-aware, and cleaned up', async () => {

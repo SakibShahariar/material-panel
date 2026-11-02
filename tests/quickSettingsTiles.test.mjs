@@ -32,16 +32,18 @@ test('preference input accepts display names and IDs, and empty input restores d
 });
 
 test('config store, preferences, and default Quick Settings consume the same tile order', async () => {
-    const [config, prefs, extension, quickSettings] = await Promise.all([
+    const [config, prefs, appearance, extension, quickSettings] = await Promise.all([
         readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8'),
         readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs/appearancePage.js', import.meta.url), 'utf8'),
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
     ]);
     assert.ok(config.includes('qsTiles: [...DEFAULT_QUICK_SETTINGS_TILE_IDS]'));
     assert.ok(config.includes('merged.qsTiles = normalizeQuickSettingsTiles(merged.qsTiles)'));
-    assert.ok(prefs.includes('parseQuickSettingsTileOrder(tileOrderRow.get_text())'));
-    assert.ok(prefs.includes('config.qsTiles = parsed'));
+    const preferencePages = prefs + appearance;
+    assert.ok(preferencePages.includes('parseQuickSettingsTileOrder(tileOrderRow.get_text())'));
+    assert.ok(preferencePages.includes('config.qsTiles = parsed'));
     assert.ok(extension.includes('setQuickSettingsTiles(newConfig.qsTiles)'));
     assert.ok(extension.includes('setQuickSettingsTiles(this._config.qsTiles)'));
     assert.ok(extension.includes('clearQuickSettingsState()'));
@@ -102,9 +104,10 @@ test('favorite ordering pins favorites first without reordering the remaining ti
 });
 
 test('favorites flow through config, preferences, and every Quick Settings layout', async () => {
-    const [config, prefs, extension, quickSettings, end4, ryoku] = await Promise.all([
+    const [config, prefs, appearance, extension, quickSettings, end4, ryoku] = await Promise.all([
         readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8'),
         readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs/appearancePage.js', import.meta.url), 'utf8'),
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/quicksettings.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/quicksettingsEnd4.js', import.meta.url), 'utf8'),
@@ -112,9 +115,10 @@ test('favorites flow through config, preferences, and every Quick Settings layou
     ]);
     assert.ok(config.includes('qsFavorites: []'));
     assert.ok(config.includes('merged.qsFavorites = normalizeQuickSettingsFavorites(merged.qsFavorites)'));
-    assert.ok(prefs.includes('parseQuickSettingsFavorites(tileFavoritesRow.get_text())'));
-    assert.ok(prefs.includes('config.qsFavorites = parsed'));
-    assert.ok(prefs.includes('tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites))'));
+    const preferencePages = prefs + appearance;
+    assert.ok(preferencePages.includes('parseQuickSettingsFavorites(tileFavoritesRow.get_text())'));
+    assert.ok(preferencePages.includes('config.qsFavorites = parsed'));
+    assert.ok(preferencePages.includes('tileFavoritesRow.set_text(formatQuickSettingsFavorites(config.qsFavorites))'));
     assert.ok(extension.includes('setQuickSettingsFavorites(newConfig.qsFavorites)'));
     assert.ok(extension.includes('setQuickSettingsFavorites(this._config.qsFavorites)'));
     assert.ok(!extension.includes('_materialPanelQsFavorites'));

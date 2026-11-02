@@ -13,16 +13,20 @@ test('media auto-hide is opt-in and normalized to a strict boolean', async () =>
 });
 
 test('Preferences exposes the inactive-player visibility option and syncs external changes', async () => {
-    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
-    assert.match(prefs, /Hide Media when no player is active/);
-    assert.match(prefs, /config\.autoHideMedia = mediaVisibilitySwitch\.active/);
-    assert.match(prefs, /mediaVisibilitySwitch\.active = config\.autoHideMedia === true/);
-    assert.match(prefs, /Hide Bluetooth when no adapter is detected/);
-    assert.match(prefs, /config\.autoHideBluetooth = bluetoothVisibilitySwitch\.active/);
-    assert.match(prefs, /bluetoothVisibilitySwitch\.active = config\.autoHideBluetooth === true/);
-    assert.match(prefs, /Hide Network Speed while idle/);
-    assert.match(prefs, /config\.autoHideNetworkSpeed = networkSpeedVisibilitySwitch\.active/);
-    assert.match(prefs, /networkSpeedVisibilitySwitch\.active = config\.autoHideNetworkSpeed === true/);
+    const [prefs, appearance] = await Promise.all([
+        readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs/appearancePage.js', import.meta.url), 'utf8'),
+    ]);
+    const pageSource = prefs + appearance;
+    assert.match(pageSource, /Hide Media when no player is active/);
+    assert.match(pageSource, /config\.autoHideMedia = mediaVisibilitySwitch\.active/);
+    assert.match(pageSource, /mediaVisibilitySwitch\.active = config\.autoHideMedia === true/);
+    assert.match(pageSource, /Hide Bluetooth when no adapter is detected/);
+    assert.match(pageSource, /config\.autoHideBluetooth = bluetoothVisibilitySwitch\.active/);
+    assert.match(pageSource, /bluetoothVisibilitySwitch\.active = config\.autoHideBluetooth === true/);
+    assert.match(pageSource, /Hide Network Speed while idle/);
+    assert.match(pageSource, /config\.autoHideNetworkSpeed = networkSpeedVisibilitySwitch\.active/);
+    assert.match(pageSource, /networkSpeedVisibilitySwitch\.active = config\.autoHideNetworkSpeed === true/);
 });
 
 test('media chip hides only when configured and reappears when an MPRIS player is available', async () => {
