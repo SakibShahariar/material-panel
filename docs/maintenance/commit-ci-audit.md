@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `00c67a929dfaa29fe092899b8ba0ffb5fbb65390`
+- Checkpoint SHA: `16331845a1dcb778637280f65558b68c2391bdd9`
 - Checkpoint date: 2026-11-02
-- Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
+- Next session: start with commits after this checkpoint. This ledger update will be newer than the checkpoint and should be included in the next incremental check.
 
 ## Initial audit baseline
 
@@ -77,9 +77,36 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 | `0a371295` | `docs: record Quick Settings coordination CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `00c67a92` | `refactor(state): localize shared activity samples (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two focused isolated state tests passed (2/2); the activity-chip regression test, full suite, and GNOME runtime remain unverified. |
 
+## Incremental review: 2026-11-02 — Preferences modularization
+
+The previous checkpoint was `00c67a929dfaa29fe092899b8ba0ffb5fbb65390`. The four commits below were reviewed through the current `main` head. Combined-status lookups returned empty arrays for all four, so the CI states below are based on the associated GitHub Actions workflow runs where available. Empty status arrays are not treated as passing checks.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `69bf2793` | `docs: record shared activity sample state CI review` | unavailable | 2026-11-02 | No combined statuses or commit-associated workflow runs returned. |
+| `6a5d7651` | `refactor(prefs): split preferences pages into modules (Fixes #244)` | red | 2026-11-02 | Run [#41485813941](https://github.com/SakibShahariar/material-panel/actions/runs/41485813941) failed in the JavaScript regression step: seven existing source-wiring tests still read moved page code from `prefs.js`. Syntax check passed. Resolved by test updates in `403e9ef8`; see the red-cross investigation below. |
+| `403e9ef8` | `test(prefs): follow extracted preference page modules (Refs #244)` | green | 2026-11-02 | Run [#41486151320](https://github.com/SakibShahariar/material-panel/actions/runs/41486151320) passed: JavaScript syntax check, 402/402 JavaScript tests, and 20/20 Python tests. |
+| `16331845` | `fix(package): include split preferences modules (Refs #244)` | green | 2026-11-02 | Run [#41486582850](https://github.com/SakibShahariar/material-panel/actions/runs/41486582850) passed: JavaScript syntax check, 402/402 JavaScript tests, and 20/20 Python tests. The package fixture now verifies that `prefs/*.js` files are included in the release archive. |
+
+The refactor moved the Layout, Modules, Tray, and Appearance page builders into `prefs/`, and moved the shared module catalog there as well. The first CI failure was caused by existing tests asserting the old source-file location; those tests now inspect the new page modules. A final packaging review found that the release packager did not include the new directory, so the packager and its fixture were updated before the final green run. Live GNOME Preferences smoke testing remains unverified.
+
 ## Red-cross investigation log
 
-No red result has been confirmed from the status data retrieved for the baseline above. Add one entry per observed failure using this template; preserve prior entries when adding rerun results.
+The initial baseline contained no confirmed red results. The later preferences-refactor failure is recorded below. Preserve this history when adding future rerun results.
+
+### 2026-11-02 — Preferences page extraction
+
+- Commit SHA: `6a5d765155385ad534b21c218527719b00c783e2`
+- Commit subject: `refactor(prefs): split preferences pages into modules (Fixes #244)`
+- First observed (date): 2026-11-02
+- Workflow / run URL: [Tests run #41485813941](https://github.com/SakibShahariar/material-panel/actions/runs/41485813941)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: Seven tests still expected layout preview and appearance/tile preference code to remain in `prefs.js` after those page builders were extracted. The JavaScript syntax check passed; the failing assertions were stale source-location assumptions.
+- Classification: regression — test wiring was not migrated alongside the source extraction; no runtime behavior failure was demonstrated.
+- Fix commit(s): `403e9ef8018f8c9e4aa74a35ca152b5d24cec733` updated the source-wiring tests. `16331845a1dcb778637280f65558b68c2391bdd9` also fixed release packaging to include the new `prefs/` directory.
+- Rerun attempt(s) and result: The original failing commit was not rerun because its tests still referenced the old file layout. Follow-up run [#41486151320](https://github.com/SakibShahariar/material-panel/actions/runs/41486151320) passed (402/402 JavaScript, 20/20 Python); subsequent packaging-fix run [#41486582850](https://github.com/SakibShahariar/material-panel/actions/runs/41486582850) also passed (402/402 JavaScript, 20/20 Python).
+- Final verified outcome: Follow-up commits are green; release packaging includes the extracted preferences modules.
+- Remaining follow-up: Live GNOME Preferences smoke test is still required before claiming desktop runtime verification.
 
 ### Template
 
@@ -114,3 +141,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | 2026-11-02 | Incremental review through `6fc0d1e2d519381caff8ab891484ccfc859418be` | Reviewed the previous ledger update and CPU-local activity preference migration. Both CI lookups unavailable; CPU regression test files and GNOME runtime remain unverified. |
 | 2026-11-02 | Incremental review through `0d455644120c651235b89d392d1cb1efd037f83a` | Reviewed the previous ledger update and Quick Settings coordination migration. Both CI lookups unavailable; 2 isolated callback tests passed; full coordination regression tests and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `00c67a929dfaa29fe092899b8ba0ffb5fbb65390` | Reviewed the previous ledger update and shared GPU/Network activity sample migration. Both CI lookups unavailable; 2 isolated state tests passed; activity-chip regression tests and GNOME runtime unverified. |
+| 2026-11-02 | Incremental review through `16331845a1dcb778637280f65558b68c2391bdd9` | Reviewed commits after the previous checkpoint. One refactor commit had a test-path regression; updated tests and the packaging fix passed full CI (402 JavaScript + 20 Python tests). GNOME Preferences runtime smoke test remains open. |
