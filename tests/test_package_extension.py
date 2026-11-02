@@ -22,6 +22,10 @@ class PackageExtensionTests(unittest.TestCase):
                 encoding="utf-8",
             )
         (self.root / "lib").mkdir()
+        (self.root / "prefs").mkdir()
+        (self.root / "prefs" / "layoutPage.js").write_text(
+            "export function buildLayoutPage() {}", encoding="utf-8",
+        )
         (self.root / "lib" / "runtime.js").write_text("export const value = 1;", encoding="utf-8")
         (self.root / "tests").mkdir()
         (self.root / "tests" / "not-runtime.test.mjs").write_text("test", encoding="utf-8")
@@ -35,9 +39,13 @@ class PackageExtensionTests(unittest.TestCase):
         with zipfile.ZipFile(self.output) as archive:
             names = set(archive.namelist())
             self.assertEqual(names, {
-                "extension.js", "prefs.js", "stylesheet.css", "metadata.json", "lib/runtime.js",
+                "extension.js", "prefs.js", "stylesheet.css", "metadata.json", "lib/runtime.js", "prefs/layoutPage.js",
             })
             self.assertEqual(archive.read("lib/runtime.js"), b"export const value = 1;")
+            self.assertEqual(
+                archive.read("prefs/layoutPage.js"),
+                b"export function buildLayoutPage() {}",
+            )
 
     def test_package_is_reproducible(self):
         PACKAGE.build_package(self.root, self.output, "v1.2.3")

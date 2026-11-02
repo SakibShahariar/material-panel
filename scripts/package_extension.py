@@ -13,7 +13,7 @@ from pathlib import Path
 UUID = "material-panel@SakibShahariar"
 VERSION_PATTERN = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 ROOT_FILES = ("extension.js", "prefs.js", "stylesheet.css", "metadata.json")
-RUNTIME_DIRECTORIES = ("lib", "modules", "assets")
+RUNTIME_DIRECTORIES = ("lib", "modules", "prefs", "assets")
 
 
 def collect_runtime_files(root: Path) -> list[Path]:
