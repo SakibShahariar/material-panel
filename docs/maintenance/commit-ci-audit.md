@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `0d455644120c651235b89d392d1cb1efd037f83a`
+- Checkpoint SHA: `00c67a929dfaa29fe092899b8ba0ffb5fbb65390`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -74,6 +74,8 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 | `6fc0d1e2` | `refactor(state): localize CPU activity preferences (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. CPU regression assertions were updated, but the focused CPU test files, full suite, and GNOME runtime were not run. |
 | `21d52e72` | `docs: record CPU-local state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `0d455644` | `refactor(state): localize Quick Settings coordination (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two focused isolated callback tests passed (2/2); full coordination regression tests and GNOME runtime remain unverified. |
+| `0a371295` | `docs: record Quick Settings coordination CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `00c67a92` | `refactor(state): localize shared activity samples (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two focused isolated state tests passed (2/2); the activity-chip regression test, full suite, and GNOME runtime remain unverified. |
 
 ## Red-cross investigation log
 
@@ -111,3 +113,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | 2026-11-02 | Incremental review through `41f8c6dd2475e68f181c8fd62c02d0b06e07e35d` | Reviewed the previous ledger update and panel layout selection migration. Both CI lookups unavailable; 2 isolated Node state tests passed; full test suite and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `6fc0d1e2d519381caff8ab891484ccfc859418be` | Reviewed the previous ledger update and CPU-local activity preference migration. Both CI lookups unavailable; CPU regression test files and GNOME runtime remain unverified. |
 | 2026-11-02 | Incremental review through `0d455644120c651235b89d392d1cb1efd037f83a` | Reviewed the previous ledger update and Quick Settings coordination migration. Both CI lookups unavailable; 2 isolated callback tests passed; full coordination regression tests and GNOME runtime unverified. |
+| 2026-11-02 | Incremental review through `00c67a929dfaa29fe092899b8ba0ffb5fbb65390` | Reviewed the previous ledger update and shared GPU/Network activity sample migration. Both CI lookups unavailable; 2 isolated state tests passed; activity-chip regression tests and GNOME runtime unverified. |
