@@ -92,3 +92,14 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - Treat each commit as unfinished until its associated CI and checks reach a final state. Inspect failed job details, fix regressions introduced by the change, and rerun relevant checks. Pending checks are not passing checks.
 - Before ending a session, review all commits made during that session, their CI results, remaining actionable issues, and required manual validation.
 - Optimize for verified issue completion and a healthy default branch, not commit volume, issue-closure volume, or frequent status messages.
+
+## Incremental Commit CI Audit Ledger
+
+- Maintain `docs/maintenance/commit-ci-audit.md` as the persistent source of truth for commit-level CI review across maintenance sessions.
+- At the start of a session, read the ledger and compare its recorded checkpoint with the current default-branch head. Inspect only commits newer than the checkpoint, plus older entries explicitly marked red, pending, or requiring follow-up. Do not re-audit resolved commits without a concrete reason.
+- For every commit reviewed, record its full SHA, subject, review date, workflow/check result, and evidence link or API result. Use only these states: **green**, **red**, **pending**, **unavailable**, or **not applicable**. An empty status/workflow response is **unavailable**, never green.
+- For every red result, record the failing workflow and job, concise failure cause, whether the failure is a regression or pre-existing, the fix/rerun commit, and the final verified result. Keep the entry open until a final result is observed; never erase the original failure history.
+- Record reruns against the original failing commit and link the rerun run/attempt. A rerun does not change the commit SHA.
+- Advance the checkpoint only after all commits through that point have been reviewed and every red/pending item has either reached a final result or is explicitly carried forward as unresolved. Include the checkpoint SHA and date in the ledger.
+- At each session end, add all commits reviewed during that session and leave the next unreviewed commit range clear. Keep the ledger concise; do not copy full logs when a durable run/job URL is available.
+- Documentation-only commits that update this ledger are still commits; they may be recorded in the next session's incremental range rather than creating an endless self-referential update loop.
