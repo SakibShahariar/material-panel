@@ -56,6 +56,9 @@ test('CPU core topology metadata is cached across popup refreshes', () => {
         'sysfs topology discovery should happen only once per module lifetime'
     );
     assert.match(cpu, /const cc = getCoreClasses\(\);/);
+    assert.match(cpu, /let coreClassesForPopup = null;/);
+    assert.match(cpu, /coreClassesForPopup = cc;/);
+    assert.doesNotMatch(cpu, /_materialPanelCoreClasses/);
     assert.doesNotMatch(cpu, /const cc = readCoreClasses\(\);/);
 });
 

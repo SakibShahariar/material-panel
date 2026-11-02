@@ -24,6 +24,9 @@ test('system statistics chip reuses existing GPU, network and memory samples', (
     assert.match(gpu, /if \(result\) \{\s*lastGpuInfo = result;\s*try \{\s*globalThis\._materialPanelGpuMetrics = \{/);
     assert.match(network, /_materialPanelNetworkMetrics =/);
     assert.match(cpu, /activityCycleIndex\+\+ % values\.length/);
+    assert.match(cpu, /activityMetrics = Array\.isArray\(c\.activityChipMetrics\)/);
+    assert.match(cpu, /activityMode = c\.activityChipMode === 'cycle' \? 'cycle' : 'combined'/);
+    assert.doesNotMatch(cpu, /_materialPanelActivity(?:Chip|Metrics|Mode)/);
     assert.match(cpu, /freshGpu && gpu\.util >= 90/);
 });
 

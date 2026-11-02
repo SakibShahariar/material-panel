@@ -379,6 +379,9 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     let prevCores = [];
     let primed = false;
     let activityCycleIndex = 0;
+    let activityMetrics = ['cpu', 'temperature'];
+    let activityMode = 'combined';
+    let coreClassesForPopup = null;
 
     const readAll = () => {
         try {
@@ -449,10 +452,8 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         let temp = readTemp(tempPath);
         if (temp === null) temp = readTempHwmon();
         latestMetricSample = {...data, temp};
-        const metrics = Array.isArray(globalThis._materialPanelActivityMetrics)
-            ? globalThis._materialPanelActivityMetrics
-            : ['cpu', 'temperature'];
-        const mode = globalThis._materialPanelActivityMode === 'cycle' ? 'cycle' : 'combined';
+        const metrics = activityMetrics;
+        const mode = activityMode;
         const memSnap = metrics.includes('memory') ? readMemInfo() : null;
         const gpu = globalThis._materialPanelGpuMetrics;
         const freshGpu = gpu && GLib.get_monotonic_time() - gpu.updatedAt < 10000000;
@@ -563,7 +564,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const cc = getCoreClasses();
         if (cc && cc.some(x => x === 'P' || x === 'E'))
             coresTitle.text = 'Per core  (P = performance, E = efficiency)';
-        globalThis._materialPanelCoreClasses = cc;
+        coreClassesForPopup = cc;
     } catch (e) {}
     coresSection.actor.add_child(coresTitle);
     coresSection.actor.add_child(coresGrid);
@@ -803,7 +804,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         while (coreLabels.length < n) {
             const i = coreLabels.length;
             const row = new St.BoxLayout({style_class: 'material-panel-cpu-popup-core-row', x_expand: true, style: 'spacing: 6px;'});
-            const coreClasses = globalThis._materialPanelCoreClasses || null;
+            const coreClasses = coreClassesForPopup;
             const tag = coreClasses && coreClasses[i] ? coreClasses[i] : '';
             const nameText = tag ? `${i} ${tag}` : `${i}`;
             row.add_child(new St.Label({text: nameText, style_class: 'material-panel-cpu-popup-core-name'}));
@@ -908,15 +909,16 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             const c = await _cfgStore.loadAsync();
             if (processDestroyed || generation !== activityConfigGeneration)
                 return;
-            globalThis._materialPanelActivityChip = c.activityChip || 'cpu';
-            globalThis._materialPanelActivityMetrics = Array.isArray(c.activityChipMetrics) ? c.activityChipMetrics : ['cpu', 'temperature'];
-            globalThis._materialPanelActivityMode = c.activityChipMode || 'combined';
+            // ConfigStore migrates legacy activityChip values into activityChipMetrics.
+            activityMetrics = Array.isArray(c.activityChipMetrics)
+                ? [...c.activityChipMetrics]
+                : ['cpu', 'temperature'];
+            activityMode = c.activityChipMode === 'cycle' ? 'cycle' : 'combined';
             try { updateLabels(); } catch (e) {}
         } catch (e) {
             if (!processDestroyed && generation === activityConfigGeneration) {
-                globalThis._materialPanelActivityChip = 'cpu';
-                globalThis._materialPanelActivityMetrics = ['cpu', 'temperature'];
-                globalThis._materialPanelActivityMode = 'combined';
+                activityMetrics = ['cpu', 'temperature'];
+                activityMode = 'combined';
                 logError(e, 'material-panel: asynchronous activity config load');
             }
         }
