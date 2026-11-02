@@ -1,4 +1,5 @@
 import {setChipA11y} from '../lib/a11y.js';
+import {isMediaAutoHideEnabled} from '../lib/mediaVisibilityState.js';
 import {createStatusState} from '../lib/statusState.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 
@@ -561,7 +562,7 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         can_focus: true,
         child: box,
     });
-    const autoHideWhenInactive = globalThis._materialPanelAutoHideMedia === true;
+    const autoHideWhenInactive = isMediaAutoHideEnabled();
     button.visible = !autoHideWhenInactive;
     let visualizerPlaying = false;
     let visualizerTimerId = 0;

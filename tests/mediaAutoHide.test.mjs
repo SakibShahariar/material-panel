@@ -30,9 +30,9 @@ test('media chip hides only when configured and reappears when an MPRIS player i
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(extension, /globalThis\._materialPanelAutoHideMedia = this\._config\.autoHideMedia === true/);
-    assert.match(extension, /globalThis\._materialPanelAutoHideMedia = newConfig\.autoHideMedia === true/);
-    assert.match(media, /const autoHideWhenInactive = globalThis\._materialPanelAutoHideMedia === true/);
+    assert.match(extension, /setMediaAutoHide\(this\._config\.autoHideMedia === true\)/);
+    assert.match(extension, /setMediaAutoHide\(newConfig\.autoHideMedia === true\)/);
+    assert.match(media, /const autoHideWhenInactive = isMediaAutoHideEnabled\(\)/);
     assert.match(media, /button\.visible = !autoHideWhenInactive/);
     assert.match(media, /button\.visible = true;\s*bindPlayer\(busName/);
     assert.match(media, /noMediaState\.setMessage\('No media player is active[\s\S]*?controls\.visible = false;\s*progressRow\.visible = false/);

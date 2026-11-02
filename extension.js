@@ -16,6 +16,7 @@ import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js'
 import {clearSharedState} from './lib/sharedState.js';
 import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profileIdentityState.js';
 import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoothVisibilityState.js';
+import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibilityState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -102,7 +103,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelTileStyle = newConfig.qsTileStyle ?? 'classic';
                 globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
                 globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? [];
-                globalThis._materialPanelAutoHideMedia = newConfig.autoHideMedia === true;
+                setMediaAutoHide(newConfig.autoHideMedia === true);
                 setBluetoothAutoHide(newConfig.autoHideBluetooth === true);
                 globalThis._materialPanelAutoHideNetworkSpeed = newConfig.autoHideNetworkSpeed === true;
                 globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
@@ -222,7 +223,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelTileStyle = this._config.qsTileStyle ?? 'classic';
             globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
             globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? [];
-            globalThis._materialPanelAutoHideMedia = this._config.autoHideMedia === true;
+            setMediaAutoHide(this._config.autoHideMedia === true);
             setBluetoothAutoHide(this._config.autoHideBluetooth === true);
             globalThis._materialPanelAutoHideNetworkSpeed = this._config.autoHideNetworkSpeed === true;
             globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
@@ -371,6 +372,7 @@ export default class MaterialPanelExtension extends Extension {
         clearSharedState();
         clearProfileIdentityState();
         clearBluetoothVisibilityState();
+        clearMediaVisibilityState();
 
         this._config = null;
     }
