@@ -15,12 +15,12 @@ test('theme apply key includes normalized Matugen/fallback variables and render 
 });
 
 test('unchanged theme inputs skip render and icon/stylesheet work only after a successful apply', () => {
-    assert.match(apply, /if \(applyKey === this\._lastApplyKey && this\._loadedFile &&\s*!this\._writeInFlight && !this\._pendingWrite\)/);
+    assert.match(apply, /if \(applyKey === this\._lastApplyKey && this\._stylesheet\.loadedFile &&\s*!this\._stylesheet\.writeInFlight && !this\._stylesheet\.hasPendingWrite\)/);
     assert.match(apply, /const finishApply = success => \{\s*if \(success && generation === this\._applyGeneration\)\s*this\._lastApplyKey = applyKey/);
     assert.match(apply, /this\._writeGeneratedAsync\(css, generation, finishApply\)/);
     assert.match(source, /this\._lastApplyKey = null;/);
 });
 
 test('generated CSS cache remains as a second-level write deduplication guard', () => {
-    assert.match(apply, /if \(css === this\._lastCss && this\._loadedFile && !this\._writeInFlight && !this\._pendingWrite\)/);
+    assert.match(apply, /if \(css === this\._stylesheet\.lastCss && this\._stylesheet\.loadedFile && !this\._stylesheet\.writeInFlight && !this\._stylesheet\.hasPendingWrite\)/);
 });
