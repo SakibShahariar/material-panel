@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `a8ffd65df70a2babe682cb7be5a78835db25275d`
+- Checkpoint SHA: `41f8c6dd2475e68f181c8fd62c02d0b06e07e35d`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -68,6 +68,8 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 | `3d37d44b` | `refactor(state): localize weather location preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two focused isolated Node state tests passed (2/2); the full repository test suite and GNOME runtime remain unverified. |
 | `d43c4bde` | `docs: record weather location state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `a8ffd65d` | `refactor(state): localize Quick Settings preferences (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Three focused isolated Node state tests passed (3/3); full Quick Settings regression tests, full repository suite, and GNOME runtime remain unverified. |
+| `c0f00846` | `docs: record Quick Settings state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `41f8c6dd` | `refactor(state): localize panel layout selection (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two focused isolated Node state tests passed (2/2); full test suite and GNOME runtime remain unverified. |
 
 ## Red-cross investigation log
 
@@ -102,3 +104,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | 2026-11-02 | Incremental review through `91fea747e337c55eda2ac35e68b0bfd4dfe6971b` | Reviewed the previous ledger update and media visualizer preference migration. Both CI lookups unavailable; 2 isolated Node state tests passed; full repository tests and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `3d37d44ba51797bc7c7ee6e0b11567d2e2e313f6` | Reviewed the previous ledger update and weather location preference migration. Both CI lookups unavailable; 2 isolated Node state tests passed; full repository tests and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `a8ffd65df70a2babe682cb7be5a78835db25275d` | Reviewed the previous ledger update and Quick Settings preference migration. Both CI lookups unavailable; 3 isolated Node state tests passed; Quick Settings regression tests, full repository suite, and GNOME runtime unverified. |
+| 2026-11-02 | Incremental review through `41f8c6dd2475e68f181c8fd62c02d0b06e07e35d` | Reviewed the previous ledger update and panel layout selection migration. Both CI lookups unavailable; 2 isolated Node state tests passed; full test suite and GNOME runtime unverified. |
