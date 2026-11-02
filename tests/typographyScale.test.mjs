@@ -9,7 +9,7 @@ const [theme, renderer, stylesheet] = await Promise.all([
 ]);
 
 test('defines one shared caption/body/title typography scale', () => {
-    assert.match(theme, /TYPE_SCALE = Object\.freeze\(\{caption: 10\.5, body: 12, title: 14\}\)/);
+    assert.match(renderer, /TYPE_SCALE = Object\.freeze\(\{caption: 10\.5, body: 12, title: 14\}\)/);
     for (const [role, size] of [['caption', '10.5'], ['body', '12'], ['title', '14']]) {
         assert.ok(renderer.includes(`TYPE_SCALE.${role}`), `generated theme uses ${role} token`);
         assert.ok(stylesheet.includes(`font-size: ${size}px;`), `fallback stylesheet defines ${role} size`);
