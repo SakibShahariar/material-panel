@@ -10,6 +10,7 @@ import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 import {wirePressedClass} from '../lib/pressFx.js';
 import {resolveWorkspaceDisplayMode} from '../lib/workspaceDisplay.js';
+import {getWorkspaceDisplayMode, isWorkspaceScrollSwitchEnabled} from '../lib/workspaceState.js';
 
 const MAX_ICONS = 5;
 // App icon GIcons are stable for the lifetime of a Shell.App object; cache
@@ -121,7 +122,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     // bounded; unlike app windows, the panel should not create new workspaces.
     // Retain the signal ID so teardown explicitly disconnects the handler.
     let scrollSignalId = 0;
-    if (globalThis._materialPanelWorkspaceScrollSwitch !== false) {
+    if (isWorkspaceScrollSwitchEnabled()) {
         scrollSignalId = box.connect('scroll-event', (_actor, event) => {
         try {
             const direction = event.get_scroll_direction();
@@ -181,7 +182,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
     const rebuild = () => {
         const end4 = globalThis._materialPanelLayoutStyle === 'end4';
         const displayMode = resolveWorkspaceDisplayMode(
-            globalThis._materialPanelWorkspaceDisplay, end4);
+            getWorkspaceDisplayMode(), end4);
         const activeIndex = manager.get_active_workspace_index();
         const n = manager.get_n_workspaces();
         const focusId = _focusAppId();
