@@ -6,6 +6,7 @@ const debug = await readFile(new URL('../lib/debug.js', import.meta.url), 'utf8'
 const extension = await readFile(new URL('../extension.js', import.meta.url), 'utf8');
 const builder = await readFile(new URL('../lib/panelBuilder.js', import.meta.url), 'utf8');
 const theme = await readFile(new URL('../lib/theme.js', import.meta.url), 'utf8');
+const watcher = await readFile(new URL('../lib/themeWatcher.js', import.meta.url), 'utf8');
 
 test('detailed lifecycle logs require the explicit MATERIAL_PANEL_DEBUG flag', () => {
     assert.ok(debug.includes("GLib.getenv('MATERIAL_PANEL_DEBUG') === '1'"));
@@ -17,7 +18,7 @@ test('routine rebuild, layout and watcher diagnostics use debug logging', () => 
     assert.ok(extension.includes('debugLog(') && extension.includes('config change classified'));
     assert.ok(builder.includes('debugLog(') && builder.includes('module verify zoneChildren='));
     assert.ok(builder.includes('debugLog(') && builder.includes('chipGap='));
-    assert.ok(theme.includes('debugLog(') && theme.includes('raw dir-watch event'));
+    assert.ok(watcher.includes('debugLog(') && watcher.includes('raw dir-watch event'));
 });
 
 test('recovery and error paths remain logged outside debug mode', () => {
