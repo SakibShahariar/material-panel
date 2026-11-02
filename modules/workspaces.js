@@ -11,6 +11,7 @@ import GLib from 'gi://GLib';
 import {wirePressedClass} from '../lib/pressFx.js';
 import {resolveWorkspaceDisplayMode} from '../lib/workspaceDisplay.js';
 import {getWorkspaceDisplayMode, isWorkspaceScrollSwitchEnabled} from '../lib/workspaceState.js';
+import {getLayoutStyle} from '../lib/layoutStyleState.js';
 
 const MAX_ICONS = 5;
 // App icon GIcons are stable for the lifetime of a Shell.App object; cache
@@ -180,7 +181,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         }
     };
     const rebuild = () => {
-        const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+        const end4 = getLayoutStyle() === 'end4';
         const displayMode = resolveWorkspaceDisplayMode(
             getWorkspaceDisplayMode(), end4);
         const activeIndex = manager.get_active_workspace_index();

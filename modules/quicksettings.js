@@ -14,6 +14,7 @@ import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {tileStyleMeta, isValidTileStyle} from '../lib/tileStyleMeta.js';
 import {normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getQuickSettingsSliderStyle, getQuickSettingsTileStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
+import {getLayoutStyle} from '../lib/layoutStyleState.js';
 import {getMixerControl} from '../lib/audio.js';
 import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
 import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
@@ -418,7 +419,7 @@ function fitRowContentToStyle(sid, mainBox, icon, text, opts = {}) {
 
 /** Applies per-style circles/ruling geometry to a BT/Wi-Fi row. */
 function fitRowGeometryToStyle(sid, tileRow, mainBtn, dropBtn) {
-    const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+    const end4 = getLayoutStyle() === 'end4';
     let {h, rad, mainRad} = rowGeometryFor(sid);
     if (end4) {
         h = sid === 'icon-only' ? 42 : (sid === 'glass' || sid === 'icon-top') ? 66 : 56;
@@ -448,11 +449,11 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 66 : 48,
+        height: (getLayoutStyle() === 'end4') ? 66 : 48,
         // Natural width ignored when grid is column-homogeneous
-        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
+        width: (getLayoutStyle() === 'end4') ? 168 : 148,
     });
-    if (globalThis._materialPanelLayoutStyle === 'end4') {
+    if (getLayoutStyle() === 'end4') {
         try {
             tile.style = 'border-radius: 22px; min-height: 66px;';
         } catch (e) {}
@@ -476,7 +477,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
         y_align: Clutter.ActorAlign.CENTER,
         x_expand: true,
     });
-    if (globalThis._materialPanelLayoutStyle === 'end4') {
+    if (getLayoutStyle() === 'end4') {
         try { text.style = 'font-size: 12px; font-weight: 600;'; } catch (e) {}
         text.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         text.clutter_text.line_wrap = true;
@@ -563,7 +564,7 @@ function buildTile({iconKey, label, isOn, onToggle, watch}) {
             }
         } catch (e) {}
         try { syncTileExtras(tile, on); } catch (e) {}
-        if (globalThis._materialPanelLayoutStyle === 'end4') {
+        if (getLayoutStyle() === 'end4') {
             try {
                 tile.style = on
                     ? `border-radius: 22px; min-height: 66px; background-color: ${globalThis._materialPanelPrimary ?? '#89b4fa'};`
@@ -688,7 +689,7 @@ export function volumeSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         
     });
-    if (globalThis._materialPanelLayoutStyle === 'end4')
+    if (getLayoutStyle() === 'end4')
         pctLabel.visible = false;
     const volStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'volume');
     // Tall styles need a vertical row so they don't crush icon/% in one line
@@ -887,7 +888,7 @@ export function brightnessSliderRow() {
         y_align: Clutter.ActorAlign.CENTER,
         
     });
-    if (globalThis._materialPanelLayoutStyle === 'end4')
+    if (getLayoutStyle() === 'end4')
         pctLabel.visible = false;
     const briStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'brightness');
     let brightnessWriteId = 0;
@@ -1774,12 +1775,12 @@ export function wifiQsBlock() {
         y_expand: true,
         x_align: Clutter.ActorAlign.FILL,
         y_align: Clutter.ActorAlign.FILL,
-        height: (globalThis._materialPanelLayoutStyle === 'end4') ? 66 : 52,
-        width: (globalThis._materialPanelLayoutStyle === 'end4') ? 168 : 148,
+        height: (getLayoutStyle() === 'end4') ? 66 : 52,
+        width: (getLayoutStyle() === 'end4') ? 168 : 148,
     });
     try {
         row.style = 'border-radius: 18px; min-height: 52px; height: 52px;'; // bg from CSS tile style
-        row.height = (globalThis._materialPanelLayoutStyle === 'end4') ? 56 : 52;
+        row.height = (getLayoutStyle() === 'end4') ? 56 : 52;
     } catch (e) {}
 
     const mainBtn = new St.Button({
@@ -2244,7 +2245,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         stickyUntilLeave: true,
     });
 
-    const end4 = globalThis._materialPanelLayoutStyle === 'end4';
+    const end4 = getLayoutStyle() === 'end4';
 
     const menu = new PopupMenu.PopupMenu(button, end4 ? 1.0 : 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-qs-menu');
@@ -2257,7 +2258,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     const applyQsChrome = () => {
         try {
             const mon = Main.layoutManager.primaryMonitor;
-            const ryokuLay = globalThis._materialPanelLayoutStyle === 'ryoku';
+            const ryokuLay = getLayoutStyle() === 'ryoku';
             const maxH = mon ? Math.floor(mon.height * (end4 ? 0.82 : ryokuLay ? 0.75 : 0.68)) : 600;
             const minW = end4 ? 380 : ryokuLay ? 380 : 300;
             const pad = end4 ? 14 : 12;
@@ -2322,7 +2323,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
-    const ryoku = globalThis._materialPanelLayoutStyle === 'ryoku';
+    const ryoku = getLayoutStyle() === 'ryoku';
     if (ryoku) {
         try { menu.actor.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}
         try { menu.box.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}

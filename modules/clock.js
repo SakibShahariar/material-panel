@@ -17,6 +17,7 @@ import {formatClockDisplay, nextClockDisplayMode} from '../lib/clockDisplay.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {wirePressedClass} from '../lib/pressFx.js';
 import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
+import {getLayoutStyle} from '../lib/layoutStyleState.js';
 import {
     loadCalendarDocument,
     indexEventsByDate,
@@ -181,7 +182,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     let configLoadGeneration = 0;
     let destroyed = false;
 
-    const isEnd4 = () => globalThis._materialPanelLayoutStyle === 'end4';
+    const isEnd4 = () => getLayoutStyle() === 'end4';
     const label = new St.Label({
         style_class: 'material-panel-clock',
         y_align: Clutter.ActorAlign.CENTER,

@@ -23,6 +23,7 @@ import {setWorkspaceDisplayMode, setWorkspaceScrollSwitch, clearWorkspaceState} 
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
 import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
+import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -224,7 +225,7 @@ export default class MaterialPanelExtension extends Extension {
         const panelSize = this._config.panelSize ?? {};
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
-            globalThis._materialPanelLayoutStyle = this._config.layoutStyle ?? 'default';
+            setLayoutStyle(this._config.layoutStyle);
             setQuickSettingsSliderStyle(this._config.sliderStyle);
             setQuickSettingsTileStyle(this._config.qsTileStyle);
             setQuickSettingsTiles(this._config.qsTiles);
@@ -385,6 +386,7 @@ export default class MaterialPanelExtension extends Extension {
         clearMediaVisualizerState();
         clearWeatherLocation();
         clearQuickSettingsState();
+        clearLayoutStyle();
 
         this._config = null;
     }
