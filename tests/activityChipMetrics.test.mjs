@@ -19,10 +19,14 @@ test('system statistics chip validates selected metrics and display mode', () =>
 
 test('system statistics chip reuses existing GPU, network and memory samples', () => {
     assert.match(cpu, /readMemInfo\(\)/);
-    assert.match(cpu, /_materialPanelGpuMetrics/);
-    assert.match(cpu, /_materialPanelNetworkMetrics/);
-    assert.match(gpu, /if \(result\) \{\s*lastGpuInfo = result;\s*try \{\s*globalThis\._materialPanelGpuMetrics = \{/);
-    assert.match(network, /_materialPanelNetworkMetrics =/);
+    assert.match(cpu, /getGpuMetrics\(\)/);
+    assert.match(cpu, /getNetworkMetrics\(\)/);
+    assert.match(gpu, /setGpuMetrics\(\{/);
+    assert.match(gpu, /clearGpuMetrics\(\)/);
+    assert.match(network, /setNetworkMetrics\(\{/);
+    assert.match(network, /clearNetworkMetrics\(\)/);
+    for (const source of [cpu, gpu, network])
+        assert.doesNotMatch(source, /_materialPanel(?:Gpu|Network)Metrics/);
     assert.match(cpu, /activityCycleIndex\+\+ % values\.length/);
     assert.match(cpu, /activityMetrics = Array\.isArray\(c\.activityChipMetrics\)/);
     assert.match(cpu, /activityMode = c\.activityChipMode === 'cycle' \? 'cycle' : 'combined'/);

@@ -12,6 +12,7 @@ import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {isNetworkSpeedAutoHideEnabled} from '../lib/networkSpeedVisibilityState.js';
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
+import {setNetworkMetrics, clearNetworkMetrics} from '../lib/systemMetricsState.js';
 
 function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     const value = Math.max(0, Number(bytesPerSec) || 0);
@@ -128,11 +129,11 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             iface: sample.iface,
         };
         try {
-            globalThis._materialPanelNetworkMetrics = {
+            setNetworkMetrics({
                 down: sample.down,
                 up: sample.up,
                 updatedAt: GLib.get_monotonic_time(),
-            };
+            });
         } catch (e) {}
         try {
             button.set_tooltip_text(sample.iface
@@ -151,7 +152,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
 
     button.connect('destroy', () => {
         try { stopMonitor(); } catch (e) {}
-        try { globalThis._materialPanelNetworkMetrics = null; } catch (e) {}
+        clearNetworkMetrics();
         menu.destroy();
     });
 

@@ -11,6 +11,7 @@ import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
+import {getGpuMetrics, getNetworkMetrics} from '../lib/systemMetricsState.js';
 import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
@@ -455,9 +456,9 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const metrics = activityMetrics;
         const mode = activityMode;
         const memSnap = metrics.includes('memory') ? readMemInfo() : null;
-        const gpu = globalThis._materialPanelGpuMetrics;
+        const gpu = getGpuMetrics();
         const freshGpu = gpu && GLib.get_monotonic_time() - gpu.updatedAt < 10000000;
-        const network = globalThis._materialPanelNetworkMetrics;
+        const network = getNetworkMetrics();
         const now = GLib.get_monotonic_time();
         const values = [];
         if (metrics.includes('cpu'))

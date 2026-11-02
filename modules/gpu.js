@@ -9,6 +9,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {parseNvidiaSmiOutputs, selectGpuCandidate} from '../lib/gpuMetrics.js';
+import {setGpuMetrics, clearGpuMetrics} from '../lib/systemMetricsState.js';
 
 let cachedGpuBasePath = null;
 let cachedGpuCard = null;
@@ -307,10 +308,10 @@ export function buildGpu(_extensionPath, scale = 1.0) {
             if (result) {
                 lastGpuInfo = result;
                 try {
-                    globalThis._materialPanelGpuMetrics = {
+                    setGpuMetrics({
                         util: result.util,
                         updatedAt: GLib.get_monotonic_time(),
-                    };
+                    });
                 } catch (e) {}
             }
             render(lastGpuInfo);
@@ -333,7 +334,7 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
-        try { globalThis._materialPanelGpuMetrics = null; } catch (e) {}
+        clearGpuMetrics();
         try { refreshCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(id); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
