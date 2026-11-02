@@ -3,7 +3,11 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 import {getAdjacentFocusableIndex} from '../lib/popupFocus.js';
 
-const source = await readFile(new URL('../lib/popupDismiss.js', import.meta.url), 'utf8');
+const [source, renderer, stylesheet] = await Promise.all([
+    readFile(new URL('../lib/popupDismiss.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/themeRenderer.js', import.meta.url), 'utf8'),
+    readFile(new URL('../stylesheet.css', import.meta.url), 'utf8'),
+]);
 
 test('popup focus navigation advances and wraps in both directions', () => {
     assert.equal(getAdjacentFocusableIndex(4, 0, 1), 1);
@@ -59,4 +63,22 @@ test('shared popup keyboard handling is attached to the major module popups', as
     const sources = await Promise.all(modules.map(name =>
         readFile(new URL('../modules/' + name + '.js', import.meta.url), 'utf8')));
     assert.ok(sources.every(moduleSource => moduleSource.includes('attachPopupDismiss')));
+});
+
+test('focus traversal excludes unmapped and zero-allocation actors while preserving visual child order', () => {
+    assert.match(source, /actor\.visible === false \|\| actor\.mapped === false/);
+    assert.match(source, /get_allocation_box\?\.\(\)/);
+    assert.match(source, /box\.x2 <= box\.x1 \|\| box\.y2 <= box\.y1/);
+    assert.match(source, /actors\.push\(actor\)[\s\S]*?actor\.get_children/);
+});
+
+test('Return and Space reach the focused control native activation handlers', () => {
+    assert.match(source, /key === Clutter\.KEY_Return \|\| key === Clutter\.KEY_KP_Enter \|\|\s*key === Clutter\.KEY_space\)\s*return Clutter\.EVENT_PROPAGATE/);
+});
+
+test('keyboard focus has a visible theme-aware indicator and is scoped to Material Panel popups', () => {
+    assert.match(source, /add_style_class_name\('material-panel-keyboard-nav'\)/);
+    assert.match(source, /remove_style_class_name\('material-panel-keyboard-nav'\)/);
+    assert.match(renderer, /\.material-panel-keyboard-nav :focus/);
+    assert.match(stylesheet, /\.material-panel-keyboard-nav :focus/);
 });
