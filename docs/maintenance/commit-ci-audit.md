@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `1a403ac2cff4f56a3dc7a39b948cccee2557a648`
+- Checkpoint SHA: `2c42b3c744c81a490965e5b73433506d234ebf04`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. This ledger update will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -110,6 +110,20 @@ The previous checkpoint was `16331845a1dcb778637280f65558b68c2391bdd9`. All 11 c
 
 The ThemeManager was split into palette, renderer, stylesheet-lifecycle, and watcher modules. The first several CI failures were stale source-location assertions that were updated as each responsibility moved; the final theme extraction run passed. The theme-color globals were then migrated to a module-scoped service, and popup keyboard focus gained visibility/order safeguards and native activation-key propagation. Live GNOME checks remain open for #221, #237, and #217.
 
+## Incremental review: 2026-11-02 — Focus-session DND
+
+The previous checkpoint was `1a403ac2cff4f56a3dc7a39b948cccee2557a648`. All five commits through `2c42b3c744c81a490965e5b73433506d234ebf04` were reviewed against their associated GitHub Actions runs. Combined-status responses remained empty; the explicit workflow-run results below are authoritative.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `2be61e7a` | `docs: record theme state and popup focus CI review` | green | 2026-11-02 | [Run #41493747997](https://github.com/SakibShahariar/material-panel/actions/runs/41493747997) completed successfully. |
+| `9d7e1217` | `feat(dnd): add cancellable focus sessions (Refs #214)` | red | 2026-11-02 | [Run #41494374462](https://github.com/SakibShahariar/material-panel/actions/runs/41494374462): new test file had an escaped-template syntax error, and the existing DND accessible-name assertion expected the old label. |
+| `55830e99` | `test(dnd): cover focus session UI and accessible state (Refs #214)` | red | 2026-11-02 | [Run #41494592712](https://github.com/SakibShahariar/material-panel/actions/runs/41494592712): one new UI source assertion expected a literal duration string rather than the implementation's generated duration label. |
+| `158be27a` | `test(dnd): simplify focus-session source assertions (Refs #214)` | red | 2026-11-02 | [Run #41494694837](https://github.com/SakibShahariar/material-panel/actions/runs/41494694837): the same duration assertion still did not match the template-string implementation. |
+| `2c42b3c7` | `test(dnd): assert focus session duration choices (Refs #214)` | green | 2026-11-02 | [Run #41494846774](https://github.com/SakibShahariar/material-panel/actions/runs/41494846774) passed 424/424 JavaScript tests and 20/20 Python tests. |
+
+The DND feature uses a module-scoped focus-session service and the existing GNOME `show-banners` setting. Follow-up commits corrected the test syntax, updated the accessible-name assertion, and aligned the UI source assertion with the generated duration labels. The final CI run is green; live GNOME popup interaction is recommended.
+
 ## Red-cross investigation log
 
 The initial baseline contained no confirmed red results. The later preferences-refactor failure is recorded below. Preserve this history when adding future rerun results.
@@ -141,6 +155,20 @@ The initial baseline contained no confirmed red results. The later preferences-r
 - Rerun attempt(s) and result: Each follow-up commit triggered CI and the failure count decreased as the remaining assertions were moved. Final run [#41491249895](https://github.com/SakibShahariar/material-panel/actions/runs/41491249895) passed 410/410 JavaScript tests and 20/20 Python tests.
 - Final verified outcome: Theme extraction and its regression suite are green on the final code commit.
 - Remaining follow-up: Live GNOME validation for light/dark themes, Matugen updates, panel layouts/sizes, repeated palette changes, extension enable/disable, and reload remains required for #221.
+
+### 2026-11-02 — Focus-session DND test wiring
+
+- Commit SHA(s): `9d7e1217f7ce43c79418fe65bc6959fc8875984b`, `55830e99cbde7a14801e6707b108b31f246d0f3d`, `158be27a28208f02b3647d36e45e974c26cdfaf6`
+- Commit subject: Add a cancellable event-based DND focus-session service and its popup UI/tests.
+- First observed (date): 2026-11-02
+- Workflow / run URLs: [#41494374462](https://github.com/SakibShahariar/material-panel/actions/runs/41494374462), [#41494592712](https://github.com/SakibShahariar/material-panel/actions/runs/41494592712), [#41494694837](https://github.com/SakibShahariar/material-panel/actions/runs/41494694837)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: The first test version contained an invalid escaped template literal and the existing DND accessible-name test expected the pre-session label. Follow-up UI tests then compared against a fully expanded duration string instead of the source's generated template string.
+- Classification: regression — test syntax and source assertions did not match the implementation; JavaScript syntax check itself passed on the initial feature commit.
+- Fix commit(s): `55830e99` updated the accessible-name expectation and initial UI assertions; `158be27a` simplified source checks; `2c42b3c7` corrected the duration assertion to match the template string.
+- Rerun attempt(s) and result: Two follow-up commits still had one stale UI assertion each. Final run [#41494846774](https://github.com/SakibShahariar/material-panel/actions/runs/41494846774) passed 424/424 JavaScript tests and 20/20 Python tests.
+- Final verified outcome: Focus-session service, UI wiring, and regression suite are green.
+- Remaining follow-up: A live GNOME check of right-click/Menu-key popup behavior and visible focus-session status is recommended.
 
 ### Template
 
@@ -177,3 +205,4 @@ The initial baseline contained no confirmed red results. The later preferences-r
 | 2026-11-02 | Incremental review through `00c67a929dfaa29fe092899b8ba0ffb5fbb65390` | Reviewed the previous ledger update and shared GPU/Network activity sample migration. Both CI lookups unavailable; 2 isolated state tests passed; activity-chip regression tests and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `16331845a1dcb778637280f65558b68c2391bdd9` | Reviewed the preferences modularization and packaging sequence. Initial source-wiring tests failed; follow-up tests and package inclusion fix passed full CI (402 JavaScript + 20 Python tests). GNOME Preferences runtime smoke test remains open. |
 | 2026-11-02 | Incremental review through `1a403ac2cff4f56a3dc7a39b948cccee2557a648` | Reviewed 11 commits: theme extraction had a sequence of stale test-source failures resolved by `f023f637`; final theme CI passed 410/410 JS + 20/20 Python. Theme-color state migration passed 413/413 + 20/20. Popup keyboard-focus update passed 416/416 + 20/20. GNOME runtime checks remain open for #217, #221, and #237. |
+| 2026-11-02 | Incremental review through `2c42b3c744c81a490965e5b73433506d234ebf04` | Reviewed five commits: DND focus-session tests had two rounds of stale source assertions, resolved in `2c42b3c7`; final CI passed 424/424 JavaScript tests and 20/20 Python tests. #214 acceptance criteria were checked and the issue was closed. |
