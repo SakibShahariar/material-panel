@@ -11,7 +11,7 @@ const [dark, dnd, night] = modules;
 
 test('Dark Mode, DND and Night Light expose stateful accessible names', () => {
     assert.match(dark, /setChipA11y\(button, `Dark mode, \$\{on \? 'on' : 'off'\}`\)/);
-    assert.match(dnd, /setChipA11y\(button, `Do not disturb, \$\{on \? 'on' : 'off'\}`\)/);
+    assert.ok(dnd.includes("`Do not disturb, ${on ? 'on' : 'off'}${focusActive ? ', focus session active' : ''}`"));
     assert.match(night, /setChipA11y\(button, `Night light, \$\{on \? 'on' : 'off'\}`\)/);
 });
 
