@@ -24,8 +24,8 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
-- Last fully reviewed commit range: the five commits listed below.
-- Checkpoint SHA: `ccf2a8b0889b32e528bedbe5084cc76379552704`
+- Last fully reviewed commit range: the baseline and incremental commits listed below.
+- Checkpoint SHA: `aa8ead3516527c2e97fecd96841188969a3a38e3`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -49,6 +49,9 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 |---|---|---|---|---|
 | `82cc6fd7` | `docs: add persistent commit CI audit ledger` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `ccf2a8b0` | `refactor(state): replace global menu callback (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Focused coordinator tests passed locally (3/3); full repository workflow remains unverified. |
+| `dd228465` | `docs: record incremental CI review and state migration` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `0b9e8635` | `refactor(state): localize profile identity preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Two isolated Node state tests passed (2/2); full repository test suite and GNOME runtime remain unverified. |
+| `aa8ead35` | `fix(state): sync profile identity preference on config changes (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Config-watcher wiring was verified from the committed source; no GNOME runtime test available. |
 
 ## Red-cross investigation log
 
@@ -74,3 +77,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 |---|---|---|
 | 2026-11-02 | Baseline through `cbc7c632d1a88d700ac70b086a497bbbcb760fc0` | Queried five commits; all returned empty status lists. Recorded as unavailable, not passing. |
 | 2026-11-02 | Incremental review through `ccf2a8b0889b32e528bedbe5084cc76379552704` | Reviewed the ledger setup commit and one code commit. Both CI lookups unavailable; 3 focused local unit tests passed. Full workflow result remains unverified. |
+| 2026-11-02 | Incremental review through `aa8ead3516527c2e97fecd96841188969a3a38e3` | Reviewed the previous ledger update and two state-migration commits. All CI lookups unavailable; 2 isolated state tests passed; GNOME runtime unverified. |
