@@ -46,9 +46,9 @@ test('Bluetooth auto-hide applies only to the no-adapter state', async () => {
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/bluetooth.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(extension, /globalThis\._materialPanelAutoHideBluetooth = this\._config\.autoHideBluetooth === true/);
-    assert.match(extension, /globalThis\._materialPanelAutoHideBluetooth = newConfig\.autoHideBluetooth === true/);
-    assert.match(bluetooth, /const autoHideWhenUnavailable = globalThis\._materialPanelAutoHideBluetooth === true/);
+    assert.match(extension, /setBluetoothAutoHide\(this\._config\.autoHideBluetooth === true\)/);
+    assert.match(extension, /setBluetoothAutoHide\(newConfig\.autoHideBluetooth === true\)/);
+    assert.match(bluetooth, /const autoHideWhenUnavailable = isBluetoothAutoHideEnabled\(\)/);
     assert.match(bluetooth, /const setNoAdapterState = \(\) => \{\s*button\.visible = !autoHideWhenUnavailable/);
     assert.match(bluetooth, /const setPowered = powered => \{\s*currentlyPowered = powered;\s*showAdapterState\(''\);\s*button\.visible = true/);
     assert.match(bluetooth, /showAdapterState\('No Bluetooth adapter was detected/);

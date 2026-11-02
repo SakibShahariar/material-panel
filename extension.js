@@ -15,6 +15,7 @@ import {ThemeManager} from './lib/theme.js';
 import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js';
 import {clearSharedState} from './lib/sharedState.js';
 import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profileIdentityState.js';
+import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoothVisibilityState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -102,7 +103,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelQsTiles = newConfig.qsTiles ?? null;
                 globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? [];
                 globalThis._materialPanelAutoHideMedia = newConfig.autoHideMedia === true;
-                globalThis._materialPanelAutoHideBluetooth = newConfig.autoHideBluetooth === true;
+                setBluetoothAutoHide(newConfig.autoHideBluetooth === true);
                 globalThis._materialPanelAutoHideNetworkSpeed = newConfig.autoHideNetworkSpeed === true;
                 globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
@@ -222,7 +223,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelQsTiles = this._config.qsTiles ?? null;
             globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? [];
             globalThis._materialPanelAutoHideMedia = this._config.autoHideMedia === true;
-            globalThis._materialPanelAutoHideBluetooth = this._config.autoHideBluetooth === true;
+            setBluetoothAutoHide(this._config.autoHideBluetooth === true);
             globalThis._materialPanelAutoHideNetworkSpeed = this._config.autoHideNetworkSpeed === true;
             globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
@@ -369,6 +370,7 @@ export default class MaterialPanelExtension extends Extension {
         // Remove shared globals so they cannot leak across extension lifecycles.
         clearSharedState();
         clearProfileIdentityState();
+        clearBluetoothVisibilityState();
 
         this._config = null;
     }

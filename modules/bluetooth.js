@@ -17,6 +17,7 @@ import {getBluetoothDevices} from '../lib/bluetoothDevices.js';
 import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
 import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
+import {isBluetoothAutoHideEnabled} from '../lib/bluetoothVisibilityState.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -288,7 +289,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         child: buttonBox,
     });
 
-    const autoHideWhenUnavailable = globalThis._materialPanelAutoHideBluetooth === true;
+    const autoHideWhenUnavailable = isBluetoothAutoHideEnabled();
     setChipA11y(button, 'Bluetooth, status unavailable');
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     _btPopupMenu = menu;
