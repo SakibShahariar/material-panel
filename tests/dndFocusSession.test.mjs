@@ -155,8 +155,8 @@ test('DND module exposes focus-session durations, status, cancellation, and keyb
         readFile(new URL('../lib/themeRenderer.js', import.meta.url), 'utf8'),
         readFile(new URL('../stylesheet.css', import.meta.url), 'utf8'),
     ]);
-    for (const minutes of [25, 50, 90])
-        assert.ok(moduleSource.includes('Focus for ' + minutes + ' minutes'));
+    assert.ok(moduleSource.includes('for (const minutes of [25, 50, 90])'));
+    assert.ok(moduleSource.includes('`Focus for ${minutes} minutes`'));
     assert.ok(moduleSource.includes('End focus session'));
     assert.ok(moduleSource.includes('focus session active'));
     assert.ok(moduleSource.includes('event.get_button() !== 3'));
