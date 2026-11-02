@@ -70,9 +70,9 @@ test('Network Speed auto-hide waits for idle and keeps sampling while the chip i
         readFile(new URL('../extension.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/networkSpeed.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(extension, /globalThis\._materialPanelAutoHideNetworkSpeed = this\._config\.autoHideNetworkSpeed === true/);
-    assert.match(extension, /globalThis\._materialPanelAutoHideNetworkSpeed = newConfig\.autoHideNetworkSpeed === true/);
-    assert.match(network, /const autoHideWhenIdle = globalThis\._materialPanelAutoHideNetworkSpeed === true/);
+    assert.match(extension, /setNetworkSpeedAutoHide\(this\._config\.autoHideNetworkSpeed === true\)/);
+    assert.match(extension, /setNetworkSpeedAutoHide\(newConfig\.autoHideNetworkSpeed === true\)/);
+    assert.match(network, /const autoHideWhenIdle = isNetworkSpeedAutoHideEnabled\(\)/);
     assert.match(network, /const IDLE_HIDE_AFTER_US = 30 \* 1000 \* 1000/);
     assert.match(network, /if \(!autoHideWhenIdle \|\| !sample\.iface \|\| down > 0 \|\| up > 0\)/);
     assert.match(network, /button\.visible = now - idleSince < IDLE_HIDE_AFTER_US/);

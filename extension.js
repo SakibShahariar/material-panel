@@ -17,6 +17,7 @@ import {clearSharedState} from './lib/sharedState.js';
 import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profileIdentityState.js';
 import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoothVisibilityState.js';
 import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibilityState.js';
+import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/networkSpeedVisibilityState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -105,7 +106,7 @@ export default class MaterialPanelExtension extends Extension {
                 globalThis._materialPanelQsFavorites = newConfig.qsFavorites ?? [];
                 setMediaAutoHide(newConfig.autoHideMedia === true);
                 setBluetoothAutoHide(newConfig.autoHideBluetooth === true);
-                globalThis._materialPanelAutoHideNetworkSpeed = newConfig.autoHideNetworkSpeed === true;
+                setNetworkSpeedAutoHide(newConfig.autoHideNetworkSpeed === true);
                 globalThis._materialPanelMediaVisualizer = newConfig.mediaVisualizer === true;
                 globalThis._materialPanelWorkspaceDisplay = newConfig.workspaceDisplay ?? 'auto';
                 globalThis._materialPanelWorkspaceScrollSwitch = newConfig.workspaceScrollSwitch !== false;
@@ -225,7 +226,7 @@ export default class MaterialPanelExtension extends Extension {
             globalThis._materialPanelQsFavorites = this._config.qsFavorites ?? [];
             setMediaAutoHide(this._config.autoHideMedia === true);
             setBluetoothAutoHide(this._config.autoHideBluetooth === true);
-            globalThis._materialPanelAutoHideNetworkSpeed = this._config.autoHideNetworkSpeed === true;
+            setNetworkSpeedAutoHide(this._config.autoHideNetworkSpeed === true);
             globalThis._materialPanelMediaVisualizer = this._config.mediaVisualizer === true;
             globalThis._materialPanelWorkspaceDisplay = this._config.workspaceDisplay ?? 'auto';
             globalThis._materialPanelWorkspaceScrollSwitch = this._config.workspaceScrollSwitch !== false;
@@ -373,6 +374,7 @@ export default class MaterialPanelExtension extends Extension {
         clearProfileIdentityState();
         clearBluetoothVisibilityState();
         clearMediaVisibilityState();
+        clearNetworkSpeedVisibilityState();
 
         this._config = null;
     }

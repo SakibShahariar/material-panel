@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
+import {isNetworkSpeedAutoHideEnabled} from '../lib/networkSpeedVisibilityState.js';
 
 function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     const value = Math.max(0, Number(bytesPerSec) || 0);
@@ -44,7 +45,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         track_hover: true,
         child: icon,
     });
-    const autoHideWhenIdle = globalThis._materialPanelAutoHideNetworkSpeed === true;
+    const autoHideWhenIdle = isNetworkSpeedAutoHideEnabled();
     let idleSince = null;
     const IDLE_HIDE_AFTER_US = 30 * 1000 * 1000;
 
