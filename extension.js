@@ -21,6 +21,7 @@ import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/n
 import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit.js';
 import {setWorkspaceDisplayMode, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
+import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -51,7 +52,7 @@ export default class MaterialPanelExtension extends Extension {
         // If Gvc is unavailable during startup, retry later and rebuild the
         // panel once the shared mixer control becomes available.
         setMixerControlReadyCallback(() => this._schedulePanelRebuild('audio-recovered'));
-        globalThis._materialPanelWeatherLocation = this._config.weatherLocation ?? {};
+        setWeatherLocation(this._config.weatherLocation);
         this._sizeDebounceId = 0;
         this._reducedMotionCleanup = watchReducedMotion();
 
@@ -76,7 +77,7 @@ export default class MaterialPanelExtension extends Extension {
                 : {};
             this._config = newConfig;
             setProfileIdentityHidden(newConfig.hideProfileIdentity === true);
-            globalThis._materialPanelWeatherLocation = newConfig.weatherLocation ?? {};
+            setWeatherLocation(newConfig.weatherLocation);
 
             // Classification must never strand the watcher. Unknown or malformed
             // shapes fall back to a full rebuild and a tray placement refresh.
@@ -381,6 +382,7 @@ export default class MaterialPanelExtension extends Extension {
         clearNetworkSpeedUnit();
         clearWorkspaceState();
         clearMediaVisualizerState();
+        clearWeatherLocation();
 
         this._config = null;
     }

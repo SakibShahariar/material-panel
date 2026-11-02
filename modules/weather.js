@@ -13,6 +13,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
 import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
+import {getWeatherLocation} from '../lib/weatherLocationState.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -766,7 +767,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         fetchInFlight = true;
         try {
             // 1) An explicit manual location takes precedence over GNOME Weather.
-            const manual = globalThis._materialPanelWeatherLocation ?? {};
+            const manual = getWeatherLocation();
             // Old saved configurations with coordinates should keep using them;
             // otherwise default to GNOME Weather. IP geolocation is never used.
             const mode = String(manual.mode ??
