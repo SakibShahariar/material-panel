@@ -14,6 +14,7 @@ import {applyLayoutStyle} from './lib/layoutPresets.js';
 import {ThemeManager} from './lib/theme.js';
 import {classifyConfigChange, getChangedConfigKeys} from './lib/configChange.js';
 import {clearSharedState} from './lib/sharedState.js';
+import {clearDndFocusSession} from './lib/dndSession.js';
 import {setProfileIdentityHidden, clearProfileIdentityState} from './lib/profileIdentityState.js';
 import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoothVisibilityState.js';
 import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibilityState.js';
@@ -367,6 +368,7 @@ export default class MaterialPanelExtension extends Extension {
             logError(e, 'material-panel: builder.destroy');
         }
         this._builder = null;
+        clearDndFocusSession();
 
         try {
             if (this._panelWasVisible !== false)
