@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `16331845a1dcb778637280f65558b68c2391bdd9`
+- Checkpoint SHA: `1a403ac2cff4f56a3dc7a39b948cccee2557a648`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. This ledger update will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -90,6 +90,26 @@ The previous checkpoint was `00c67a929dfaa29fe092899b8ba0ffb5fbb65390`. The four
 
 The refactor moved the Layout, Modules, Tray, and Appearance page builders into `prefs/`, and moved the shared module catalog there as well. The first CI failure was caused by existing tests asserting the old source-file location; those tests now inspect the new page modules. A final packaging review found that the release packager did not include the new directory, so the packager and its fixture were updated before the final green run. Live GNOME Preferences smoke testing remains unverified.
 
+## Incremental review: 2026-11-02 — Theme refactor, shared state, and popup accessibility
+
+The previous checkpoint was `16331845a1dcb778637280f65558b68c2391bdd9`. All 11 commits through `1a403ac2cff4f56a3dc7a39b948cccee2557a648` were checked against their associated GitHub Actions runs. Combined-status responses remained empty; the explicit workflow-run results below are authoritative.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `56a8a837` | `docs: record preferences refactor CI investigation (Refs #244)` | green | 2026-11-02 | [Run #41486775700](https://github.com/SakibShahariar/material-panel/actions/runs/41486775700) completed successfully. |
+| `1cb5d1c3` | `refactor(theme): extract pure stylesheet renderers (Refs #221)` | red | 2026-11-02 | [Run #41489441164](https://github.com/SakibShahariar/material-panel/actions/runs/41489441164): 4/406 JS tests failed because theme fallback, dimension, and typography assertions still expected the old implementation location/output. |
+| `583e3c9f` | `test(theme): follow extracted renderer modules (Refs #221)` | red | 2026-11-02 | [Run #41489672242](https://github.com/SakibShahariar/material-panel/actions/runs/41489672242): 1/406 JS test still expected typography tokens in `theme.js`. |
+| `e448851a` | `refactor(theme): separate palette parsing and file watching (Refs #221)` | red | 2026-11-02 | [Run #41490138200](https://github.com/SakibShahariar/material-panel/actions/runs/41490138200): the same stale typography source assertion remained. |
+| `4a0c11e5` | `refactor(theme): isolate palette and watcher services (Refs #221)` | red | 2026-11-02 | [Run #41490267109](https://github.com/SakibShahariar/material-panel/actions/runs/41490267109): nested-symlink and routine-logging tests still expected watcher code in `theme.js`; typography source assertion also remained. |
+| `a15f2310` | `test(theme): follow extracted palette and watcher modules (Refs #221)` | red | 2026-11-02 | [Run #41490560322](https://github.com/SakibShahariar/material-panel/actions/runs/41490560322): nested-symlink and typography source assertions still needed relocation. |
+| `4faef86f` | `test(theme): read typography tokens from renderer module (Refs #221)` | red | 2026-11-02 | [Run #41490660831](https://github.com/SakibShahariar/material-panel/actions/runs/41490660831): nested-symlink test still expected the resolver in `theme.js`. |
+| `1cb96717` | `refactor(theme): isolate stylesheet lifecycle management (Refs #221)` | red | 2026-11-02 | [Run #41491007626](https://github.com/SakibShahariar/material-panel/actions/runs/41491007626): nested-symlink and stylesheet-cache tests still referenced pre-extraction ownership. |
+| `f023f637` | `test(theme): verify extracted stylesheet and watcher ownership (Refs #221)` | green | 2026-11-02 | [Run #41491249895](https://github.com/SakibShahariar/material-panel/actions/runs/41491249895) passed 410/410 JavaScript tests and 20/20 Python tests. |
+| `977cf1db` | `refactor(state): replace theme color globals with service (Refs #88, #237)` | green | 2026-11-02 | [Run #41492383525](https://github.com/SakibShahariar/material-panel/actions/runs/41492383525) passed 413/413 JavaScript tests and 20/20 Python tests. |
+| `1a403ac2` | `fix(a11y): make popup keyboard focus visible and ordered (Refs #217)` | green | 2026-11-02 | [Run #41493069465](https://github.com/SakibShahariar/material-panel/actions/runs/41493069465) passed 416/416 JavaScript tests and 20/20 Python tests. |
+
+The ThemeManager was split into palette, renderer, stylesheet-lifecycle, and watcher modules. The first several CI failures were stale source-location assertions that were updated as each responsibility moved; the final theme extraction run passed. The theme-color globals were then migrated to a module-scoped service, and popup keyboard focus gained visibility/order safeguards and native activation-key propagation. Live GNOME checks remain open for #221, #237, and #217.
+
 ## Red-cross investigation log
 
 The initial baseline contained no confirmed red results. The later preferences-refactor failure is recorded below. Preserve this history when adding future rerun results.
@@ -107,6 +127,20 @@ The initial baseline contained no confirmed red results. The later preferences-r
 - Rerun attempt(s) and result: The original failing commit was not rerun because its tests still referenced the old file layout. Follow-up run [#41486151320](https://github.com/SakibShahariar/material-panel/actions/runs/41486151320) passed (402/402 JavaScript, 20/20 Python); subsequent packaging-fix run [#41486582850](https://github.com/SakibShahariar/material-panel/actions/runs/41486582850) also passed (402/402 JavaScript, 20/20 Python).
 - Final verified outcome: Follow-up commits are green; release packaging includes the extracted preferences modules.
 - Remaining follow-up: Live GNOME Preferences smoke test is still required before claiming desktop runtime verification.
+
+### 2026-11-02 — ThemeManager extraction test-assumption chain
+
+- Commit SHA(s): `1cb5d1c344b93f1943febd7a57812284e53961ad`, `583e3c9f240a8e8e76be73072906cb9a90948d76`, `e448851aea387643ebf27b753aae58640f091536`, `4a0c11e5001a86baed8ad0c56704ed155d778fc2`, `a15f231023f6bf8db3249967e5feda284ede49b7`, `4faef86f371686737a27c5a9c4baf8789986ad27`, `1cb967177d190fbfbd7b28bb279632b4b27b0cc2`
+- Commit subject: ThemeManager palette/rendering/watcher/stylesheet extraction and follow-up test updates.
+- First observed (date): 2026-11-02
+- Workflow / run URLs: [#41489441164](https://github.com/SakibShahariar/material-panel/actions/runs/41489441164), [#41489672242](https://github.com/SakibShahariar/material-panel/actions/runs/41489672242), [#41490138200](https://github.com/SakibShahariar/material-panel/actions/runs/41490138200), [#41490267109](https://github.com/SakibShahariar/material-panel/actions/runs/41490267109), [#41490560322](https://github.com/SakibShahariar/material-panel/actions/runs/41490560322), [#41490660831](https://github.com/SakibShahariar/material-panel/actions/runs/41490660831), [#41491007626](https://github.com/SakibShahariar/material-panel/actions/runs/41491007626)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: As palette parsing, CSS rendering, watcher ownership, and stylesheet writing moved out of `lib/theme.js`, source-based tests continued looking in the old file. One dimension assertion also expected individual top/bottom margin declarations rather than the renderer's combined margin output. No GNOME runtime failure was demonstrated.
+- Classification: regression — test assumptions were not migrated atomically with the source extraction.
+- Fix commit(s): `583e3c9f`, `e448851a`, `4a0c11e5`, `a15f2310`, `4faef86f`, `1cb96717`, and final test ownership correction `f023f637d71fbb2e64137024a131d9db109facbd`.
+- Rerun attempt(s) and result: Each follow-up commit triggered CI and the failure count decreased as the remaining assertions were moved. Final run [#41491249895](https://github.com/SakibShahariar/material-panel/actions/runs/41491249895) passed 410/410 JavaScript tests and 20/20 Python tests.
+- Final verified outcome: Theme extraction and its regression suite are green on the final code commit.
+- Remaining follow-up: Live GNOME validation for light/dark themes, Matugen updates, panel layouts/sizes, repeated palette changes, extension enable/disable, and reload remains required for #221.
 
 ### Template
 
@@ -141,4 +175,5 @@ The initial baseline contained no confirmed red results. The later preferences-r
 | 2026-11-02 | Incremental review through `6fc0d1e2d519381caff8ab891484ccfc859418be` | Reviewed the previous ledger update and CPU-local activity preference migration. Both CI lookups unavailable; CPU regression test files and GNOME runtime remain unverified. |
 | 2026-11-02 | Incremental review through `0d455644120c651235b89d392d1cb1efd037f83a` | Reviewed the previous ledger update and Quick Settings coordination migration. Both CI lookups unavailable; 2 isolated callback tests passed; full coordination regression tests and GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `00c67a929dfaa29fe092899b8ba0ffb5fbb65390` | Reviewed the previous ledger update and shared GPU/Network activity sample migration. Both CI lookups unavailable; 2 isolated state tests passed; activity-chip regression tests and GNOME runtime unverified. |
-| 2026-11-02 | Incremental review through `16331845a1dcb778637280f65558b68c2391bdd9` | Reviewed commits after the previous checkpoint. One refactor commit had a test-path regression; updated tests and the packaging fix passed full CI (402 JavaScript + 20 Python tests). GNOME Preferences runtime smoke test remains open. |
+| 2026-11-02 | Incremental review through `16331845a1dcb778637280f65558b68c2391bdd9` | Reviewed the preferences modularization and packaging sequence. Initial source-wiring tests failed; follow-up tests and package inclusion fix passed full CI (402 JavaScript + 20 Python tests). GNOME Preferences runtime smoke test remains open. |
+| 2026-11-02 | Incremental review through `1a403ac2cff4f56a3dc7a39b948cccee2557a648` | Reviewed 11 commits: theme extraction had a sequence of stale test-source failures resolved by `f023f637`; final theme CI passed 410/410 JS + 20/20 Python. Theme-color state migration passed 413/413 + 20/20. Popup keyboard-focus update passed 416/416 + 20/20. GNOME runtime checks remain open for #217, #221, and #237. |
