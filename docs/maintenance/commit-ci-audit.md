@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `1bb61da53e9cf1fd33916e637ddb674a2e3d3e03`
+- Checkpoint SHA: `91e32e0ac2a52cf93a886145d9d757f0607f0ad9`
 - Checkpoint date: 2026-11-02
 - Next session: start with commits after this checkpoint. The ledger update created at the end of this session will be newer than the checkpoint and should be included in the next incremental check.
 
@@ -60,6 +60,8 @@ The following commits newer than the previous checkpoint were reviewed. The comb
 | `22c687fe` | `refactor(state): localize network speed visibility preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. One isolated Node state test passed (1/1); the complete mediaAutoHide test file and full suite were not run. GNOME runtime remains unverified. |
 | `ae1075fb` | `docs: record network speed state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
 | `1bb61da5` | `refactor(state): localize network speed unit preference (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. One isolated Node normalization/reset test passed (1/1); the full networkSpeedUnits test file and repository suite were not run. GNOME runtime remains unverified. |
+| `598fe119` | `docs: record network unit state migration CI review` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. |
+| `91e32e0a` | `refactor(state): localize workspace display preferences (Refs #88, #237)` | unavailable | 2026-11-02 | Combined status and commit workflow-run lookups returned no entries. Three focused isolated Node state tests passed (3/3); the full repository test suite and GNOME runtime remain unverified. |
 
 ## Red-cross investigation log
 
@@ -90,3 +92,4 @@ No red result has been confirmed from the status data retrieved for the baseline
 | 2026-11-02 | Incremental review through `e083ec8698efccb8130b5ab7c42a811cd64b8330` | Reviewed the prior ledger update and media visibility migration. Both CI lookups unavailable; 1 isolated state test passed; GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `22c687fe3b14e968411b8eca62d55dd0a5925ed1` | Reviewed the prior ledger update and Network Speed visibility migration. Both CI lookups unavailable; 1 isolated state test passed; GNOME runtime unverified. |
 | 2026-11-02 | Incremental review through `1bb61da53e9cf1fd33916e637ddb674a2e3d3e03` | Reviewed the prior ledger update and Network Speed unit migration. Both CI lookups unavailable; 1 isolated Node test passed; GNOME runtime unverified. |
+| 2026-11-02 | Incremental review through `91e32e0ac2a52cf93a886145d9d757f0607f0ad9` | Reviewed the previous ledger update and workspace preference migration. Both CI lookups unavailable; 3 isolated Node state tests passed; full repository tests and GNOME runtime unverified. |
