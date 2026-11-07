@@ -85,3 +85,12 @@ test('exports a bounded timeout for configured command actions', async () => {
     assert.equal(timeout, 30);
     assert.ok(timeout > 0 && timeout <= 60);
 });
+
+test('removes invisible bidirectional formatting from labels without damaging emoji', () => {
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'bidi', type: 'command', target: 'echo safe', name: 'Pay\u202Eload\u2066safe\u2069 😀'},
+    ]);
+    assert.equal(entry.name, 'Pay load safe 😀');
+    assert.doesNotMatch(entry.name, /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u206f]/);
+});
+
