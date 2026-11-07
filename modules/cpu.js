@@ -17,6 +17,7 @@ import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
 import {readMemInfo} from '../lib/memInfo.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 function findTempFile() {
     const candidates = [];
@@ -529,13 +530,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     const coreLabels = [];
 
     const header = new PopupMenu.PopupMenuSection();
-    const headerBox = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'material-panel-cpu-popup-header',
-        x_expand: true,
-        style: 'spacing: 8px; padding: 4px 2px; min-width: 260px;',
-    });
-    headerBox.add_child(new St.Label({text: 'Activity', style_class: 'material-panel-cpu-popup-title'}));
+    const headerTitle = new St.Label({text: 'Activity', style_class: 'material-panel-cpu-popup-title'});
     const summary = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-cpu-popup-summary',
@@ -548,14 +543,25 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         col.add_child(widget);
         summary.add_child(col);
     }
-    headerBox.add_child(summary);
+    const headerStatus = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        x_expand: true,
+        style: 'spacing: 6px;',
+    });
+    headerStatus.add_child(summary);
     const tempUnavailableState = createStatusState({
         styleClass: 'material-panel-cpu-popup-thermal-row',
         labelStyleClass: 'material-panel-cpu-popup-thermal-row',
         iconSize: 14,
         style: 'spacing: 8px; padding: 4px 2px;',
     });
-    headerBox.add_child(tempUnavailableState.actor);
+    headerStatus.add_child(tempUnavailableState.actor);
+    const {actor: headerBox} = createPopupHeader({
+        titleActor: headerTitle,
+        statusActor: headerStatus,
+        styleClass: 'material-panel-cpu-popup-header',
+        style: 'spacing: 8px; padding: 4px 2px; min-width: 260px;',
+    });
     header.actor.add_child(headerBox);
     menu.addMenuItem(header);
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
