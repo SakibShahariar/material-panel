@@ -882,3 +882,11 @@ The persisted `layoutStyle` value was only defaulted when null. Unsupported stri
 
 - `358bbaf73e062ee0f9fc7e198f32d7cea913e1bd` — implementation and regression tests. CI [42425084799](https://github.com/SakibShahariar/material-panel/actions/runs/42425084799) failed one new test because its source-inspection assertion omitted the `readFile` import. Syntax passed; 634/635 JavaScript tests passed. The production normalizer and configuration wiring tests passed.
 - The next commit adds the missing test-only import; it does not change production behavior.
+
+
+## Layout-style configuration normalization follow-up, #132
+
+- `358bbaf73e062ee0f9fc7e198f32d7cea913e1bd` — introduced the shared whitelist and load/save normalization; CI [42425084799](https://github.com/SakibShahariar/material-panel/actions/runs/42425084799) failed only because a new source-inspection test omitted its `readFile` import.
+- `674dc83adae1edb1a94ee6ae73a90a45cff39ede` — added the missing import; CI [42425170794](https://github.com/SakibShahariar/material-panel/actions/runs/42425170794) green: syntax passed, **635/635 JavaScript tests**, and **22/22 Python tests**.
+
+The shared layout-style state setter is now being hardened to use the same whitelist, preventing invalid values from being reintroduced by future callers.

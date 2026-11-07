@@ -35,3 +35,11 @@ test('ConfigStore normalizes layout style on load and both save paths', async ()
     assert.match(source, /merged\.layoutStyle = normalizeLayoutStyle\(merged\.layoutStyle\)/);
     assert.equal((source.match(/out\.layoutStyle = normalizeLayoutStyle\(out\.layoutStyle\)/g) || []).length, 2);
 });
+
+
+test('shared layout state rejects unsupported modes instead of leaking them to consumers', () => {
+    setLayoutStyle('unknown-layout');
+    assert.equal(getLayoutStyle(), 'default');
+    setLayoutStyle('ryoku');
+    assert.equal(getLayoutStyle(), 'ryoku');
+});
