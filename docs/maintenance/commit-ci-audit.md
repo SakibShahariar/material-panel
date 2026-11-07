@@ -593,3 +593,27 @@ Reviewed the maintenance-session commits after checkpoint `12b89ba1d0e71d997ac39
 **Checkpoint SHA:** `3beac0ac6f2556696948b3133537e8084c4e0a60`  
 **Checkpoint date:** 2026-11-08  
 **Remaining:** #112 needs live GNOME verification of fullscreen/Overview transitions and teardown on GNOME 49–51. #71 remains open; the new regression guard verifies command tokenization and direct argv dispatch, but the broader custom Quick Settings action scope (including its UI/behavior expectations) still needs review and live validation. The next session should start after this checkpoint and review this ledger commit's CI result.
+
+
+## Incremental review: 2026-11-08 (shared popup header expansion)
+
+Reviewed all ten commits after checkpoint `3beac0ac6f2556696948b3133537e8084c4e0a60`. Each commit has a completed successful GitHub Actions run. The final run passed JavaScript syntax, 587/587 JavaScript tests, and 22/22 Python tests.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `3260493ede39757d382a13313b32debffa4c66c6` | `refactor(disk): use shared popup header (Refs #208)` | green | 2026-11-08 | Workflow [42416173268](https://github.com/SakibShahariar/material-panel/actions/runs/42416173268) completed successfully. |
+| `fd8d2b911b183bcb37871a6e5ed26e0447ea7b5f` | `refactor(gpu): use shared popup header (Refs #208)` | green | 2026-11-08 | Workflow [42416176344](https://github.com/SakibShahariar/material-panel/actions/runs/42416176344) completed successfully. |
+| `13f216c7ff4ede2e006e1bfb77909e649dd000be` | `refactor(headphones): use shared popup header (Refs #208)` | green | 2026-11-08 | Workflow [42416181004](https://github.com/SakibShahariar/material-panel/actions/runs/42416181004) completed successfully. |
+| `aac0de066e58aea09b32e3d0ef59138ae5f430a7` | `test(disk): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | Workflow [42416193760](https://github.com/SakibShahariar/material-panel/actions/runs/42416193760) completed successfully. |
+| `ffdad3c39cd7cb35209589cad6466213279fdc14` | `test(gpu): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | Workflow [42416197763](https://github.com/SakibShahariar/material-panel/actions/runs/42416197763) completed successfully. |
+| `f52a6e17f7727099f9afb11582dcf53374392663` | `test(headphones): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | Workflow [42416201435](https://github.com/SakibShahariar/material-panel/actions/runs/42416201435) completed successfully. |
+| `1df067e1b8b29400a189ba8bd2f41749f565b71b` | `refactor(battery): add shared popup title header (Refs #208)` | green | 2026-11-08 | Workflow [42416231990](https://github.com/SakibShahariar/material-panel/actions/runs/42416231990) completed successfully. |
+| `f13473a4475a1507ad89bc8851cfa5356f2f6173` | `feat(network): add shared connection status header (Refs #208)` | green | 2026-11-08 | Workflow [42416236306](https://github.com/SakibShahariar/material-panel/actions/runs/42416236306) completed successfully. |
+| `0bdfff1dfb3867464a660a1fa9695d56964de84d` | `test(battery): cover shared popup title header (Refs #208)` | green | 2026-11-08 | Workflow [42416247013](https://github.com/SakibShahariar/material-panel/actions/runs/42416247013) completed successfully. |
+| `aec4c3054fb3ce65dfdda99d33d061d366209ee4` | `test(network): cover shared connection status header (Refs #208)` | green | 2026-11-08 | Workflow [42416251230](https://github.com/SakibShahariar/material-panel/actions/runs/42416251230) completed successfully; 587/587 JavaScript and 22/22 Python tests passed. |
+
+**Unresolved validation:** #208 remains open for live GNOME visual checks of spacing, narrow-width behavior, focus order, dynamic status updates, and popup action placement across migrated modules. Additional popup surfaces still need inventory/review.
+
+- Checkpoint SHA: `aec4c3054fb3ce65dfdda99d33d061d366209ee4`
+- Checkpoint date: 2026-11-08
+- Next session: review commits after this checkpoint, including the ledger update commit.
