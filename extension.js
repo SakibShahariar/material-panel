@@ -25,6 +25,7 @@ import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit
 import {setWorkspaceDisplayMode, setWorkspaceFilter, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
 import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
+import {clearControlCenterSummary} from './lib/controlCenterSummaryState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
 import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchState.js';
@@ -494,6 +495,7 @@ export default class MaterialPanelExtension extends Extension {
         clearWorkspaceState();
         clearMediaVisualizerState();
         clearWeatherLocation();
+        clearControlCenterSummary();
         clearQuickSettingsState();
         clearQuickLaunchEntries();
         clearLayoutStyle();

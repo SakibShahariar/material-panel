@@ -12,6 +12,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
+import {watchControlCenterSummary} from '../lib/controlCenterSummaryState.js';
 import {
     loadCalendarDocumentAsync,
     watchCalendarDocument,
@@ -349,7 +350,64 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 stopCalendarWatch();
             });
 
-            homeCards.push(mediaCard, actionsCard, weatherCard, calendarCard);
+            const systemSummaryCard = new St.BoxLayout({
+                style_class: 'material-panel-control-center-card',
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
+            const systemSummaryTitle = new St.Label({text: 'System overview'});
+            systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
+            const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
+            systemSummaryGrid.layout_manager.column_spacing = 8;
+            systemSummaryGrid.layout_manager.row_spacing = 6;
+            const makeSummaryMetric = title => {
+                const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+                tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
+                const name = new St.Label({text: title});
+                name.style = 'font-size: 10px; opacity: 0.7;';
+                const value = new St.Label({text: '—'});
+                value.style = 'font-size: 14px; font-weight: 700;';
+                tile.add_child(name);
+                tile.add_child(value);
+                return {actor: tile, value};
+            };
+            const cpuMetric = makeSummaryMetric('CPU');
+            const memoryMetric = makeSummaryMetric('Memory');
+            const temperatureMetric = makeSummaryMetric('CPU temp');
+            const diskMetric = makeSummaryMetric('Disk');
+            systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
+            systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
+            systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
+            systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
+            const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
+            systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
+            systemSummaryMeta.clutter_text.line_wrap = true;
+            systemSummaryCard.add_child(systemSummaryTitle);
+            systemSummaryCard.add_child(systemSummaryGrid);
+            systemSummaryCard.add_child(systemSummaryMeta);
+            const renderSystemSummary = snapshot => {
+                const system = snapshot?.system;
+                const disk = snapshot?.disk;
+                cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
+                memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
+                temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
+                diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
+                if (!system) {
+                    systemSummaryMeta.text = 'Open System to collect the first CPU, memory and temperature readings';
+                    return;
+                }
+                const ageMinutes = system.sampledAt > 0
+                    ? Math.max(0, Math.floor((GLib.get_monotonic_time() - system.sampledAt) / 60000000)) : null;
+                const age = ageMinutes == null ? 'sample time unavailable'
+                    : ageMinutes < 1 ? 'sampled just now' : `sampled ${ageMinutes} min ago`;
+                systemSummaryMeta.text = disk
+                    ? `Last System sample ${age} · Disk uses the existing Disk module sample`
+                    : `Last System sample ${age} · Enable the Disk module for storage usage`;
+            };
+            const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
+            systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
+            homeCards.push(mediaCard, actionsCard, weatherCard, systemSummaryCard, calendarCard);
             homeGrid = new St.Widget({
                 style_class: 'material-panel-control-center-home-grid',
                 layout_manager: new Clutter.GridLayout(),
@@ -367,7 +425,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeLayout.attach(homeCards[0], 0, 0, 2, 1);
                 homeLayout.attach(homeCards[1], 0, 1, 1, 1);
                 homeLayout.attach(homeCards[2], 1, 1, 1, 1);
-                homeLayout.attach(homeCards[3], 0, 2, 2, 1);
+                homeLayout.attach(homeCards[3], 0, 2, 1, 1);
+                homeLayout.attach(homeCards[4], 1, 2, 1, 1);
             }
         }
 

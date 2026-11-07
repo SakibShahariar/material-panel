@@ -190,3 +190,20 @@ test('Control Center Home reflows from a two-column bento to one column in compa
     assert.match(module, /homeLayout\.attach\(homeCards\[2\], 1, 1, 1, 1\)/);
     assert.match(module, /homeLayout\.attach\(homeCards\[3\], 0, 2, 2, 1\)/);
 });
+
+test('Control Center Home reuses the System and Disk module samples for its overview', async () => {
+    const [controlCenter, system, disk, extension] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/controlCenterSystem.js'),
+        source('../modules/disk.js'),
+        source('../extension.js'),
+    ]);
+    assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);
+    assert.match(controlCenter, /Open System to collect the first CPU, memory and temperature readings/);
+    assert.match(controlCenter, /Enable the Disk module for storage usage/);
+    assert.match(system, /setControlCenterMetrics\(\{/);
+    assert.match(disk, /setControlCenterDiskSummary\(root \?/);
+    assert.match(disk, /setControlCenterDiskSummary\(null\)/);
+    assert.match(extension, /clearControlCenterSummary\(\)/);
+    assert.doesNotMatch(controlCenter, /readCpuUsage|readMemInfo|query_filesystem_info/);
+});

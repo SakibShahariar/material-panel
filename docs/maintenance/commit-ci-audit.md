@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `aebbb2617d38aeed5e407153066fa64738d2aeee`
+- Checkpoint SHA: `8e8aad8a7566b46c4670fd09c5fe37116811eb82`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -399,3 +399,15 @@ The following commits after the previous checkpoint were individually checked ag
 | `aebbb261` | `feat(control-center): add shared calendar summary to Home (Refs #121)` | green | 2026-11-07 | Workflow [42390867762](https://github.com/SakibShahariar/material-panel/actions/runs/42390867762) completed successfully. |
 
 **Unresolved validation:** Home cards, weather refresh behavior, calendar event rendering and responsive layout still require live GNOME visual/interaction checks. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (Home responsive layout test follow-up)
+
+The responsive Home layout commit had one red CI result caused by an overly specific source assertion, not by a syntax or implementation failure. The test expected a `const homeGrid` declaration, while the implementation assigns the grid to a `let homeGrid` declared earlier in the section renderer. The assertion was corrected in the immediate follow-up commit. The original red result is retained here.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `73e6275b57f396a3fbb24c20fd29bad4d090fd68` | `feat(control-center): add responsive Home bento layout (Refs #121)` | red | 2026-11-07 | Workflow [42390974759](https://github.com/SakibShahariar/material-panel/actions/runs/42390974759), job [128458271791](https://github.com/SakibShahariar/material-panel/actions/runs/42390974759). One JavaScript source assertion failed because it expected a `const` declaration; implementation syntax checks passed and 515 other tests passed. This was a test expectation mismatch, not a product regression. |
+| `8e8aad8a7566b46c4670fd09c5fe37116811eb82` | `test(control-center): align Home bento source assertion (Refs #121)` | green | 2026-11-07 | Workflow [42391056149](https://github.com/SakibShahariar/material-panel/actions/runs/42391056149) completed successfully; the corrected assertion matches the actual `let` declaration/assignment. |
+
+**Unresolved validation:** The Home bento layout still requires live GNOME visual checks at narrow widths and scaled displays. #121 remains open.

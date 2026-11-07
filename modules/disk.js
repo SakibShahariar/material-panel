@@ -10,6 +10,7 @@ import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {calculateDiskUsage, sameFilesystem} from '../lib/diskUsage.js';
 import {filterLocalMounts} from '../lib/mountedFilesystems.js';
+import {setControlCenterDiskSummary} from '../lib/controlCenterSummaryState.js';
 
 function readDiskAsync(mount, cancellable, callback) {
     const file = Gio.File.new_for_path(mount);
@@ -132,6 +133,9 @@ export function buildDisk(_extensionPath, scale = 1.0) {
             homeL.text = `Home  ${fmt(home.used)} / ${fmt(home.size)}  (${home.pct}%)`;
         else
             homeL.text = 'Home  —';
+        setControlCenterDiskSummary(root ? {
+            pct: root.pct, used: root.used, size: root.size, sampledAt: GLib.get_monotonic_time(),
+        } : null);
     };
 
     const refreshSelectedFilesystem = () => {
@@ -273,6 +277,7 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
+        setControlCenterDiskSummary(null);
         try { refreshCancellable?.cancel(); } catch (e) {}
         try { selectedCancellable?.cancel(); } catch (e) {}
         selectedGeneration++;

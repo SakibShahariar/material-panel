@@ -9,6 +9,7 @@ import {parseProcessSnapshot, filterAndSortProcesses} from '../lib/processSnapsh
 import {getThemeColor} from '../lib/themeColorState.js';
 import {calculateCpuPercent, parseTemperatureValue, formatNetworkRate} from '../lib/controlCenterMetrics.js';
 import {readGpuInfoAsync} from './gpu.js';
+import {setControlCenterMetrics} from '../lib/controlCenterSummaryState.js';
 
 const HISTORY_LENGTH = 18;
 const PROCESS_REFRESH_TICKS = 3;
@@ -363,6 +364,11 @@ export function buildControlCenterSystem() {
         temperature.update(temp === null ? null : temp / 110 * 100,
             temp === null ? 'Unavailable' : temp + '°C',
             temp === null ? 'CPU temperature sensor unavailable' : 'CPU temperature ' + temp + ' degrees Celsius');
+
+        setControlCenterMetrics({
+            cpu: cpuSample.value, memory: mem?.usedPct ?? null, temperature: temp,
+            sampledAt: GLib.get_monotonic_time(),
+        });
 
         const network = getNetworkMetrics();
         const freshNetwork = network && GLib.get_monotonic_time() - network.updatedAt < 5000000;
