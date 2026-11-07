@@ -44,7 +44,7 @@ test('parses and formats ordered city and IANA time-zone preferences', () => {
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Broken'), null);
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Other|Asia/Dhaka'), null);
     assert.deepEqual(parseWorldClockEntries('Boston|US/Eastern'), [
-        {name: 'Boston', timeZone: 'US/Eastern'},
+        {name: 'Boston', timeZone: 'America/New_York'},
     ]);
     assert.equal(parseWorldClockEntries('Bad|Name|Asia/Dhaka'), null);
 });

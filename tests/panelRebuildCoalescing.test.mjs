@@ -19,7 +19,7 @@ test('panel rebuild requests are coalesced into one delayed render', () => {
 
 test('presentation-only config changes avoid full panel reconstruction', () => {
     assert.match(configChange, /if \(only\(\['panelSize'\]\)\)\s*return 'panelSize'/);
-    assert.match(configChange, /if \(only\(\['clockFormat'\]\)\)\s*return 'clock'/);
+    assert.match(configChange, /if \(only\(\['clockFormat', 'clockClickCyclesFormat', 'worldClocks'\]\)\)\s*return 'clock'/);
     assert.match(configChange, /if \(only\(\['networkSpeedUnit'\]\)\)\s*return 'moduleSetting'/);
     assert.match(extension, /case 'clock':[\s\S]*?no rebuild/);
     assert.match(extension, /case 'moduleSetting':[\s\S]*?do not rebuild the panel/);

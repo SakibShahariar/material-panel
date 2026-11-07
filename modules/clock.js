@@ -664,7 +664,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
         destroyed = true;
         configLoadGeneration++;
         try { GLib.source_remove(tickId); } catch (e) {}
-        try { GLib.source_remove(worldClockTickId); } catch (e) {}
+        stopWorldClockTick();
         try { store.unwatch(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
