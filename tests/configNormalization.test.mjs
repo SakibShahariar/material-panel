@@ -111,5 +111,5 @@ test('context visibility rules default off and discard unknown or malformed modu
         clock: {hideWhenFullscreen: true},
         unknown: {hideInOverview: true},
         volume: null,
-    }), {clock: {hideWhenFullscreen: true, hideInOverview: false}});
+    }), {clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false}});
 });
