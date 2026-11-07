@@ -6,6 +6,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 import {ConfigStore} from './lib/configStore.js';
 import {formatWeatherLocations, parseWeatherLocations} from './lib/weatherLocations.js';
+import {formatWorldClockEntries, parseWorldClockEntries} from './lib/worldClock.js';
 import {DEFAULT_POPUP_SHORTCUTS, findPopupShortcutConflicts, normalizePopupShortcuts, POPUP_SHORTCUT_TARGETS} from './lib/popupShortcuts.js';
 import {normalizeZoneScale} from './lib/configNormalization.js';
 import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
@@ -752,6 +753,36 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             }));
         });
         weatherGroup.add(savedWeatherLocationsRow);
+
+        const worldClockGroup = new Adw.PreferencesGroup({
+            title: 'World Clock',
+            description: 'Optional cities shown in the Clock popup. Enter City|IANA/Time_Zone pairs separated by semicolons; the order here is the display order. Example: Dhaka|Asia/Dhaka; London|Europe/London; New York|America/New_York.',
+        });
+        generalPage.add(worldClockGroup);
+        const worldClockRow = new Adw.EntryRow({
+            title: 'Cities and time zones (up to 12)',
+            text: formatWorldClockEntries(config.worldClocks),
+            show_apply_button: true,
+        });
+        worldClockRow.connect('apply', () => {
+            if (syncingExternal)
+                return;
+            const parsed = parseWorldClockEntries(worldClockRow.get_text());
+            if (parsed === null) {
+                window.add_toast(new Adw.Toast({
+                    title: 'Use unique City|IANA/Time_Zone entries (up to 12)',
+                }));
+                worldClockRow.set_text(formatWorldClockEntries(config.worldClocks));
+                return;
+            }
+            config.worldClocks = parsed;
+            saveConfig();
+            worldClockRow.set_text(formatWorldClockEntries(parsed));
+            window.add_toast(new Adw.Toast({
+                title: parsed.length ? `${parsed.length} world clocks saved` : 'World clocks cleared',
+            }));
+        });
+        worldClockGroup.add(worldClockRow);
 
         const popupShortcutGroup = new Adw.PreferencesGroup({
             title: 'Popup keyboard shortcuts',
