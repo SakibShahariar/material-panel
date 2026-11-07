@@ -14,6 +14,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
 import {watchControlCenterSummary} from '../lib/controlCenterSummaryState.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import {
     loadCalendarDocumentAsync,
     watchCalendarDocument,
@@ -605,8 +606,13 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
         }
 
-        page.add_child(heading);
-        page.add_child(description);
+        const sectionHeader = createPopupHeader({
+            titleActor: heading,
+            statusActor: description,
+            styleClass: 'material-panel-control-center-header',
+            style: 'spacing: 10px; padding: 6px;',
+        });
+        page.add_child(sectionHeader.actor);
         if (section.id === 'home') {
             page.add_child(homeGrid);
         } else if (systemView) {
