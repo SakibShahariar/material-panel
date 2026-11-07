@@ -95,3 +95,16 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /_unwatchContextVisibility\(\)/);
     assert.match(source, /disable\(\)\s*\{[\s\S]*?this\._unwatchContextVisibility\(\);/);
 });
+
+test('Preferences exposes an ordered, validated list of optional world clocks', async () => {
+    const [entry, helpers] = await Promise.all([
+        read('prefs.js'), read('lib/worldClock.js'),
+    ]);
+    assert.match(entry, /title: 'World Clock'/);
+    assert.match(entry, /Cities and time zones \(up to 12\)/);
+    assert.match(entry, /formatWorldClockEntries\(config\.worldClocks\)/);
+    assert.match(entry, /parseWorldClockEntries\(worldClockRow\.get_text\(\)\)/);
+    assert.match(entry, /config\.worldClocks = parsed/);
+    assert.match(helpers, /function isValidTimeZone/);
+    assert.match(helpers, /new Intl\.DateTimeFormat\('en', \{timeZone: value\}\)/);
+});
