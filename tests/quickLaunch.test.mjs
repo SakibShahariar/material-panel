@@ -64,6 +64,16 @@ test('sanitizes control characters and collapses whitespace in configured labels
     assert.ok(entries.every(entry => !/[\u0000-\u001f\u007f]/.test(entry.name)));
 });
 
+test('truncates shortcut labels by Unicode code point without splitting emoji', () => {
+    const label = 'x'.repeat(79) + '😀' + 'tail';
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'unicode', type: 'command', target: 'echo ok', name: label},
+    ]);
+    assert.equal(Array.from(entry.name).length, 80);
+    assert.equal(entry.name, 'x'.repeat(79) + '😀');
+    assert.doesNotMatch(entry.name, /[\\uD800-\\uDBFF]$/);
+});
+
 test('does not mutate the caller-owned configuration array', () => {
     const source = [{id: 'one', type: 'command', target: 'echo ok'}];
     normalizeQuickLaunchEntries(source);
