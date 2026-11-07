@@ -134,7 +134,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideInOverview = overviewSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
