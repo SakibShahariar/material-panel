@@ -200,7 +200,7 @@ test('Control Center Home reuses the System and Disk module samples for its over
         source('../extension.js'),
     ]);
     assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);
-    assert.match(controlCenter, /Open System to collect the first CPU, memory and temperature readings/);
+    assert.match(controlCenter, /Open System for the first CPU, memory and temperature sample/);
     assert.match(controlCenter, /Enable the Disk module for storage usage/);
     assert.match(system, /setControlCenterMetrics\(\{/);
     assert.match(disk, /setControlCenterDiskSummary\(root \?/);
