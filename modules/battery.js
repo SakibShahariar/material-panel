@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -269,6 +270,13 @@ export function buildBattery(extensionPath, scale = 1.0) {
 
     const section = new PopupMenu.PopupMenuSection();
     const wrap = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-battery-popup-body'});
+    const popupTitle = new St.Label({text: 'Battery', style_class: 'material-panel-cpu-popup-title'});
+    const {actor: popupHeader} = createPopupHeader({
+        titleActor: popupTitle,
+        styleClass: 'material-panel-battery-popup-header',
+        style: 'spacing: 8px; padding: 4px 2px;',
+    });
+    wrap.add_child(popupHeader);
 
     const hero = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
