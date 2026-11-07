@@ -9,6 +9,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {readMemInfo} from '../lib/memInfo.js';
+import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 function fmtKb(kb) {
     if (kb == null || !Number.isFinite(kb)) return '—';
@@ -70,12 +71,19 @@ export function buildMemory(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
+    let previousUsedPct = null;
+    let memoryActivity = false;
     const refresh = () => {
         const m = readMemInfo();
         if (!m) {
             label.text = '—';
+            memoryActivity = false;
+            previousUsedPct = null;
             return GLib.SOURCE_CONTINUE;
         }
+        memoryActivity = m.usedPct >= 85 ||
+            (previousUsedPct !== null && Math.abs(m.usedPct - previousUsedPct) >= 1);
+        previousUsedPct = m.usedPct;
         label.text = `${m.usedPct}%`;
         try {
             if (m.usedPct >= 90)
@@ -93,20 +101,43 @@ export function buildMemory(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
-        // Avoid periodic /proc reads while the panel chip is not mapped.
-        // A direct click still refreshes immediately before opening the popup.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
-            return GLib.SOURCE_CONTINUE;
-        return refresh();
+    const memorySchedule = createAdaptivePollSchedule({
+        baseIntervalMs: 3000,
+        minIntervalMs: 3000,
+        maxIntervalMs: 15000,
+        stableSamplesToSlow: 4,
+        growthFactor: 1.5,
+        jitterRatio: 0.08,
     });
+    let id = 0;
+    const scheduleMemoryRefresh = (active = false) => {
+        const delayMs = memorySchedule.nextDelay(active);
+        id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            id = 0;
+            // Avoid periodic /proc reads while the panel chip is not mapped.
+            // A direct click still refreshes immediately before opening the popup.
+            if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
+                previousUsedPct = null;
+                memoryActivity = false;
+                memorySchedule.reset();
+            } else {
+                refresh();
+            }
+            scheduleMemoryRefresh(memoryActivity);
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    scheduleMemoryRefresh();
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);
         return Clutter.EVENT_STOP;
     });
     button.connect('destroy', () => {
-        try { GLib.source_remove(id); } catch (e) {}
+        if (id) {
+            try { GLib.source_remove(id); } catch (e) {}
+            id = 0;
+        }
         try { menu.destroy(); } catch (e) {}
     });
     return button;

@@ -38,6 +38,17 @@ test('CPU periodic sampling adapts to activity and pauses while hidden', async (
     assert.match(cpu, /if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\) \{[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?cpuSchedule\.reset\(\)/);
     assert.match(cpu, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
 });
+test('memory sampling adapts to stable usage while preserving hidden and lock pauses', async () => {
+    const memory = await readFile(new URL('../modules/memory.js', import.meta.url), 'utf8');
+    assert.match(memory, /createAdaptivePollSchedule/);
+    assert.match(memory, /baseIntervalMs: 3000/);
+    assert.match(memory, /maxIntervalMs: 15000/);
+    assert.match(memory, /m\.usedPct >= 85/);
+    assert.match(memory, /Math\.abs\(m\.usedPct - previousUsedPct\) >= 1/);
+    assert.match(memory, /if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\) \{[\s\S]*?memorySchedule\.reset\(\)/);
+    assert.match(memory, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
+});
+
 test('system metric polling also pauses while GNOME is locked', () => {
     assert.match(shellCompat, /Main\.sessionMode\.isLocked/);
     for (const [name, source] of modules) {

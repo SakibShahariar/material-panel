@@ -524,3 +524,23 @@ Checked all commits after checkpoint `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`.
 - Checkpoint SHA: `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`
 - Checkpoint date: 2026-11-07
 - Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
+
+
+## Incremental review: 2026-11-07 (adaptive metric polling)
+
+Reviewed commits after checkpoint `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`. The per-zone density follow-up documentation commit and the adaptive Network Speed/CPU work were checked against their actual GitHub Actions runs. Empty combined-status responses, where returned, are not treated as passing.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `8b559cf2c1f3609527b2c82cebe29d27ba93963f` | `docs: record final per-zone density CI results` | green | 2026-11-07 | Workflow [42396489282](https://github.com/SakibShahariar/material-panel/actions/runs/42396489282) passed syntax, 550/550 JavaScript tests, and 22/22 Python tests. |
+| `f902c500798ba9d2ea3bf362c4af4a34d993e812` | `perf(network): adapt idle speed sampling cadence (Refs #223)` | red | 2026-11-07 | Workflow [42399655018](https://github.com/SakibShahariar/material-panel/actions/runs/42399655018) failed JavaScript syntax: the first edit left the previous fixed-interval `tick` beside the adaptive `tick`, causing a duplicate declaration. Corrected in `c6ec7089906e4f22f4d0bfd4a8166a322007fba9`. |
+| `c6ec7089906e4f22f4d0bfd4a8166a322007fba9` | `fix(network): remove superseded fixed polling loop (Refs #223)` | red | 2026-11-07 | Workflow [42399713250](https://github.com/SakibShahariar/material-panel/actions/runs/42399713250) passed syntax but one new source assertion expected the base interval in the wrong expression. Corrected in `02e3b1654d2ae9720af5cae3a1e290498ca81c03`. |
+| `02e3b1654d2ae9720af5cae3a1e290498ca81c03` | `test(network): match adaptive interval initialization (Refs #223)` | red | 2026-11-07 | Workflow [42399825950](https://github.com/SakibShahariar/material-panel/actions/runs/42399825950) passed syntax but the new test fixture had an incorrectly replaced setup line. Restored in `8ad3f9e42dfcb871766c1cba791752a15ea5b473`. |
+| `8ad3f9e42dfcb871766c1cba791752a15ea5b473` | `test(network): restore adaptive polling test setup (Refs #223)` | green | 2026-11-07 | Workflow [42399934711](https://github.com/SakibShahariar/material-panel/actions/runs/42399934711) passed syntax, 556/556 JavaScript tests, and 22/22 Python tests. |
+| `ebb78e679daf786c6362e1f0c658350b55b7cc43` | `perf(cpu): adapt activity sampling cadence (Refs #223)` | green | 2026-11-07 | Workflow [42400135802](https://github.com/SakibShahariar/material-panel/actions/runs/42400135802) passed syntax, 556/556 JavaScript tests, and 22/22 Python tests. |
+
+**Unresolved scope:** Network Speed and CPU have adaptive scheduling; memory polling is the next implementation step. Disk, GPU and Weather remain unadapted. The Weather forecast cadence should remain conservative to respect provider rate limits unless a safe jitter-only strategy is justified. Live hardware, suspend/resume, and freshness measurements remain unverified.
+
+- Checkpoint SHA: `ebb78e679daf786c6362e1f0c658350b55b7cc43`
+- Checkpoint date: 2026-11-07
+- Next session: start with the commit after this checkpoint; review any documentation-ledger commit in the next incremental range.
