@@ -26,3 +26,8 @@ test('Weather popup offers saved locations and protects against stale fetch resu
     assert.ok(weather.includes('generation !== requestGeneration'));
     assert.ok(weather.includes('pendingFetch && !destroyed'));
 });
+
+test('Weather failures identify the selected saved city instead of hiding which location failed', () => {
+    assert.ok(weather.includes('Weather data for ${requestedPlace} is unavailable'));
+    assert.ok(weather.includes('place: requestedPlace || \'Location unavailable\''));
+});

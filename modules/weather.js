@@ -817,6 +817,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             if (generation === requestGeneration)
                 apply(data, savedAt);
         };
+        let requestedPlace = null;
         try {
             // Explicit saved locations take precedence over the legacy single-location setting.
             if (savedLocations.length > 0) {
@@ -824,6 +825,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 const lat = Number(selected.latitude);
                 const lon = Number(selected.longitude);
                 const place = selected.name;
+                requestedPlace = place;
                 const cacheKey = JSON.stringify(['saved', lat, lon, place, 'metric']);
                 const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
                 if (cached) {
@@ -864,6 +866,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     lat < -90 || lat > 90 || lon < -180 || lon > 180)
                     throw new Error('Manual weather coordinates are invalid; check Preferences');
                 const place = String(manual.name ?? '').trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+                requestedPlace = place;
                 const cacheKey = JSON.stringify(['manual', lat, lon, place, 'metric']);
                 const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
                 if (cached) {
@@ -887,6 +890,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             const gw = await loadGnomeWeatherLocation();
             if (gw?.lat != null && gw?.lon != null) {
                 const place = gw.name || 'Local';
+                requestedPlace = place;
                 const cacheKey = JSON.stringify(['gnome', gw.lat, gw.lon, place, 'metric']);
                 const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
                 if (cached) {
@@ -918,7 +922,9 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             if (!detail || detail.source === 'Error') {
                 label.text = '—°';
                 const message = String(e?.message || '');
-                let reason = 'Weather data is unavailable. Check your connection or location settings.';
+                let reason = requestedPlace
+                    ? `Weather data for ${requestedPlace} is unavailable. Check your connection or coordinates.`
+                    : 'Weather data is unavailable. Check your connection or location settings.';
                 if (message.includes('No weather location configured'))
                     reason = 'No location configured. Set one in GNOME Weather or Preferences.';
                 else if (message.includes('disabled'))
@@ -927,11 +933,11 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     reason = 'Manual coordinates are invalid. Check the weather location in Preferences.';
                 detail = {
                     condition: reason,
-                    place: 'Location unavailable',
+                    place: requestedPlace || 'Location unavailable',
                     source: 'Error',
                 };
                 setWeatherSummary({
-                    temp: null, condition: reason, place: 'Location unavailable',
+                    temp: null, condition: reason, place: requestedPlace || 'Location unavailable',
                     source: 'Error', savedAt: 0, stale: false,
                 });
                 try {

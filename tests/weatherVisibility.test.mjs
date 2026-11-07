@@ -15,8 +15,11 @@ test('Weather refresh resumes when the chip is mapped or popup opens', () => {
     assert.ok(weather.includes('if (!destroyed && (button.mapped || menu.isOpen))'));
 });
 
-test('Weather still avoids overlapping refreshes and cancels requests on destroy', () => {
-    assert.ok(weather.includes('if (destroyed || fetchInFlight)'));
+test('Weather queues a location refresh without overlapping requests and cancels on destroy', () => {
+    assert.ok(weather.includes('if (destroyed)'));
+    assert.ok(weather.includes('if (fetchInFlight)'));
+    assert.ok(weather.includes('pendingFetch = true'));
+    assert.ok(weather.includes('pendingFetch && !destroyed'));
     assert.ok(weather.includes('cancellable.cancel()'));
 });
 
@@ -27,7 +30,7 @@ test('weather restores a location-and-units keyed forecast cache before requesti
     assert.match(source, /setWeatherCache\(cacheKey, data, GLib\.get_monotonic_time\(\)\)/);
     assert.match(source, /JSON\.stringify\(\['manual', lat, lon, place, 'metric'\]\)/);
     assert.match(source, /JSON\.stringify\(\['gnome', gw\.lat, gw\.lon, place, 'metric'\]\)/);
-    assert.match(source, /apply\(cached\.data, cached\.savedAt\)/);
+    assert.match(source, /applyCurrent\(cached\.data, cached\.savedAt\)/);
 });
 
 
