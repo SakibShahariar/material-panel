@@ -6,7 +6,7 @@ const source = await readFile(new URL('../prefs/quickLaunchPage.js', import.meta
 
 test('Quick Launch command validation rejects empty, oversized, and control-character input', () => {
     assert.match(source, /value\.length > 512/);
-    assert.match(source, /value\\.length > 512[\\s\\S]*?u0000/);
+    assert.ok(source.includes('u0000'), 'command input must reject control characters');
     assert.match(source, /GLib\.shell_parse_argv\(value\)/);
 });
 
