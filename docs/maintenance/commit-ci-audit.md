@@ -962,3 +962,15 @@ The four red results are retained as history; the failures were test/refactor sy
 
 - `f877e7e0454cf192d47ddc53cc2f280c6bd8165f` — production normalization and malformed-input regression coverage. CI [#42427503425](https://github.com/SakibShahariar/material-panel/actions/runs/42427503425) failed one new test because its expected bar height was miscalculated (638/639 JS passed); the actual normalized output was 49px. Syntax passed. This was a test expectation error, not invalid CSS or a production failure.
 - The follow-up corrects the expected geometry while retaining checks for non-finite CSS output and legacy-gap fallback. CI is pending.
+
+
+### Final verification for the previous checkpoint
+
+- `cf9e2a8c9280d0f04b5b48d83969ae839f0b713b` — red, [run #42427336415](https://github.com/SakibShahariar/material-panel/actions/runs/42427336415): the first generated-CSS behavior assertion used over-escaped regex character classes (638/639 JS tests passed).
+- `c20ee794d9677a0c1906f172a62f5db5a403e405` — green, [run #42427422761](https://github.com/SakibShahariar/material-panel/actions/runs/42427422761): syntax, **639/639 JavaScript tests**, **22/22 Python tests**.
+- `f877e7e0454cf192d47ddc53cc2f280c6bd8165f` — red, [run #42427503425](https://github.com/SakibShahariar/material-panel/actions/runs/42427503425): malformed-input implementation passed syntax; one new test expected 40px instead of the correctly normalized 49px (638/639 JS tests passed).
+- `faf76533db169390420d5c446c4dcac0e13736be` — green, [run #42427557344](https://github.com/SakibShahariar/material-panel/actions/runs/42427557344): syntax, **640/640 JavaScript tests**, **22/22 Python tests**.
+
+**Checkpoint SHA:** `faf76533db169390420d5c446c4dcac0e13736be`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review commits after this checkpoint.

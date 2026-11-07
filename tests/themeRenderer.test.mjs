@@ -83,3 +83,13 @@ test('dimension renderer normalizes malformed numeric inputs without emitting in
     assert.doesNotMatch(legacy, /NaN|Infinity/);
     assert.match(legacy, /gapTop=5 gapBottom=4/);
 });
+
+
+test('dimension renderer treats only supported non-default styles as End-4 geometry', () => {
+    const standard = renderDimensionsCss();
+    const unsupported = renderDimensionsCss({layoutStyle: 'unknown-layout'});
+    const end4 = renderDimensionsCss({layoutStyle: 'end4'});
+    const ryoku = renderDimensionsCss({layoutStyle: 'ryoku'});
+    assert.equal(unsupported.replace('layout=unknown-layout', 'layout=default'), standard);
+    assert.equal(ryoku.replace('layout=ryoku', 'layout=end4'), end4);
+});
