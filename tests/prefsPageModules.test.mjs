@@ -70,6 +70,7 @@ test('PanelBuilder merges context rules with manual visibility and Focus Mode', 
     assert.match(source, /getContextHiddenModules\(config\.moduleVisibilityRules/);
     assert.match(source, /fullscreen: focusedWindowFullscreen/);
     assert.match(source, /overview: overviewVisible/);
+    assert.match(source, /dnd: this\._dndActive/);
     assert.match(source, /hiddenModules\.add\(id\)/);
 });
 
@@ -78,6 +79,9 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /Main\.overview\.connect\(signal, refresh\)/);
     assert.match(source, /global\.display\.connect\('notify::focus-window'/);
     assert.match(source, /window\.connect\('notify::fullscreen', refresh\)/);
+    assert.match(source, /org\.gnome\.desktop\.notifications/);
+    assert.match(source, /changed::show-banners/);
+    assert.match(source, /setDoNotDisturbActive\(active\)/);
     assert.match(source, /_unwatchContextVisibility\(\)/);
     assert.match(source, /disable\(\)\s*\{[\s\S]*?this\._unwatchContextVisibility\(\);/);
 });
