@@ -7,5 +7,5 @@ test('saved weather locations announce their selected state accessibly', async (
     assert.match(source, /const updateSavedLocationLabels = \(\) => \{[\s\S]*?const active = index === activeIndex/);
     assert.match(source, /setChipA11y\(entry\.actor, active[\s\S]*?selected weather location/);
     assert.match(source, /savedLocationItems\.push\(\{actor: entry\.actor, label: entry\.label, location\}\)/);
-    assert.match(source, /updateSavedLocationLabels\(\);[\s\S]*?setWeatherLocationIndex\(index\)/);
+    assert.match(source, /setWeatherLocationIndex\(index\);[\s\S]*?updateSavedLocationLabels\(\)/);
 });
