@@ -869,3 +869,10 @@ Reviewed the latest bidi-range regression test commit after checkpoint `bcbf5c33
 
 **Checkpoint SHA:** `03b7129f160b964362a199b7b21aedf6ee998f23`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Layout-style configuration validation, #132)
+
+The persisted `layoutStyle` value was only defaulted when null. Unsupported strings could therefore leak into shared layout state and theme generation, where different consumers interpreted them inconsistently. Exported the existing supported-style normalizer and applied it consistently when loading and saving configuration. Added coverage for supported values, malformed values, and both save paths.
+
+**Commit:** pending CI for this update.

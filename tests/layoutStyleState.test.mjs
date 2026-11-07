@@ -18,3 +18,19 @@ test('layout style rejects malformed values and resets on extension teardown', (
     clearLayoutStyle();
     assert.equal(getLayoutStyle(), 'default');
 });
+
+
+test('layout style normalization accepts supported modes and falls back safely', async () => {
+    const {normalizeLayoutStyle} = await import('../lib/layoutPresets.js');
+    assert.equal(normalizeLayoutStyle('default'), 'default');
+    assert.equal(normalizeLayoutStyle('end4'), 'end4');
+    assert.equal(normalizeLayoutStyle('ryoku'), 'ryoku');
+    for (const invalid of [null, undefined, '', 'compact', 'END4', 1, {}, []])
+        assert.equal(normalizeLayoutStyle(invalid), 'default');
+});
+
+test('ConfigStore normalizes layout style on load and both save paths', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /merged\.layoutStyle = normalizeLayoutStyle\(merged\.layoutStyle\)/);
+    assert.equal((source.match(/out\.layoutStyle = normalizeLayoutStyle\(out\.layoutStyle\)/g) || []).length, 2);
+});
