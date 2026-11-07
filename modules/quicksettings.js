@@ -996,7 +996,7 @@ export function brightnessSliderRow() {
     return row;
 }
 
-export function darkModeTile() {
+export export function darkModeTile() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     return buildTile({
         iconKey: 'dark-mode',
