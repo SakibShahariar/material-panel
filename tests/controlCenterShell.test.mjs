@@ -186,10 +186,9 @@ test('Control Center Home reflows from a two-column bento to one column in compa
     assert.match(module, /homeLayout\.column_spacing = compact \? 0 : 10/);
     assert.match(module, /if \(compact\) \{[\s\S]*?homeLayout\.attach\(homeCard, 0, index, 1, 1\)/);
     assert.match(module, /homeLayout\.attach\(homeCards\[0\], 0, 0, 2, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[1\], 0, 1, 1, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[2\], 1, 1, 1, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[3\], 0, 2, 1, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[4\], 1, 2, 1, 1\)/);
+    assert.match(module, /const secondaryCards = homeCards\.slice\(1\)/);
+    assert.match(module, /secondaryCards\.forEach\(\(homeCard, index\) =>/);
+    assert.match(module, /const span = index === secondaryCards\.length - 1/);
 });
 
 test('Control Center Home reuses the System and Disk module samples for its overview', async () => {
@@ -227,4 +226,21 @@ test('Home System overview uses fixed sample-time labels so last-known values do
     assert.match(controlCenter, /sampleAge\(disk\.sampledAt, disk\.sampledAtLabel\)/);
     assert.match(system, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
     assert.match(disk, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
+});
+
+test('Weather and Calendar Home cards default on and can be hidden independently from the Home cards menu', async () => {
+    const [controlCenter, config] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../lib/configStore.js'),
+    ]);
+    assert.match(controlCenter, /PopupSubMenuMenuItem\('Home cards'/);
+    assert.match(controlCenter, /PopupSwitchMenuItem\('Weather', true\)/);
+    assert.match(controlCenter, /PopupSwitchMenuItem\('Calendar', true\)/);
+    assert.match(controlCenter, /persistHomeCardVisibility\('weather', enabled\)/);
+    assert.match(controlCenter, /persistHomeCardVisibility\('calendar', enabled\)/);
+    assert.match(controlCenter, /weatherCard\.destroy\(\)/);
+    assert.match(controlCenter, /calendarCard\.destroy\(\)/);
+    assert.match(config, /controlCenterHomeCards: \{weather: true, calendar: true\}/);
+    assert.match(config, /weather: homeCards\?\.weather !== false/);
+    assert.match(config, /calendar: homeCards\?\.calendar !== false/);
 });

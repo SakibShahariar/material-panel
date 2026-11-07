@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `daf166336358234c5d96986abd59f0a46fdbfe3d`
+- Checkpoint SHA: `71dfc1d16d7bb88f3c1e16c8ae8759e100003bfc`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -435,3 +435,15 @@ The Home System summary implementation commit had one red CI result due to an ex
 | `daf166336358234c5d96986abd59f0a46fdbfe3d` | `test(control-center): align Home summary empty-state assertion (Refs #121)` | green | 2026-11-07 | Workflow [42391607071](https://github.com/SakibShahariar/material-panel/actions/runs/42391607071) completed successfully after updating the expected text. |
 
 **Unresolved validation:** The Home System shortcut, metric bars, and timestamp display still require live GNOME interaction/visual checks. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (Home sample-time label follow-up)
+
+The Home sample-time refinement had one red CI result because a source test still expected the earlier two-argument-free disk sample-age helper. The implementation and JavaScript syntax checks passed; the assertion was updated to include the fixed wall-clock label. The original failure is retained.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `a7947b3df117ae1cb09456349fa57ec30e9252dc` | `feat(control-center): label Home system sample times (Refs #121, #123)` | red | 2026-11-07 | Workflow [42391884467](https://github.com/SakibShahariar/material-panel/actions/runs/42391884467), job [128460983477](https://github.com/SakibShahariar/material-panel/actions/runs/42391884467). One source assertion still expected `sampleAge(disk.sampledAt)`; the code correctly used the new fixed sample-time label. 520 other tests passed. |
+| `71dfc1d16d7bb88f3c1e16c8ae8759e100003bfc` | `test(control-center): cover fixed Home sample-time labels (Refs #121)` | green | 2026-11-07 | Workflow [42391943478](https://github.com/SakibShahariar/material-panel/actions/runs/42391943478) completed successfully after updating the assertion. |
+
+**Unresolved validation:** The Home sample-time labels and optional-card reflow still require live GNOME visual checks. #121 remains open.

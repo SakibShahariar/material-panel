@@ -155,10 +155,48 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     menu.addMenuItem(shellItem);
 
     const focusModeItem = addFocusModeControl(menu);
+    const homeCardStore = new ConfigStore();
+    const homeCardsMenu = new PopupMenu.PopupSubMenuMenuItem('Home cards', false);
+    homeCardsMenu.sensitive = false;
+    const weatherVisibilityItem = new PopupMenu.PopupSwitchMenuItem('Weather', true);
+    const calendarVisibilityItem = new PopupMenu.PopupSwitchMenuItem('Calendar', true);
+    homeCardsMenu.menu.addMenuItem(weatherVisibilityItem);
+    homeCardsMenu.menu.addMenuItem(calendarVisibilityItem);
+    menu.addMenuItem(homeCardsMenu);
+    let homeCardVisibility = {weather: true, calendar: true};
+    let homeCardVisibilityChanged = false;
+    let applyingHomeCardVisibility = false;
+    let homeCardSaveQueue = Promise.resolve();
+    let currentSectionId = 'home';
+    const persistHomeCardVisibility = (key, enabled) => {
+        if (applyingHomeCardVisibility)
+            return;
+        homeCardVisibilityChanged = true;
+        homeCardVisibility[key] = enabled === true;
+        homeCardSaveQueue = homeCardSaveQueue.then(async () => {
+            const config = await homeCardStore.loadAsync();
+            const saved = config.controlCenterHomeCards || {};
+            config.controlCenterHomeCards = {...saved, [key]: enabled === true};
+            await homeCardStore.saveAsync(config);
+        }).catch(error => {
+            logError(error, 'material-panel: failed to save Home card visibility');
+            try {
+                Main.notifyError('Home card visibility could not be saved',
+                    'Check Material Panel configuration permissions and try again.');
+            } catch (notifyError) {}
+        });
+        if (currentSectionId === 'home')
+            renderSection('home');
+    };
+    weatherVisibilityItem.connect('toggled', (_item, enabled) =>
+        persistHomeCardVisibility('weather', enabled));
+    calendarVisibilityItem.connect('toggled', (_item, enabled) =>
+        persistHomeCardVisibility('calendar', enabled));
     const navButtons = new Map();
 
     const renderSection = sectionId => {
         const section = SECTIONS.find(entry => entry.id === sectionId) ?? SECTIONS[0];
+        currentSectionId = section.id;
         clearActors(page);
 
         const heading = new St.Label({
@@ -449,7 +487,16 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             };
             const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
             systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
-            homeCards.push(mediaCard, actionsCard, weatherCard, systemSummaryCard, calendarCard);
+            homeCards.push(mediaCard, actionsCard);
+            if (homeCardVisibility.weather)
+                homeCards.push(weatherCard);
+            else
+                weatherCard.destroy();
+            homeCards.push(systemSummaryCard);
+            if (homeCardVisibility.calendar)
+                homeCards.push(calendarCard);
+            else
+                calendarCard.destroy();
             homeGrid = new St.Widget({
                 style_class: 'material-panel-control-center-home-grid',
                 layout_manager: new Clutter.GridLayout(),
@@ -462,13 +509,17 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeCards.forEach((homeCard, index) =>
                     homeLayout.attach(homeCard, 0, index, 1, 1));
             } else {
-                // The media card is the visual anchor; compact secondary cards
-                // share the next row, and the calendar gets the full width.
+                // The media card anchors the first row. Remaining cards flow
+                // in pairs, with an odd final card spanning the available width.
                 homeLayout.attach(homeCards[0], 0, 0, 2, 1);
-                homeLayout.attach(homeCards[1], 0, 1, 1, 1);
-                homeLayout.attach(homeCards[2], 1, 1, 1, 1);
-                homeLayout.attach(homeCards[3], 0, 2, 1, 1);
-                homeLayout.attach(homeCards[4], 1, 2, 1, 1);
+                const secondaryCards = homeCards.slice(1);
+                secondaryCards.forEach((homeCard, index) => {
+                    const row = 1 + Math.floor(index / 2);
+                    const column = index % 2;
+                    const span = index === secondaryCards.length - 1 && secondaryCards.length % 2 === 1
+                        ? 2 : 1;
+                    homeLayout.attach(homeCard, column, row, span, 1);
+                });
             }
         }
 
@@ -483,6 +534,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         }
 
         focusModeItem.visible = section.id === 'home';
+        homeCardsMenu.visible = section.id === 'home';
         for (const [id, navButton] of navButtons) {
             const active = id === section.id;
             navButton.style = active
@@ -490,6 +542,26 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 : 'background-color: transparent; border-radius: 12px; padding: 10px 8px;';
         }
     };
+
+    homeCardStore.loadAsync().then(config => {
+        if (homeCardVisibilityChanged)
+            return;
+        const saved = config.controlCenterHomeCards || {};
+        homeCardVisibility = {
+            weather: saved.weather !== false,
+            calendar: saved.calendar !== false,
+        };
+        applyingHomeCardVisibility = true;
+        weatherVisibilityItem.setToggleState(homeCardVisibility.weather);
+        calendarVisibilityItem.setToggleState(homeCardVisibility.calendar);
+        applyingHomeCardVisibility = false;
+        homeCardsMenu.sensitive = true;
+        if (currentSectionId === 'home')
+            renderSection('home');
+    }).catch(error => {
+        homeCardsMenu.sensitive = true;
+        logError(error, 'material-panel: failed to load Home card visibility');
+    });
 
     for (const section of SECTIONS) {
         const navButton = new St.Button({
