@@ -47,6 +47,14 @@ class PackageExtensionTests(unittest.TestCase):
                 b"export function buildLayoutPage() {}",
             )
 
+    def test_control_center_runtime_module_is_in_the_extension_package(self):
+        root = Path(__file__).resolve().parents[1]
+        output = Path(self.temp.name) / "dist" / "material-panel.zip"
+        PACKAGE.build_package(root, output, "v1.2.3")
+        with zipfile.ZipFile(output) as archive:
+            names = set(archive.namelist())
+        self.assertIn("modules/controlCenter.js", names)
+
     def test_package_is_reproducible(self):
         PACKAGE.build_package(self.root, self.output, "v1.2.3")
         first = self.output.read_bytes()
