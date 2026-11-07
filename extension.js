@@ -261,7 +261,7 @@ export default class MaterialPanelExtension extends Extension {
             this._clipboardHistoryLimits = {maxEntries, maxAgeDays};
             this._clipboardHistoryController.setLimits({maxEntries, maxAgeDays}).catch(() => {
                 Main.notifyError('Clipboard history limits could not be applied',
-                    'The previous retention settings remain in effect.');
+                    'The updated limits remain active in this session, but the reduced history could not be saved. Check storage permissions.');
             });
         }
 

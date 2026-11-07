@@ -240,3 +240,17 @@ test('deletion failure leaves capture disabled and propagates the failure', asyn
     assert.equal(controller.enabled, false);
     assert.equal(selection.listeners.size, 0);
 });
+
+test('retention limit changes remain applied in memory if persistence fails', async () => {
+    const {controller, selection, clipboard, store} = setup();
+    await controller.enable();
+    clipboard.text = 'retain one';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    clipboard.text = 'retain two';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    store.write = async () => { throw new Error('synthetic write failure'); };
+    await assert.rejects(controller.setLimits({maxEntries: 1, maxAgeDays: 7}));
+    assert.equal(controller.entries.length, 1);
+});
