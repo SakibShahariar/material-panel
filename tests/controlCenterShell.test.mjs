@@ -214,7 +214,7 @@ test('Home system summary uses bounded usage bars and opens the detailed System 
     assert.match(module, /new St\.Button\([\s\S]*?accessible_name = 'System overview; open detailed System view'/);
     assert.match(module, /systemSummaryCard\.connect\('clicked', \(\) => renderSection\('system'\)\)/);
     assert.match(module, /fill\.set_width\(valid \? Math\.round\(Math\.max\(0, Math\.min\(100, number\)\)\) : 0\)/);
-    assert.match(module, /const diskAge = disk \? sampleAge\(disk\.sampledAt\)/);
+    assert.match(module, /const diskAge = disk \? sampleAge\(disk\.sampledAt, disk\.sampledAtLabel\)/);
 });
 
 test('Home System overview uses fixed sample-time labels so last-known values do not look live', async () => {
