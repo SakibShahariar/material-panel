@@ -11,7 +11,7 @@ test('Focus Mode configuration defaults off with no selected modules', async () 
     assert.match(config, /focusModeEnabled:\s*false/);
     assert.match(config, /focusModeModules:\s*\[\]/);
     assert.match(config, /merged\.focusModeEnabled = merged\.focusModeEnabled === true/);
-    assert.match(config, /if \(!Array\.isArray\(merged\.focusModeModules\)\)\s+merged\.focusModeModules = \[\]/);
+    assert.match(config, /normalizeFocusModeModules\(merged\.focusModeModules, BUILTIN_MODULE_IDS\)/);
 });
 
 test('panel builder layers Focus Mode over normal hidden modules', async () => {
@@ -38,4 +38,7 @@ test('Quick Settings exposes Focus Mode in Default, End-4, and Ryoku layouts', a
     assert.match(quickSettings, /config\.focusModeEnabled = enabled === true/);
     assert.match(quickSettings, /addFocusModeToggle\(menu\);[\s\S]*?fillRyokuQsMenu/);
     assert.match(quickSettings, /menu\.addMenuItem\(wrapAsMenuItem\(qsSection\(null, grid\)\)\);\s+addFocusModeToggle\(menu\)/);
+    const end4 = await source('../modules/quicksettingsEnd4.js');
+    assert.match(end4, /addFocusModeToggle\(menu\)/);
+    assert.match(end4, /import \{wifiQsBlock, bluetoothTile, addFocusModeToggle\} from '\.\/quicksettings\.js'/);
 });
