@@ -99,3 +99,24 @@ test('Control Center Media section uses a detailed MPRIS card with section-scope
     assert.match(rowBuilder, /prefersReducedMotion\(\)/);
     assert.match(rowBuilder, /notify::mapped/);
 });
+
+
+test('Control Center System view samples metrics only while its section actor exists', async () => {
+    const [controlCenter, system, gpu] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/controlCenterSystem.js'),
+        source('../modules/gpu.js'),
+    ]);
+    assert.match(controlCenter, /buildControlCenterSystem\(\)/);
+    assert.match(system, /GLib\.timeout_add_seconds/);
+    assert.match(system, /root\.connect\('destroy'/);
+    assert.match(system, /processCancellable\?\.cancel\(\)/);
+    assert.match(system, /parseProcessSnapshot\(stdout/);
+    assert.match(system, /getNetworkMetrics\(\)/);
+    assert.match(system, /const readCpuUsage/);
+    assert.match(system, /findTemperaturePath/);
+    assert.match(system, /let gpuEnabled = false/);
+    assert.match(system, /if \(gpuEnabled\)\s+refreshGpu\(\)/);
+    assert.match(system, /gpuCancellable\?\.cancel\(\)/);
+    assert.match(gpu, /export function readGpuInfoAsync/);
+});

@@ -167,7 +167,7 @@ function readGpuInfoFallback() {
     return null;
 }
 
-function readGpuInfoAsync(cancellable, callback) {
+export function readGpuInfoAsync(cancellable, callback) {
     let completed = false;
     const finish = result => {
         if (completed)

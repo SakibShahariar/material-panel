@@ -5,6 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
+import {buildControlCenterSystem} from './controlCenterSystem.js';
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
@@ -182,7 +183,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             x_expand: true,
         });
         body.clutter_text.line_wrap = true;
-        if (section.id !== 'media')
+        if (section.id !== 'media' && section.id !== 'system')
             card.add_child(body);
         if (section.id === 'media') {
             const mediaRow = buildMediaPlayerRow({detailed: true});
@@ -196,6 +197,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             card.add_child(noMedia);
             card.add_child(mediaRow);
         }
+        if (section.id === 'system')
+            page.add_child(buildControlCenterSystem());
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
