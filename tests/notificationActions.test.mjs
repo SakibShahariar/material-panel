@@ -84,3 +84,18 @@ test('rejects a missing notification-current predicate without invoking actions'
     assert.equal(activateNotificationAction({actions: [action]}, action), false);
     assert.equal(activated, false);
 });
+
+test('normalizes invisible controls and preserves readable Unicode action labels', () => {
+    const action = {label: '  Répondre\u202E\n maintenant 👩‍💻  ', activate() {}};
+    assert.deepEqual(getNotificationActions({actions: [action]}), [
+        {action, label: 'Répondre maintenant 👩‍💻'},
+    ]);
+});
+
+test('bounds long action labels by Unicode code point without splitting surrogate pairs', () => {
+    const action = {label: '😀'.repeat(90), activate() {}};
+    const label = getNotificationActions({actions: [action]})[0].label;
+    assert.equal(Array.from(label).length, 80);
+    assert.equal(label.endsWith('…'), true);
+    assert.equal(label, '😀'.repeat(79) + '…');
+});
