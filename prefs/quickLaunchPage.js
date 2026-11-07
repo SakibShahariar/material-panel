@@ -1,5 +1,9 @@
 import {normalizeQuickLaunchEntries} from '../lib/quickLaunch.js';
 
+function iconIsValid(value) {
+    return !value || /^[A-Za-z0-9][A-Za-z0-9-]{0,79}$/.test(value);
+}
+
 function commandIsValid(GLib, value) {
     try {
         const [ok, argv] = GLib.shell_parse_argv(value);
@@ -67,6 +71,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
     commandRow.add_suffix(addCommandButton);
     description.add(commandRow);
 
+    const iconRow = new Adw.EntryRow({
+        title: 'Symbolic icon name (optional)',
+    });
+    description.add(iconRow);
+
     const commandHint = new Adw.ActionRow({
         title: 'Command safety',
         subtitle: 'Commands run directly without a shell and are stopped after 30 seconds. Pipes, redirects, substitutions, and shell expansion are not supported.',
@@ -94,6 +103,14 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             hexpand: true,
             activates_default: true,
         });
+        const iconEditor = new Gtk.Entry({
+            text: entry.icon ?? '',
+            placeholder_text: 'Symbolic icon name (optional)',
+            hexpand: true,
+        });
+        const editorBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
+        editorBox.append(editor);
+        editorBox.append(iconEditor);
         const dialog = new Adw.MessageDialog({
             transient_for: window,
             modal: true,
@@ -102,7 +119,7 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                 ? 'Change the name shown in Quick Settings.'
                 : 'Enter an executable and optional arguments. This is parsed without a shell.',
         });
-        dialog.set_extra_child(editor);
+        dialog.set_extra_child(editorBox);
         dialog.add_response('cancel', 'Cancel');
         dialog.add_response('save', 'Save');
         dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
@@ -110,10 +127,13 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
         dialog.connect('response', (_dialog, response) => {
             if (response === 'save') {
                 const value = editor.get_text().trim();
+                const icon = iconEditor.get_text().trim();
                 if (!value) {
                     notify('A shortcut value is required');
                 } else if (entry.type === 'command' && !commandIsValid(GLib, value)) {
                     notify('Enter a valid executable and arguments');
+                } else if (!iconIsValid(icon)) {
+                    notify('Use a symbolic icon name, not a file path');
                 } else {
                     const current = config.quickLaunch.find(item => item.id === entry.id);
                     if (current) {
@@ -123,6 +143,10 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                             current.target = value.slice(0, 512);
                             current.name = value.slice(0, 80);
                         }
+                        if (icon)
+                            current.icon = icon;
+                        else
+                            delete current.icon;
                         persist();
                     }
                 }
@@ -211,6 +235,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
         const app = appInfos[appDropDown.get_selected()];
         if (!app)
             return;
+        const icon = iconRow.get_text().trim();
+        if (!iconIsValid(icon)) {
+            notify('Use a symbolic icon name, not a file path');
+            return;
+        }
         if (config.quickLaunch.some(entry => entry.type === 'app' && entry.target === app.id)) {
             notify('That application is already in Quick Launch');
             return;
@@ -224,12 +253,19 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             type: 'app',
             target: app.id,
             name: app.name,
+            ...(icon ? {icon} : {}),
         });
+        iconRow.set_text('');
         persist();
     });
 
     addCommandButton.connect('clicked', () => {
         const target = commandRow.get_text().trim();
+        const icon = iconRow.get_text().trim();
+        if (!iconIsValid(icon)) {
+            notify('Use a symbolic icon name, not a file path');
+            return;
+        }
         if (!target || !commandIsValid(GLib, target)) {
             notify('Enter a valid executable and arguments');
             return;
@@ -247,8 +283,10 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             type: 'command',
             target,
             name: target.slice(0, 80),
+            ...(icon ? {icon} : {}),
         });
         commandRow.set_text('');
+        iconRow.set_text('');
         persist();
     });
 
