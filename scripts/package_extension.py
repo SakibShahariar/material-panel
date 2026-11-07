@@ -7,13 +7,15 @@ import argparse
 import json
 import re
 import stat
+import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 
 UUID = "material-panel@SakibShahariar"
 VERSION_PATTERN = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 ROOT_FILES = ("extension.js", "prefs.js", "stylesheet.css", "metadata.json")
-RUNTIME_DIRECTORIES = ("lib", "modules", "prefs", "assets")
+RUNTIME_DIRECTORIES = ("lib", "modules", "prefs", "assets", "schemas")
 
 
 def collect_runtime_files(root: Path) -> list[Path]:
@@ -45,14 +47,36 @@ def build_package(root: Path, output: Path, version: str) -> Path:
         raise ValueError(f"metadata.json UUID must be {UUID!r}")
 
     runtime_files = collect_runtime_files(root)
+    schema_dir = root / "schemas"
+    schema_files = sorted(schema_dir.glob("*.gschema.xml")) if schema_dir.is_dir() else []
     output.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for source in runtime_files:
-            relative = source.relative_to(root).as_posix()
-            info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = (stat.S_IFREG | 0o644) << 16
-            archive.writestr(info, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+
+    with tempfile.TemporaryDirectory(prefix="material-panel-schemas-") as temp_dir:
+        compiled_schema = None
+        if schema_files:
+            subprocess.run(
+                ["glib-compile-schemas", "--strict", f"--targetdir={temp_dir}", str(schema_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            compiled_schema = Path(temp_dir) / "gschemas.compiled"
+            if not compiled_schema.is_file():
+                raise RuntimeError("glib-compile-schemas did not produce gschemas.compiled")
+
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+            for source in runtime_files:
+                relative = source.relative_to(root).as_posix()
+                info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = (stat.S_IFREG | 0o644) << 16
+                archive.writestr(info, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+            if compiled_schema:
+                info = zipfile.ZipInfo("schemas/gschemas.compiled", date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = (stat.S_IFREG | 0o644) << 16
+                archive.writestr(info, compiled_schema.read_bytes(),
+                    compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
 
     return output
 

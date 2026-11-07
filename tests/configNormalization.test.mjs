@@ -81,3 +81,10 @@ test('normalizes multiple saved weather locations without disturbing the legacy 
     assert.match(source, /normalizeWeatherLocations\(merged\.weatherLocations\)/);
     assert.match(source, /out\.weatherLocations = normalizeWeatherLocations\(out\.weatherLocations\)/);
 });
+
+test('popup shortcut configuration defaults empty and normalizes only supported targets', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /popupShortcuts: \{\}/);
+    assert.match(source, /normalizePopupShortcuts\(merged\.popupShortcuts\)/);
+    assert.match(source, /out\.popupShortcuts = normalizePopupShortcuts\(out\.popupShortcuts\)/);
+});

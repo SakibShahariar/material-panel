@@ -7,5 +7,6 @@
         "50",
         "51"
     ],
-    "url": "https://github.com/SakibShahariar/material-panel"
+    "url": "https://github.com/SakibShahariar/material-panel",
+    "settings-schema": "org.gnome.shell.extensions.material-panel"
 }

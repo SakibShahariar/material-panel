@@ -21,6 +21,13 @@ class PackageExtensionTests(unittest.TestCase):
                 json.dumps({"uuid": PACKAGE.UUID}) if name == "metadata.json" else name,
                 encoding="utf-8",
             )
+        (self.root / "schemas").mkdir()
+        (self.root / "schemas" / "org.example.test.gschema.xml").write_text(
+            '<?xml version="1.0"?><schemalist><schema id="org.example.test" path="/org/example/test/">'
+            '<key name="shortcut" type="as"><default>[]</default></key>'
+            '</schema></schemalist>',
+            encoding="utf-8",
+        )
         (self.root / "lib").mkdir()
         (self.root / "prefs").mkdir()
         (self.root / "prefs" / "layoutPage.js").write_text(
@@ -40,7 +47,9 @@ class PackageExtensionTests(unittest.TestCase):
             names = set(archive.namelist())
             self.assertEqual(names, {
                 "extension.js", "prefs.js", "stylesheet.css", "metadata.json", "lib/runtime.js", "prefs/layoutPage.js",
+                "schemas/org.example.test.gschema.xml", "schemas/gschemas.compiled",
             })
+            self.assertTrue(archive.read("schemas/gschemas.compiled"))
             self.assertEqual(archive.read("lib/runtime.js"), b"export const value = 1;")
             self.assertEqual(
                 archive.read("prefs/layoutPage.js"),

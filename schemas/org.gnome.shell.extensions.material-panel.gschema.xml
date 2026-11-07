@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.material-panel" path="/org/gnome/shell/extensions/material-panel/">
+    <key name="open-volume" type="as">
+      <default>[]</default>
+      <summary>Open the Audio popup</summary>
+      <description>Optional global shortcut for the Material Panel Audio popup.</description>
+    </key>
+    <key name="open-network" type="as">
+      <default>[]</default>
+      <summary>Open the Network popup</summary>
+      <description>Optional global shortcut for the Material Panel Network popup.</description>
+    </key>
+    <key name="open-bluetooth" type="as">
+      <default>[]</default>
+      <summary>Open the Bluetooth popup</summary>
+      <description>Optional global shortcut for the Material Panel Bluetooth popup.</description>
+    </key>
+    <key name="open-clock" type="as">
+      <default>[]</default>
+      <summary>Open the Calendar popup</summary>
+      <description>Optional global shortcut for the Material Panel Calendar popup.</description>
+    </key>
+    <key name="open-control-center" type="as">
+      <default>[]</default>
+      <summary>Open Control Center</summary>
+      <description>Optional global shortcut for the Material Panel Control Center popup.</description>
+    </key>
+  </schema>
+</schemalist>

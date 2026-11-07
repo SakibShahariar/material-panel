@@ -63,3 +63,9 @@ test('reports changed top-level keys once for consumers to reuse', () => {
     assert.equal(classifyConfigChange(base, {...base, clockFormat: '12h'},
         getChangedConfigKeys(base, {...base, clockFormat: '12h'})), 'clock');
 });
+
+test('popup shortcut configuration changes are applied without rebuilding the panel', () => {
+    const previous = {popupShortcuts: {volume: '', network: ''}};
+    const next = {popupShortcuts: {volume: '<Super><Alt>V', network: ''}};
+    assert.equal(classifyConfigChange(previous, next), 'moduleSetting');
+});

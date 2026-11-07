@@ -1,5 +1,6 @@
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 import {debugLog} from './lib/debug.js';
 import {closeMixerControl, setMixerControlReadyCallback} from './lib/audio.js';
@@ -32,6 +33,7 @@ import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchS
 import {ClipboardHistoryController} from './lib/clipboardHistoryController.js';
 import {ClipboardHistoryFileStore} from './lib/clipboardHistoryStore.js';
 import {setClipboardHistoryController} from './modules/clipboardHistory.js';
+import {normalizePopupShortcuts, findPopupShortcutConflicts, POPUP_SHORTCUT_TARGETS} from './lib/popupShortcuts.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -76,6 +78,8 @@ export default class MaterialPanelExtension extends Extension {
         // Tray icons: use system AppIndicator / BetterTrayIcons.
         // We only host appindicator-* roles on our bar (statusAreaBridge + SNI strip).
 
+        this._registeredPopupKeybindings = new Set();
+        this._keybindingSettings = null;
         this._builder = new PanelBuilder(this._bridge, this.path);
         this._theme = new ThemeManager(this.path);
 
@@ -185,11 +189,14 @@ export default class MaterialPanelExtension extends Extension {
             case 'moduleSetting':
                 // Module-specific presentation settings are consumed live by
                 // their existing monitor callbacks; do not rebuild the panel.
+                if (changedKeys?.includes('popupShortcuts'))
+                    this._syncPopupShortcuts(newConfig);
                 return;
             case 'color':
                 this._applyTheme({rebuildPanel: true}); // debounced inside _schedulePanelRebuild
                 return;
             default:
+                this._removePopupKeybindings();
                 try {
                     this._applyTheme({rebuildPanel: true});
                 } catch (e) {
@@ -198,6 +205,74 @@ export default class MaterialPanelExtension extends Extension {
                 }
             }
         });
+    }
+
+    _removePopupKeybindings(clearSettings = false) {
+        for (const key of this._registeredPopupKeybindings ?? []) {
+            try { Main.wm.removeKeybinding(key); } catch (e) {}
+        }
+        this._registeredPopupKeybindings?.clear();
+        if (clearSettings && this._keybindingSettings) {
+            for (const target of POPUP_SHORTCUT_TARGETS) {
+                try { this._keybindingSettings.set_strv(target.key, []); } catch (e) {}
+            }
+        }
+    }
+
+    _syncPopupShortcuts(config) {
+        this._removePopupKeybindings();
+        if (!this._keybindingSettings) {
+            try { this._keybindingSettings = this.getSettings(); } catch (e) {
+                logError(e, 'material-panel: popup shortcut settings unavailable');
+                return;
+            }
+        }
+        const settings = this._keybindingSettings;
+        if (!settings)
+            return;
+        const shortcuts = normalizePopupShortcuts(config?.popupShortcuts);
+        const conflicts = findPopupShortcutConflicts(shortcuts);
+        const conflictedIds = new Set(conflicts.flatMap(group => group.ids));
+        for (const target of POPUP_SHORTCUT_TARGETS) {
+            try {
+                const accelerator = shortcuts[target.id];
+                settings.set_strv(target.key, accelerator ? [accelerator] : []);
+            } catch (e) {
+                logError(e, `material-panel: could not store shortcut for ${target.label}`);
+            }
+        }
+        for (const target of POPUP_SHORTCUT_TARGETS) {
+            const accelerator = shortcuts[target.id];
+            if (!accelerator)
+                continue;
+            if (conflictedIds.has(target.id)) {
+                debugLog(`popup shortcut skipped for ${target.label}: duplicate assignment`);
+                continue;
+            }
+            if (!this._builder?.hasModule(target.id)) {
+                debugLog(`popup shortcut not registered for unavailable module ${target.label}`);
+                continue;
+            }
+            try {
+                const registered = Main.wm.addKeybinding(
+                    target.key,
+                    settings,
+                    Meta.KeyBindingFlags.NONE,
+                    Shell.ActionMode.NORMAL,
+                    () => {
+                        if (!this._builder?.activateModule(target.id))
+                            debugLog(`popup shortcut target unavailable: ${target.label}`);
+                    },
+                );
+                if (registered === false) {
+                    debugLog(`popup shortcut not registered (GNOME conflict or unavailable): ${target.label}`);
+                    continue;
+                }
+                this._registeredPopupKeybindings.add(target.key);
+            } catch (e) {
+                logError(e, `material-panel: popup shortcut registration failed for ${target.label}`);
+            }
+        }
     }
 
     _syncClipboardHistory(config) {
@@ -392,6 +467,7 @@ export default class MaterialPanelExtension extends Extension {
             this._rebuildDebounceId = 0;
             try {
                 this._builder.render(this._config);
+                this._syncPopupShortcuts(this._config);
                 this._applyTrayOnly();
                 this._scheduleTrayRescan();
             } catch (e) {
@@ -425,6 +501,8 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        this._removePopupKeybindings(true);
+        this._keybindingSettings = null;
         // Release the session inhibitor when the extension is disabled.
         stopKeepAwake();
         setMixerControlReadyCallback(null);
