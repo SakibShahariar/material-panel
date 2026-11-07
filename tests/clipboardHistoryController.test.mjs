@@ -23,6 +23,7 @@ class FakeSelection {
 class FakeClipboard {
     constructor() { this.mimeTypes = ['text/plain']; this.text = ''; this.reads = 0; this.pending = []; }
     get_mimetypes() { return this.mimeTypes; }
+    set_text(_type, text) { this.text = text; }
     get_text(_type, callback) {
         this.reads++;
         if (this.pending.length)
@@ -152,4 +153,19 @@ test('teardown invalidates pending reads and never clears saved history', async 
     assert.equal(store.writes.length, 0);
     assert.equal(store.clears, 0);
     assert.equal(selection.listeners.size, 0);
+});
+
+test('copying a history entry writes it back without recapturing it', async () => {
+    const {controller, selection, clipboard, store} = setup();
+    await controller.enable();
+    clipboard.text = 'copy me back';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    const entry = controller.entries[0];
+    assert.equal(controller.copyEntry(entry.id), true);
+    assert.equal(clipboard.text, 'copy me back');
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(controller.entries.length, 1);
+    assert.equal(store.writes.length, 1);
 });

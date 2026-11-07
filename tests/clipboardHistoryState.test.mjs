@@ -72,3 +72,23 @@ test('versioned history round-trips and rejects unsupported or malformed formats
     assert.throws(() => parseClipboardHistory('[]'), /unsupported format/);
     assert.throws(() => parseClipboardHistory('not json'), SyntaxError);
 });
+
+test('normalization keeps the newest entries even when stored oldest-first', () => {
+    const entries = Array.from({length: CLIPBOARD_HISTORY_MAX_ENTRIES + 5}, (_, i) => ({
+        id: String(i), text: `ordered-${i}`, createdAt: now - (CLIPBOARD_HISTORY_MAX_ENTRIES + 5 - i),
+    }));
+    const result = normalizeClipboardHistory(entries, now);
+    assert.equal(result.length, CLIPBOARD_HISTORY_MAX_ENTRIES);
+    assert.equal(result[0].text, 'ordered-54');
+    assert.equal(result.at(-1).text, 'ordered-5');
+});
+
+test('user retention limits can only reduce the built-in safety bounds', () => {
+    const entries = Array.from({length: 12}, (_, i) => ({
+        id: String(i), text: `limited-${i}`, createdAt: now - i * 86400,
+    }));
+    const result = normalizeClipboardHistory(entries, now, {maxEntries: 4, maxAgeSeconds: 3 * 86400});
+    assert.equal(result.length, 4);
+    assert.equal(result[0].text, 'limited-0');
+    assert.equal(result.at(-1).text, 'limited-3');
+});
