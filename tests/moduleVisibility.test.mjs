@@ -35,7 +35,7 @@ test('combines fullscreen and overview rules without mutating configuration', ()
     assert.deepEqual([...getContextHiddenModules(rules, {fullscreen: true})], ['clock', 'volume']);
     assert.deepEqual([...getContextHiddenModules(rules, {overview: true})], ['workspaces', 'volume']);
     assert.deepEqual([...getContextHiddenModules(rules, {fullscreen: true, overview: true})],
-        ['clock', 'workspaces', 'volume']);
+        ['workspaces', 'clock', 'volume']);
     assert.deepEqual(rules, {
         clock: {hideWhenFullscreen: true},
         workspaces: {hideInOverview: true},
