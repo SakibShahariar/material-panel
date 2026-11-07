@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -83,14 +84,23 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
         };
 
+        const connectionStatus = new St.Label({
+            text: 'Checking connection…',
+            style_class: 'material-panel-network-popup-status',
+        });
+        try { connectionStatus.style = 'font-size: 11px; opacity: 0.7;'; } catch (e) {}
         const updateStatusIcon = () => {
             const conn = client.get_primary_connection();
             if (!conn) {
+                connectionStatus.text = 'Offline';
                 setIcon('network-offline');
                 setChipA11y(button, client.wireless_enabled ? 'Offline' : 'Wi-Fi disabled');
                 return;
             }
             const type = String(conn.get_connection_type() ?? '');
+            connectionStatus.text = type.includes('wireless') ? 'Wi-Fi connected'
+                : type.includes('ethernet') ? 'Wired connection'
+                    : 'Network connected';
             setIcon(networkIconForType(type, NM));
             if (type.includes('wireless'))
                 setChipA11y(button, 'Wi-Fi enabled, connected');
@@ -100,6 +110,16 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 setChipA11y(button, type ? type + ' connection active' : 'Network connected');
         };
         updateStatusIcon();
+        const networkTitle = new St.Label({text: 'Network', style_class: 'material-panel-cpu-popup-title'});
+        const {actor: networkHeader} = createPopupHeader({
+            titleActor: networkTitle,
+            statusActor: connectionStatus,
+            styleClass: 'material-panel-network-popup-header',
+            style: 'spacing: 8px; padding: 4px 2px;',
+        });
+        const networkHeaderItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        networkHeaderItem.add_child(networkHeader);
+        menu.addMenuItem(networkHeaderItem);
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
 
         const wifiToggle = new PopupMenu.PopupSwitchMenuItem('Wi-Fi', !!client.wireless_enabled);
