@@ -217,6 +217,19 @@ export default class MaterialPanelExtension extends Extension {
         const refresh = () => this._schedulePanelRebuild('context-visibility');
 
         try {
+            const monitor = Gio.NetworkMonitor.get_default();
+            const syncNetwork = () => {
+                this._builder?.setNetworkOffline(!monitor.network_available);
+                refresh();
+            };
+            syncNetwork();
+            const id = monitor.connect('network-changed', syncNetwork);
+            this._visibilitySignalConnections.push([monitor, id]);
+        } catch (e) {
+            logError(e, 'material-panel: could not watch network availability');
+        }
+
+        try {
             this._visibilityDndSettings = new Gio.Settings({
                 schema_id: 'org.gnome.desktop.notifications',
             });
@@ -280,6 +293,7 @@ export default class MaterialPanelExtension extends Extension {
         this._visibilityFocusSignalId = 0;
         this._visibilityDndSettings = null;
         this._builder?.setDoNotDisturbActive(false);
+        this._builder?.setNetworkOffline(false);
     }
 
     _removePopupKeybindings(clearSettings = false) {
