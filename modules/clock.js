@@ -610,15 +610,34 @@ export function buildClock(_extensionPath, scale = 1.0) {
         fillAgenda();
     };
 
-    const worldClockTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
-        if (menu.isOpen)
+    let worldClockTickId = 0;
+    const stopWorldClockTick = () => {
+        if (!worldClockTickId)
+            return;
+        stopWorldClockTick();
+        worldClockTickId = 0;
+    };
+    const startWorldClockTick = () => {
+        stopWorldClockTick();
+        if (!worldClocks.length)
+            return;
+        worldClockTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
+            if (!menu.isOpen) {
+                worldClockTickId = 0;
+                return GLib.SOURCE_REMOVE;
+            }
             refreshWorldClockRows();
-        return GLib.SOURCE_CONTINUE;
-    });
+            return GLib.SOURCE_CONTINUE;
+        });
+    };
 
     menu.connect('open-state-changed', (_m, open) => {
-        if (open)
+        if (open) {
             openRefresh();
+            startWorldClockTick();
+        } else {
+            stopWorldClockTick();
+        }
     });
 
     button.connect('clicked', () => {
