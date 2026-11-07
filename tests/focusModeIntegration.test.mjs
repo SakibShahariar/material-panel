@@ -40,5 +40,5 @@ test('Quick Settings exposes Focus Mode in Default, End-4, and Ryoku layouts', a
     assert.match(quickSettings, /menu\.addMenuItem\(wrapAsMenuItem\(qsSection\(null, grid\)\)\);\s+addFocusModeToggle\(menu\)/);
     const end4 = await source('../modules/quicksettingsEnd4.js');
     assert.match(end4, /addFocusModeToggle\(menu\)/);
-    assert.match(end4, /import \{wifiQsBlock, bluetoothTile, addFocusModeToggle\} from '\.\/quicksettings\.js'/);
+    assert.match(end4, /import \{wifiQsBlock, bluetoothTile\} from '\.\/quicksettings\.js'/);
 });
