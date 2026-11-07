@@ -3,8 +3,10 @@ import test from 'node:test';
 import {
     clearWorkspaceState,
     getWorkspaceDisplayMode,
+    getWorkspaceFilter,
     isWorkspaceScrollSwitchEnabled,
     setWorkspaceDisplayMode,
+    setWorkspaceFilter,
     setWorkspaceScrollSwitch,
 } from '../lib/workspaceState.js';
 
@@ -30,4 +32,15 @@ test('workspace preferences reset to defaults on extension teardown', () => {
     clearWorkspaceState();
     assert.equal(getWorkspaceDisplayMode(), 'auto');
     assert.equal(isWorkspaceScrollSwitchEnabled(), true);
+});
+
+
+test('workspace filter is normalized, shared, and reset on extension teardown', () => {
+    setWorkspaceFilter('urgent');
+    assert.equal(getWorkspaceFilter(), 'urgent');
+    setWorkspaceFilter('invalid');
+    assert.equal(getWorkspaceFilter(), 'all');
+    setWorkspaceFilter('occupied');
+    clearWorkspaceState();
+    assert.equal(getWorkspaceFilter(), 'all');
 });
