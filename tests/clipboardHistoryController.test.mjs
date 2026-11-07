@@ -184,3 +184,36 @@ test('retention settings prune the active history and persist the reduced set', 
     assert.equal(controller.entries[0].text, 'two');
     assert.equal(store.entries.length, 1);
 });
+
+test('resume during initial history load waits until loading completes before listening', async () => {
+    const {controller, selection, store} = setup();
+    let finishLoad;
+    store.load = () => new Promise(resolve => { finishLoad = resolve; });
+    const loading = controller.enable({paused: true});
+    controller.resume();
+    assert.equal(selection.listeners.size, 0);
+    finishLoad([]);
+    await loading;
+    assert.equal(selection.listeners.size, 1);
+});
+
+test('a pending clipboard read is discarded when recording is paused', async () => {
+    const {controller, selection, clipboard, store} = setup();
+    await controller.enable();
+    let finishRead;
+    clipboard.get_text = (_type, callback) => { finishRead = callback; };
+    selection.emit();
+    controller.pause();
+    finishRead(clipboard, 'late private sample');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(store.writes.length, 0);
+    assert.equal(controller.entries.length, 0);
+});
+
+test('disabling after history-load failure still attempts to erase the store', async () => {
+    const {controller, store} = setup();
+    store.load = async () => { throw new Error('synthetic storage failure'); };
+    await assert.rejects(controller.enable());
+    await controller.disable();
+    assert.equal(store.clears, 1);
+});
