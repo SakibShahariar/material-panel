@@ -16,6 +16,7 @@ import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
 import {getWeatherLocation, getWeatherLocations, getWeatherLocationIndex, setWeatherLocationIndex} from '../lib/weatherLocationState.js';
 import {setWeatherSummary, clearWeatherSummary} from '../lib/weatherSummaryState.js';
 import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -593,7 +594,13 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
     try { sourceLbl.style = 'font-size: 10px; opacity: 0.35; padding-top: 6px;'; } catch (e) {}
 
-    body.add_child(placeLbl);
+    const {actor: header} = createPopupHeader({
+        titleActor: placeLbl,
+        statusActor: sourceLbl,
+        styleClass: 'material-panel-weather-popup-header',
+        style: 'spacing: 4px; padding: 0 2px 4px 2px;',
+    });
+    body.add_child(header);
     body.add_child(hero);
     body.add_child(weatherState.actor);
     body.add_child(stats);
@@ -601,7 +608,6 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     body.add_child(hourlyScroll);
     body.add_child(dailyTitle);
     body.add_child(dailyCol);
-    body.add_child(sourceLbl);
 
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
