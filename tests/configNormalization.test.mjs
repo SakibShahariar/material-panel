@@ -111,5 +111,8 @@ test('context visibility rules default off and discard unknown or malformed modu
         clock: {hideWhenFullscreen: true},
         unknown: {hideInOverview: true},
         volume: null,
-    }), {clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false}});
+    }), {clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false}});
+    assert.deepEqual(normalizeModuleVisibilityRules({
+        network: {hideWhenOffline: true},
+    }), {network: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: true}});
 });
