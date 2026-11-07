@@ -841,3 +841,19 @@ Reviewed the corrective implementation commit after the test-only commits that w
 
 **Checkpoint SHA:** `d93799dffd562427cd3e4505dc2acee45635be5d`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Clipboard preview bidi safety, #254)
+
+Reviewed all commits after checkpoint `ffc5bd31aafbc452df21fe3cf4ef44b119f0a6c8` that implement and test the Unicode-safe preview.
+
+| Commit | Subject | CI result | Evidence / failure notes |
+|---|---|---|---|
+| `d93799dffd562427cd3e4505dc2acee45635be5d` | `fix(clipboard): restore Unicode-safe preview formatting (Refs #254)` | green | [42424500303](https://github.com/SakibShahariar/material-panel/actions/runs/42424500303) — 630/630 JavaScript and 22/22 Python tests. |
+| `40b08e50dc677c55a5bf1187f7f0d94e182e982e` | `fix(clipboard): neutralize bidi controls in previews (Refs #254)` | red | [42424632871](https://github.com/SakibShahariar/material-panel/actions/runs/42424632871) — over-escaped whitespace normalization prevented line-break collapsing and left multiple replacement spaces; corrected in the following commit. |
+| `bcbf5c339ff4f5c1807b052a997937a5717a9fec` | `test(clipboard): verify bidi-safe preview formatting (Refs #254)` | green | [42424659322](https://github.com/SakibShahariar/material-panel/actions/runs/42424659322) — syntax passed, **631/631 JavaScript tests**, and **22/22 Python tests**. |
+
+The preview now replaces bidi formatting controls with spaces before whitespace normalization, preserving visible Bengali/Arabic text while preventing invisible directional controls from reordering popup previews. Clipboard storage and copy behavior are unchanged.
+
+**Checkpoint SHA:** `bcbf5c339ff4f5c1807b052a997937a5717a9fec`  
+**Checkpoint date:** 2026-11-08
