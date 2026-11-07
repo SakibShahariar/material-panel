@@ -260,7 +260,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         const visibleIndices = filterWorkspaceIndices(
             workspaceFilter, workspaceStates, activeIndex);
         const snapshotKey = JSON.stringify([
-            end4, activeIndex, n, workspaceFilter, workspaceWindows,
+            end4, activeIndex, n, workspaceFilter, workspaceStates, workspaceWindows,
         ]);
         if (snapshotKey === lastSnapshotKey) {
             updateFocusRings(focusId, activeIndex);
