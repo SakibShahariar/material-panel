@@ -350,18 +350,17 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 stopCalendarWatch();
             });
 
-            const systemSummaryCard = new St.BoxLayout({
-                style_class: 'material-panel-control-center-card',
+            const systemSummaryContent = new St.BoxLayout({
                 orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
             });
-            systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
+            systemSummaryContent.style = 'spacing: 8px; padding: 14px;';
             const systemSummaryTitle = new St.Label({text: 'System overview'});
             systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
             const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
             systemSummaryGrid.layout_manager.column_spacing = 8;
             systemSummaryGrid.layout_manager.row_spacing = 6;
-            const makeSummaryMetric = title => {
+            const makeSummaryMetric = (title, showUsageBar = false) => {
                 const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
                 tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
                 const name = new St.Label({text: title});
@@ -370,12 +369,33 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 value.style = 'font-size: 14px; font-weight: 700;';
                 tile.add_child(name);
                 tile.add_child(value);
-                return {actor: tile, value};
+                let fill = null;
+                let track = null;
+                if (showUsageBar) {
+                    track = new St.Widget({width: 100, height: 4});
+                    track.style = 'background-color: rgba(127, 127, 127, 0.24); border-radius: 4px;';
+                    fill = new St.Widget({width: 0, height: 4});
+                    fill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;';
+                    track.add_child(fill);
+                    track.accessible_name = title + ' usage';
+                    tile.add_child(track);
+                }
+                return {
+                    actor: tile,
+                    value,
+                    update(number) {
+                        if (!fill)
+                            return;
+                        const valid = Number.isFinite(number);
+                        fill.set_width(valid ? Math.round(Math.max(0, Math.min(100, number))) : 0);
+                        track.accessible_name = valid ? title + ' usage ' + Math.round(number) + ' percent' : title + ' usage unavailable';
+                    },
+                };
             };
-            const cpuMetric = makeSummaryMetric('CPU');
-            const memoryMetric = makeSummaryMetric('Memory');
+            const cpuMetric = makeSummaryMetric('CPU', true);
+            const memoryMetric = makeSummaryMetric('Memory', true);
             const temperatureMetric = makeSummaryMetric('CPU temp');
-            const diskMetric = makeSummaryMetric('Disk');
+            const diskMetric = makeSummaryMetric('Disk', true);
             systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
             systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
             systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
@@ -383,9 +403,26 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
             systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
             systemSummaryMeta.clutter_text.line_wrap = true;
-            systemSummaryCard.add_child(systemSummaryTitle);
-            systemSummaryCard.add_child(systemSummaryGrid);
-            systemSummaryCard.add_child(systemSummaryMeta);
+            systemSummaryContent.add_child(systemSummaryTitle);
+            systemSummaryContent.add_child(systemSummaryGrid);
+            systemSummaryContent.add_child(systemSummaryMeta);
+            const systemSummaryCard = new St.Button({
+                style_class: 'material-panel-control-center-card',
+                reactive: true,
+                can_focus: true,
+                x_expand: true,
+                child: systemSummaryContent,
+            });
+            systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 0;`;
+            systemSummaryCard.accessible_name = 'System overview; open detailed System view';
+            systemSummaryCard.set_tooltip_text('Open detailed System view');
+            systemSummaryCard.connect('clicked', () => renderSection('system'));
+            const sampleAge = sampledAt => {
+                if (!(sampledAt > 0))
+                    return 'sample time unavailable';
+                const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
+                return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
+            };
             const renderSystemSummary = snapshot => {
                 const system = snapshot?.system;
                 const disk = snapshot?.disk;
@@ -393,17 +430,20 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
                 temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
                 diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
+                cpuMetric.update(system?.cpu);
+                memoryMetric.update(system?.memory);
+                diskMetric.update(disk?.pct);
+                const systemAge = system ? sampleAge(system.sampledAt) : null;
+                const diskAge = disk ? sampleAge(disk.sampledAt) : null;
                 if (!system) {
-                    systemSummaryMeta.text = 'Open System to collect the first CPU, memory and temperature readings';
+                    systemSummaryMeta.text = disk
+                        ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
+                        : 'Open System to collect CPU, memory and temperature readings';
                     return;
                 }
-                const ageMinutes = system.sampledAt > 0
-                    ? Math.max(0, Math.floor((GLib.get_monotonic_time() - system.sampledAt) / 60000000)) : null;
-                const age = ageMinutes == null ? 'sample time unavailable'
-                    : ageMinutes < 1 ? 'sampled just now' : `sampled ${ageMinutes} min ago`;
                 systemSummaryMeta.text = disk
-                    ? `Last System sample ${age} · Disk uses the existing Disk module sample`
-                    : `Last System sample ${age} · Enable the Disk module for storage usage`;
+                    ? `System ${systemAge} · Disk ${diskAge}`
+                    : `System ${systemAge} · Enable the Disk module for storage usage`;
             };
             const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
             systemSummaryCard.connect('destroy', stopSystemSummaryWatch);

@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `8e8aad8a7566b46c4670fd09c5fe37116811eb82`
+- Checkpoint SHA: `8828979a74521358efbd562edf627da021977792`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -411,3 +411,15 @@ The responsive Home layout commit had one red CI result caused by an overly spec
 | `8e8aad8a7566b46c4670fd09c5fe37116811eb82` | `test(control-center): align Home bento source assertion (Refs #121)` | green | 2026-11-07 | Workflow [42391056149](https://github.com/SakibShahariar/material-panel/actions/runs/42391056149) completed successfully; the corrected assertion matches the actual `let` declaration/assignment. |
 
 **Unresolved validation:** The Home bento layout still requires live GNOME visual checks at narrow widths and scaled displays. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (Home System summary)
+
+The Home System overview change had one red CI result because the earlier responsive-layout test still asserted the old four-card grid after a fifth System card was added. The implementation syntax checks passed and the failure was limited to that stale source assertion. The follow-up updated the expected System/Calendar two-column placement.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `94dd34a7823ece90f5ffc2f7c2049a8d2259b883` | `feat(control-center): add shared Home system overview (Refs #121, #123)` | red | 2026-11-07 | Workflow [42391365580](https://github.com/SakibShahariar/material-panel/actions/runs/42391365580), job [128459450430](https://github.com/SakibShahariar/material-panel/actions/runs/42391365580). One source assertion expected the previous Calendar full-width placement; the new System card correctly occupies the adjacent cell. 518 other tests passed. |
+| `8828979a74521358efbd562edf627da021977792` | `test(control-center): cover Home system summary grid placement (Refs #121)` | green | 2026-11-07 | Workflow [42391434846](https://github.com/SakibShahariar/material-panel/actions/runs/42391434846) completed successfully with the updated two-column placement assertions. |
+
+**Unresolved validation:** System summary sample freshness, usage bars, and the System shortcut still require live GNOME interaction/visual checks. #121 remains open.
