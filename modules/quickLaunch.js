@@ -27,7 +27,7 @@ function notifyLaunchFailure(entry, error) {
 }
 
 function launchEntry(entry) {
-    launchQuickLaunchEntry(entry, {
+    const launched = launchQuickLaunchEntry(entry, {
         getDesktopAppInfo: id => Gio.DesktopAppInfo.new(id),
         parseCommand: command => commandArgv(command),
         // Parsed argv is passed directly to GSubprocess; no shell is created.
@@ -66,6 +66,9 @@ function launchEntry(entry) {
         },
         onError: (failedEntry, error) => notifyLaunchFailure(failedEntry, error),
     });
+    if (entry.type === 'app' && launched)
+        Main.notify('Quick launch completed', entry.name);
+    return launched;
 }
 
 export function buildQuickLaunchSection() {
