@@ -5,7 +5,7 @@ import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 test('adaptive polling starts at its configured base interval', () => {
     const schedule = createAdaptivePollSchedule({
-    assert.match(source, /const baseIntervalMs = Math.max\(1, Number\(intervalSec\) \|\| 1\) \* 1000/);
+        baseIntervalMs: 1000,
         maxIntervalMs: 4000,
         jitterRatio: 0,
     });
@@ -86,7 +86,7 @@ test('invalid timing options are normalized to safe positive bounds', () => {
 test('network monitor reschedules adaptively while preserving its caller base interval', async () => {
     const source = await readFile(new URL('../lib/netSpeedMonitor.js', import.meta.url), 'utf8');
     assert.match(source, /createAdaptivePollSchedule/);
-    assert.match(source, /baseIntervalMs: Math\.max\(1, Number\(intervalSec\) \|\| 1\) \* 1000/);
+    assert.match(source, /const baseIntervalMs = Math\.max\(1, Number\(intervalSec\) \|\| 1\) \* 1000/);
     assert.match(source, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
     assert.match(source, /adaptiveSchedule\.nextDelay\(activeTraffic\)/);
     assert.match(source, /down > 0\.5 \|\| up > 0\.5/);
