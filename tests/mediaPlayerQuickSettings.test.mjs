@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 test('Quick Settings media row does not reference controls owned by the full media popup', async () => {
     const source = await readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8');
-    const start = source.indexOf('export function buildMediaPlayerRow()');
+    const start = source.indexOf('export function buildMediaPlayerRow(');
     const end = source.indexOf('/** Panel chip + popup controls */', start);
     assert.ok(start >= 0 && end > start);
     const row = source.slice(start, end);
@@ -23,7 +23,7 @@ test('Quick Settings media row does not reference controls owned by the full med
 
 test('Quick Settings media row keeps player controls connected to the active MPRIS player', async () => {
     const source = await readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8');
-    const start = source.indexOf('export function buildMediaPlayerRow()');
+    const start = source.indexOf('export function buildMediaPlayerRow(');
     const end = source.indexOf('/** Panel chip + popup controls */', start);
     const row = source.slice(start, end);
     assert.match(row, /prevBtn\.connect\('clicked', \(\) => ctl\?\.previous\(\)\)/);
