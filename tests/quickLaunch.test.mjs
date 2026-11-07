@@ -14,6 +14,20 @@ test('keeps valid application and command entries in display order', () => {
     ]);
 });
 
+test('preserves valid symbolic icon names and drops paths or malformed icon values', () => {
+    assert.deepEqual(normalizeQuickLaunchEntries([
+        {id: 'valid', type: 'app', target: 'org.gnome.Terminal.desktop', icon: 'utilities-terminal-symbolic'},
+        {id: 'path', type: 'app', target: 'org.gnome.Terminal.desktop', icon: '/tmp/icon.svg'},
+        {id: 'uri', type: 'app', target: 'org.gnome.Terminal.desktop', icon: 'file:///tmp/icon.svg'},
+        {id: 'control', type: 'app', target: 'org.gnome.Terminal.desktop', icon: 'bad\\nicon'},
+    ]), [
+        {id: 'valid', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'org.gnome.Terminal.desktop', icon: 'utilities-terminal-symbolic'},
+        {id: 'path', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'org.gnome.Terminal.desktop'},
+        {id: 'uri', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'org.gnome.Terminal.desktop'},
+        {id: 'control', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'org.gnome.Terminal.desktop'},
+    ]);
+});
+
 test('drops malformed entries, duplicate IDs, invalid app IDs, and control characters', () => {
     assert.deepEqual(normalizeQuickLaunchEntries([
         null,
