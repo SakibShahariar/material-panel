@@ -5,7 +5,7 @@ import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 test('adaptive polling starts at its configured base interval', () => {
     const schedule = createAdaptivePollSchedule({
-        baseIntervalMs: 1000,
+    assert.match(source, /const baseIntervalMs = Math.max\(1, Number\(intervalSec\) \|\| 1\) \* 1000/);
         maxIntervalMs: 4000,
         jitterRatio: 0,
     });
