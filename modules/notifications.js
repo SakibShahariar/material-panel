@@ -17,6 +17,7 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {filterNotifications, groupNotificationsByApp, hasUnreadNotificationState, notificationAppNames} from '../lib/notificationFilters.js';
 import {getNotificationActions, activateNotificationAction} from '../lib/notificationActions.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 const MAX_SHOWN = 60;
 const PANEL_MIN_W = 340;
@@ -246,15 +247,6 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     // ── Header ──
-    const header = new St.BoxLayout({
-        style_class: 'material-panel-nc-header',
-        x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    try {
-        header.style = 'spacing: 8px; padding: 12px 14px 8px 14px;';
-    } catch (e) {}
-
     const headerTitle = new St.Label({
         text: 'Notifications',
         style_class: 'material-panel-nc-title',
@@ -278,8 +270,12 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     } catch (e) {}
     wireChipPress(clearBtn, {stickyUntilLeave: true});
 
-    header.add_child(headerTitle);
-    header.add_child(clearBtn);
+    const {actor: header} = createPopupHeader({
+        titleActor: headerTitle,
+        actions: [clearBtn],
+        styleClass: 'material-panel-nc-header',
+        style: 'spacing: 8px; padding: 12px 14px 8px 14px;',
+    });
     root.add_child(header);
 
     // ── Search ──
