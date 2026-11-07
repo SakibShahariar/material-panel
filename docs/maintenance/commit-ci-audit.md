@@ -876,3 +876,9 @@ Reviewed the latest bidi-range regression test commit after checkpoint `bcbf5c33
 The persisted `layoutStyle` value was only defaulted when null. Unsupported strings could therefore leak into shared layout state and theme generation, where different consumers interpreted them inconsistently. Exported the existing supported-style normalizer and applied it consistently when loading and saving configuration. Added coverage for supported values, malformed values, and both save paths.
 
 **Commit:** pending CI for this update.
+
+
+## Follow-up: layout-style normalization test setup, #132
+
+- `358bbaf73e062ee0f9fc7e198f32d7cea913e1bd` — implementation and regression tests. CI [42425084799](https://github.com/SakibShahariar/material-panel/actions/runs/42425084799) failed one new test because its source-inspection assertion omitted the `readFile` import. Syntax passed; 634/635 JavaScript tests passed. The production normalizer and configuration wiring tests passed.
+- The next commit adds the missing test-only import; it does not change production behavior.

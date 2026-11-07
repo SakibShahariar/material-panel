@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
 import {clearLayoutStyle, getLayoutStyle, setLayoutStyle} from '../lib/layoutStyleState.js';
 
 test('layout style defaults to the default layout and tracks configuration updates', () => {
