@@ -1,4 +1,5 @@
 import {getThemeColor} from '../lib/themeColorState.js';
+import {ConfigStore} from '../lib/configStore.js';
 import St from 'gi://St';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 import {setChipA11y} from '../lib/a11y.js';
@@ -67,6 +68,36 @@ function getQsExpandController() {
 // A real quick-settings panel: one button in the bar opens a small floating
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
+
+function addFocusModeToggle(menu) {
+    const item = new PopupMenu.PopupSwitchMenuItem('Focus Mode', false);
+    menu.addMenuItem(item);
+    const store = new ConfigStore();
+    let userChanged = false;
+    let saveQueue = Promise.resolve();
+
+    store.loadAsync().then(config => {
+        if (!userChanged)
+            item.setToggleState(config.focusModeEnabled === true);
+    }).catch(error => {
+        logError(error, 'material-panel: failed to load Focus Mode state');
+    });
+
+    item.connect('toggled', (_item, enabled) => {
+        userChanged = true;
+        saveQueue = saveQueue.then(async () => {
+            const config = await store.loadAsync();
+            config.focusModeEnabled = enabled === true;
+            await store.saveAsync(config);
+        }).catch(error => {
+            logError(error, 'material-panel: failed to save Focus Mode state');
+            try {
+                Main.notifyError('Focus Mode could not be changed',
+                    'Check Material Panel configuration permissions and try again.');
+            } catch (notifyError) {}
+        });
+    });
+}
 
 function isQuietTileStyle(id) {
     return [
@@ -2332,6 +2363,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     if (ryoku) {
         try { menu.actor.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}
         try { menu.box.add_style_class_name('material-panel-qs-ryoku'); } catch (e) {}
+        addFocusModeToggle(menu);
         fillRyokuQsMenu(menu, {
             volumeSliderRow,
             brightnessSliderRow,
@@ -2498,6 +2530,7 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         }));
     }
     menu.addMenuItem(wrapAsMenuItem(qsSection(null, grid)));
+    addFocusModeToggle(menu);
 
     // Expand panels under grid (not part of cell size)
     if (btTile?.devicePanel) {
