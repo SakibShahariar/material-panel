@@ -81,6 +81,7 @@ export default class MaterialPanelExtension extends Extension {
         this._registeredPopupKeybindings = new Set();
         this._keybindingSettings = null;
         this._builder = new PanelBuilder(this._bridge, this.path);
+        this._watchContextVisibility();
         this._theme = new ThemeManager(this.path);
 
         this._applyTheme({rebuildPanel: true});
@@ -205,6 +206,60 @@ export default class MaterialPanelExtension extends Extension {
                 }
             }
         });
+    }
+
+    _watchContextVisibility() {
+        this._visibilitySignalConnections = [];
+        this._visibilityFocusWindow = null;
+        this._visibilityFocusSignalId = 0;
+        const refresh = () => this._schedulePanelRebuild('context-visibility');
+
+        try {
+            for (const signal of ['showing', 'hiding']) {
+                const id = Main.overview.connect(signal, refresh);
+                this._visibilitySignalConnections.push([Main.overview, id]);
+            }
+        } catch (e) {
+            logError(e, 'material-panel: could not watch Overview visibility');
+        }
+
+        const connectFocusedWindow = () => {
+            if (this._visibilityFocusWindow && this._visibilityFocusSignalId) {
+                try { this._visibilityFocusWindow.disconnect(this._visibilityFocusSignalId); } catch (e) {}
+            }
+            this._visibilityFocusWindow = null;
+            this._visibilityFocusSignalId = 0;
+            try {
+                const window = global.display.focus_window;
+                if (!window)
+                    return;
+                this._visibilityFocusWindow = window;
+                this._visibilityFocusSignalId = window.connect('notify::fullscreen', refresh);
+            } catch (e) {}
+        };
+
+        try {
+            const id = global.display.connect('notify::focus-window', () => {
+                connectFocusedWindow();
+                refresh();
+            });
+            this._visibilitySignalConnections.push([global.display, id]);
+        } catch (e) {
+            logError(e, 'material-panel: could not watch focused window changes');
+        }
+        connectFocusedWindow();
+    }
+
+    _unwatchContextVisibility() {
+        for (const [object, id] of this._visibilitySignalConnections ?? []) {
+            try { object.disconnect(id); } catch (e) {}
+        }
+        this._visibilitySignalConnections = [];
+        if (this._visibilityFocusWindow && this._visibilityFocusSignalId) {
+            try { this._visibilityFocusWindow.disconnect(this._visibilityFocusSignalId); } catch (e) {}
+        }
+        this._visibilityFocusWindow = null;
+        this._visibilityFocusSignalId = 0;
     }
 
     _removePopupKeybindings(clearSettings = false) {
@@ -503,6 +558,7 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     disable() {
+        this._unwatchContextVisibility();
         this._removePopupKeybindings(true);
         this._keybindingSettings = null;
         // Release the session inhibitor when the extension is disabled.
