@@ -125,12 +125,26 @@ export function buildQuickLaunchSection() {
             x_expand: true,
             style_class: 'material-panel-qs-quick-launch-button',
         });
-        button.set_child(new St.Label({
+        const content = new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            style: 'spacing: 8px;',
+        });
+        if (entry.icon) {
+            content.add_child(new St.Icon({
+                icon_name: entry.icon,
+                icon_size: 16,
+                y_align: Clutter.ActorAlign.CENTER,
+            }));
+        }
+        content.add_child(new St.Label({
             text: entry.name,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
             style: 'font-size: 12px; font-weight: 600;',
         }));
+        button.set_child(content);
         try {
             const surface = getThemeColor('qsSurface', 'rgba(56, 59, 76, 0.9)');
             button.style = `background-color: ${surface}; border-radius: 14px; padding: 9px 10px; min-height: 42px;`;
