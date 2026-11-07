@@ -14,7 +14,8 @@ test('workspace filters are applied to original workspace indices before renderi
 
 test('occupied and urgent state are derived from current non-minimized workspace windows', () => {
     assert.ok(source.includes('occupied: liveWindows.length > 0'));
-    assert.ok(source.includes('urgent: liveWindows.some(_isUrgentWindow)'));
+    assert.ok(source.includes('urgent: attentionWindows.some(_isUrgentWindow)'));
+    assert.ok(source.includes('_windowsOnWorkspace(ws, i, {includeMinimized: true})'));
     assert.ok(source.includes('win.demands_attention === true || win.urgent === true'));
 });
 
