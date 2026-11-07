@@ -79,9 +79,9 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     attachPopupDismiss(menu, button);
 
     const monitor = Main.layoutManager.primaryMonitor;
-    const availableWidth = Math.max(300, (monitor?.width ?? 900) - 32);
+    const availableWidth = Math.max(240, (monitor?.width ?? 900) - 32);
     const width = Math.min(520, availableWidth);
-    const maxHeight = Math.max(280, Math.floor((monitor?.height ?? 800) * 0.78));
+    const maxHeight = Math.max(160, Math.floor((monitor?.height ?? 800) * 0.78));
     const compact = width < 420;
 
     const frame = new St.BoxLayout({
@@ -197,8 +197,12 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
 
     renderSection('home');
     menu.connect('open-state-changed', (_menu, open) => {
-        if (open)
+        if (open) {
             renderSection('home');
+        } else {
+            clearActors(page);
+            focusModeItem.visible = false;
+        }
     });
     button.connect('clicked', () => {
         if (menu.isOpen)
