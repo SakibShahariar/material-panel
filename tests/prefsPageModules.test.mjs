@@ -75,6 +75,8 @@ test('PanelBuilder merges context rules with manual visibility and Focus Mode', 
     assert.match(source, /fullscreen: focusedWindowFullscreen/);
     assert.match(source, /overview: overviewVisible/);
     assert.match(source, /dnd: this\._dndActive/);
+    assert.match(source, /offline: this\._offline/);
+    assert.match(source, /setNetworkOffline\(offline\)/);
     assert.match(source, /hiddenModules\.add\(id\)/);
 });
 
