@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
@@ -87,7 +88,12 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     const rootL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const homeL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const selectedL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
-    body.add_child(title);
+    const {actor: popupHeader} = createPopupHeader({
+        titleActor: title,
+        styleClass: 'material-panel-disk-popup-header',
+        style: 'spacing: 8px; padding: 4px 2px;',
+    });
+    body.add_child(popupHeader);
     body.add_child(rootL);
     body.add_child(homeL);
     body.add_child(selectedL);
