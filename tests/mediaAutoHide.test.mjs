@@ -38,7 +38,7 @@ test('media chip hides only when configured and reappears when an MPRIS player i
     assert.match(extension, /setMediaAutoHide\(newConfig\.autoHideMedia === true\)/);
     assert.match(media, /const autoHideWhenInactive = isMediaAutoHideEnabled\(\)/);
     assert.match(media, /button\.visible = !autoHideWhenInactive/);
-    assert.match(media, /button\.visible = true;\s*bindPlayer\(busName/);
+    assert.match(media, /row\.visible = true;\s*bindPlayer\(busName/);
     assert.match(media, /noMediaState\.setMessage\('No media player is active[\s\S]*?controls\.visible = false;\s*progressRow\.visible = false/);
     assert.match(media, /noMediaState\.setMessage\(''\);\s*controls\.visible = true;\s*progressRow\.visible = true/);
     assert.match(media, /button\.visible = !autoHideWhenInactive;\s*durationUs = 0/);
