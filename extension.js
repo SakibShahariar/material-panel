@@ -1,4 +1,5 @@
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -212,7 +213,24 @@ export default class MaterialPanelExtension extends Extension {
         this._visibilitySignalConnections = [];
         this._visibilityFocusWindow = null;
         this._visibilityFocusSignalId = 0;
+        this._visibilityDndSettings = null;
         const refresh = () => this._schedulePanelRebuild('context-visibility');
+
+        try {
+            this._visibilityDndSettings = new Gio.Settings({
+                schema_id: 'org.gnome.desktop.notifications',
+            });
+            const syncDnd = () => {
+                const active = !this._visibilityDndSettings.get_boolean('show-banners');
+                this._builder?.setDoNotDisturbActive(active);
+                refresh();
+            };
+            syncDnd();
+            const id = this._visibilityDndSettings.connect('changed::show-banners', syncDnd);
+            this._visibilitySignalConnections.push([this._visibilityDndSettings, id]);
+        } catch (e) {
+            logError(e, 'material-panel: could not watch Do Not Disturb state');
+        }
 
         try {
             for (const signal of ['showing', 'hiding']) {
@@ -260,6 +278,8 @@ export default class MaterialPanelExtension extends Extension {
         }
         this._visibilityFocusWindow = null;
         this._visibilityFocusSignalId = 0;
+        this._visibilityDndSettings = null;
+        this._builder?.setDoNotDisturbActive(false);
     }
 
     _removePopupKeybindings(clearSettings = false) {
