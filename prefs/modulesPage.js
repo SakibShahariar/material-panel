@@ -86,6 +86,64 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
     }
     
 
+    // Context-aware visibility remains opt-in and independent from manual visibility and Focus Mode.
+    const contextVisibilityGroup = new Adw.PreferencesGroup({
+        title: 'Context-aware Visibility',
+        description: 'Optionally hide selected modules while a window is fullscreen or the Overview is open. Both rules are off by default.',
+    });
+    modulesPage.add(contextVisibilityGroup);
+    if (!config.moduleVisibilityRules || typeof config.moduleVisibilityRules !== 'object')
+        config.moduleVisibilityRules = {};
+    for (const module of ALL_MODULES) {
+        const rule = config.moduleVisibilityRules[module.id] ?? {
+            hideWhenFullscreen: false,
+            hideInOverview: false,
+        };
+        const fullscreenRow = new Adw.ActionRow({
+            title: `${module.name} · Hide in fullscreen`,
+            subtitle: 'Hide while the focused window is fullscreen',
+        });
+        const fullscreenSwitch = new Gtk.Switch({
+            active: rule.hideWhenFullscreen === true,
+            valign: Gtk.Align.CENTER,
+        });
+        fullscreenSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            rule.hideWhenFullscreen = fullscreenSwitch.active;
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        fullscreenRow.add_suffix(fullscreenSwitch);
+        fullscreenRow.activatable_widget = fullscreenSwitch;
+        contextVisibilityGroup.add(fullscreenRow);
+
+        const overviewRow = new Adw.ActionRow({
+            title: `${module.name} · Hide in Overview`,
+            subtitle: 'Hide while GNOME Overview is open',
+        });
+        const overviewSwitch = new Gtk.Switch({
+            active: rule.hideInOverview === true,
+            valign: Gtk.Align.CENTER,
+        });
+        overviewSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            rule.hideInOverview = overviewSwitch.active;
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        overviewRow.add_suffix(overviewSwitch);
+        overviewRow.activatable_widget = overviewSwitch;
+        contextVisibilityGroup.add(overviewRow);
+    }
+
     // Status indicators are informational; their existing modules retain control ownership.
     const statusPreferencesGroup = new Adw.PreferencesGroup({
         title: 'System Status Indicators',
