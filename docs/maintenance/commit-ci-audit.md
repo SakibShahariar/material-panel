@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `fb07322da00ce602ae086ad1b24c994815028086`
+- Checkpoint SHA: `f1169feabcae0ff3762051bdf558097965977b96`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -456,3 +456,20 @@ The Home sample-time refinement had one red CI result because a source test stil
 | `fb07322da00ce602ae086ad1b24c994815028086` | `feat(control-center): add independent Home card visibility (Refs #121)` | green | 2026-11-07 | Workflow [42392223479](https://github.com/SakibShahariar/material-panel/actions/runs/42392223479) completed successfully. Weather/Calendar visibility preferences, destruction of hidden cards and dynamic Home-grid reflow are covered by regression tests. |
 
 **Unresolved validation:** Weather/Calendar optional-card behavior and responsive reflow still require live GNOME visual checks. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (System Status Indicators and multi-location Weather)
+
+The commits newer than the previous checkpoint `fb07322da00ce602ae086ad1b24c994815028086` were checked against their associated GitHub Actions runs. One initial Weather implementation run failed only because two source assertions still expected the former no-queue refresh guard and direct cache-apply call. The follow-up updates those assertions and adds per-location error context. The original red result is retained below.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `669a3f45077372736cf2374e4b7d0dd83d7a7403` | `feat(panel): add contextual system status indicators (Refs #251)` | green | 2026-11-07 | Workflow [42393461269](https://github.com/SakibShahariar/material-panel/actions/runs/42393461269) completed successfully; syntax, JavaScript regression, and calendar regression steps all passed. |
+| `e1a187b4458b11d3a6cc305c99bc073f69caca32` | `feat(weather): add saved multi-location forecasts (Refs #143)` | red | 2026-11-07 | Workflow [42394450907](https://github.com/SakibShahariar/material-panel/actions/runs/42394450907) passed syntax but failed two existing source assertions in `tests/weatherVisibility.test.mjs`: the tests expected `if (destroyed || fetchInFlight)` and direct `apply(cached.data, cached.savedAt)`. The implementation intentionally queues a refresh after a location switch and guards cached application by request generation. These were stale test expectations, not syntax failures. |
+| `f1169feabcae0ff3762051bdf558097965977b96` | `fix(weather): clarify location errors and refresh tests (Refs #143)` | green | 2026-11-07 | Workflow [42394597174](https://github.com/SakibShahariar/material-panel/actions/runs/42394597174) completed successfully; syntax, JavaScript regression, and calendar regression steps all passed. Also identifies the selected city in a failed forecast state. |
+
+**Unresolved validation:** #143 remains Category B and open for live GNOME popup/provider/timezone/switching/rate-limit checks. #251 remains open for live GNOME state-transition and Shell-version checks. #121, #122, #123 and #254 retain their previously documented live-validation requirements.
+
+- Checkpoint SHA: `f1169feabcae0ff3762051bdf558097965977b96`
+- Checkpoint date: 2026-11-07
+- Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
