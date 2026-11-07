@@ -30,6 +30,7 @@ import {
     meetingUrl,
 } from '../lib/calendarEvents.js';
 import {safeEventUrl} from '../lib/safeEventUrl.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 const CELL = 36;
 
@@ -339,7 +340,13 @@ export function buildClock(_extensionPath, scale = 1.0) {
     try {
         hint.style = 'font-size: 10px; opacity: 0.4; padding-top: 6px;';
     } catch (e) {}
-    body.add_child(hint);
+    const headerTitle = new St.Label({text: 'Calendar'});
+    headerTitle.style = 'font-size: 13px; font-weight: 700;';
+    hint.style = 'font-size: 11px; opacity: 0.7;';
+    const header = createPopupHeader({titleActor: headerTitle, statusActor: hint});
+    const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    headerItem.add_child(header.actor);
+    menu.addMenuItem(headerItem);
 
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
