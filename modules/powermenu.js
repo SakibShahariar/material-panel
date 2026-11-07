@@ -10,6 +10,7 @@ import {iconPath} from '../lib/iconTheme.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {runPowerAction} from '../lib/powerAction.js';
 import {setChipA11y} from '../lib/a11y.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 // Uses loginctl/systemctl via spawn rather than talking to logind's D-Bus
 // interface directly - much less risk of a subtly wrong method signature,
@@ -40,6 +41,13 @@ export function buildPowerMenu() {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
+
+    const headerTitle = new St.Label({text: 'Power'});
+    headerTitle.style = 'font-size: 13px; font-weight: 700;';
+    const header = createPopupHeader({titleActor: headerTitle});
+    const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    headerItem.add_child(header.actor);
+    menu.addMenuItem(headerItem);
 
     for (const {label, argv} of ACTIONS) {
         const item = new PopupMenu.PopupMenuItem(label);
