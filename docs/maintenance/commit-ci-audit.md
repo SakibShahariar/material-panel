@@ -647,3 +647,26 @@ Reviewed all commits after checkpoint `aec4c3054fb3ce65dfdda99d33d061d366209ee4`
 **Checkpoint SHA:** `21144e16fd62f8599bd9aaf00a09ebbd1b4eb406`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review commits after this checkpoint, including the related README/ledger documentation commit.
+
+
+## Incremental review: 2026-11-08 (Quick Launch label and command validation)
+
+Ten commits were made directly on `main` for issue #71 after checkpoint `36e30deea92452f6543a1298ea6faf584d46243f`. The work sanitizes imported labels, hardens add/edit command validation, rejects duplicate edited commands, and truncates labels without splitting Unicode code points.
+
+| Commit | Subject | CI | Result |
+|---|---|---|---|
+| `d75e702805c759b5f66d711cb7d07f3e353b880d` | `fix(quick-launch): sanitize configured shortcut labels (Refs #71)` | [42418818044](https://github.com/SakibShahariar/material-panel/actions/runs/42418818044) | red: sanitizer regex over-escaped |
+| `f2d6e68e05a6678af7610bd088a5f32ea492860c` | `test(quick-launch): cover shortcut label sanitization (Refs #71)` | [42418827751](https://github.com/SakibShahariar/material-panel/actions/runs/42418827751) | red: inherited sanitizer bug and escaped test input |
+| `d842f37d52a76b69617ed245632ac655d01964d0` | `fix(quick-launch): validate edited command entries (Refs #71)` | [42418852984](https://github.com/SakibShahariar/material-panel/actions/runs/42418852984) | red: inherited sanitizer bug |
+| `bcae49411dcba6ba23228d95e2e8164f1eb9225f` | `test(quick-launch): cover command editor validation (Refs #71)` | [42418861552](https://github.com/SakibShahariar/material-panel/actions/runs/42418861552) | red: inherited sanitizer bug |
+| `a486b69bb88f154ddc031a7f8d763f1f6f543505` | `fix(quick-launch): correct label sanitizer regex (Refs #71)` | [42418932901](https://github.com/SakibShahariar/material-panel/actions/runs/42418932901) | red: test input still used literal escapes |
+| `766c830e61ae6de9db86d661fa0b973215588c54` | `test(quick-launch): use real control characters in label cases (Refs #71)` | [42418968650](https://github.com/SakibShahariar/material-panel/actions/runs/42418968650) | green |
+| `6633e3c00e4cef07acfb15d7b1dec9f119af0458` | `test(quick-launch): make command validation assertion robust (Refs #71)` | [42418988920](https://github.com/SakibShahariar/material-panel/actions/runs/42418988920) | red: test assertion over-escaped |
+| `fc7cfda3c5a71df1eaafa61f869cc3cf758950e9` | `test(quick-launch): assert control-character guard directly (Refs #71)` | [42419054166](https://github.com/SakibShahariar/material-panel/actions/runs/42419054166) | green; 604/604 JavaScript and 22/22 Python tests |
+| `7e44e4687f019e21283a3a58c15ceda4b15a1bde` | `fix(quick-launch): preserve Unicode labels when truncating (Refs #71)` | [42419132455](https://github.com/SakibShahariar/material-panel/actions/runs/42419132455) | green; 604/604 JavaScript and 22/22 Python tests |
+| `4ce7464c3aa5347c3513d0282ba4fa87b3ca5d56` | `test(quick-launch): cover Unicode-safe label truncation (Refs #71)` | [42419142959](https://github.com/SakibShahariar/material-panel/actions/runs/42419142959) | green; 605/605 JavaScript and 22/22 Python tests |
+
+All red runs were inspected and recorded, not omitted. The final state is green. Issue #71 was updated with implementation details and remaining work; it remains open because toggle-state semantics are not yet defined and live GNOME validation is outstanding.
+
+**Checkpoint SHA:** `4ce7464c3aa5347c3513d0282ba4fa87b3ca5d56`  
+**Checkpoint date:** 2026-11-08
