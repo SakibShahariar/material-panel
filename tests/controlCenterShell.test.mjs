@@ -26,6 +26,9 @@ test('Control Center provides Home, Media and System navigation with bounded scr
     assert.match(module, /new St\.ScrollView/);
     assert.match(module, /scroll\.set_policy\(St\.PolicyType\.NEVER, St\.PolicyType\.AUTOMATIC\)/);
     assert.match(module, /const maxHeight = Math\.max\(160, Math\.floor\(\(monitor\?\.height \?\? 800\) \* 0\.78\)\)/);
+    assert.match(module, /function popupArrowSide\(\)/);
+    assert.match(module, /return y > monitor\.y \+ monitor\.height \/ 2 \? St\.Side\.BOTTOM : St\.Side\.TOP/);
+    assert.match(module, /return x > monitor\.x \+ monitor\.width \/ 2 \? St\.Side\.LEFT : St\.Side\.RIGHT/);
     assert.match(module, /navButton\.connect\('clicked', \(\) => renderSection\(section\.id\)\)/);
 });
 
