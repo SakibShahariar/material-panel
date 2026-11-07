@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getQuickLaunchEntries} from '../lib/quickLaunchState.js';
+import {launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
 
 function commandArgv(command) {
     const [ok, argv] = GLib.shell_parse_argv(command);
@@ -25,23 +26,14 @@ function notifyLaunchFailure(entry, error) {
 }
 
 function launchEntry(entry) {
-    try {
-        if (entry.type === 'app') {
-            const app = Gio.DesktopAppInfo.new(entry.target);
-            if (!app)
-                throw new Error('This application is no longer installed.');
-            if (!app.launch([], null))
-                throw new Error('GNOME could not start this application.');
-            return;
-        }
-
-        // Parse into argv and spawn directly. Never invoke a shell: pipes,
-        // redirects, substitutions, and shell startup files are not executed.
-        const argv = commandArgv(entry.target);
-        GLib.spawn_async(null, argv, null, GLib.SpawnFlags.SEARCH_PATH, null);
-    } catch (error) {
-        notifyLaunchFailure(entry, error);
-    }
+    launchQuickLaunchEntry(entry, {
+        getDesktopAppInfo: id => Gio.DesktopAppInfo.new(id),
+        parseCommand: command => commandArgv(command),
+        // Parsed argv is passed straight to GLib; no shell is created.
+        spawnCommand: argv => GLib.spawn_async(
+            null, argv, null, GLib.SpawnFlags.SEARCH_PATH, null),
+        onError: (failedEntry, error) => notifyLaunchFailure(failedEntry, error),
+    });
 }
 
 export function buildQuickLaunchSection() {
