@@ -20,7 +20,7 @@ import {setBluetoothAutoHide, clearBluetoothVisibilityState} from './lib/bluetoo
 import {setMediaAutoHide, clearMediaVisibilityState} from './lib/mediaVisibilityState.js';
 import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/networkSpeedVisibilityState.js';
 import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit.js';
-import {setWorkspaceDisplayMode, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
+import {setWorkspaceDisplayMode, setWorkspaceFilter, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
 import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
@@ -119,6 +119,7 @@ export default class MaterialPanelExtension extends Extension {
                 setNetworkSpeedAutoHide(newConfig.autoHideNetworkSpeed === true);
                 setMediaVisualizerEnabled(newConfig.mediaVisualizer);
                 setWorkspaceDisplayMode(newConfig.workspaceDisplay);
+                setWorkspaceFilter(newConfig.workspaceFilter);
                 setWorkspaceScrollSwitch(newConfig.workspaceScrollSwitch);
                 setNetworkSpeedUnit(newConfig.networkSpeedUnit);
             } catch (e) {}
@@ -239,6 +240,7 @@ export default class MaterialPanelExtension extends Extension {
             setNetworkSpeedAutoHide(this._config.autoHideNetworkSpeed === true);
             setMediaVisualizerEnabled(this._config.mediaVisualizer);
             setWorkspaceDisplayMode(this._config.workspaceDisplay);
+            setWorkspaceFilter(this._config.workspaceFilter);
             setWorkspaceScrollSwitch(this._config.workspaceScrollSwitch);
             setNetworkSpeedUnit(this._config.networkSpeedUnit);
             setProfileIdentityHidden(this._config.hideProfileIdentity === true);
