@@ -42,7 +42,7 @@ test('Control Center Home media card owns and releases the existing compact play
     assert.match(controlCenter, /buildMediaPlayerRow\(\)/);
     assert.match(controlCenter, /No media is playing/);
     assert.match(controlCenter, /mediaRow\.connect\('notify::visible'/);
-    const start = media.indexOf('export function buildMediaPlayerRow()');
+    const start = media.indexOf('export function buildMediaPlayerRow(');
     const end = media.indexOf('/** Panel chip + popup controls */', start);
     const rowBuilder = media.slice(start, end);
     assert.doesNotMatch(rowBuilder, /button\.visible/);
@@ -70,4 +70,24 @@ test('Control Center tears down inactive section actors and exposes Focus Mode o
     assert.match(module, /new PopupMenu\.PopupSwitchMenuItem\('Focus Mode', false\)/);
     assert.match(module, /config\.focusModeEnabled = enabled === true/);
     assert.match(module, /else \{\s+clearActors\(page\);\s+focusModeItem\.visible = false;/);
+});
+
+test('Control Center Media section uses a detailed MPRIS card with section-scoped progress polling', async () => {
+    const [controlCenter, media] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/mediaPlayer.js'),
+    ]);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\{detailed: true\}\)/);
+    assert.match(controlCenter, /section\.id === 'media'/);
+    const start = media.indexOf('export function buildMediaPlayerRow(');
+    const end = media.indexOf('/** Panel chip + popup controls */', start);
+    const rowBuilder = media.slice(start, end);
+    assert.match(rowBuilder, /detailed = false/);
+    assert.match(rowBuilder, /width: detailed \? 88 : 40/);
+    assert.match(rowBuilder, /onPosition: updateDetailedProgress/);
+    assert.match(rowBuilder, /GLib\.timeout_add_seconds/);
+    assert.match(rowBuilder, /stopPositionPolling\(\)/);
+    assert.match(rowBuilder, /if \(destroyed\)/);
+    assert.match(rowBuilder, /c\?\.destroy\(\)/);
+    assert.match(rowBuilder, /formatMediaTime\(currentPositionUs\)/);
 });

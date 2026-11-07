@@ -6,7 +6,7 @@ The optional `control-center` panel module is registered in Preferences but is n
 
 - The popup provides Home, Media and System navigation.
 - Home includes Focus Mode, a small Dark Mode / Night Light / Do Not Disturb action cluster, and a compact Now Playing row with a no-media state.
-- Media and System remain phase placeholders until #122 and #123.
+- Media now has a larger artwork-led player card with live playback position; its detailed row and one-second position sampler exist only while Media is selected. System remains a phase placeholder until #123.
 - Home's weather and system-summary cards, media progress and responsive bento composition remain tracked in #121.
 - Section actors are destroyed when switching sections and when the popup closes. The current shell does not start section-specific polling.
 - Popup sizing is bounded by the primary monitor; the popup arrow side is selected from the panel edge.
