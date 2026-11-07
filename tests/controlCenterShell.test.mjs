@@ -39,7 +39,7 @@ test('Control Center Home media card owns and releases the existing compact play
         source('../modules/controlCenter.js'),
         source('../modules/mediaPlayer.js'),
     ]);
-    assert.match(controlCenter, /buildMediaPlayerRow\(\)/);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\{progress: true\}\)/);
     assert.match(controlCenter, /No media is playing/);
     assert.match(controlCenter, /mediaRow\.connect\('notify::visible'/);
     const start = media.indexOf('export function buildMediaPlayerRow(');
@@ -135,4 +135,18 @@ test('Control Center System metric helpers handle counter resets and unavailable
     assert.equal(parseTemperatureValue('190000'), null);
     assert.equal(formatNetworkRate(512), '512 B/s');
     assert.equal(formatNetworkRate(2048), '2.0 KB/s');
+});
+
+
+test('Control Center Home media row exposes a slim progress bar without detailed Media-only controls', async () => {
+    const [controlCenter, media] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/mediaPlayer.js'),
+    ]);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\{progress: true\}\)/);
+    assert.match(media, /showProgress = detailed \|\| progress/);
+    assert.match(media, /width: detailed \? 88 : 40/);
+    assert.match(media, /detailed \? 260 : 220/);
+    assert.match(media, /if \(showProgress\)/);
+    assert.match(media, /if \(progressTime\)/);
 });

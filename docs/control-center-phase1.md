@@ -5,7 +5,7 @@ The optional `control-center` panel module is registered in Preferences but is n
 ## Current shell
 
 - The popup provides Home, Media and System navigation.
-- Home includes Focus Mode, a small Dark Mode / Night Light / Do Not Disturb action cluster, and a compact Now Playing row with a no-media state.
+- Home includes Focus Mode, a small Dark Mode / Night Light / Do Not Disturb action cluster, and a compact Now Playing row with a slim live progress bar and a no-media state.
 - Media now has a larger artwork-led player card with album metadata, player switching when multiple MPRIS players are active, playback state, and live position. Its optional restrained visualizer respects the existing preference and reduced-motion setting; both it and the one-second position sampler run only while the Media section is selected and mapped.
 - System now shows CPU, memory and CPU-temperature trends, a network summary from the shared Network Speed sample, and an asynchronous read-only top-process list. GPU queries are explicitly off by default and start only after enabling the System GPU toggle.
 - Home's weather and system-summary cards, media progress and responsive bento composition remain tracked in #121.

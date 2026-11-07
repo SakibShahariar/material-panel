@@ -360,7 +360,8 @@ function watchPreferredPlayer(callback) {
 }
 
 /** QS media card */
-export function buildMediaPlayerRow({detailed = false} = {}) {
+export function buildMediaPlayerRow({detailed = false, progress = false} = {}) {
+    const showProgress = detailed || progress;
     const row = new St.BoxLayout({
         style_class: 'material-panel-qs-media',
         orientation: Clutter.Orientation.HORIZONTAL,
@@ -432,28 +433,33 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     let positionTimerId = 0;
     let progressFill = null;
     let progressTime = null;
-    if (detailed) {
+    if (showProgress) {
         const progressTrack = new St.Widget({x_expand: true, height: 4});
         try { progressTrack.style = 'background-color: rgba(127, 127, 127, 0.25); border-radius: 4px;'; } catch (e) {}
-        progressFill = new St.Widget({height: 4});
+        progressFill = new St.Widget({height: detailed ? 4 : 3});
         try { progressFill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;'; } catch (e) {}
         progressTrack.add_child(progressFill);
-        progressTime = new St.Label({text: '—:— / —:—'});
-        try { progressTime.style = 'font-size: 10px; opacity: 0.7;'; } catch (e) {}
+        if (detailed) {
+            progressTime = new St.Label({text: '—:— / —:—'});
+            try { progressTime.style = 'font-size: 10px; opacity: 0.7;'; } catch (e) {}
+        }
         textCol.add_child(progressTrack);
-        textCol.add_child(progressTime);
+        if (progressTime)
+            textCol.add_child(progressTime);
     }
     const updateDetailedProgress = positionUs => {
         if (destroyed)
             return;
         currentPositionUs = Math.max(0, Number(positionUs) || 0);
-        if (!detailed || !progressFill || !progressTime)
+        if (!showProgress || !progressFill)
             return;
         const ratio = durationUs > 0 ? Math.max(0, Math.min(1, currentPositionUs / durationUs)) : 0;
-        try { progressFill.set_width(Math.round(260 * ratio)); } catch (e) {}
-        progressTime.text = durationUs > 0
-            ? formatMediaTime(currentPositionUs) + ' / ' + formatMediaTime(durationUs)
-            : '—:— / —:—';
+        try { progressFill.set_width(Math.round((detailed ? 260 : 220) * ratio)); } catch (e) {}
+        if (progressTime) {
+            progressTime.text = durationUs > 0
+                ? formatMediaTime(currentPositionUs) + ' / ' + formatMediaTime(durationUs)
+                : '—:— / —:—';
+        }
     };
     const stopPositionPolling = () => {
         if (positionTimerId) {
@@ -708,7 +714,7 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
                     return;
                 }
                 ctl = c;
-                if (detailed) {
+                if (showProgress) {
                     ctl.getPosition?.(updateDetailedProgress);
                     if (!positionTimerId) {
                         positionTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {

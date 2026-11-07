@@ -227,7 +227,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
             const mediaTitle = new St.Label({text: 'Now playing'});
             mediaTitle.style = 'font-size: 14px; font-weight: 650;';
-            const mediaRow = buildMediaPlayerRow();
+            const mediaRow = buildMediaPlayerRow({progress: true});
             const noMedia = new St.Label({
                 text: 'No media is playing',
                 style_class: 'material-panel-control-center-placeholder',
