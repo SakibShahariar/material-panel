@@ -85,6 +85,39 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         createModuleToggle(module);
     }
     
+    // Focus Mode selection is independent from normal module visibility.
+    const focusGroup = new Adw.PreferencesGroup({
+        title: 'Focus Mode',
+        description: 'Choose modules to hide temporarily while Focus Mode is on. This selection does not change Module Visibility or context-aware visibility rules. Nothing is selected by default.',
+    });
+    modulesPage.add(focusGroup);
+    if (!Array.isArray(config.focusModeModules))
+        config.focusModeModules = [];
+    for (const module of ALL_MODULES) {
+        const row = new Adw.ActionRow({
+            title: module.name,
+            subtitle: 'Hide this module only while Focus Mode is enabled',
+        });
+        const toggle = new Gtk.Switch({
+            active: config.focusModeModules.includes(module.id),
+            valign: Gtk.Align.CENTER,
+        });
+        toggle.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            const selected = config.focusModeModules;
+            const index = selected.indexOf(module.id);
+            if (toggle.active && index < 0)
+                selected.push(module.id);
+            else if (!toggle.active && index >= 0)
+                selected.splice(index, 1);
+            saveConfig();
+        });
+        row.add_suffix(toggle);
+        row.activatable_widget = toggle;
+        focusGroup.add(row);
+    }
+
     // Zone reordering: rebuild these groups whenever the active preset changes.
     const zoneGroups = [];
     const refreshZoneEditor = () => {
