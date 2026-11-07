@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
@@ -246,7 +247,12 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     const utilL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const memL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const tempL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
-    body.add_child(title);
+    const {actor: popupHeader} = createPopupHeader({
+        titleActor: title,
+        styleClass: 'material-panel-gpu-popup-header',
+        style: 'spacing: 8px; padding: 4px 2px;',
+    });
+    body.add_child(popupHeader);
     body.add_child(nameL);
     body.add_child(utilL);
     body.add_child(memL);
