@@ -11,7 +11,7 @@ test('Quick Settings media row does not reference controls owned by the full med
 
     for (const popupOnlyName of [
         'progressSlider', 'timeLabel', 'progressTimerId', 'menu.isOpen',
-        'playerMenuItem', 'playerChoices', 'playerNamesSignature',
+        'playerMenuItem',
     ]) {
         assert.ok(!row.includes(popupOnlyName), `unexpected popup-only reference: ${popupOnlyName}`);
     }
@@ -19,6 +19,9 @@ test('Quick Settings media row does not reference controls owned by the full med
     assert.match(row, /attach\(name\)/);
     assert.match(row, /row\.connect\('destroy'/);
     assert.match(row, /stopWatching\(\)/);
+    assert.match(row, /const playerButton = detailed \?/);
+    assert.match(row, /const visualizerEnabled = detailed && isMediaVisualizerEnabled\(\)/);
+    assert.match(row, /updatePlayerChoices\(name, players\)/);
 });
 
 test('Quick Settings media row keeps player controls connected to the active MPRIS player', async () => {
