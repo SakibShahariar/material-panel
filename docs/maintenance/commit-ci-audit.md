@@ -909,3 +909,18 @@ The two red shortcut runs were test-fixture mistakes, not production regressions
 **Checkpoint SHA:** `03a405897b206efe2775067141338b476539b999`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review commits after this checkpoint, including the scheduler hardening change currently being prepared.
+
+
+## Incremental review: 2026-11-08 — Adaptive polling input hardening
+
+Reviewed commit `3929ab3bb151c64dc36f1f7614a05b3166bc81bf` against its associated workflow.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `3929ab3b` | `fix(polling): tolerate malformed scheduler options (Refs #223)` | green | 2026-11-08 | [Run #42426529583](https://github.com/SakibShahariar/material-panel/actions/runs/42426529583) passed JavaScript syntax, **638/638 JavaScript tests**, and **22/22 Python tests**. |
+
+The new regression test covers non-convertible JavaScript values for all numeric scheduler options. The shared scheduler now falls back safely rather than throwing during initialization.
+
+**Checkpoint SHA:** `3929ab3bb151c64dc36f1f7614a05b3166bc81bf`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review commits after this checkpoint.
