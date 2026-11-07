@@ -20,6 +20,17 @@ test('migrates legacy gap into top and bottom gaps', () => {
     );
 });
 
+test('legacy gap migration fills only missing dimensions', () => {
+    assert.deepEqual(
+        normalizePanelSize({gap: 8, gapTop: 3}, defaults),
+        {...defaults, gapTop: 3, gapBottom: 7},
+    );
+    assert.deepEqual(
+        normalizePanelSize({gap: 8, gapBottom: 2}, defaults),
+        {...defaults, gapTop: 8, gapBottom: 2},
+    );
+});
+
 test('preserves explicit zero values and clamps out-of-range settings', () => {
     assert.deepEqual(
         normalizePanelSize({
