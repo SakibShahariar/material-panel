@@ -34,6 +34,18 @@ test('Control Center provides Home, Media and System navigation with bounded scr
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
 
+test('Control Center Home reuses the existing GNOME quick-toggle backends', async () => {
+    const [controlCenter, quickSettings] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/quicksettings.js'),
+    ]);
+    assert.match(controlCenter, /darkModeTile, nightLightTile, dndTile/);
+    assert.match(controlCenter, /const actions = \[darkModeTile\(\), nightLightTile\(\), dndTile\(\)\]/);
+    assert.match(quickSettings, /export function darkModeTile\(\)/);
+    assert.match(quickSettings, /export function nightLightTile\(\)/);
+    assert.match(quickSettings, /export function dndTile\(\)/);
+});
+
 test('Control Center tears down inactive section actors and exposes Focus Mode on Home', async () => {
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /function clearActors\(box\)/);
