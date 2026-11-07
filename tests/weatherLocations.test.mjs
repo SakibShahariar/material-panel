@@ -77,3 +77,16 @@ test('truncates city labels without splitting supplementary Unicode code points'
     assert.equal(location.name, 'A'.repeat(63) + '😀');
     assert.equal(Array.from(location.name).length, 64);
 });
+
+test('sanitizes preference delimiters in city labels to preserve round-trip integrity', () => {
+    const normalized = normalizeWeatherLocations([
+        {name: 'New York; NY|USA', latitude: 40.7128, longitude: -74.006},
+        {name: 'ঢাকা|উত্তর; অঞ্চল', latitude: 23.8, longitude: 90.4},
+    ]);
+    assert.deepEqual(normalized.map(location => location.name), [
+        'New York NY USA',
+        'ঢাকা উত্তর অঞ্চল',
+    ]);
+    const serialized = formatWeatherLocations(normalized);
+    assert.deepEqual(parseWeatherLocations(serialized), normalized);
+});
