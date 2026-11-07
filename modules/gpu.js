@@ -10,6 +10,7 @@ import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {parseNvidiaSmiOutputs, selectGpuCandidate} from '../lib/gpuMetrics.js';
 import {setGpuMetrics, clearGpuMetrics} from '../lib/systemMetricsState.js';
+import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 let cachedGpuBasePath = null;
 let cachedGpuCard = null;
@@ -258,6 +259,9 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     let refreshInFlight = false;
     let refreshCancellable = null;
     let lastGpuInfo = null;
+    let previousGpuUtil = null;
+    let previousGpuTemp = null;
+    let gpuActivity = false;
 
     const render = g => {
         if (destroyed)
@@ -307,12 +311,25 @@ export function buildGpu(_extensionPath, scale = 1.0) {
             refreshCancellable = null;
             if (result) {
                 lastGpuInfo = result;
+                const util = Number(result.util);
+                const temp = Number(result.temp);
+                gpuActivity = (Number.isFinite(util) && (
+                    util >= 10 || (previousGpuUtil !== null && Math.abs(util - previousGpuUtil) >= 5)
+                )) || (Number.isFinite(temp) && (
+                    temp >= 80 || (previousGpuTemp !== null && Math.abs(temp - previousGpuTemp) >= 3)
+                ));
+                if (Number.isFinite(util))
+                    previousGpuUtil = util;
+                if (Number.isFinite(temp))
+                    previousGpuTemp = temp;
                 try {
                     setGpuMetrics({
                         util: result.util,
                         updatedAt: GLib.get_monotonic_time(),
                     });
                 } catch (e) {}
+            } else {
+                gpuActivity = false;
             }
             render(lastGpuInfo);
         });
@@ -320,13 +337,34 @@ export function buildGpu(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
-        // GPU polling can spawn nvidia-smi and read sysfs; skip it while the
-        // chip is hidden and its popup is closed. Clicks still refresh at once.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
-            return GLib.SOURCE_CONTINUE;
-        return refresh();
+    const gpuSchedule = createAdaptivePollSchedule({
+        baseIntervalMs: 3000,
+        minIntervalMs: 3000,
+        maxIntervalMs: 15000,
+        stableSamplesToSlow: 4,
+        growthFactor: 1.5,
+        jitterRatio: 0.08,
     });
+    let id = 0;
+    const scheduleGpuRefresh = (active = false) => {
+        const delayMs = gpuSchedule.nextDelay(active);
+        id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            id = 0;
+            // GPU polling can spawn nvidia-smi and read sysfs; skip it while the
+            // chip is hidden and its popup is closed. Clicks still refresh at once.
+            if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
+                previousGpuUtil = null;
+                previousGpuTemp = null;
+                gpuActivity = false;
+                gpuSchedule.reset();
+            } else {
+                refresh();
+            }
+            scheduleGpuRefresh(gpuActivity);
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    scheduleGpuRefresh();
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);
@@ -336,7 +374,10 @@ export function buildGpu(_extensionPath, scale = 1.0) {
         destroyed = true;
         clearGpuMetrics();
         try { refreshCancellable?.cancel(); } catch (e) {}
-        try { GLib.source_remove(id); } catch (e) {}
+        if (id) {
+            try { GLib.source_remove(id); } catch (e) {}
+            id = 0;
+        }
         try { menu.destroy(); } catch (e) {}
     });
     return button;

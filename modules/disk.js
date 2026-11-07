@@ -11,6 +11,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {calculateDiskUsage, sameFilesystem} from '../lib/diskUsage.js';
 import {filterLocalMounts} from '../lib/mountedFilesystems.js';
 import {setControlCenterDiskSummary} from '../lib/controlCenterSummaryState.js';
+import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 function readDiskAsync(mount, cancellable, callback) {
     const file = Gio.File.new_for_path(mount);
@@ -99,6 +100,8 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     let sameFs = null;
     let lastRoot = null;
     let lastHome = null;
+    let previousDiskPct = null;
+    let diskActivity = false;
     let refreshCancellable = null;
     let selectedCancellable = null;
     let selectedGeneration = 0;
@@ -241,6 +244,13 @@ export function buildDisk(_extensionPath, scale = 1.0) {
                     sameFs = shared;
             }
             updateLabels();
+            const currentDiskPct = lastRoot?.pct;
+            diskActivity = Number.isFinite(currentDiskPct) && (
+                currentDiskPct >= 90 ||
+                (previousDiskPct !== null && Math.abs(currentDiskPct - previousDiskPct) >= 0.5)
+            );
+            if (Number.isFinite(currentDiskPct))
+                previousDiskPct = currentDiskPct;
             refreshInFlight = false;
             refreshCancellable = null;
         };
@@ -266,12 +276,32 @@ export function buildDisk(_extensionPath, scale = 1.0) {
     };
 
     refresh();
-    const id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
-        // Do not query filesystem metadata for a chip hidden with the panel.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
-            return GLib.SOURCE_CONTINUE;
-        return refresh();
+    const diskSchedule = createAdaptivePollSchedule({
+        baseIntervalMs: 10000,
+        minIntervalMs: 10000,
+        maxIntervalMs: 60000,
+        stableSamplesToSlow: 3,
+        growthFactor: 1.5,
+        jitterRatio: 0.05,
     });
+    let id = 0;
+    const scheduleDiskRefresh = (active = false) => {
+        const delayMs = diskSchedule.nextDelay(active);
+        id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            id = 0;
+            // Do not query filesystem metadata for a chip hidden with the panel.
+            if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
+                previousDiskPct = null;
+                diskActivity = false;
+                diskSchedule.reset();
+            } else {
+                refresh();
+            }
+            scheduleDiskRefresh(diskActivity);
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    scheduleDiskRefresh();
     button.connect('clicked', () => {
         refresh();
         menuToggle(menu);
@@ -287,7 +317,10 @@ export function buildDisk(_extensionPath, scale = 1.0) {
             try { volumeMonitor.disconnect(signalId); } catch (e) {}
         }
         mountSignalIds = [];
-        try { GLib.source_remove(id); } catch (e) {}
+        if (id) {
+            try { GLib.source_remove(id); } catch (e) {}
+            id = 0;
+        }
         try { menu.destroy(); } catch (e) {}
     });
     return button;

@@ -544,3 +544,16 @@ Reviewed commits after checkpoint `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`. Th
 - Checkpoint SHA: `ebb78e679daf786c6362e1f0c658350b55b7cc43`
 - Checkpoint date: 2026-11-07
 - Next session: start with the commit after this checkpoint; review any documentation-ledger commit in the next incremental range.
+
+
+## Incremental review: 2026-11-07 (adaptive Memory polling)
+
+Reviewed the Memory implementation commit after checkpoint `ebb78e679daf786c6362e1f0c658350b55b7cc43`.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `d1f2205266743ca1228b9aa4eda5f31cfe839e64` | `perf(memory): adapt stable usage polling cadence (Refs #223)` | green | 2026-11-07 | Workflow [42400306168](https://github.com/SakibShahariar/material-panel/actions/runs/42400306168) passed syntax, 557/557 JavaScript tests, and 22/22 Python tests. The same commit records the previous incremental CI review. |
+
+- Checkpoint SHA: `d1f2205266743ca1228b9aa4eda5f31cfe839e64`
+- Checkpoint date: 2026-11-07
+- Next session: review the commits after this checkpoint, including this ledger/code commit.

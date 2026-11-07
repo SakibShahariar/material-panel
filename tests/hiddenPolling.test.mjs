@@ -49,6 +49,29 @@ test('memory sampling adapts to stable usage while preserving hidden and lock pa
     assert.match(memory, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
 });
 
+test('disk polling backs off on stable usage and returns to base for high or changing usage', async () => {
+    const disk = await readFile(new URL('../modules/disk.js', import.meta.url), 'utf8');
+    assert.match(disk, /createAdaptivePollSchedule/);
+    assert.match(disk, /baseIntervalMs: 10000/);
+    assert.match(disk, /maxIntervalMs: 60000/);
+    assert.match(disk, /currentDiskPct >= 90/);
+    assert.match(disk, /Math\.abs\(currentDiskPct - previousDiskPct\) >= 0\.5/);
+    assert.match(disk, /diskSchedule\.reset\(\)/);
+    assert.match(disk, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
+});
+
+test('GPU polling backs off when idle and speeds up for active utilization or temperature', async () => {
+    const gpu = await readFile(new URL('../modules/gpu.js', import.meta.url), 'utf8');
+    assert.match(gpu, /createAdaptivePollSchedule/);
+    assert.match(gpu, /baseIntervalMs: 3000/);
+    assert.match(gpu, /maxIntervalMs: 15000/);
+    assert.match(gpu, /util >= 10/);
+    assert.match(gpu, /Math\.abs\(util - previousGpuUtil\) >= 5/);
+    assert.match(gpu, /temp >= 80/);
+    assert.match(gpu, /gpuSchedule\.reset\(\)/);
+    assert.match(gpu, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
+});
+
 test('system metric polling also pauses while GNOME is locked', () => {
     assert.match(shellCompat, /Main\.sessionMode\.isLocked/);
     for (const [name, source] of modules) {
