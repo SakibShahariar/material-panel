@@ -19,3 +19,12 @@ test('clock format follows config watcher changes and watcher is disconnected on
     assert.match(build, /store\.watch\(cfg => \{[\s\S]*?cfg\?\.clockFormat === '12h'[\s\S]*?cfg\?\.clockClickCyclesFormat === true[\s\S]*?tick\(\)/);
     assert.match(build, /button\.connect\('destroy',[\s\S]*?store\.unwatch\(\)/);
 });
+
+test('world clocks follow ConfigStore updates and tick only while the popup is open', () => {
+    assert.match(build, /worldClocks = normalizeWorldClockEntries\(cfg\?\.worldClocks\)/);
+    assert.match(build, /formatWorldClockEntry\(entry, new Date\(\), \{use12h\}\)/);
+    assert.match(build, /startWorldClockTick\(\)/);
+    assert.match(build, /stopWorldClockTick\(\)/);
+    assert.match(build, /if \(!menu\.isOpen\)[\s\S]*?GLib\.SOURCE_REMOVE/);
+    assert.match(build, /button\.connect\('destroy',[\s\S]*?stopWorldClockTick\(\)/);
+});
