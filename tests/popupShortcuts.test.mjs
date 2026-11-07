@@ -36,3 +36,14 @@ test('duplicate popup accelerators are reported together and empty assignments d
 test('popup shortcut normalization bounds accelerator text', () => {
     assert.equal(normalizePopupShortcuts({volume: 'x'.repeat(120)}).volume.length, 80);
 });
+
+
+test('popup shortcut normalization removes invisible controls from imported configuration', () => {
+    assert.equal(normalizePopupShortcuts({
+        volume: '<Super>\\u202E<Alt>\\nV',
+        network: '<Super>\\u200B<Alt>C',
+    }).volume, '<Super><Alt>V');
+    assert.equal(normalizePopupShortcuts({
+        network: '<Super>\\u200B<Alt>C',
+    }).network, '<Super><Alt>C');
+});
