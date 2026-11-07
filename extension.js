@@ -95,9 +95,12 @@ export default class MaterialPanelExtension extends Extension {
             const clearToken = newConfig.clipboardHistoryClearToken ?? '';
             if (clearToken !== this._clipboardHistoryClearToken) {
                 this._clipboardHistoryClearToken = clearToken;
-                this._clipboardHistoryController?.clear().catch(() => {
+                const clearOperation = this._clipboardHistoryController
+                    ? this._clipboardHistoryController.clear()
+                    : new ClipboardHistoryFileStore().clear();
+                clearOperation.catch(() => {
                     Main.notifyError('Clipboard history could not be cleared',
-                        'Recording remains enabled, but deletion could not be confirmed. Try clearing history again.');
+                        'Deletion could not be confirmed. Check storage permissions and try again.');
                 });
             }
 
