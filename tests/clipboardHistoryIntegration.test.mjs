@@ -53,6 +53,6 @@ test('clipboard history is registered as a panel module and preferences page', (
 
 test('clipboard preview formatting is display-only and copy preserves the original entry', () => {
     const panel = read('modules/clipboardHistory.js');
-    assert.match(panel, /new PopupMenu\\.PopupMenuItem\\(formatClipboardHistoryPreview\\(entry\\.text\\)\\)/);
-    assert.match(panel, /item\\.connect\\('activate', \\(\\) => controller\\.copyEntry\\(entry\\.id\\)\\)/);
+    assert.ok(panel.includes("new PopupMenu.PopupMenuItem(formatClipboardHistoryPreview(entry.text))"));
+    assert.ok(panel.includes("item.connect('activate', () => controller.copyEntry(entry.id))"));
 });
