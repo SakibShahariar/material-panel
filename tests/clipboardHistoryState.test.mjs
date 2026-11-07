@@ -112,3 +112,10 @@ test('clipboard history previews truncate by Unicode code point without splittin
     assert.equal(formatClipboardHistoryPreview('  hello\nworld  '), 'hello world');
     assert.equal(formatClipboardHistoryPreview('short 😀 text'), 'short 😀 text');
 });
+
+
+test('clipboard history preview handles empty text and one-code-point limits', () => {
+    assert.equal(formatClipboardHistoryPreview(' \\n\\t '), '');
+    assert.equal(formatClipboardHistoryPreview('😀x', 1), '…');
+    assert.equal(formatClipboardHistoryPreview('😀x', 2), '😀x');
+});

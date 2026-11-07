@@ -798,3 +798,19 @@ Imported Quick Launch labels now remove invisible bidirectional formatting contr
 
 **Checkpoint SHA:** `98eb72958c52bd8d6af01ab52b4bbbdd63f31853`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Clipboard preview Unicode safety, #254)
+
+Reviewed the implementation and regression-test commits after checkpoint `98eb72958c52bd8d6af01ab52b4bbbdd63f31853`.
+
+| Commit | Subject | CI result | Evidence / failure notes |
+|---|---|---|---|
+| `ab4f49566807cf33b34f59acc0ef278b45b80fa7` | `fix(clipboard): truncate previews without splitting Unicode (Refs #254)` | red | [42424301493](https://github.com/SakibShahariar/material-panel/actions/runs/42424301493) — preview whitespace regex was over-escaped; the regression test caught literal newline text not being collapsed. |
+| `02a9d5fe6957f65abd4139fc821af29ecb0eba5c` | `fix(clipboard): normalize preview whitespace correctly (Refs #254)` | red | [42424323251](https://github.com/SakibShahariar/material-panel/actions/runs/42424323251) — source regex was corrected; the remaining failure was a test fixture containing a literal backslash-n sequence. |
+| `e43472726ad5da45e645982eace250b688686116` | `test(clipboard): use real newline in preview fixture (Refs #254)` | green | [42424341734](https://github.com/SakibShahariar/material-panel/actions/runs/42424341734) — syntax passed, **629/629 JavaScript tests**, and **22/22 Python tests**. |
+
+Clipboard History popup previews now collapse whitespace and truncate by Unicode code point, so supplementary characters such as emoji are not split into invalid surrogate halves. The stored clipboard payload is unchanged; only its popup preview is formatted. The first two CI failures were test/source escaping defects and are retained in this ledger.
+
+**Checkpoint SHA:** `e43472726ad5da45e645982eace250b688686116`  
+**Checkpoint date:** 2026-11-08

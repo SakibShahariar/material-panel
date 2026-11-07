@@ -5,7 +5,6 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {menuToggle} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
-import {formatClipboardHistoryPreview} from '../lib/clipboardHistoryState.js';
 
 let historyController = null;
 let onPauseToggle = null;
@@ -13,6 +12,11 @@ let onPauseToggle = null;
 export function setClipboardHistoryController(controller, pauseCallback = null) {
     historyController = controller;
     onPauseToggle = typeof pauseCallback === 'function' ? pauseCallback : null;
+}
+
+function previewText(value) {
+    const preview = String(value).replace(/\s+/g, ' ').trim();
+    return preview.length > 72 ? `${preview.slice(0, 69)}…` : preview;
 }
 
 export function buildClipboardHistory() {
@@ -80,7 +84,7 @@ export function buildClipboardHistory() {
         }
 
         for (const entry of entries) {
-            const item = new PopupMenu.PopupMenuItem(formatClipboardHistoryPreview(entry.text));
+            const item = new PopupMenu.PopupMenuItem(previewText(entry.text));
             item.connect('activate', () => controller.copyEntry(entry.id));
             menu.addMenuItem(item);
         }
