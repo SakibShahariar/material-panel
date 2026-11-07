@@ -31,6 +31,7 @@ import {
 } from '../lib/calendarEvents.js';
 import {safeEventUrl} from '../lib/safeEventUrl.js';
 import {createPopupHeader} from '../lib/popupHeader.js';
+import {formatWorldClockEntry, normalizeWorldClockEntries} from '../lib/worldClock.js';
 
 const CELL = 36;
 
@@ -180,6 +181,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     let use12h = false;
     let clickCyclesFormat = false;
     let displayMode = 'date-time';
+    let worldClocks = [];
     let configLoadGeneration = 0;
     let destroyed = false;
 
@@ -230,6 +232,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
             configLoadGeneration++;
             const nextUse12h = cfg?.clockFormat === '12h';
             const nextClickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            worldClocks = normalizeWorldClockEntries(cfg?.worldClocks);
             if (nextUse12h !== use12h || nextClickCyclesFormat !== clickCyclesFormat) {
                 use12h = nextUse12h;
                 clickCyclesFormat = nextClickCyclesFormat;
@@ -242,6 +245,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
                 return;
             use12h = cfg?.clockFormat === '12h';
             clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            worldClocks = normalizeWorldClockEntries(cfg?.worldClocks);
             tick();
         }).catch(error => {
             if (!destroyed)
@@ -275,6 +279,34 @@ export function buildClock(_extensionPath, scale = 1.0) {
     try {
         body.style = 'spacing: 8px; padding: 10px 12px 12px 12px; min-width: 268px; max-width: 320px;';
     } catch (e) {}
+
+    const worldClockSection = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-world-clock-section',
+        x_expand: true,
+        visible: false,
+    });
+    const worldClockTitle = new St.Label({
+        text: 'World clocks',
+        style_class: 'material-panel-cal-agenda-title',
+    });
+    try { worldClockTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.6;'; } catch (e) {}
+    worldClockSection.add_child(worldClockTitle);
+    const worldClockRows = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-world-clock-rows',
+        x_expand: true,
+    });
+    const worldClockScroll = new St.ScrollView({
+        style_class: 'material-panel-world-clock-scroll',
+        hscrollbar_policy: St.PolicyType.NEVER,
+        vscrollbar_policy: St.PolicyType.AUTOMATIC,
+        overlay_scrollbars: true,
+    });
+    worldClockScroll.set_child(worldClockRows);
+    try { worldClockScroll.set_height(148); } catch (e) {}
+    worldClockSection.add_child(worldClockScroll);
+    body.add_child(worldClockSection);
 
     // Next event banner
     const nextBanner = new St.BoxLayout({
@@ -520,7 +552,51 @@ export function buildClock(_extensionPath, scale = 1.0) {
         ));
     };
 
+    const refreshWorldClockRows = () => {
+        worldClockRows.destroy_all_children();
+        worldClockSection.visible = worldClocks.length > 0;
+        for (const entry of worldClocks) {
+            const formatted = formatWorldClockEntry(entry, new Date(), {use12h});
+            if (!formatted)
+                continue;
+            const row = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                style_class: 'material-panel-world-clock-row',
+                x_expand: true,
+            });
+            const primary = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+            });
+            const city = new St.Label({
+                text: formatted.name,
+                x_expand: true,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            const time = new St.Label({
+                text: formatted.time,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            try {
+                city.style = 'font-size: 12px; font-weight: 600;';
+                time.style = 'font-size: 12px; font-weight: 700; font-feature-settings: "tnum";';
+            } catch (e) {}
+            primary.add_child(city);
+            primary.add_child(time);
+            const secondary = new St.Label({
+                text: `${formatted.date} · ${formatted.dayOffsetLabel}`,
+                style_class: 'material-panel-world-clock-date',
+            });
+            try { secondary.style = 'font-size: 10px; opacity: 0.6;'; } catch (e) {}
+            row.add_child(primary);
+            row.add_child(secondary);
+            setChipA11y(row, `${formatted.name}, ${formatted.time}, ${formatted.date}, ${formatted.dayOffsetLabel}`);
+            worldClockRows.add_child(row);
+        }
+    };
+
     const openRefresh = () => {
+        refreshWorldClockRows();
         const now = GLib.DateTime.new_now_local();
         viewYear = now.get_year();
         viewMonth = now.get_month();
@@ -530,6 +606,12 @@ export function buildClock(_extensionPath, scale = 1.0) {
         rebuildCal();
         fillAgenda();
     };
+
+    const worldClockTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
+        if (menu.isOpen)
+            refreshWorldClockRows();
+        return GLib.SOURCE_CONTINUE;
+    });
 
     menu.connect('open-state-changed', (_m, open) => {
         if (open)
@@ -560,6 +642,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
         destroyed = true;
         configLoadGeneration++;
         try { GLib.source_remove(tickId); } catch (e) {}
+        try { GLib.source_remove(worldClockTickId); } catch (e) {}
         try { store.unwatch(); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
