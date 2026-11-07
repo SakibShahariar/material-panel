@@ -30,6 +30,8 @@ test('Control Center provides Home, Media and System navigation with bounded scr
     assert.match(module, /return y > monitor\.y \+ monitor\.height \/ 2 \? St\.Side\.BOTTOM : St\.Side\.TOP/);
     assert.match(module, /return x > monitor\.x \+ monitor\.width \/ 2 \? St\.Side\.LEFT : St\.Side\.RIGHT/);
     assert.match(module, /navButton\.connect\('clicked', \(\) => renderSection\(section\.id\)\)/);
+    assert.match(module, /can_focus: true/);
+    assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
 
 test('Control Center tears down inactive section actors and exposes Focus Mode on Home', async () => {
