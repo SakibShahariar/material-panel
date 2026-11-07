@@ -8,6 +8,7 @@ import {giconForKey, wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {getDndFocusSession} from '../lib/dndSession.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 export function buildDnd() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
@@ -40,9 +41,15 @@ export function buildDnd() {
     const isDndOn = () => !settings.get_boolean('show-banners');
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
-    const statusItem = new PopupMenu.PopupMenuItem('No active focus session');
+    const headerTitle = new St.Label({text: 'Do Not Disturb'});
+    headerTitle.style = 'font-size: 13px; font-weight: 700;';
+    const headerStatus = new St.Label({text: 'No active focus session'});
+    headerStatus.style = 'font-size: 11px; opacity: 0.7;';
+    const header = createPopupHeader({titleActor: headerTitle, statusActor: headerStatus});
+    const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    headerItem.add_child(header.actor);
     const cancelItem = new PopupMenu.PopupMenuItem('End focus session');
-    menu.addMenuItem(statusItem);
+    menu.addMenuItem(headerItem);
     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
     for (const minutes of [25, 50, 90]) {
@@ -61,7 +68,7 @@ export function buildDnd() {
     menu.addMenuItem(cancelItem);
 
     const updateMenu = active => {
-        statusItem.label.text = active ? 'Focus session active' : 'No active focus session';
+        headerStatus.text = active ? 'Focus session active' : 'No active focus session';
         try {
             cancelItem.setSensitive(active);
         } catch (e) {
