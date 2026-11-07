@@ -16,6 +16,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {filterNotifications, groupNotificationsByApp, hasUnreadNotificationState, notificationAppNames} from '../lib/notificationFilters.js';
+import {getNotificationActions, activateNotificationAction} from '../lib/notificationActions.js';
 
 const MAX_SHOWN = 60;
 const PANEL_MIN_W = 340;
@@ -86,6 +87,7 @@ export function listNotifications() {
                         unix,
                         gicon,
                         unread: typeof n.acknowledged === 'boolean' ? !n.acknowledged : null,
+                        actions: getNotificationActions(n),
                     });
                 } catch (e) {}
             }
@@ -631,6 +633,44 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 });
                 mid.add_child(expandButton);
             }
+        }
+        if (item.actions?.length) {
+            const actionsRow = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+                style_class: 'material-panel-nc-actions',
+            });
+            try { actionsRow.style = 'spacing: 6px; padding-top: 6px;'; } catch (e) {}
+            for (const actionEntry of item.actions) {
+                const actionButton = new St.Button({
+                    label: actionEntry.label,
+                    style_class: 'material-panel-nc-action',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                try {
+                    actionButton.style =
+                        'font-size: 11px; padding: 5px 10px; border-radius: 999px; max-width: 140px;';
+                    const label = actionButton.get_child?.();
+                    if (label?.clutter_text)
+                        label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+                } catch (e) {}
+                setChipA11y(actionButton, actionEntry.label);
+                actionButton.connect('button-press-event', () => Clutter.EVENT_STOP);
+                actionButton.connect('clicked', () => {
+                    const activated = activateNotificationAction(
+                        item.notification,
+                        actionEntry.action,
+                        notification => listNotifications().some(
+                            current => current.notification === notification),
+                        error => logError(error, 'material-panel: notification action'));
+                    scheduleRebuild(activated ? 40 : 0);
+                    return Clutter.EVENT_STOP;
+                });
+                actionsRow.add_child(actionButton);
+            }
+            mid.add_child(actionsRow);
         }
         card.add_child(mid);
 
