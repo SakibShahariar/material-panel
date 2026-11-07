@@ -857,3 +857,15 @@ The preview now replaces bidi formatting controls with spaces before whitespace 
 
 **Checkpoint SHA:** `bcbf5c339ff4f5c1807b052a997937a5717a9fec`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Clipboard preview bidi range tests, #254)
+
+Reviewed the latest bidi-range regression test commit after checkpoint `bcbf5c339ff4f5c1807b052a997937a5717a9fec`.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `03b7129f160b964362a199b7b21aedf6ee998f23` | `test(clipboard): cover full bidi control range (Refs #254)` | green | [42424729036](https://github.com/SakibShahariar/material-panel/actions/runs/42424729036) — syntax passed, **632/632 JavaScript tests**, and **22/22 Python tests**. |
+
+**Checkpoint SHA:** `03b7129f160b964362a199b7b21aedf6ee998f23`  
+**Checkpoint date:** 2026-11-08
