@@ -4,6 +4,8 @@ export function buildClipboardHistoryPage({
     config.clipboardHistoryEnabled ??= false;
     config.clipboardHistoryPaused ??= false;
     config.clipboardHistoryClearToken ??= '';
+    config.clipboardHistoryMaxEntries ??= 50;
+    config.clipboardHistoryMaxAgeDays ??= 7;
 
     const page = new Adw.PreferencesPage({
         title: 'Clipboard History',
@@ -47,9 +49,41 @@ export function buildClipboardHistoryPage({
         description: 'History is bounded and older entries are removed automatically.',
     });
     page.add(limitsGroup);
+    const maxEntriesRow = new Adw.ActionRow({
+        title: 'Maximum entries',
+        subtitle: 'Keep between 10 and 50 recent text entries.',
+    });
+    const maxEntriesSpin = new Gtk.SpinButton({
+        adjustment: new Gtk.Adjustment({
+            lower: 10, upper: 50, step_increment: 5, page_increment: 10,
+            value: config.clipboardHistoryMaxEntries,
+        }),
+        numeric: true,
+        digits: 0,
+        valign: Gtk.Align.CENTER,
+    });
+    maxEntriesRow.add_suffix(maxEntriesSpin);
+    limitsGroup.add(maxEntriesRow);
+
+    const maxAgeRow = new Adw.ActionRow({
+        title: 'Retention period',
+        subtitle: 'Automatically remove entries after 1 to 7 days.',
+    });
+    const maxAgeSpin = new Gtk.SpinButton({
+        adjustment: new Gtk.Adjustment({
+            lower: 1, upper: 7, step_increment: 1, page_increment: 1,
+            value: config.clipboardHistoryMaxAgeDays,
+        }),
+        numeric: true,
+        digits: 0,
+        valign: Gtk.Align.CENTER,
+    });
+    maxAgeRow.add_suffix(maxAgeSpin);
+    limitsGroup.add(maxAgeRow);
+
     limitsGroup.add(new Adw.ActionRow({
-        title: 'Maximum history',
-        subtitle: '50 entries · 7 days · 256 KiB per text entry',
+        title: 'Per-entry text limit',
+        subtitle: '256 KiB · Plain text only · Images and files are ignored',
     }));
 
     const privacyGroup = new Adw.PreferencesGroup({
@@ -93,12 +127,29 @@ export function buildClipboardHistoryPage({
     clearRow.add_suffix(clearButton);
     privacyGroup.add(clearRow);
 
+    let syncingLimits = false;
     const refresh = () => {
+        syncingLimits = true;
+        maxEntriesSpin.value = config.clipboardHistoryMaxEntries;
+        maxAgeSpin.value = config.clipboardHistoryMaxAgeDays;
+        syncingLimits = false;
         enabledSwitch.active = config.clipboardHistoryEnabled === true;
         pauseSwitch.active = config.clipboardHistoryPaused === true;
         pauseSwitch.sensitive = config.clipboardHistoryEnabled === true;
         clearButton.sensitive = config.clipboardHistoryEnabled === true;
     };
+    maxEntriesSpin.connect('value-changed', () => {
+        if (syncingLimits)
+            return;
+        config.clipboardHistoryMaxEntries = Math.max(10, Math.min(50, Math.round(maxEntriesSpin.value)));
+        saveConfig();
+    });
+    maxAgeSpin.connect('value-changed', () => {
+        if (syncingLimits)
+            return;
+        config.clipboardHistoryMaxAgeDays = Math.max(1, Math.min(7, Math.round(maxAgeSpin.value)));
+        saveConfig();
+    });
     enabledSwitch.connect('notify::active', () => {
         config.clipboardHistoryEnabled = enabledSwitch.active;
         if (!enabledSwitch.active)

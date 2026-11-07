@@ -219,9 +219,15 @@ export default class MaterialPanelExtension extends Extension {
                 clipboardType: St.ClipboardType.CLIPBOARD,
                 selectionType: Meta.SelectionType.SELECTION_CLIPBOARD,
                 idFactory: () => GLib.uuid_string_random(),
+                maxEntries: config.clipboardHistoryMaxEntries ?? 50,
+                maxAgeDays: config.clipboardHistoryMaxAgeDays ?? 7,
             });
             this._clipboardHistoryController = controller;
             this._clipboardHistoryPaused = paused;
+            this._clipboardHistoryLimits = {
+                maxEntries: config.clipboardHistoryMaxEntries ?? 50,
+                maxAgeDays: config.clipboardHistoryMaxAgeDays ?? 7,
+            };
             setClipboardHistoryController(controller, nextPaused => {
                 const store = this._configStore;
                 if (!store)
@@ -241,6 +247,18 @@ export default class MaterialPanelExtension extends Extension {
                     'Material Panel could not open its private local history store. No clipboard text was recorded.');
             });
             return;
+        }
+
+        const maxEntries = config.clipboardHistoryMaxEntries ?? 50;
+        const maxAgeDays = config.clipboardHistoryMaxAgeDays ?? 7;
+        if (this._clipboardHistoryLimits &&
+            (maxEntries !== this._clipboardHistoryLimits.maxEntries ||
+             maxAgeDays !== this._clipboardHistoryLimits.maxAgeDays)) {
+            this._clipboardHistoryLimits = {maxEntries, maxAgeDays};
+            this._clipboardHistoryController.setLimits({maxEntries, maxAgeDays}).catch(() => {
+                Main.notifyError('Clipboard history limits could not be applied',
+                    'The previous retention settings remain in effect.');
+            });
         }
 
         if (paused !== this._clipboardHistoryPaused) {
@@ -425,6 +443,7 @@ export default class MaterialPanelExtension extends Extension {
         this._clipboardHistoryController?.destroy();
         this._clipboardHistoryController = null;
         this._clipboardHistoryPaused = false;
+        this._clipboardHistoryLimits = null;
         setClipboardHistoryController(null, null);
         this._configStore?.unwatch();
         this._configStore = null;
