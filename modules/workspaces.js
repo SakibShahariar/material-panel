@@ -10,7 +10,8 @@ import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 import {wirePressedClass} from '../lib/pressFx.js';
 import {resolveWorkspaceDisplayMode} from '../lib/workspaceDisplay.js';
-import {getWorkspaceDisplayMode, isWorkspaceScrollSwitchEnabled} from '../lib/workspaceState.js';
+import {filterWorkspaceIndices} from '../lib/workspaceFilter.js';
+import {getWorkspaceDisplayMode, getWorkspaceFilter, isWorkspaceScrollSwitchEnabled} from '../lib/workspaceState.js';
 import {getLayoutStyle} from '../lib/layoutStyleState.js';
 
 const MAX_ICONS = 5;
@@ -66,11 +67,11 @@ function _windowsOnWorkspace(ws, index) {
     });
 }
 
-function _appsOnWorkspace(ws, index) {
+function _appsOnWorkspace(ws, index, windows = null) {
     const tracker = Shell.WindowTracker.get_default();
     const seen = new Set();
     const apps = [];
-    for (const win of _windowsOnWorkspace(ws, index)) {
+    for (const win of windows ?? _windowsOnWorkspace(ws, index)) {
         try {
             const app = tracker.get_window_app(win);
             if (!app)
@@ -94,6 +95,18 @@ function _appsOnWorkspace(ws, index) {
         } catch (e) {}
     }
     return apps;
+}
+
+function _isUrgentWindow(win) {
+    try {
+        if (win.demands_attention === true || win.urgent === true)
+            return true;
+    } catch (e) {}
+    try {
+        if (win.is_demands_attention?.())
+            return true;
+    } catch (e) {}
+    return false;
 }
 
 function _focusAppId() {
@@ -192,9 +205,17 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         // visible contents. Compare a lightweight window snapshot before
         // destroying/recreating actors to avoid needless layout and icon churn.
         const workspaceWindows = [];
+        const windowsByWorkspace = [];
+        const workspaceStates = [];
         for (let i = 0; i < n; i++) {
             const ws = manager.get_workspace_by_index(i);
-            const windows = _windowsOnWorkspace(ws, i).map(win => {
+            const liveWindows = _windowsOnWorkspace(ws, i);
+            windowsByWorkspace.push(liveWindows);
+            workspaceStates.push({
+                occupied: liveWindows.length > 0,
+                urgent: liveWindows.some(_isUrgentWindow),
+            });
+            const windows = liveWindows.map(win => {
                 let identity = null;
                 try { identity = win.get_stable_sequence?.() ?? win.get_id?.() ?? null; } catch (e) {}
                 let appId = null;
@@ -206,7 +227,12 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             });
             workspaceWindows.push(windows);
         }
-        const snapshotKey = JSON.stringify([end4, activeIndex, n, workspaceWindows]);
+        const workspaceFilter = getWorkspaceFilter();
+        const visibleIndices = filterWorkspaceIndices(
+            workspaceFilter, workspaceStates, activeIndex);
+        const snapshotKey = JSON.stringify([
+            end4, activeIndex, n, workspaceFilter, workspaceWindows,
+        ]);
         if (snapshotKey === lastSnapshotKey) {
             updateFocusRings(focusId, activeIndex);
             return;
@@ -216,7 +242,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         box.destroy_all_children();
 
         if (displayMode === 'numbers') {
-            for (let i = 0; i < n; i++) {
+            for (const i of visibleIndices) {
                 const active = i === activeIndex;
                 const ws = manager.get_workspace_by_index(i);
                 const btn = new St.Button({
@@ -237,7 +263,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         }
 
         if (displayMode === 'dots') {
-            for (let i = 0; i < n; i++) {
+            for (const i of visibleIndices) {
                 const active = i === activeIndex;
                 const ws = manager.get_workspace_by_index(i);
                 const dot = new St.Button({
@@ -262,10 +288,10 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             return;
         }
 
-        for (let i = 0; i < n; i++) {
+        for (const i of visibleIndices) {
             const active = i === activeIndex;
             const ws = manager.get_workspace_by_index(i);
-            const apps = _appsOnWorkspace(ws, i);
+            const apps = _appsOnWorkspace(ws, i, windowsByWorkspace[i]);
 
             if (apps.length === 0) {
                 const dot = new St.Button({
