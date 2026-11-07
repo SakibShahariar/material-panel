@@ -63,5 +63,20 @@ class PackageExtensionTests(unittest.TestCase):
             PACKAGE.build_package(self.root, self.output, "v1.2.3")
 
 
+    def test_clipboard_history_runtime_files_are_in_the_extension_package(self):
+        root = Path(__file__).resolve().parents[1]
+        output = Path(self.temp.name) / "dist" / "material-panel.zip"
+        PACKAGE.build_package(root, output, "v1.2.3")
+        with zipfile.ZipFile(output) as archive:
+            names = set(archive.namelist())
+        self.assertTrue({
+            "lib/clipboardHistoryState.js",
+            "lib/clipboardHistoryController.js",
+            "lib/clipboardHistoryStore.js",
+            "modules/clipboardHistory.js",
+            "prefs/clipboardHistoryPage.js",
+        }.issubset(names))
+
+
 if __name__ == "__main__":
     unittest.main()
