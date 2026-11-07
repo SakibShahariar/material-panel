@@ -89,7 +89,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
     // Context-aware visibility remains opt-in and independent from manual visibility and Focus Mode.
     const contextVisibilityGroup = new Adw.PreferencesGroup({
         title: 'Context-aware Visibility',
-        description: 'Optionally hide selected modules while a window is fullscreen or the Overview is open. Both rules are off by default.',
+        description: 'Optionally hide selected modules while a window is fullscreen, the Overview is open, or Do Not Disturb is active. All rules are off by default.',
     });
     modulesPage.add(contextVisibilityGroup);
     if (!config.moduleVisibilityRules || typeof config.moduleVisibilityRules !== 'object')
@@ -98,6 +98,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         const rule = config.moduleVisibilityRules[module.id] ?? {
             hideWhenFullscreen: false,
             hideInOverview: false,
+            hideWhenDnd: false,
         };
         const fullscreenRow = new Adw.ActionRow({
             title: `${module.name} · Hide in fullscreen`,
@@ -111,7 +112,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenFullscreen = fullscreenSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -142,6 +143,28 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         overviewRow.add_suffix(overviewSwitch);
         overviewRow.activatable_widget = overviewSwitch;
         contextVisibilityGroup.add(overviewRow);
+
+        const dndRow = new Adw.ActionRow({
+            title: `${module.name} · Hide during Do Not Disturb`,
+            subtitle: 'Hide while GNOME notifications are silenced',
+        });
+        const dndSwitch = new Gtk.Switch({
+            active: rule.hideWhenDnd === true,
+            valign: Gtk.Align.CENTER,
+        });
+        dndSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            rule.hideWhenDnd = dndSwitch.active;
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        dndRow.add_suffix(dndSwitch);
+        dndRow.activatable_widget = dndSwitch;
+        contextVisibilityGroup.add(dndRow);
     }
 
     // Status indicators are informational; their existing modules retain control ownership.
