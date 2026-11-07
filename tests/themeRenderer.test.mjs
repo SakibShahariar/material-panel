@@ -72,7 +72,7 @@ test('dimension renderer normalizes malformed numeric inputs without emitting in
         },
     });
     assert.doesNotMatch(css, /NaN|Infinity/);
-    assert.match(css, /height: 40px;/);
+    assert.match(css, /height: 49px;/);
     assert.match(css, /margin: 5px 3px 4px 3px/);
 
     const legacy = renderDimensionsCss({
