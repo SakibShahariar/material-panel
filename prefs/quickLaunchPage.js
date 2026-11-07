@@ -5,6 +5,9 @@ function iconIsValid(value) {
 }
 
 function commandIsValid(GLib, value) {
+    if (typeof value !== 'string' || !value.trim() || value.length > 512 ||
+        /[\\u0000-\\u001f\\u007f]/.test(value))
+        return false;
     try {
         const [ok, argv] = GLib.shell_parse_argv(value);
         return ok && Array.isArray(argv) && argv.length > 0;
@@ -131,7 +134,10 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                 if (!value) {
                     notify('A shortcut value is required');
                 } else if (entry.type === 'command' && !commandIsValid(GLib, value)) {
-                    notify('Enter a valid executable and arguments');
+                    notify('Enter a valid executable and arguments (maximum 512 characters)');
+                } else if (entry.type === 'command' && config.quickLaunch.some(item =>
+                    item.id !== entry.id && item.type === 'command' && item.target === value)) {
+                    notify('That command is already in Quick Launch');
                 } else if (!iconIsValid(icon)) {
                     notify('Use a symbolic icon name, not a file path');
                 } else {
