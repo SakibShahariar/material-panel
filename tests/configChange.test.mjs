@@ -69,3 +69,9 @@ test('popup shortcut configuration changes are applied without rebuilding the pa
     const next = {popupShortcuts: {volume: '<Super><Alt>V', network: ''}};
     assert.equal(classifyConfigChange(previous, next), 'moduleSetting');
 });
+
+test('per-zone density changes require rebuilding module geometry', () => {
+    const previous = {zoneScale: {left: 1, center: 1, right: 1}};
+    const next = {zoneScale: {left: 0.9, center: 1, right: 1.1}};
+    assert.equal(classifyConfigChange(previous, next), 'full');
+});

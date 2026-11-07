@@ -7,6 +7,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 import {ConfigStore} from './lib/configStore.js';
 import {formatWeatherLocations, parseWeatherLocations} from './lib/weatherLocations.js';
 import {DEFAULT_POPUP_SHORTCUTS, findPopupShortcutConflicts, normalizePopupShortcuts, POPUP_SHORTCUT_TARGETS} from './lib/popupShortcuts.js';
+import {normalizeZoneScale} from './lib/configNormalization.js';
 import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
 import {serializeLayoutPreset, parseLayoutPreset} from './lib/layoutPresetIo.js';
 import {formatQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
@@ -200,6 +201,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             config.panelSize = {scale, gapTop, gapBottom, gapSide, chipGap, popupOpacity};
         }
         const panelSize = config.panelSize;
+        config.zoneScale = normalizeZoneScale(config.zoneScale);
 
         // Initialize hidden modules list if not present
         if (!config.hiddenModules) config.hiddenModules = [];
@@ -475,6 +477,73 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             title: 'Popup opacity',
             key: 'popupOpacity', min: 0.5, max: 1.0, step: 0.02,
         });
+
+        const zoneScaleGroup = new Adw.PreferencesGroup({
+            title: 'Per-zone density',
+            description: 'Adjust each zone relative to the global Size setting. Icon and pill dimensions stay proportional. The overall bar height follows the tallest zone.',
+        });
+        generalPage.add(zoneScaleGroup);
+        const zoneSliderMap = {};
+        const makeZoneScaleRow = (zone, title) => {
+            const initial = config.zoneScale[zone];
+            const adjustment = new Gtk.Adjustment();
+            adjustment.set_lower(0.8);
+            adjustment.set_upper(1.2);
+            adjustment.set_step_increment(0.05);
+            adjustment.set_page_increment(0.1);
+            adjustment.set_value(initial);
+            const row = new Adw.ActionRow({
+                title,
+                subtitle: 'Relative to global panel size',
+            });
+            const scale = new Gtk.Scale({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                adjustment,
+                digits: 2,
+                width_request: 180,
+                valign: Gtk.Align.CENTER,
+                draw_value: false,
+                hexpand: true,
+            });
+            adjustment.set_value(initial);
+            const valueLabel = new Gtk.Label({
+                label: `${initial.toFixed(2)}×`,
+                width_request: 52,
+                xalign: 1,
+                valign: Gtk.Align.CENTER,
+                css_classes: ['dim-label', 'monospace'],
+            });
+            const updateValueLabel = () => {
+                const shown = Number(adjustment.get_value());
+                valueLabel.label = `${shown.toFixed(2)}×`;
+                scale.set_tooltip_text(`${shown.toFixed(2)}×`);
+            };
+            updateValueLabel();
+            scale.connect('value-changed', () => {
+                if (syncingExternal) return;
+                const value = Math.round(Number(adjustment.get_value()) * 100) / 100;
+                if (!Number.isFinite(value)) return;
+                config.zoneScale = {
+                    ...normalizeZoneScale(config.zoneScale),
+                    [zone]: value,
+                };
+                updateValueLabel();
+                if (saveDebounceId)
+                    GLib.source_remove(saveDebounceId);
+                saveDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 280, () => {
+                    saveDebounceId = null;
+                    saveConfig();
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
+            row.add_suffix(scale);
+            row.add_suffix(valueLabel);
+            zoneScaleGroup.add(row);
+            zoneSliderMap[zone] = {adjustment, updateValueLabel};
+        };
+        makeZoneScaleRow('left', 'Left zone');
+        makeZoneScaleRow('center', 'Center zone');
+        makeZoneScaleRow('right', 'Right zone');
 
         const clockGroup = new Adw.PreferencesGroup({
             title: 'Clock',
@@ -1239,6 +1308,17 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                     if (Math.abs(entry.adjustment.get_value() - v) > 0.001) {
                         entry.adjustment.set_value(v);
                         panelSize[k] = v;
+                        entry.updateValueLabel();
+                    }
+                }
+                const normalizedZoneScale = normalizeZoneScale(config.zoneScale);
+                config.zoneScale = normalizedZoneScale;
+                for (const zone of ['left', 'center', 'right']) {
+                    const entry = zoneSliderMap[zone];
+                    if (!entry) continue;
+                    const value = normalizedZoneScale[zone];
+                    if (Math.abs(entry.adjustment.get_value() - value) > 0.001) {
+                        entry.adjustment.set_value(value);
                         entry.updateValueLabel();
                     }
                 }

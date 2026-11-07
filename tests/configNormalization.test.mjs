@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
-import {normalizePanelSize} from '../lib/configNormalization.js';
+import {normalizePanelSize, normalizeZoneScale} from '../lib/configNormalization.js';
 
 const defaults = {
     scale: 1,
@@ -87,4 +87,16 @@ test('popup shortcut configuration defaults empty and normalizes only supported 
     assert.match(source, /popupShortcuts: \{\}/);
     assert.match(source, /normalizePopupShortcuts\(merged\.popupShortcuts\)/);
     assert.match(source, /out\.popupShortcuts = normalizePopupShortcuts\(out\.popupShortcuts\)/);
+});
+
+test('normalizes per-zone scale independently and clamps invalid values', () => {
+    assert.deepEqual(normalizeZoneScale({
+        left: 0.7,
+        center: '1.15',
+        right: 1.8,
+    }), {left: 0.8, center: 1.15, right: 1.2});
+    assert.deepEqual(normalizeZoneScale({
+        left: 'invalid',
+        center: null,
+    }), {left: 1, center: 1, right: 1});
 });

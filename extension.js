@@ -160,7 +160,7 @@ export default class MaterialPanelExtension extends Extension {
                 // Only scale needs destroy/recreate of panel modules (icon sizes baked in).
                 // Gaps + opacity are CSS / geometry — do NOT tear down our chips/QS.
                 try {
-                    const panelSize = this._config.panelSize ?? {};
+                    const panelSize = {...(this._config.panelSize ?? {}), zoneScale: this._config.zoneScale};
                     // A scale change schedules _schedulePanelSizeUpdate(), which
                     // applies the theme and chip gap itself. Avoid doing that work
                     // twice while still syncing geometry immediately.
@@ -382,7 +382,7 @@ export default class MaterialPanelExtension extends Extension {
             this._trayRescanIds = [];
         }
         try {
-            const panelSize = this._config.panelSize ?? {};
+            const panelSize = {...(this._config.panelSize ?? {}), zoneScale: this._config.zoneScale};
             const colorSource = resolveColorSource(this._config.colorSource);
             this._theme.apply(colorSource, panelSize, this._config.layoutStyle ?? 'default', applied => {
                 if (!applied)
@@ -403,7 +403,7 @@ export default class MaterialPanelExtension extends Extension {
     }
 
     _applyTheme({rebuildPanel = true} = {}) {
-        const panelSize = this._config.panelSize ?? {};
+        const panelSize = {...(this._config.panelSize ?? {}), zoneScale: this._config.zoneScale};
         const colorSource = resolveColorSource(this._config.colorSource);
         try {
             setLayoutStyle(this._config.layoutStyle);
@@ -442,7 +442,7 @@ export default class MaterialPanelExtension extends Extension {
                 // build time — need a debounced rebuild so icons follow the palette.
                 debugLog('matugen watch — theme + debounced rebuild for icons');
                 try {
-                    const freshSize = this._config.panelSize ?? {};
+                    const freshSize = {...(this._config.panelSize ?? {}), zoneScale: this._config.zoneScale};
                     const freshSource = resolveColorSource(this._config.colorSource);
                     this._theme.apply(freshSource, freshSize, this._config.layoutStyle ?? 'default', applied => {
                         if (applied)
