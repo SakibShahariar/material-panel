@@ -3,6 +3,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
+import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
@@ -181,6 +182,32 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         });
         body.clutter_text.line_wrap = true;
         card.add_child(body);
+        if (section.id === 'home') {
+            const actionsCard = new St.BoxLayout({
+                style_class: 'material-panel-control-center-card',
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            actionsCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 10px;`;
+            const actionsTitle = new St.Label({text: 'Quick actions'});
+            actionsTitle.style = 'font-size: 14px; font-weight: 650;';
+            const actionGrid = new St.Widget({
+                style_class: 'material-panel-control-center-actions',
+                layout_manager: new Clutter.GridLayout(),
+                x_expand: true,
+            });
+            actionGrid.layout_manager.column_spacing = 8;
+            actionGrid.layout_manager.row_spacing = 8;
+            const actions = [darkModeTile(), nightLightTile(), dndTile()];
+            actions.forEach((action, index) => {
+                action.x_expand = true;
+                actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
+            });
+            actionsCard.add_child(actionsTitle);
+            actionsCard.add_child(actionGrid);
+            page.add_child(actionsCard);
+        }
+
         page.add_child(heading);
         page.add_child(description);
         page.add_child(card);
