@@ -58,3 +58,15 @@ test('hides only modules opting into Do Not Disturb context', () => {
     assert.deepEqual([...getContextHiddenModules(rules, {dnd: true})], ['clock']);
     assert.deepEqual([...getContextHiddenModules(rules, {dnd: false})], []);
 });
+
+
+test('hides only modules opting into offline context', () => {
+    const rules = {
+        clock: {hideWhenOffline: true},
+        volume: {hideWhenOffline: false},
+        network: {hideWhenOffline: true, hideWhenDnd: true},
+    };
+    assert.deepEqual([...getContextHiddenModules(rules, {offline: true})], ['clock', 'network']);
+    assert.deepEqual([...getContextHiddenModules(rules, {offline: false})], []);
+    assert.deepEqual([...getContextHiddenModules(rules, {offline: true, dnd: true})], ['clock', 'network']);
+});
