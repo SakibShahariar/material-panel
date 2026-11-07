@@ -45,3 +45,9 @@ test('does not mutate the caller-owned configuration array', () => {
     normalizeQuickLaunchEntries(source);
     assert.deepEqual(source, [{id: 'one', type: 'command', target: 'echo ok'}]);
 });
+
+test('exports a bounded timeout for configured command actions', async () => {
+    const {QUICK_LAUNCH_TIMEOUT_SECONDS: timeout} = await import('../lib/quickLaunch.js');
+    assert.equal(timeout, 30);
+    assert.ok(timeout > 0 && timeout <= 60);
+});
