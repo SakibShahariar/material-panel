@@ -188,7 +188,8 @@ test('Control Center Home reflows from a two-column bento to one column in compa
     assert.match(module, /homeLayout\.attach\(homeCards\[0\], 0, 0, 2, 1\)/);
     assert.match(module, /homeLayout\.attach\(homeCards\[1\], 0, 1, 1, 1\)/);
     assert.match(module, /homeLayout\.attach\(homeCards\[2\], 1, 1, 1, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[3\], 0, 2, 2, 1\)/);
+    assert.match(module, /homeLayout\.attach\(homeCards\[3\], 0, 2, 1, 1\)/);
+    assert.match(module, /homeLayout\.attach\(homeCards\[4\], 1, 2, 1, 1\)/);
 });
 
 test('Control Center Home reuses the System and Disk module samples for its overview', async () => {
