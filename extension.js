@@ -24,7 +24,7 @@ import {setNetworkSpeedAutoHide, clearNetworkSpeedVisibilityState} from './lib/n
 import {setNetworkSpeedUnit, clearNetworkSpeedUnit} from './lib/networkSpeedUnit.js';
 import {setWorkspaceDisplayMode, setWorkspaceFilter, setWorkspaceScrollSwitch, clearWorkspaceState} from './lib/workspaceState.js';
 import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaVisualizerState.js';
-import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
+import {setWeatherLocation, clearWeatherLocation, setWeatherLocations, clearWeatherLocations} from './lib/weatherLocationState.js';
 import {clearControlCenterSummary} from './lib/controlCenterSummaryState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
@@ -63,6 +63,7 @@ export default class MaterialPanelExtension extends Extension {
         // panel once the shared mixer control becomes available.
         setMixerControlReadyCallback(() => this._schedulePanelRebuild('audio-recovered'));
         setWeatherLocation(this._config.weatherLocation);
+        setWeatherLocations(this._config.weatherLocations);
         setQuickLaunchEntries(this._config.quickLaunch);
         this._syncClipboardHistory(this._config);
         this._clipboardHistoryClearToken = this._config.clipboardHistoryClearToken ?? '';
@@ -91,6 +92,7 @@ export default class MaterialPanelExtension extends Extension {
             this._config = newConfig;
             setProfileIdentityHidden(newConfig.hideProfileIdentity === true);
             setWeatherLocation(newConfig.weatherLocation);
+            setWeatherLocations(newConfig.weatherLocations);
             setQuickLaunchEntries(newConfig.quickLaunch);
             this._syncClipboardHistory(newConfig);
             const clearToken = newConfig.clipboardHistoryClearToken ?? '';
@@ -495,6 +497,7 @@ export default class MaterialPanelExtension extends Extension {
         clearWorkspaceState();
         clearMediaVisualizerState();
         clearWeatherLocation();
+        clearWeatherLocations();
         clearControlCenterSummary();
         clearQuickSettingsState();
         clearQuickLaunchEntries();

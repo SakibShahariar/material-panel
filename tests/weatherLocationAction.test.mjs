@@ -17,3 +17,12 @@ test('Weather popup displays the active forecast source and keeps IP geolocation
     assert.ok(!weather.includes('ipapi.co'));
     assert.ok(!weather.includes('ipinfo.io'));
 });
+
+test('Weather popup offers saved locations and protects against stale fetch results after switching', () => {
+    assert.ok(weather.includes('getWeatherLocations()'));
+    assert.ok(weather.includes('new PopupMenu.PopupMenuItem(location.name)'));
+    assert.ok(weather.includes('setWeatherLocationIndex(index)'));
+    assert.ok(weather.includes('requestGeneration++'));
+    assert.ok(weather.includes('generation !== requestGeneration'));
+    assert.ok(weather.includes('pendingFetch && !destroyed'));
+});

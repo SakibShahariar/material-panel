@@ -74,3 +74,10 @@ test('status indicator preferences default to active-only and normalize independ
     assert.match(source, /statusIndicatorPreferences:/);
     assert.match(source, /normalizeStatusIndicatorPreferences\(merged\.statusIndicatorPreferences\)/);
 });
+
+test('normalizes multiple saved weather locations without disturbing the legacy location setting', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /weatherLocations: \[\]/);
+    assert.match(source, /normalizeWeatherLocations\(merged\.weatherLocations\)/);
+    assert.match(source, /out\.weatherLocations = normalizeWeatherLocations\(out\.weatherLocations\)/);
+});

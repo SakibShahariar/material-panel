@@ -5,6 +5,7 @@ import GLib from 'gi://GLib';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {ConfigStore} from './lib/configStore.js';
+import {formatWeatherLocations, parseWeatherLocations} from './lib/weatherLocations.js';
 import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
 import {serializeLayoutPreset, parseLayoutPreset} from './lib/layoutPresetIo.js';
 import {formatQuickSettingsTileOrder} from './lib/quickSettingsTiles.js';
@@ -579,7 +580,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const weatherGroup = new Adw.PreferencesGroup({
             title: 'Weather location',
-            description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. No IP geolocation is used.',
+            description: 'Optional manual override. Coordinates are decimal degrees; leave both empty to use GNOME Weather. Saved locations use Name|latitude|longitude entries separated by semicolons. No IP geolocation is used.',
         });
         generalPage.add(weatherGroup);
         config.weatherLocation ??= {mode: 'gnome', name: '', latitude: '', longitude: ''};
@@ -657,6 +658,30 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         weatherActions.add_suffix(weatherSave);
         weatherActions.activatable_widget = weatherSave;
         weatherGroup.add(weatherActions);
+
+        const savedWeatherLocationsRow = new Adw.EntryRow({
+            title: 'Saved locations (2–8)',
+            text: formatWeatherLocations(config.weatherLocations),
+            show_apply_button: true,
+        });
+        savedWeatherLocationsRow.connect('apply', () => {
+            if (syncingExternal) return;
+            const parsed = parseWeatherLocations(savedWeatherLocationsRow.get_text());
+            if (parsed === null) {
+                window.add_toast(new Adw.Toast({
+                    title: 'Enter 2–8 distinct locations as Name|latitude|longitude',
+                }));
+                savedWeatherLocationsRow.set_text(formatWeatherLocations(config.weatherLocations));
+                return;
+            }
+            config.weatherLocations = parsed;
+            saveConfig();
+            savedWeatherLocationsRow.set_text(formatWeatherLocations(parsed));
+            window.add_toast(new Adw.Toast({
+                title: parsed.length ? `${parsed.length} weather locations saved` : 'Saved locations cleared',
+            }));
+        });
+        weatherGroup.add(savedWeatherLocationsRow);
 
         const networkGroup = new Adw.PreferencesGroup({
             title: 'Network speed',

@@ -13,7 +13,7 @@ import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
 import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
-import {getWeatherLocation} from '../lib/weatherLocationState.js';
+import {getWeatherLocation, getWeatherLocations, getWeatherLocationIndex, setWeatherLocationIndex} from '../lib/weatherLocationState.js';
 import {setWeatherSummary, clearWeatherSummary} from '../lib/weatherSummaryState.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
@@ -399,6 +399,8 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     let destroyed = false;
     let initialFetchId = 0;
     let fetchInFlight = false;
+    let requestGeneration = 0;
+    let pendingFetch = false;
     let retryId = 0;
     let retryDelaySeconds = 60;
 
@@ -615,6 +617,44 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
     menu.addMenuItem(changeLocationItem);
 
+    const savedLocations = getWeatherLocations();
+    const savedLocationItems = [];
+    const updateSavedLocationLabels = () => {
+        const activeIndex = getWeatherLocationIndex();
+        savedLocationItems.forEach((entry, index) => {
+            entry.label.text = `${index === activeIndex ? '✓ ' : ''}${entry.location.name}`;
+        });
+    };
+    savedLocations.forEach((location, index) => {
+        const entry = new PopupMenu.PopupMenuItem(location.name);
+        entry.connect('activate', () => {
+            if (index === getWeatherLocationIndex())
+                return;
+            setWeatherLocationIndex(index);
+            updateSavedLocationLabels();
+            detail = null;
+            lastSuccessAt = 0;
+            label.text = '—°';
+            clearWeatherSummary();
+            fillPopup();
+            if (retryId) {
+                try { GLib.source_remove(retryId); } catch (e) {}
+                retryId = 0;
+            }
+            retryDelaySeconds = 60;
+            requestGeneration++;
+            pendingFetch = true;
+            if (!fetchInFlight) {
+                pendingFetch = false;
+                fetchWeather();
+            }
+            menu.close();
+        });
+        savedLocationItems.push({label: entry.label, location});
+        menu.addMenuItem(entry);
+    });
+    updateSavedLocationLabels();
+
     const iconForKey = key => {
         try {
             let pth = iconPathPrimary(key);
@@ -765,10 +805,45 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     };
 
     const fetchWeather = async () => {
-        if (destroyed || fetchInFlight)
+        if (destroyed)
             return;
+        if (fetchInFlight) {
+            pendingFetch = true;
+            return;
+        }
         fetchInFlight = true;
+        const generation = requestGeneration;
+        const applyCurrent = (data, savedAt = 0) => {
+            if (generation === requestGeneration)
+                apply(data, savedAt);
+        };
         try {
+            // Explicit saved locations take precedence over the legacy single-location setting.
+            if (savedLocations.length > 0) {
+                const selected = savedLocations[getWeatherLocationIndex()] || savedLocations[0];
+                const lat = Number(selected.latitude);
+                const lon = Number(selected.longitude);
+                const place = selected.name;
+                const cacheKey = JSON.stringify(['saved', lat, lon, place, 'metric']);
+                const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
+                if (cached) {
+                    applyCurrent(cached.data, cached.savedAt);
+                    if (GLib.get_monotonic_time() - cached.savedAt < 15 * 60 * 1000000) {
+                        retryDelaySeconds = 60;
+                        if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+                        return;
+                    }
+                }
+                const data = await fetchOpenMeteo(
+                    lat, lon, place, 'Open-Meteo · saved location', cancellable);
+                if (generation !== requestGeneration)
+                    return;
+                setWeatherCache(cacheKey, data, GLib.get_monotonic_time());
+                applyCurrent(data);
+                retryDelaySeconds = 60;
+                if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
+                return;
+            }
             // 1) An explicit manual location takes precedence over GNOME Weather.
             const manual = getWeatherLocation();
             // Old saved configurations with coordinates should keep using them;
@@ -792,7 +867,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 const cacheKey = JSON.stringify(['manual', lat, lon, place, 'metric']);
                 const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
                 if (cached) {
-                    apply(cached.data, cached.savedAt);
+                    applyCurrent(cached.data, cached.savedAt);
                     if (GLib.get_monotonic_time() - cached.savedAt < 15 * 60 * 1000000) {
                         retryDelaySeconds = 60;
                         if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
@@ -801,7 +876,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 }
                 const data = await fetchOpenMeteo(lat, lon, place, 'Open-Meteo · manual location', cancellable);
                 setWeatherCache(cacheKey, data, GLib.get_monotonic_time());
-                apply(data);
+                applyCurrent(data);
                 retryDelaySeconds = 60;
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
@@ -815,7 +890,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 const cacheKey = JSON.stringify(['gnome', gw.lat, gw.lon, place, 'metric']);
                 const cached = getWeatherCache(cacheKey, GLib.get_monotonic_time());
                 if (cached) {
-                    apply(cached.data, cached.savedAt);
+                    applyCurrent(cached.data, cached.savedAt);
                     if (GLib.get_monotonic_time() - cached.savedAt < 15 * 60 * 1000000) {
                         retryDelaySeconds = 60;
                         if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
@@ -825,7 +900,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                 const data = await fetchOpenMeteo(
                     gw.lat, gw.lon, place, 'Open-Meteo · GNOME Weather', cancellable);
                 setWeatherCache(cacheKey, data, GLib.get_monotonic_time());
-                apply(data);
+                applyCurrent(data);
                 retryDelaySeconds = 60;
                 if (retryId) { try { GLib.source_remove(retryId); } catch (e) {} retryId = 0; }
                 return;
@@ -835,7 +910,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             // forecast for an unrelated city as if it were local weather.
             throw new Error('No weather location configured; set a city in GNOME Weather');
         } catch (e) {
-            if (destroyed)
+            if (destroyed || generation !== requestGeneration)
                 return;
             logError(e, 'material-panel: weather fetch');
             // Preserve the last successful forecast when a refresh fails.
@@ -882,6 +957,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             }
         } finally {
             fetchInFlight = false;
+            if (pendingFetch && !destroyed) {
+                pendingFetch = false;
+                fetchWeather();
+            }
         }
     };
 
@@ -966,6 +1045,6 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         try { GLib.source_remove(refreshId); } catch (e) {}
     });
 
-    try { setChipA11y(button, 'Weather'); } catch (e) {}
+    try { setChipA11y(button, savedLocations.length > 1 ? 'Weather, select a location in the popup' : 'Weather'); } catch (e) {}
     return button;
 }
