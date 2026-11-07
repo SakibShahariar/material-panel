@@ -21,8 +21,8 @@ test('normalizes only explicit boolean rules for known modules', () => {
         volume: {hideWhenFullscreen: 'yes', hideInOverview: true},
         network: 'invalid',
     }), {
-        clock: {hideWhenFullscreen: true, hideInOverview: false},
-        volume: {hideWhenFullscreen: false, hideInOverview: true},
+        clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false},
+        volume: {hideWhenFullscreen: false, hideInOverview: true, hideWhenDnd: false},
     });
 });
 
@@ -47,4 +47,14 @@ test('inactive desktop context leaves all modules visible', () => {
     assert.deepEqual([...getContextHiddenModules({
         clock: {hideWhenFullscreen: true, hideInOverview: true},
     })], []);
+});
+
+
+test('hides only modules opting into Do Not Disturb context', () => {
+    const rules = {
+        clock: {hideWhenDnd: true},
+        volume: {hideWhenDnd: false},
+    };
+    assert.deepEqual([...getContextHiddenModules(rules, {dnd: true})], ['clock']);
+    assert.deepEqual([...getContextHiddenModules(rules, {dnd: false})], []);
 });
