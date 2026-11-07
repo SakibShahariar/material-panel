@@ -197,8 +197,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             card.add_child(noMedia);
             card.add_child(mediaRow);
         }
-        if (section.id === 'system')
-            page.add_child(buildControlCenterSystem());
+        const systemView = section.id === 'system' ? buildControlCenterSystem() : null;
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
@@ -248,7 +247,10 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
 
         page.add_child(heading);
         page.add_child(description);
-        page.add_child(card);
+        if (systemView)
+            page.add_child(systemView);
+        else
+            page.add_child(card);
 
         focusModeItem.visible = section.id === 'home';
         for (const [id, navButton] of navButtons) {

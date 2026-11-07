@@ -113,7 +113,7 @@ test('Control Center System view samples metrics only while its section actor ex
     assert.match(system, /processCancellable\?\.cancel\(\)/);
     assert.match(system, /parseProcessSnapshot\(stdout/);
     assert.match(system, /getNetworkMetrics\(\)/);
-    assert.match(system, /const readCpuUsage/);
+    assert.match(system, /function readCpuUsage/);
     assert.match(system, /findTemperaturePath/);
     assert.match(system, /let gpuEnabled = false/);
     assert.match(system, /if \(gpuEnabled\)\s+refreshGpu\(\)/);

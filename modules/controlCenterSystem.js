@@ -2,6 +2,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
 import {readMemInfo} from '../lib/memInfo.js';
 import {getNetworkMetrics} from '../lib/systemMetricsState.js';
 import {parseProcessSnapshot, filterAndSortProcesses} from '../lib/processSnapshot.js';
@@ -232,6 +233,8 @@ export function buildControlCenterSystem() {
         child: new St.Label({text: 'Enable GPU metrics'}),
     });
     gpuToggle.style = 'padding: 7px 10px; border-radius: 10px;';
+    gpuToggle.accessible_name = 'Enable GPU metrics';
+    gpuToggle.set_tooltip_text('GPU queries stay off until you explicitly enable them');
     const gpuValue = new St.Label({text: 'Off — GPU is not queried'});
     gpuCard.add_child(gpuTitle);
     gpuCard.add_child(gpuToggle);
@@ -245,6 +248,7 @@ export function buildControlCenterSystem() {
     let processInFlight = false;
     let processCancellable = null;
     let gpuEnabled = false;
+    let gpuGeneration = 0;
     let gpuInFlight = false;
     let gpuCancellable = null;
     let latestProcesses = [];
@@ -269,7 +273,7 @@ export function buildControlCenterSystem() {
                 x_expand: true,
             });
             const name = new St.Label({text: process.comm, x_expand: true});
-            name.clutter_text.ellipsize = 3;
+            name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             const stats = new St.Label({text: process.pcpu + '% CPU · ' + process.pmem + '% RAM'});
             row.add_child(name);
             row.add_child(stats);
@@ -314,12 +318,18 @@ export function buildControlCenterSystem() {
         if (destroyed || !gpuEnabled || gpuInFlight)
             return;
         gpuInFlight = true;
+        const generation = ++gpuGeneration;
         gpuCancellable = new Gio.Cancellable();
         readGpuInfoAsync(gpuCancellable, result => {
             if (destroyed)
                 return;
             gpuInFlight = false;
             gpuCancellable = null;
+            if (generation !== gpuGeneration) {
+                if (gpuEnabled)
+                    refreshGpu();
+                return;
+            }
             if (!gpuEnabled)
                 return;
             gpuValue.text = result
@@ -337,6 +347,7 @@ export function buildControlCenterSystem() {
             gpuValue.text = 'Checking GPU hardware…';
             refreshGpu();
         } else {
+            gpuGeneration++;
             try { gpuCancellable?.cancel(); } catch (e) {}
             gpuValue.text = 'Off — GPU is not queried';
         }
