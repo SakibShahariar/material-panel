@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+    formatWorldClockEntries,
+    formatWorldClockEntry,
+    normalizeWorldClockEntries,
+    parseWorldClockEntries,
+} from '../lib/worldClock.js';
+
+test('normalizes world clocks, removes invalid zones and duplicate zones', () => {
+    assert.deepEqual(normalizeWorldClockEntries([
+        {name: '  Dhaka  ', timeZone: 'Asia/Dhaka'},
+        {name: 'Duplicate', timeZone: 'Asia/Dhaka'},
+        {name: 'Invalid', timeZone: 'Mars/Olympus'},
+        {name: 'No zone', timeZone: ''},
+        null,
+    ]), [{name: 'Dhaka', timeZone: 'Asia/Dhaka'}]);
+});
+
+test('sanitizes city labels while preserving Unicode names', () => {
+    assert.deepEqual(normalizeWorldClockEntries([
+        {name: 'ঢাকা\nCentral', timeZone: 'Asia/Dhaka'},
+        {name: 'القاهرة', timeZone: 'Africa/Cairo'},
+    ]).map(entry => entry.name), ['ঢাকা Central', 'القاهرة']);
+});
+
+test('limits world clock list to twelve entries', () => {
+    const entries = Array.from({length: 14}, (_, index) => ({
+        name: 'City ' + index,
+        timeZone: 'Etc/GMT+' + index,
+    }));
+    assert.equal(normalizeWorldClockEntries(entries).length, 12);
+});
+
+test('parses and formats ordered city and IANA time-zone preferences', () => {
+    const parsed = parseWorldClockEntries(
+        'Dhaka|Asia/Dhaka; New York|America/New_York');
+    assert.deepEqual(parsed, [
+        {name: 'Dhaka', timeZone: 'Asia/Dhaka'},
+        {name: 'New York', timeZone: 'America/New_York'},
+    ]);
+    assert.equal(formatWorldClockEntries(parsed),
+        'Dhaka|Asia/Dhaka; New York|America/New_York');
+    assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Broken'), null);
+    assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Other|Asia/Dhaka'), null);
+});
+
+test('formats local time, date and previous-day offset using IANA time zones', () => {
+    const now = new Date('2026-01-01T01:00:00Z');
+    const result = formatWorldClockEntry({
+        name: 'New York',
+        timeZone: 'America/New_York',
+    }, now, {locale: 'en-GB', localTimeZone: 'Asia/Dhaka'});
+    assert.equal(result.time, '20:00');
+    assert.equal(result.dayOffset, -1);
+    assert.equal(result.dayOffsetLabel, 'Yesterday');
+    assert.match(result.date, /Dec 31/);
+});
+
+test('uses daylight-saving rules from the time-zone database', () => {
+    const winter = formatWorldClockEntry({
+        name: 'New York',
+        timeZone: 'America/New_York',
+    }, new Date('2026-01-15T12:00:00Z'), {locale: 'en-GB'});
+    const summer = formatWorldClockEntry({
+        name: 'New York',
+        timeZone: 'America/New_York',
+    }, new Date('2026-07-15T12:00:00Z'), {locale: 'en-GB'});
+    assert.equal(winter.time, '07:00');
+    assert.equal(summer.time, '08:00');
+});
+
+test('rejects invalid entries before formatting', () => {
+    assert.equal(formatWorldClockEntry({name: 'Invalid', timeZone: 'Mars/Olympus'}), null);
+});
