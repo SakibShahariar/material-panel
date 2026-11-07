@@ -127,3 +127,10 @@ test('context visibility rules default off and discard unknown or malformed modu
         network: {hideWhenOffline: true},
     }), {network: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: true}});
 });
+
+test('world clocks default empty and normalize on load and save', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /worldClocks: \[\]/);
+    assert.match(source, /normalizeWorldClockEntries\(merged\.worldClocks\)/);
+    assert.match(source, /out\.worldClocks = normalizeWorldClockEntries\(out\.worldClocks\)/);
+});
