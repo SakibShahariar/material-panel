@@ -72,7 +72,12 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
         source('../lib/quickLaunchRunner.js'),
     ]);
     assert.match(module, /GLib\.shell_parse_argv\(command\)/);
-    assert.match(module, /GLib\.spawn_async\(\s*null, argv, null, GLib\.SpawnFlags\.SEARCH_PATH/);
+    assert.match(module, /Gio\.Subprocess\.new\(\s*argv,/);
+    assert.match(module, /QUICK_LAUNCH_TIMEOUT_SECONDS/);
+    assert.match(module, /GLib\.timeout_add_seconds/);
+    assert.match(module, /process\.force_exit\(\)/);
+    assert.match(module, /subprocess\.wait_async/);
+    assert.match(module, /Main\.notify\('Quick launch completed'/);
     assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
     assert.match(runner, /const argv = parseCommand\(entry\.target\)/);
     assert.match(runner, /spawnCommand\(argv\)/);
