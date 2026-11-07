@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `2c42b3c744c81a490965e5b73433506d234ebf04`
-- Checkpoint date: 2026-11-02
-- Next session: start with commits after this checkpoint. This ledger update will be newer than the checkpoint and should be included in the next incremental check.
+- Checkpoint SHA: `2e82ddba2107a785774d98b2420f183340245fde`
+- Checkpoint date: 2026-11-07
+- Next session: start with the ledger/test commit immediately following this checkpoint, then review every subsequent commit.
 
 ## Initial audit baseline
 
@@ -124,6 +124,43 @@ The previous checkpoint was `1a403ac2cff4f56a3dc7a39b948cccee2557a648`. All five
 
 The DND feature uses a module-scoped focus-session service and the existing GNOME `show-banners` setting. Follow-up commits corrected the test syntax, updated the accessible-name assertion, and aligned the UI source assertion with the generated duration labels. The final CI run is green; live GNOME popup interaction is recommended.
 
+## Incremental review: 2026-11-07 — Quick Launch, notification actions, and workspace filters
+
+The previous checkpoint was `2c42b3c744c81a490965e5b73433506d234ebf04`. All 29 commits through `2e82ddba2107a785774d98b2420f183340245fde` were checked against their actual push-triggered GitHub Actions runs. Empty combined-status responses were not treated as passing; the run results below are the evidence.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `77c122e7` | `docs: record focus-session DND CI investigation` | green | 2026-11-07 | [Run #41495230006](https://github.com/SakibShahariar/material-panel/actions/runs/41495230006) passed. |
+| `0289dffb` | `docs: define issue triage categories` | green | 2026-11-07 | [Run #41573352201](https://github.com/SakibShahariar/material-panel/actions/runs/41573352201) passed. |
+| `10d3c86e` | `docs(agents): define administrative commit hygiene` | green | 2026-11-07 | [Run #41597953171](https://github.com/SakibShahariar/material-panel/actions/runs/41597953171) passed. |
+| `dc9260d4` | `docs(agents): clarify acceptance criteria evidence` | green | 2026-11-07 | [Run #41864057401](https://github.com/SakibShahariar/material-panel/actions/runs/41864057401) passed. |
+| `c4ed82ec` | `feat(quick-launch): add optional Quick Settings shortcuts (Refs #253)` | green | 2026-11-07 | [Run #42334603207](https://github.com/SakibShahariar/material-panel/actions/runs/42334603207) passed. |
+| `9a76d48b` | `test(quick-launch): extract injectable launch dispatcher (Refs #253)` | green | 2026-11-07 | [Run #42336059838](https://github.com/SakibShahariar/material-panel/actions/runs/42336059838) passed. |
+| `6bf19019` | `test(quick-launch): cover app and command launch dispatch (Refs #253)` | green | 2026-11-07 | [Run #42336068784](https://github.com/SakibShahariar/material-panel/actions/runs/42336068784) passed. |
+| `754c6b4c` | `refactor(quick-launch): use testable launch dispatcher (Refs #253)` | green | 2026-11-07 | [Run #42336078418](https://github.com/SakibShahariar/material-panel/actions/runs/42336078418) passed. |
+| `b6a0cdc1` | `feat(notifications): add safe native action helpers (Refs #250)` | green | 2026-11-07 | [Run #42336348829](https://github.com/SakibShahariar/material-panel/actions/runs/42336348829) passed. |
+| `1aa4dc4c` | `test(notifications): cover native action extraction and dispatch (Refs #250)` | green | 2026-11-07 | [Run #42336355222](https://github.com/SakibShahariar/material-panel/actions/runs/42336355222) passed. |
+| `1a3fbb09` | `feat(notifications): render native notification actions (Refs #250)` | green | 2026-11-07 | [Run #42336366095](https://github.com/SakibShahariar/material-panel/actions/runs/42336366095) passed. |
+| `a1988556` | `test(notifications): verify native action card integration (Refs #250)` | green | 2026-11-07 | [Run #42336372101](https://github.com/SakibShahariar/material-panel/actions/runs/42336372101) passed. |
+| `838b931d` | `fix(notifications): refresh cards when native actions change (Refs #250)` | green | 2026-11-07 | [Run #42336388790](https://github.com/SakibShahariar/material-panel/actions/runs/42336388790) passed. |
+| `86b0e783` | `test(notifications): cover native action change refresh (Refs #250)` | green | 2026-11-07 | [Run #42336392972](https://github.com/SakibShahariar/material-panel/actions/runs/42336392972) passed 447/447 JavaScript tests and 20/20 Python tests. |
+| `9010bc77` | `feat(workspaces): add active and occupied workspace filters (Refs #219)` | green | 2026-11-07 | [Run #42336573829](https://github.com/SakibShahariar/material-panel/actions/runs/42336573829) passed. |
+| `1024740d` | `test(workspaces): cover active urgent and occupied filters (Refs #219)` | green | 2026-11-07 | [Run #42336583743](https://github.com/SakibShahariar/material-panel/actions/runs/42336583743) passed. |
+| `6f2156f2` | `feat(workspaces): store workspace filter preference (Refs #219)` | green | 2026-11-07 | [Run #42336589047](https://github.com/SakibShahariar/material-panel/actions/runs/42336589047) passed. |
+| `d71f3d92` | `feat(config): persist workspace visibility filter (Refs #219)` | green | 2026-11-07 | [Run #42336596088](https://github.com/SakibShahariar/material-panel/actions/runs/42336596088) passed. |
+| `96575a14` | `feat(workspaces): sync workspace filter from config (Refs #219)` | green | 2026-11-07 | [Run #42336607357](https://github.com/SakibShahariar/material-panel/actions/runs/42336607357) passed. |
+| `fce158fc` | `feat(prefs): add workspace visibility filter (Refs #219)` | green | 2026-11-07 | [Run #42336616020](https://github.com/SakibShahariar/material-panel/actions/runs/42336616020) passed. |
+| `c0c396b7` | `feat(workspaces): filter indicators by workspace activity (Refs #219)` | green | 2026-11-07 | [Run #42336628737](https://github.com/SakibShahariar/material-panel/actions/runs/42336628737) passed. |
+| `a460e379` | `fix(workspaces): refresh urgent filter on window state changes (Refs #219)` | green | 2026-11-07 | [Run #42336645196](https://github.com/SakibShahariar/material-panel/actions/runs/42336645196) passed. |
+| `ae1efb47` | `test(workspaces): cover workspace filter state lifecycle (Refs #219)` | green | 2026-11-07 | [Run #42336651366](https://github.com/SakibShahariar/material-panel/actions/runs/42336651366) passed. |
+| `02a4c2a5` | `test(workspaces): verify workspace filter config and signal wiring (Refs #219)` | green | 2026-11-07 | [Run #42336657484](https://github.com/SakibShahariar/material-panel/actions/runs/42336657484) passed. |
+| `ad3b5cea` | `fix(workspaces): include urgency state in indicator snapshots (Refs #219)` | green | 2026-11-07 | [Run #42336665717](https://github.com/SakibShahariar/material-panel/actions/runs/42336665717) passed. |
+| `cc9afc12` | `test(workspaces): verify filtered indicator lifecycle and activation (Refs #219)` | red | 2026-11-07 | [Run #42336671958](https://github.com/SakibShahariar/material-panel/actions/runs/42336671958) failed on stale source assertions in the new UI test; see investigation below. |
+| `d9005047` | `fix(workspaces): include minimized urgent windows in filtering (Refs #219)` | red | 2026-11-07 | [Run #42336691060](https://github.com/SakibShahariar/material-panel/actions/runs/42336691060) still included stale workspace-label and urgency assertions; see investigation below. |
+| `9c5f4941` | `test(workspaces): cover minimized urgent windows (Refs #219)` | red | 2026-11-07 | [Run #42336697270](https://github.com/SakibShahariar/material-panel/actions/runs/42336697270) still failed the stale workspace-label assertion; see investigation below. |
+| `2e82ddba` | `test(workspaces): fix original workspace label assertion (Refs #219)` | green | 2026-11-07 | [Run #42336713803](https://github.com/SakibShahariar/material-panel/actions/runs/42336713803) passed syntax checks, 460/460 JavaScript tests, and 20/20 Python tests. |
+
+The Quick Launch follow-up commits all have successful push-triggered workflow runs. Notification actions use the same MessageTray action shape across the GNOME 49, 50, and 51 type-definition branches; all six notification commits have successful workflow runs (the final run passed 447 JavaScript and 20 Python tests). Workspace filters are persisted and signal-driven; the final workspace run passed 460 JavaScript and 20 Python tests. The three intermediate workspace failures were test-source assertion mismatches, not demonstrated runtime regressions; the test assertions were updated in `9c5f4941` and `2e82ddba`, and the final run is green. Live GNOME runtime validation remains open for #219, #250, and #253.
 ## Red-cross investigation log
 
 The initial baseline contained no confirmed red results. The later preferences-refactor failure is recorded below. Preserve this history when adding future rerun results.
@@ -170,6 +207,19 @@ The initial baseline contained no confirmed red results. The later preferences-r
 - Final verified outcome: Focus-session service, UI wiring, and regression suite are green.
 - Remaining follow-up: A live GNOME check of right-click/Menu-key popup behavior and visible focus-session status is recommended.
 
+### 2026-11-07 — Workspace filter UI source assertions
+
+- Commit SHA(s): `cc9afc12a95544149446878496764d5853577386`, `d9005047beea30e0706cb5d0fb958e02a9425547`, `9c5f4941299a38e8acabf1ab687be66e40f81fd3`
+- Commit subject: Add filtered workspace indicators, urgency lifecycle handling, and corresponding UI regression assertions.
+- First observed (date): 2026-11-07
+- Workflow / run URLs: [#42336671958](https://github.com/SakibShahariar/material-panel/actions/runs/42336671958), [#42336691060](https://github.com/SakibShahariar/material-panel/actions/runs/42336691060), [#42336697270](https://github.com/SakibShahariar/material-panel/actions/runs/42336697270)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: The new UI source test expected a workspace accessible-name template that did not match the implementation's actual `Workspace ${i + 1}` text. The intermediate minimized-urgent update also left an old source assertion that expected urgency to be derived from `liveWindows` instead of `attentionWindows`.
+- Classification: regression — source assertion drift in the new tests; no production-code failure was demonstrated by these runs.
+- Fix commit(s): `9c5f4941` updated the urgency assertion to include minimized windows; `2e82ddba` corrected the workspace label assertion.
+- Rerun attempt(s) and result: The first two runs failed on stale assertions; the third still failed only on the label assertion. Final run [#42336713803](https://github.com/SakibShahariar/material-panel/actions/runs/42336713803) passed syntax checks, 460/460 JavaScript tests, and 20/20 Python tests.
+- Final verified outcome: The current workspace filter implementation and regression suite pass the full repository workflow.
+- Remaining follow-up: Live GNOME validation of urgency detection and filtered switching remains open under #219.
 ### Template
 
 - Commit SHA:
@@ -206,3 +256,5 @@ The initial baseline contained no confirmed red results. The later preferences-r
 | 2026-11-02 | Incremental review through `16331845a1dcb778637280f65558b68c2391bdd9` | Reviewed the preferences modularization and packaging sequence. Initial source-wiring tests failed; follow-up tests and package inclusion fix passed full CI (402 JavaScript + 20 Python tests). GNOME Preferences runtime smoke test remains open. |
 | 2026-11-02 | Incremental review through `1a403ac2cff4f56a3dc7a39b948cccee2557a648` | Reviewed 11 commits: theme extraction had a sequence of stale test-source failures resolved by `f023f637`; final theme CI passed 410/410 JS + 20/20 Python. Theme-color state migration passed 413/413 + 20/20. Popup keyboard-focus update passed 416/416 + 20/20. GNOME runtime checks remain open for #217, #221, and #237. |
 | 2026-11-02 | Incremental review through `2c42b3c744c81a490965e5b73433506d234ebf04` | Reviewed five commits: DND focus-session tests had two rounds of stale source assertions, resolved in `2c42b3c7`; final CI passed 424/424 JavaScript tests and 20/20 Python tests. #214 acceptance criteria were checked and the issue was closed. |
+
+| 2026-11-07 | Incremental review through `2e82ddba2107a785774d98b2420f183340245fde` | Reviewed 29 commits since the prior checkpoint. Quick Launch, notification-action, and final workspace-filter CI runs passed; three intermediate workspace UI-test runs were red on stale source assertions and are documented with their final green rerun. GNOME runtime validation remains open. |

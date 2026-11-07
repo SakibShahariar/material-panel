@@ -10,6 +10,8 @@ test('workspace filters are applied to original workspace indices before renderi
     assert.ok(source.includes('for (const i of visibleIndices)'));
     assert.ok(source.includes('label: `${i + 1}`'));
     assert.ok(source.includes('Workspace ${i + 1}'));
+    assert.ok(source.includes('setChipA11y(btn, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`)'));
+    assert.ok(source.includes('setChipA11y(dot, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`)'));
 });
 
 test('occupied and urgent state are derived from current non-minimized workspace windows', () => {
