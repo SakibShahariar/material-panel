@@ -68,3 +68,12 @@ test('preserves Unicode city names while removing formatting controls', () => {
     ]);
     assert.deepEqual(locations.map(location => location.name), ['ঢাকা', 'القاهرة']);
 });
+
+test('truncates city labels without splitting supplementary Unicode code points', () => {
+    const name = 'A'.repeat(63) + '😀Z';
+    const [location] = normalizeWeatherLocations([{
+        name, latitude: 0, longitude: 0,
+    }]);
+    assert.equal(location.name, 'A'.repeat(63) + '😀');
+    assert.equal(Array.from(location.name).length, 64);
+});

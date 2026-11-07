@@ -690,3 +690,16 @@ Changes covered: saved city labels now replace control characters, bidi override
 **Checkpoint SHA:** `a4350b8574560415a41dfe43051705e4352837d4`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review the following commit, which adds a Unicode city-name preservation regression test and this ledger update.
+
+## Incremental review: 2026-11-08 (Unicode-safe weather location names)
+
+Reviewed the commits after checkpoint `a4350b8574560415a41dfe43051705e4352837d4`, including the prior checkpoint/ledger commit. Both implementation checkpoints completed green CI.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `5c4d90030b2a09a2c4e3bdaea2d5cc04fe959744` | `test(weather): preserve Unicode location labels (Refs #143)` | green | [42419822303](https://github.com/SakibShahariar/material-panel/actions/runs/42419822303) passed syntax, **609/609 JavaScript tests**, and **22/22 Python tests**. The run includes the Bengali/Arabic city-name preservation regression. |
+| `1761ce3a48d87483867122f999bdacac7e1c2a68` | `fix(weather): truncate city labels by Unicode code point (Refs #143)` | green | [42419899603](https://github.com/SakibShahariar/material-panel/actions/runs/42419899603) passed syntax, **609/609 JavaScript tests**, and **22/22 Python tests**. Location labels now truncate by Unicode code point, preventing a supplementary character from being split at the 64-character limit. |
+
+**Checkpoint SHA:** `1761ce3a48d87483867122f999bdacac7e1c2a68`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review the following regression-test/ledger commit and its CI result.
