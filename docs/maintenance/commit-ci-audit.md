@@ -751,3 +751,19 @@ The picker supports search over city/comment and IANA zone labels from the host'
 **Checkpoint SHA:** `046d5268bbffab6ecdd4489927ec1719651c1048`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** the next commit after this checkpoint, which adds a regression test for the city picker fallback and add limits.
+
+
+## Incremental review: 2026-11-08 (Notification action-label hardening, #250)
+
+Reviewed all three commits after checkpoint `046d5268bbffab6ecdd4489927ec1719651c1048`. The World Clock city-picker fallback test and both notification-label commits have green CI. Native notification action labels are now normalized before rendering: invisible control/bidi formatting characters are replaced, whitespace is collapsed, and labels are bounded to 80 Unicode code points without splitting surrogate pairs. The original MessageTray action object and callback remain untouched.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `4a262772c98b7188ebfeb7284464dc854c61937e` | `test(prefs): cover world clock city picker limits (Refs #248)` | green | [42421074413](https://github.com/SakibShahariar/material-panel/actions/runs/42421074413) — 624/624 JavaScript and 22/22 Python tests. |
+| `94c708a2ae681429bb1e5b2de658ddb8951b0099` | `fix(notifications): sanitize native action labels (Refs #250)` | green | [42421859865](https://github.com/SakibShahariar/material-panel/actions/runs/42421859865) — syntax passed; 624/624 JavaScript and 22/22 Python tests. |
+| `9446b90c62b60fd9917a680d1a0fe3fe27fa8419` | `test(notifications): cover sanitized native action labels (Refs #250)` | green | [42421877227](https://github.com/SakibShahariar/material-panel/actions/runs/42421877227) — syntax passed; 626/626 JavaScript and 22/22 Python tests. |
+
+Issue #250 remains open (Category B): a real notification action still needs live invocation and retained/expired/removed notification verification in GNOME Shell. Issue #248 also remains open pending its documented GNOME runtime checks.
+
+**Checkpoint SHA:** `9446b90c62b60fd9917a680d1a0fe3fe27fa8419`  
+**Checkpoint date:** 2026-11-08
