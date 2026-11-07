@@ -18,6 +18,7 @@ import {runBluetoothDeviceAction} from '../lib/bluetoothActions.js';
 import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 import {getBluetoothDeviceIcon} from '../lib/bluetoothDevice.js';
 import {isBluetoothAutoHideEnabled} from '../lib/bluetoothVisibilityState.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 const BLUEZ_SERVICE = 'org.bluez';
 const OBJECT_MANAGER_IFACE = 'org.freedesktop.DBus.ObjectManager';
@@ -320,6 +321,10 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let adapterMenuItems = [];
 
     // Header — Bluetooth power switch and adapter chooser.
+    const btTitle = new St.Label({text: 'Bluetooth', style_class: 'material-panel-popup-title'});
+    const btStatus = new St.Label({text: 'Checking adapter…', style_class: 'material-panel-popup-status'});
+    const btHeader = createPopupHeader({titleActor: btTitle, statusActor: btStatus});
+    const btHeaderItem = wrapAsMenuItem(btHeader.actor);
     const btSwitch = new PopupMenu.PopupSwitchMenuItem('Bluetooth', false);
     const adapterMenu = new PopupMenu.PopupSubMenuMenuItem('Bluetooth adapter', false);
     adapterMenu.visible = false;
@@ -456,6 +461,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     });
     const footerItem = wrapAsMenuItem(footerBtn);
 
+    menu.addMenuItem(btHeaderItem);
     menu.addMenuItem(btSwitch);
     menu.addMenuItem(adapterMenu);
     menu.addMenuItem(blockedItem);
@@ -476,6 +482,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         button.set_style_class_name(`material-panel-bluetooth-btn material-panel-chip${powered ? ' active' : ''}`);
         btSwitch.setToggleState(powered);
         btSwitch.label.text = powered ? 'Bluetooth — On' : 'Bluetooth — Off';
+        btStatus.text = powered ? 'On' : 'Off';
         scanSwitch.visible = powered;
         if (!powered) scanSwitch.setToggleState(false);
         // Dim device list when off
@@ -496,6 +503,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
         btSwitch.label.text = 'Bluetooth — Blocked';
+        btStatus.text = 'Blocked by system';
         blockedHint.visible = true;
         scanSwitch.visible = false;
         devicesOuter.opacity = 90;
@@ -512,6 +520,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
         btSwitch.label.text = 'Bluetooth — No adapter';
+        btStatus.text = 'No adapter detected';
         blockedHint.visible = false;
         scanSwitch.visible = false;
         devicesHeaderLabel.text = 'Paired devices — no adapter';
@@ -527,6 +536,7 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
         button.set_style_class_name('material-panel-bluetooth-btn material-panel-chip');
         btSwitch.setToggleState(false);
         btSwitch.label.text = 'Bluetooth — Unavailable';
+        btStatus.text = 'BlueZ service unavailable';
         blockedHint.visible = false;
         scanSwitch.visible = false;
         devicesHeaderLabel.text = 'Paired devices — BlueZ unavailable';
