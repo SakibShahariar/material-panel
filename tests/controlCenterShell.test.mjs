@@ -34,6 +34,22 @@ test('Control Center provides Home, Media and System navigation with bounded scr
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
 
+test('Control Center Home media card owns and releases the existing compact player row', async () => {
+    const [controlCenter, media] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/mediaPlayer.js'),
+    ]);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\)/);
+    assert.match(controlCenter, /No media is playing/);
+    assert.match(controlCenter, /mediaRow\.connect\('notify::visible'/);
+    const start = media.indexOf('export function buildMediaPlayerRow()');
+    const end = media.indexOf('/** Panel chip + popup controls */', start);
+    const rowBuilder = media.slice(start, end);
+    assert.doesNotMatch(rowBuilder, /button\.visible/);
+    assert.match(rowBuilder, /row\.visible = true/);
+    assert.match(rowBuilder, /row\.connect\('destroy'/);
+});
+
 test('Control Center Home reuses the existing GNOME quick-toggle backends', async () => {
     const [controlCenter, quickSettings] = await Promise.all([
         source('../modules/controlCenter.js'),
