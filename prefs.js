@@ -539,6 +539,26 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         });
         workspaceGroup.add(workspaceDisplayRow);
 
+        const workspaceFilterModes = ['all', 'active', 'urgent', 'occupied'];
+        const workspaceFilterRow = new Adw.ComboRow({
+            title: 'Visible workspaces',
+            subtitle: 'Show all, only the active workspace, or the active workspace plus urgent or occupied workspaces.',
+            model: Gtk.StringList.new([
+                'All workspaces',
+                'Active only',
+                'Active + urgent',
+                'Active + occupied',
+            ]),
+        });
+        workspaceFilterRow.set_selected(Math.max(
+            0, workspaceFilterModes.indexOf(config.workspaceFilter ?? 'all')));
+        workspaceFilterRow.connect('notify::selected', () => {
+            if (syncingExternal) return;
+            config.workspaceFilter = workspaceFilterModes[workspaceFilterRow.get_selected()] ?? 'all';
+            saveConfig();
+        });
+        workspaceGroup.add(workspaceFilterRow);
+
         const workspaceScrollRow = new Adw.ActionRow({
             title: 'Scroll to switch workspaces',
             subtitle: 'Use the mouse wheel over the workspace indicator to move between existing workspaces.',
