@@ -28,7 +28,7 @@ import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {createMaterialSymbol} from '../lib/materialSymbol.js';
 import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
-import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
+import {wifiQsBlock, bluetoothTile, addFocusModeToggle} from './quicksettings.js';
 import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
 import {getQuickSettingsSliderStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
@@ -813,6 +813,7 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
         try { scroll.add_child(shell); } catch (e2) {}
     }
     menu.addMenuItem(wrapShell(scroll));
+    addFocusModeToggle(menu);
 
     const audioSelectors = buildAudioDeviceSelectors(getMixerControl());
     if (audioSelectors) {
