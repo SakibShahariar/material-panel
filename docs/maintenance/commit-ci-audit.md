@@ -829,3 +829,15 @@ The helper and module wiring are restored below the current branch head; the cur
 
 **Checkpoint SHA:** `ffc5bd31aafbc452df21fe3cf4ef44b119f0a6c8`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Clipboard preview implementation recovery, #254)
+
+Reviewed the corrective implementation commit after the test-only commits that were based on an older tree. The full current tree was restored and CI passed.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `d93799dffd562427cd3e4505dc2acee45635be5d` | `fix(clipboard): restore Unicode-safe preview formatting (Refs #254)` | green | [42424500303](https://github.com/SakibShahariar/material-panel/actions/runs/42424500303) — syntax passed, **630/630 JavaScript tests**, and **22/22 Python tests**. |
+
+**Checkpoint SHA:** `d93799dffd562427cd3e4505dc2acee45635be5d`  
+**Checkpoint date:** 2026-11-08

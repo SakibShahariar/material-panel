@@ -119,3 +119,10 @@ test('clipboard history preview handles empty text and one-code-point limits', (
     assert.equal(formatClipboardHistoryPreview('😀x', 1), '…');
     assert.equal(formatClipboardHistoryPreview('😀x', 2), '😀x');
 });
+
+
+test('clipboard history previews neutralize bidi formatting while preserving Unicode text', () => {
+    const preview = formatClipboardHistoryPreview('\\u202Eবাংলা\\u2066abc\\u2069\\u200F');
+    assert.equal(preview, 'বাংলা abc');
+    assert.doesNotMatch(preview, /[\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]/);
+});
