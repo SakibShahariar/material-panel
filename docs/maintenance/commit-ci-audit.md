@@ -570,3 +570,26 @@ Reviewed the Disk/GPU implementation commit after checkpoint `d1f2205266743ca122
 - Checkpoint SHA: `12b89ba1d0e71d997ac398e6762a6eb83d4af056`
 - Checkpoint date: 2026-11-07
 - Next session: review commits after this checkpoint, including the following Weather cadence change.
+
+
+## Incremental review: 2026-11-08 (context-aware visibility and Quick Launch safety)
+
+Reviewed the maintenance-session commits after checkpoint `12b89ba1d0e71d997ac398e6762a6eb83d4af056`. All eleven code/test commits were checked against their actual GitHub Actions runs. The intermediate red runs are retained rather than rewritten; the final follow-up is green.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `e52204f7b0016a3c207c8656b6364a461a3e4050` | `feat(visibility): add context rule model (Refs #112)` | green | 2026-11-08 | Workflow [42412167865](https://github.com/SakibShahariar/material-panel/actions/runs/42412167865) passed syntax, JavaScript regression, and Python calendar regression. |
+| `a5e82af5a273058bb32f773b418287b76f486805` | `test(visibility): cover context rule normalization (Refs #112)` | red | 2026-11-08 | Workflow [42412177564](https://github.com/SakibShahariar/material-panel/actions/runs/42412177564) exposed an incorrect expected ordering in the new combined-context test. |
+| `7db68e49bba9354562dea779a37cafdc117e344b` | `feat(visibility): persist per-module context rules (Refs #112)` | red | 2026-11-08 | Workflow [42412184807](https://github.com/SakibShahariar/material-panel/actions/runs/42412184807) retained the same test expectation failure while the feature was being integrated. |
+| `98c4ec0db59410d42937fb903fb181f0dec27d0e` | `test(visibility): cover persisted context rule defaults (Refs #112)` | red | 2026-11-08 | Workflow [42412191983](https://github.com/SakibShahariar/material-panel/actions/runs/42412191983) retained the same test expectation failure. |
+| `a12000660956a85770a9dd8941f7602facd07fe5` | `feat(visibility): apply fullscreen and overview rules (Refs #112)` | red | 2026-11-08 | Workflow [42412201463](https://github.com/SakibShahariar/material-panel/actions/runs/42412201463) retained the same test expectation failure. |
+| `bff053d1e8d352017e1e81655c49a02479979899` | `feat(visibility): refresh on overview and fullscreen changes (Refs #112)` | red | 2026-11-08 | Workflow [42412218067](https://github.com/SakibShahariar/material-panel/actions/runs/42412218067) retained the same test expectation failure. |
+| `20596f1e174375879277b383ed1fdca0860d796d` | `feat(visibility): add per-module context preferences (Refs #112)` | red | 2026-11-08 | Workflow [42412232477](https://github.com/SakibShahariar/material-panel/actions/runs/42412232477) retained the same test expectation failure. |
+| `2904168296b5840da4974e3a346568ada94fb49b` | `test(visibility): cover preference and signal integration (Refs #112)` | red | 2026-11-08 | Workflow [42412242196](https://github.com/SakibShahariar/material-panel/actions/runs/42412242196) found the ordering mismatch and test paths resolved one directory too high. |
+| `eb8144147a57fd0c77e936117a4847ede75f2397` | `test(visibility): correct context lifecycle assertions (Refs #112)` | red | 2026-11-08 | Workflow [42412256301](https://github.com/SakibShahariar/material-panel/actions/runs/42412256301) confirmed the test-path correction but still exposed the ordering mismatch. |
+| `5a9bdd004f679e1b61a60420cf563c435e36887b` | `test(quick-launch): guard against shell command execution (Refs #71)` | red | 2026-11-08 | Workflow [42412264080](https://github.com/SakibShahariar/material-panel/actions/runs/42412264080) passed syntax and all but the same visibility-order assertion. The Quick Launch shell-execution guard itself passed. |
+| `3beac0ac6f2556696948b3133537e8084c4e0a60` | `test(visibility): align context result ordering (Refs #112)` | green | 2026-11-08 | Workflow [42412298477](https://github.com/SakibShahariar/material-panel/actions/runs/42412298477) passed syntax, all JavaScript regression tests, and Python calendar regression tests. The combined-context expectation now matches the deterministic built-in module ordering. |
+
+**Checkpoint SHA:** `3beac0ac6f2556696948b3133537e8084c4e0a60`  
+**Checkpoint date:** 2026-11-08  
+**Remaining:** #112 needs live GNOME verification of fullscreen/Overview transitions and teardown on GNOME 49–51. #71 remains open; the new regression guard verifies command tokenization and direct argv dispatch, but the broader custom Quick Settings action scope (including its UI/behavior expectations) still needs review and live validation. The next session should start after this checkpoint and review this ledger commit's CI result.
