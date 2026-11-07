@@ -7,6 +7,8 @@ const source = await readFile(new URL('../modules/bluetooth.js', import.meta.url
 test('Bluetooth popup uses the shared header before its existing power and adapter controls', () => {
     assert.match(source, /import \{createPopupHeader\} from '..\/lib\/popupHeader\.js';/);
     assert.match(source, /const btHeader = createPopupHeader\(\{titleActor: btTitle, statusActor: btStatus\}\)/);
+    assert.match(source, /btTitle\.style = 'font-size: 15px; font-weight: 700;'/);
+    assert.match(source, /btStatus\.style = 'font-size: 11px; opacity: 0\.7;'/);
     assert.match(source, /const btHeaderItem = wrapAsMenuItem\(btHeader\.actor\)/);
     assert.match(source, /menu\.addMenuItem\(btHeaderItem\);\s*menu\.addMenuItem\(btSwitch\);\s*menu\.addMenuItem\(adapterMenu\);/);
 });
