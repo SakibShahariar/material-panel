@@ -69,7 +69,7 @@ function getQsExpandController() {
 // grid of toggle tiles, like Windows/macOS Control Center or GNOME's own
 // Quick Settings - not separate chips scattered across the bar.
 
-function addFocusModeToggle(menu) {
+export function addFocusModeToggle(menu) {
     const item = new PopupMenu.PopupSwitchMenuItem('Focus Mode', false);
     menu.addMenuItem(item);
     const store = new ConfigStore();
