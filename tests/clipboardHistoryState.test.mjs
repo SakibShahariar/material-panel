@@ -109,6 +109,6 @@ test('clipboard history previews truncate by Unicode code point without splittin
     const preview = formatClipboardHistoryPreview(value);
     assert.equal(Array.from(preview).length, 72);
     assert.equal(preview, 'a'.repeat(68) + '😀' + 'b'.repeat(2) + '…');
-    assert.equal(formatClipboardHistoryPreview('  hello\\nworld  '), 'hello world');
+    assert.equal(formatClipboardHistoryPreview('  hello\nworld  '), 'hello world');
     assert.equal(formatClipboardHistoryPreview('short 😀 text'), 'short 😀 text');
 });
