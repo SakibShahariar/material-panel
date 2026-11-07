@@ -26,6 +26,7 @@ import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {buildProfileCard} from './profileCard.js';
 import {buildQuickLaunchSection} from './quickLaunch.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
 import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
@@ -2358,6 +2359,13 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
+
+    const headerTitle = new St.Label({text: 'Quick Settings'});
+    headerTitle.style = 'font-size: 13px; font-weight: 700;';
+    const header = createPopupHeader({titleActor: headerTitle});
+    const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    headerItem.add_child(header.actor);
+    menu.addMenuItem(headerItem);
 
     const ryoku = getLayoutStyle() === 'ryoku';
     if (ryoku) {
