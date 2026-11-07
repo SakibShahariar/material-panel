@@ -14,6 +14,7 @@ test('Bluetooth popup uses the shared header before its existing power and adapt
 });
 
 test('Bluetooth header status reflects powered, blocked, missing-adapter and unavailable states', () => {
-    for (const status of ['On', 'Off', 'Blocked by system', 'No adapter detected', 'BlueZ service unavailable'])
+    assert.match(source, /btStatus\.text = powered \? 'On' : 'Off'/);
+    for (const status of ['Blocked by system', 'No adapter detected', 'BlueZ service unavailable'])
         assert.ok(source.includes(`btStatus.text = '${status}'`), `missing status: ${status}`);
 });
