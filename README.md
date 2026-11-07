@@ -42,6 +42,12 @@ Only update a version's runtime-tested status after this checklist has been exer
 - **Tray integration:** host supported third-party status icons, with an optional drawer.
 - **Calendar sync:** optionally import events from an ICS feed.
 
+## Quick Launch shortcuts
+
+Add optional application or command shortcuts in **Preferences → Quick Launch**. Each shortcut can have a custom label and an optional symbolic icon name (for example, `utilities-terminal-symbolic`). Leave the icon field empty to keep a text-only shortcut. You can edit, reorder, or remove configured entries.
+
+Commands are parsed into executable arguments and launched directly without a shell; shell pipelines, redirection, and command substitution are not supported. A command is stopped if it runs longer than 30 seconds. Only add commands you trust.
+
 ## Install
 
 From the repository directory:
