@@ -182,7 +182,7 @@ test('Control Center Home uses the shared asynchronous calendar cache and releas
 
 test('Control Center Home reflows from a two-column bento to one column in compact popups', async () => {
     const module = await source('../modules/controlCenter.js');
-    assert.match(module, /const homeGrid = new St\.Widget/);
+    assert.match(module, /homeGrid = new St\.Widget/);
     assert.match(module, /homeLayout\.column_spacing = compact \? 0 : 10/);
     assert.match(module, /if \(compact\) \{[\s\S]*?homeLayout\.attach\(homeCard, 0, index, 1, 1\)/);
     assert.match(module, /homeLayout\.attach\(homeCards\[0\], 0, 0, 2, 1\)/);
