@@ -783,3 +783,18 @@ Issue #143 remains open (Category B) pending live weather-provider, per-location
 
 **Checkpoint SHA:** `39d7b7944109ecaacbbd0e47405fd39398ebdddc`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Quick Launch bidi label safety, #253)
+
+Reviewed the two commits after checkpoint `3e749ec769fcf556f4a2698336fef194748b250a`. Both completed green CI.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `eedfc84750a8b05ef9882e7f6431a5b27b146000` | `fix(quick-launch): strip bidi formatting from labels (Refs #253)` | green | [42423512494](https://github.com/SakibShahariar/material-panel/actions/runs/42423512494) — syntax passed; 627/627 JavaScript tests and 22/22 Python tests. |
+| `98eb72958c52bd8d6af01ab52b4bbbdd63f31853` | `test(quick-launch): cover bidi-safe labels (Refs #253)` | green | [42423531287](https://github.com/SakibShahariar/material-panel/actions/runs/42423531287) — syntax passed; 628/628 JavaScript tests and 22/22 Python tests. |
+
+Imported Quick Launch labels now remove invisible bidirectional formatting controls while preserving Unicode text and emoji sequences. Issue #253 remains open for interactive Preferences and live GNOME launch validation.
+
+**Checkpoint SHA:** `98eb72958c52bd8d6af01ab52b4bbbdd63f31853`  
+**Checkpoint date:** 2026-11-08

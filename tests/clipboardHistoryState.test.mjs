@@ -5,6 +5,7 @@ import {
     CLIPBOARD_HISTORY_MAX_ENTRIES,
     CLIPBOARD_HISTORY_MAX_TEXT_BYTES,
     addClipboardHistoryEntry,
+    formatClipboardHistoryPreview,
     normalizeClipboardHistory,
     normalizeClipboardText,
     parseClipboardHistory,
@@ -100,4 +101,14 @@ test('retention age limit is applied independently from entry count', () => {
     const result = normalizeClipboardHistory(entries, now, {maxEntries: 50, maxAgeSeconds: 3 * 86400});
     assert.equal(result.length, 4);
     assert.equal(result.at(-1).text, 'age-3');
+});
+
+
+test('clipboard history previews truncate by Unicode code point without splitting emoji', () => {
+    const value = 'a'.repeat(68) + '😀' + 'b'.repeat(8);
+    const preview = formatClipboardHistoryPreview(value);
+    assert.equal(Array.from(preview).length, 72);
+    assert.equal(preview, 'a'.repeat(68) + '😀' + 'b'.repeat(2) + '…');
+    assert.equal(formatClipboardHistoryPreview('  hello\\nworld  '), 'hello world');
+    assert.equal(formatClipboardHistoryPreview('short 😀 text'), 'short 😀 text');
 });
