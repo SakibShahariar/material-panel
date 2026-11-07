@@ -927,8 +927,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         height: 48,
         style_class: 'material-panel-media-popup-art',
     });
-    const textCol = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-    try { textCol.style = 'spacing: 4px;'; } catch (e) {}
     const pTitle = new St.Label({
         text: 'No media',
         style_class: 'material-panel-media-popup-title',
@@ -941,8 +939,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
         x_expand: true,
     });
     try { pArtist.clutter_text.ellipsize = Pango.EllipsizeMode.END; } catch (e) {}
-    textCol.add_child(pTitle);
-    textCol.add_child(pArtist);
     const {actor: header} = createPopupHeader({
         titleActor: pTitle,
         statusActor: pArtist,
