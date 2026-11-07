@@ -223,6 +223,7 @@ export default class MaterialPanelExtension extends Extension {
                 maxAgeDays: config.clipboardHistoryMaxAgeDays ?? 7,
             });
             this._clipboardHistoryController = controller;
+            controller.setOnError(message => Main.notifyError('Clipboard history', message));
             this._clipboardHistoryPaused = paused;
             this._clipboardHistoryLimits = {
                 maxEntries: config.clipboardHistoryMaxEntries ?? 50,

@@ -169,3 +169,18 @@ test('copying a history entry writes it back without recapturing it', async () =
     assert.equal(controller.entries.length, 1);
     assert.equal(store.writes.length, 1);
 });
+
+test('retention settings prune the active history and persist the reduced set', async () => {
+    const {controller, selection, clipboard, store} = setup();
+    await controller.enable();
+    clipboard.text = 'one';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    clipboard.text = 'two';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    await controller.setLimits({maxEntries: 1, maxAgeDays: 7});
+    assert.equal(controller.entries.length, 1);
+    assert.equal(controller.entries[0].text, 'two');
+    assert.equal(store.entries.length, 1);
+});
