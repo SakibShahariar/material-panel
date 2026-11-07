@@ -629,7 +629,11 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     const updateSavedLocationLabels = () => {
         const activeIndex = getWeatherLocationIndex();
         savedLocationItems.forEach((entry, index) => {
-            entry.label.text = `${index === activeIndex ? '✓ ' : ''}${entry.location.name}`;
+            const active = index === activeIndex;
+            entry.label.text = `${active ? '✓ ' : ''}${entry.location.name}`;
+            setChipA11y(entry.actor, active
+                ? `${entry.location.name}, selected weather location`
+                : `${entry.location.name}, weather location`);
         });
     };
     savedLocations.forEach((location, index) => {
@@ -657,7 +661,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             }
             menu.close();
         });
-        savedLocationItems.push({label: entry.label, location});
+        savedLocationItems.push({actor: entry.actor, label: entry.label, location});
         menu.addMenuItem(entry);
     });
     updateSavedLocationLabels();
