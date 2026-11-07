@@ -1,4 +1,6 @@
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import St from 'gi://St';
 import {debugLog} from './lib/debug.js';
 import {closeMixerControl, setMixerControlReadyCallback} from './lib/audio.js';
 import {clearPanelMenus} from './lib/popupDismiss.js';
@@ -26,6 +28,9 @@ import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationSta
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
 import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchState.js';
+import {ClipboardHistoryController} from './lib/clipboardHistoryController.js';
+import {ClipboardHistoryFileStore} from './lib/clipboardHistoryStore.js';
+import {setClipboardHistoryController} from './modules/clipboardHistory.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -58,6 +63,8 @@ export default class MaterialPanelExtension extends Extension {
         setMixerControlReadyCallback(() => this._schedulePanelRebuild('audio-recovered'));
         setWeatherLocation(this._config.weatherLocation);
         setQuickLaunchEntries(this._config.quickLaunch);
+        this._syncClipboardHistory(this._config);
+        this._clipboardHistoryClearToken = this._config.clipboardHistoryClearToken ?? '';
         this._sizeDebounceId = 0;
         this._reducedMotionCleanup = watchReducedMotion();
 
@@ -84,6 +91,15 @@ export default class MaterialPanelExtension extends Extension {
             setProfileIdentityHidden(newConfig.hideProfileIdentity === true);
             setWeatherLocation(newConfig.weatherLocation);
             setQuickLaunchEntries(newConfig.quickLaunch);
+            this._syncClipboardHistory(newConfig);
+            const clearToken = newConfig.clipboardHistoryClearToken ?? '';
+            if (clearToken !== this._clipboardHistoryClearToken) {
+                this._clipboardHistoryClearToken = clearToken;
+                this._clipboardHistoryController?.clear().catch(() => {
+                    Main.notifyError('Clipboard history could not be cleared',
+                        'Recording remains enabled, but deletion could not be confirmed. Try clearing history again.');
+                });
+            }
 
             // Classification must never strand the watcher. Unknown or malformed
             // shapes fall back to a full rebuild and a tray placement refresh.
@@ -176,6 +192,64 @@ export default class MaterialPanelExtension extends Extension {
                 }
             }
         });
+    }
+
+    _syncClipboardHistory(config) {
+        const enabled = config?.clipboardHistoryEnabled === true;
+        const paused = config?.clipboardHistoryPaused === true;
+
+        if (!enabled) {
+            const previous = this._clipboardHistoryController;
+            this._clipboardHistoryController = null;
+            setClipboardHistoryController(null, null);
+            if (previous) {
+                previous.disable().catch(() => {
+                    Main.notifyError('Clipboard history could not be erased',
+                        'Recording has stopped, but saved clipboard data could not be deleted. Check storage permissions.');
+                });
+            }
+            return;
+        }
+
+        if (!this._clipboardHistoryController) {
+            const controller = new ClipboardHistoryController({
+                selection: global.display.get_selection(),
+                clipboard: St.Clipboard.get_default(),
+                store: new ClipboardHistoryFileStore(),
+                clipboardType: St.ClipboardType.CLIPBOARD,
+                selectionType: Meta.SelectionType.SELECTION_CLIPBOARD,
+                idFactory: () => GLib.uuid_string_random(),
+            });
+            this._clipboardHistoryController = controller;
+            this._clipboardHistoryPaused = paused;
+            setClipboardHistoryController(controller, nextPaused => {
+                const store = this._configStore;
+                if (!store)
+                    return;
+                store.loadAsync().then(latest => store.saveAsync({
+                    ...latest,
+                    clipboardHistoryPaused: Boolean(nextPaused),
+                })).catch(() => {});
+            });
+            controller.enable({paused}).catch(() => {
+                controller.destroy();
+                if (this._clipboardHistoryController === controller) {
+                    this._clipboardHistoryController = null;
+                    setClipboardHistoryController(null, null);
+                }
+                Main.notifyError('Clipboard history could not be started',
+                    'Material Panel could not open its private local history store. No clipboard text was recorded.');
+            });
+            return;
+        }
+
+        if (paused !== this._clipboardHistoryPaused) {
+            this._clipboardHistoryPaused = paused;
+            if (paused)
+                this._clipboardHistoryController.pause();
+            else
+                this._clipboardHistoryController.resume();
+        }
     }
 
     _applyTrayOnly() {
@@ -348,6 +422,10 @@ export default class MaterialPanelExtension extends Extension {
             }
             this._trayRescanIds = [];
         }
+        this._clipboardHistoryController?.destroy();
+        this._clipboardHistoryController = null;
+        this._clipboardHistoryPaused = false;
+        setClipboardHistoryController(null, null);
         this._configStore?.unwatch();
         this._configStore = null;
 

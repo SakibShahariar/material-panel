@@ -13,6 +13,7 @@ import {buildModulesPage} from './prefs/modulesPage.js';
 import {buildTrayPage} from './prefs/trayPage.js';
 import {buildAppearancePage} from './prefs/appearancePage.js';
 import {buildQuickLaunchPage} from './prefs/quickLaunchPage.js';
+import {buildClipboardHistoryPage} from './prefs/clipboardHistoryPage.js';
 import {createSafeModeConfig, parsePanelConfig, serializePanelConfig} from './lib/configImportExport.js';
 
 export default class MaterialPanelPreferences extends ExtensionPreferences {
@@ -1035,6 +1036,9 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         const {refresh: refreshQuickLaunchPage} = buildQuickLaunchPage({
             Adw, Gtk, Gio, GLib, config, saveConfig, window, addPreferencesPage,
         });
+        const {refresh: refreshClipboardHistoryPage} = buildClipboardHistoryPage({
+            Adw, Gtk, GLib, config, saveConfig, window, addPreferencesPage,
+        });
 
         buildTrayPage({
             Adw, Gtk, config, saveConfig, addPreferencesPage, networkSpeedUnitRow,
@@ -1083,6 +1087,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 const merged = mergeConfigChanges(baseline, config, newConfig);
                 syncObjectInPlace(config, merged);
                 refreshQuickLaunchPage();
+                refreshClipboardHistoryPage();
                 baseline = JSON.parse(JSON.stringify(newConfig));
                 // Keep the editable tile-order field in sync with external
                 // config edits without discarding any pending local changes.
