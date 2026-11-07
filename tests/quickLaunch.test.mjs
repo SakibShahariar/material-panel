@@ -54,6 +54,16 @@ test('uses safe fallback labels and caps the list', () => {
     assert.equal(normalized[0].target, 'echo 0');
 });
 
+test('sanitizes control characters and collapses whitespace in configured labels', () => {
+    const entries = normalizeQuickLaunchEntries([
+        {id: 'label-1', type: 'command', target: 'echo safe', name: '  Daily\\n  task\\t runner  '},
+        {id: 'label-2', type: 'command', target: 'echo safe', name: 'Line\\rbreak\\u007f hidden'},
+    ]);
+    assert.equal(entries[0].name, 'Daily task runner');
+    assert.equal(entries[1].name, 'Line break hidden');
+    assert.ok(entries.every(entry => !/[\\u0000-\\u001f\\u007f]/.test(entry.name)));
+});
+
 test('does not mutate the caller-owned configuration array', () => {
     const source = [{id: 'one', type: 'command', target: 'echo ok'}];
     normalizeQuickLaunchEntries(source);
