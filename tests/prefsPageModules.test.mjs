@@ -113,3 +113,11 @@ test('Preferences exposes an ordered, validated list of optional world clocks', 
     assert.match(helpers, /function canonicalTimeZone/);
     assert.match(helpers, /new Intl\.DateTimeFormat\('en', \{timeZone: value\}\)/);
 });
+
+test('World Clock city picker handles missing tzdata and prevents duplicate or excess entries', async () => {
+    const entry = await read('prefs.js');
+    assert.match(entry, /manual IANA time-zone editor below remains available without tzdata/);
+    assert.match(entry, /current\.some\(entry => entry\.timeZone === choice\.timeZone\)/);
+    assert.match(entry, /current\.length >= 12/);
+    assert.match(entry, /World Clock supports up to 12 cities/);
+});

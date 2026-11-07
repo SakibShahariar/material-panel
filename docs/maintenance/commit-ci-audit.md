@@ -733,3 +733,21 @@ Implemented so far: a bounded list of up to 12 saved cities; validated IANA iden
 **Checkpoint SHA:** `60cca49f9fb885952fc707cd4de0e008d103cc87`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** the next commit after this checkpoint, which adds a 12-hour-format regression test and this ledger update.
+
+## Incremental review: 2026-11-08 (World Clock city search)
+
+Reviewed the five commits after checkpoint `60cca49f9fb885952fc707cd4de0e008d103cc87`. All five workflows completed successfully. The city picker reads the system `zone.tab` database, resolves aliases using the runtime's Intl time-zone support, and uses a searchable GTK dropdown. The manual IANA entry list remains available if the system database cannot be read.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `83a2301e926164bb7a58b70bcc7f128e887d200f` | `test(clock): cover twelve-hour world clock display (Refs #248)` | green | [42420847135](https://github.com/SakibShahariar/material-panel/actions/runs/42420847135) — 622/622 JavaScript and 22/22 Python tests. |
+| `af8f9a502befab7cebfc5ce914497308be6a5592` | `feat(clock): parse searchable city time-zone choices (Refs #248)` | green | [42420939756](https://github.com/SakibShahariar/material-panel/actions/runs/42420939756). |
+| `14f1c60296b47b939c9755cf2f1aa2ea41821ba7` | `test(clock): cover searchable city time-zone choices (Refs #248)` | green | [42420953851](https://github.com/SakibShahariar/material-panel/actions/runs/42420953851). |
+| `a6daf1b0f9f92e2e088ca9e661d69a22c03eaec9` | `feat(prefs): add searchable world clock city picker (Refs #248)` | green | [42420984023](https://github.com/SakibShahariar/material-panel/actions/runs/42420984023). |
+| `046d5268bbffab6ecdd4489927ec1719651c1048` | `test(prefs): cover searchable world clock city picker (Refs #248)` | green | [42420993874](https://github.com/SakibShahariar/material-panel/actions/runs/42420993874) — 623/623 JavaScript and 22/22 Python tests. |
+
+The picker supports search over city/comment and IANA zone labels from the host's zone table. It prevents adding an already saved zone and enforces the 12-city limit. If `/usr/share/zoneinfo/zone.tab` is unavailable or cannot be decoded, the manual ordered `City|IANA/Time_Zone` editor remains usable.
+
+**Checkpoint SHA:** `046d5268bbffab6ecdd4489927ec1719651c1048`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** the next commit after this checkpoint, which adds a regression test for the city picker fallback and add limits.
