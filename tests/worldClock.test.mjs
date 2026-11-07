@@ -4,6 +4,7 @@ import {
     formatWorldClockEntries,
     formatWorldClockEntry,
     normalizeWorldClockEntries,
+    parseWorldClockZoneTab,
     parseWorldClockEntries,
 } from '../lib/worldClock.js';
 
@@ -89,4 +90,20 @@ test('formats twelve-hour time while retaining the local day offset', () => {
     });
     assert.equal(result.time, '08:00 PM');
     assert.equal(result.dayOffsetLabel, 'Yesterday');
+});
+
+test('parses searchable city names from the system time-zone table', () => {
+    const choices = parseWorldClockZoneTab([
+        '# country\tcoordinates\ttz\tcomments',
+        'BD\t+2300+09000\tAsia/Dhaka\tDhaka',
+        'US\t+404251-0740023\tAmerica/New_York\tNew York',
+        'GB\t+513030-0000731\tEurope/London\tLondon',
+        'XX\t+0000+00000\tMars/Olympus\tInvalid',
+        'US\t+404251-0740023\tUS/Eastern\tNew York alias',
+    ].join('\n'));
+    assert.deepEqual(choices, [
+        {name: 'Dhaka', timeZone: 'Asia/Dhaka'},
+        {name: 'London', timeZone: 'Europe/London'},
+        {name: 'New York', timeZone: 'America/New_York'},
+    ]);
 });
