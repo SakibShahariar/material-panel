@@ -3,6 +3,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {isMediaAutoHideEnabled} from '../lib/mediaVisibilityState.js';
 import {isMediaVisualizerEnabled} from '../lib/mediaVisualizerState.js';
 import {refreshQuickSettingsChrome} from '../lib/quickSettingsRechrome.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import {createStatusState} from '../lib/statusState.js';
 import {wireChipPress, giconForKey, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
 
@@ -921,13 +922,6 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     });
     try { body.style = 'spacing: 10px; padding: 4px; min-width: 220px;'; } catch (e) {}
 
-    const head = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
-        style_class: 'material-panel-popup-card',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    try { head.style = 'spacing: 12px; padding: 10px 12px;'; } catch (e) {}
-
     const art = new St.Bin({
         width: 48,
         height: 48,
@@ -949,9 +943,14 @@ export function buildMedia(_extensionPath, scale = 1.0) {
     try { pArtist.clutter_text.ellipsize = Pango.EllipsizeMode.END; } catch (e) {}
     textCol.add_child(pTitle);
     textCol.add_child(pArtist);
-    head.add_child(art);
-    head.add_child(textCol);
-    body.add_child(head);
+    const {actor: header} = createPopupHeader({
+        titleActor: pTitle,
+        statusActor: pArtist,
+        leadingActor: art,
+        styleClass: 'material-panel-popup-card',
+        style: 'spacing: 12px; padding: 10px 12px;',
+    });
+    body.add_child(header);
 
     const noMediaState = createStatusState({
         message: 'No media player is active. Open a player that supports MPRIS to see playback controls here.',
