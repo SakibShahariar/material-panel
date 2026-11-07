@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `cd0b60e45e7f2c436b64e5c5454eda8bff802977`
+- Checkpoint SHA: `8be72301dea73780992190819ffe8e63a782b6ec`
 - Checkpoint date: 2026-11-07
 - Next session: start with the ledger/test commit immediately following this checkpoint, then review every subsequent commit.
 
@@ -161,6 +161,51 @@ The previous checkpoint was `2c42b3c744c81a490965e5b73433506d234ebf04`. All 29 c
 | `2e82ddba` | `test(workspaces): fix original workspace label assertion (Refs #219)` | green | 2026-11-07 | [Run #42336713803](https://github.com/SakibShahariar/material-panel/actions/runs/42336713803) passed syntax checks, 460/460 JavaScript tests, and 20/20 Python tests. |
 
 The Quick Launch follow-up commits all have successful push-triggered workflow runs. Notification actions use the same MessageTray action shape across the GNOME 49, 50, and 51 type-definition branches; all six notification commits have successful workflow runs (the final run passed 447 JavaScript and 20 Python tests). Workspace filters are persisted and signal-driven; the final workspace run passed 460 JavaScript and 20 Python tests. The three intermediate workspace failures were test-source assertion mismatches, not demonstrated runtime regressions; the test assertions were updated in `9c5f4941` and `2e82ddba`, and the final run is green. Live GNOME runtime validation remains open for #219, #250, and #253.
+## Incremental review: 2026-11-07 — Focus Mode and Control Center
+
+Reviewed every commit after checkpoint `cd0b60e45e7f2c436b64e5c5454eda8bff802977` through `8be72301dea73780992190819ffe8e63a782b6ec`. Every push-triggered run was checked. The intermediate red results are retained and explained below; the final corrected runs are green. GNOME Shell runtime testing remains separate and is not claimed.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `261b0617` | `test(clipboard): guard privacy and panel integration` | green | 2026-11-07 | [Run 42372934201](https://github.com/SakibShahariar/material-panel/actions/runs/42372934201) Passed. |
+| `cd7a8bcb` | `fix(clipboard): keep retention limits effective on write errors` | green | 2026-11-07 | [Run 42372974978](https://github.com/SakibShahariar/material-panel/actions/runs/42372974978) Passed. |
+| `641a7186` | `test(quick-launch): guard preferences and layout integration` | green | 2026-11-07 | [Run 42373344742](https://github.com/SakibShahariar/material-panel/actions/runs/42373344742) Passed. |
+| `ceb4a3af` | `feat(focus-mode): add independent visibility override helpers` | green | 2026-11-07 | [Run 42373978158](https://github.com/SakibShahariar/material-panel/actions/runs/42373978158) Passed. |
+| `65a94e5c` | `feat(focus-mode): add disabled-by-default configuration` | green | 2026-11-07 | [Run 42373994326](https://github.com/SakibShahariar/material-panel/actions/runs/42373994326) Passed. |
+| `ffe707eb` | `feat(focus-mode): apply temporary panel visibility override` | green | 2026-11-07 | [Run 42374002849](https://github.com/SakibShahariar/material-panel/actions/runs/42374002849) Passed. |
+| `f8ae7463` | `feat(focus-mode): add independent module selection preferences` | green | 2026-11-07 | [Run 42374011599](https://github.com/SakibShahariar/material-panel/actions/runs/42374011599) Passed. |
+| `10cef86a` | `feat(focus-mode): add Quick Settings toggle` | green | 2026-11-07 | [Run 42374029154](https://github.com/SakibShahariar/material-panel/actions/runs/42374029154) Passed. |
+| `75f1cf4e` | `test(focus-mode): cover temporary visibility state` | green | 2026-11-07 | [Run 42374064928](https://github.com/SakibShahariar/material-panel/actions/runs/42374064928) Passed. |
+| `46d64863` | `test(focus-mode): guard panel and Quick Settings integration` | green | 2026-11-07 | [Run 42374067370](https://github.com/SakibShahariar/material-panel/actions/runs/42374067370) Passed. |
+| `b81b4b5e` | `fix(focus-mode): normalize selected module IDs` | red | 2026-11-07 | [Run 42374112731](https://github.com/SakibShahariar/material-panel/actions/runs/42374112731) Stale config-normalization test expectation; see investigation below. |
+| `21af9803` | `refactor(focus-mode): share Quick Settings toggle helper` | red | 2026-11-07 | [Run 42374191910](https://github.com/SakibShahariar/material-panel/actions/runs/42374191910) Stale config-normalization test expectation; see investigation below. |
+| `03a2b776` | `feat(focus-mode): add End-4 Quick Settings toggle` | red | 2026-11-07 | [Run 42374194589](https://github.com/SakibShahariar/material-panel/actions/runs/42374194589) Stale config-normalization test expectation; see investigation below. |
+| `431f389a` | `test(focus-mode): cover End-4 toggle and config normalization` | red | 2026-11-07 | [Run 42374202006](https://github.com/SakibShahariar/material-panel/actions/runs/42374202006) Stale config-normalization / import contract expectations; see investigation below. |
+| `136a4be0` | `test(focus-mode): assert normalized settings and End-4 toggle` | red | 2026-11-07 | [Run 42374230899](https://github.com/SakibShahariar/material-panel/actions/runs/42374230899) Stale End-4 import contract expectation; see investigation below. |
+| `2a3ddfbb` | `fix(focus-mode): preserve End-4 import contract` | red | 2026-11-07 | [Run 42374291587](https://github.com/SakibShahariar/material-panel/actions/runs/42374291587) Test and import updates were out of sync in this intermediate commit; see investigation below. |
+| `f756e0e8` | `test(focus-mode): preserve existing End-4 import contract` | green | 2026-11-07 | [Run 42374297353](https://github.com/SakibShahariar/material-panel/actions/runs/42374297353) Final Focus Mode test/source contract passed. |
+| `e612d1da` | `feat(control-center): add phased dashboard popup shell` | green | 2026-11-07 | [Run 42374399333](https://github.com/SakibShahariar/material-panel/actions/runs/42374399333) Passed. |
+| `9824ed40` | `feat(control-center): register built-in module ID` | green | 2026-11-07 | [Run 42374413374](https://github.com/SakibShahariar/material-panel/actions/runs/42374413374) Passed. |
+| `05edb3b1` | `feat(control-center): register dashboard module factory` | green | 2026-11-07 | [Run 42374417135](https://github.com/SakibShahariar/material-panel/actions/runs/42374417135) Passed. |
+| `8a1c88f7` | `feat(control-center): expose module in Preferences catalog` | green | 2026-11-07 | [Run 42374419930](https://github.com/SakibShahariar/material-panel/actions/runs/42374419930) Passed. |
+| `4e6281e0` | `fix(control-center): release section actors on popup close` | green | 2026-11-07 | [Run 42374447138](https://github.com/SakibShahariar/material-panel/actions/runs/42374447138) Passed. |
+| `e8b60992` | `test(control-center): verify dashboard ships in extension package` | green | 2026-11-07 | [Run 42374450296](https://github.com/SakibShahariar/material-panel/actions/runs/42374450296) Passed. |
+| `27d7be68` | `test(control-center): cover dashboard shell and lifecycle` | green | 2026-11-07 | [Run 42374460024](https://github.com/SakibShahariar/material-panel/actions/runs/42374460024) Passed. |
+| `e770c33d` | `fix(control-center): anchor popup to panel edge` | green | 2026-11-07 | [Run 42374483989](https://github.com/SakibShahariar/material-panel/actions/runs/42374483989) Passed. |
+| `a54cd87f` | `test(control-center): cover panel-edge popup placement` | green | 2026-11-07 | [Run 42374491443](https://github.com/SakibShahariar/material-panel/actions/runs/42374491443) Passed. |
+| `d342b357` | `test(control-center): guard keyboard navigation and async-only shell` | green | 2026-11-07 | [Run 42374569064](https://github.com/SakibShahariar/material-panel/actions/runs/42374569064) Passed. |
+| `c02d6b70` | `refactor(quick-settings): expose reusable toggle tile for Control Center` | red | 2026-11-07 | [Run 42374622386](https://github.com/SakibShahariar/material-panel/actions/runs/42374622386) Syntax check failed on duplicated export; see investigation below. |
+| `3d0fbed4` | `feat(control-center): add reusable Home quick actions` | red | 2026-11-07 | [Run 42374624967](https://github.com/SakibShahariar/material-panel/actions/runs/42374624967) Syntax check failed on duplicated export; see investigation below. |
+| `fabb8d95` | `test(control-center): cover Home quick action backends` | red | 2026-11-07 | [Run 42374627362](https://github.com/SakibShahariar/material-panel/actions/runs/42374627362) Syntax check failed on duplicated export; see investigation below. |
+| `e506a19e` | `fix(quick-settings): export reusable dark mode tile correctly` | green | 2026-11-07 | [Run 42374668876](https://github.com/SakibShahariar/material-panel/actions/runs/42374668876) Corrected duplicated export; full workflow passed. |
+| `678b97a8` | `fix(media): show compact player row without undefined button reference` | red | 2026-11-07 | [Run 42374753823](https://github.com/SakibShahariar/material-panel/actions/runs/42374753823) Existing media auto-hide test still expected the old undefined button reference; see investigation below. |
+| `9d99b1cd` | `feat(control-center): add compact Home media card` | red | 2026-11-07 | [Run 42374756523](https://github.com/SakibShahariar/material-panel/actions/runs/42374756523) Existing media auto-hide test still expected the old undefined button reference; see investigation below. |
+| `91227c02` | `test(control-center): cover Home media card lifecycle` | red | 2026-11-07 | [Run 42374758677](https://github.com/SakibShahariar/material-panel/actions/runs/42374758677) Existing media auto-hide test still expected the old undefined button reference; see investigation below. |
+| `cedf4eae` | `test(media): follow Quick Settings row visibility fix` | green | 2026-11-07 | [Run 42374862335](https://github.com/SakibShahariar/material-panel/actions/runs/42374862335) Updated the stale media auto-hide assertion; full workflow passed. |
+| `8be72301` | `docs(control-center): add phase 1 runtime validation checklist` | green | 2026-11-07 | [Run 42374935435](https://github.com/SakibShahariar/material-panel/actions/runs/42374935435) Passed. |
+
+**Final verified outcomes:** Focus Mode's corrected Quick Settings/End-4 wiring passed run 650. Control Center shell and Home quick-action/media follow-ups passed their final runs 664 and 668; the runtime-checklist documentation passed run 669. Do not infer that the intermediate red runs were green. Their failures were corrected in subsequent commits as detailed in the investigation log.
+
 ## Red-cross investigation log
 
 The initial baseline contained no confirmed red results. The later preferences-refactor failure is recorded below. Preserve this history when adding future rerun results.
@@ -220,6 +265,45 @@ The initial baseline contained no confirmed red results. The later preferences-r
 - Rerun attempt(s) and result: The first two runs failed on stale assertions; the third still failed only on the label assertion. Final run [#42336713803](https://github.com/SakibShahariar/material-panel/actions/runs/42336713803) passed syntax checks, 460/460 JavaScript tests, and 20/20 Python tests.
 - Final verified outcome: The current workspace filter implementation and regression suite pass the full repository workflow.
 - Remaining follow-up: Live GNOME validation of urgency detection and filtered switching remains open under #219.
+### 2026-11-07 — Focus Mode config and Quick Settings source assertions
+
+- Commit SHA(s): `b81b4b5e0ede48ff78366c377a955049ecf2f8d9`, `21af9803215224e6761b4ef56837489e0dd204f1`, `03a2b776229f84b41950810e78a06560a75b878d`, `431f389a608d502ac570f7e2393fa3554907d128`, `136a4be0f9e9929b581d86f8cb60a0c21ae7c67e`, `2a3ddfbbe563cc32b9677b794bd3cd0464b312b6`
+- First observed (date): 2026-11-07
+- Workflow / run URLs: [#42374112731](https://github.com/SakibShahariar/material-panel/actions/runs/42374112731), [#42374191910](https://github.com/SakibShahariar/material-panel/actions/runs/42374191910), [#42374194589](https://github.com/SakibShahariar/material-panel/actions/runs/42374194589), [#42374202006](https://github.com/SakibShahariar/material-panel/actions/runs/42374202006), [#42374230899](https://github.com/SakibShahariar/material-panel/actions/runs/42374230899), [#42374291587](https://github.com/SakibShahariar/material-panel/actions/runs/42374291587)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: The Focus Mode config normalizer replaced a previous array-only fallback with `normalizeFocusModeModules(...)`, but the integration test still expected the old implementation. Subsequent changes also exposed an End-4 import contract assertion while the shared toggle helper was being extracted.
+- Classification: regression — stale source assertions and an intermediate test/source import mismatch; no production runtime failure was demonstrated by these runs.
+- Fix commit(s): `f756e0e8747595289a3e1c10df3de0bd32b61ec7` preserved the existing End-4 import contract and updated the tests to the final normalized-config and shared-toggle design.
+- Rerun attempt(s) and result: The final run [#42374297353](https://github.com/SakibShahariar/material-panel/actions/runs/42374297353) passed JavaScript syntax, all JavaScript regression tests and Python regressions.
+- Final verified outcome: Focus Mode config normalization and Quick Settings toggles pass on the final code.
+- Remaining follow-up: Live GNOME validation remains open under #141.
+
+### 2026-11-07 — Control Center quick-action export syntax
+
+- Commit SHA(s): `c02d6b709a9f8062bef29862c69ceecab59a85db`, `3d0fbed455ac448571837c65b7ab421e67317230`, `fabb8d95130b5ba51aa72f4944448392a6b32b0c`
+- First observed (date): 2026-11-07
+- Workflow / run URLs: [#42374622386](https://github.com/SakibShahariar/material-panel/actions/runs/42374622386), [#42374624967](https://github.com/SakibShahariar/material-panel/actions/runs/42374624967), [#42374627362](https://github.com/SakibShahariar/material-panel/actions/runs/42374627362)
+- Failed job / step: `python-regressions` / `Check JavaScript syntax`
+- Failure summary: The automated source edit produced `export export function darkModeTile()`, which failed JavaScript syntax checking before regression tests could run.
+- Classification: regression — implementation syntax error introduced while exposing an existing tile builder for reuse.
+- Fix commit(s): `e506a19ed52b8f8b470800d49a871954d7ab3460` corrected the duplicate keyword.
+- Rerun attempt(s) and result: Final run [#42374668876](https://github.com/SakibShahariar/material-panel/actions/runs/42374668876) passed.
+- Final verified outcome: The reusable Dark Mode tile export and Home quick-action integration pass the full workflow.
+- Remaining follow-up: Home's weather/system cards, full media progress and responsive bento composition remain open under #121.
+
+### 2026-11-07 — Media row visibility assertion
+
+- Commit SHA(s): `678b97a88307c0d9e2c429af90ce0541c90bfea1`, `9d99b1cdd64d3e7a065cacd1a4e6ea30bd59d983`, `91227c028ce3daefeb11381f5e3adcd50b0b1263`
+- First observed (date): 2026-11-07
+- Workflow / run URLs: [#42374753823](https://github.com/SakibShahariar/material-panel/actions/runs/42374753823), [#42374756523](https://github.com/SakibShahariar/material-panel/actions/runs/42374756523), [#42374758677](https://github.com/SakibShahariar/material-panel/actions/runs/42374758677)
+- Failed job / step: `python-regressions` / `Run JavaScript regression tests`
+- Failure summary: The compact Quick Settings media row contained an undefined `button.visible` reference. The implementation correctly changed this to `row.visible`, but the existing media auto-hide source test still asserted the old undefined reference.
+- Classification: regression — production bug fixed; a pre-existing test assertion was not migrated with the correction.
+- Fix commit(s): `cedf4eae240f9a76b0f116241001f6c96ac64d43` updated the media auto-hide test to assert the row's visibility state.
+- Rerun attempt(s) and result: Final run [#42374862335](https://github.com/SakibShahariar/material-panel/actions/runs/42374862335) passed.
+- Final verified outcome: The undefined reference is removed, Control Center Home's compact media row is covered, and the full workflow passes.
+- Remaining follow-up: Live MPRIS attach/detach behavior remains on the GNOME checklist for #120/#121.
+
 ### Template
 
 - Commit SHA:
@@ -258,6 +342,7 @@ The initial baseline contained no confirmed red results. The later preferences-r
 | 2026-11-02 | Incremental review through `2c42b3c744c81a490965e5b73433506d234ebf04` | Reviewed five commits: DND focus-session tests had two rounds of stale source assertions, resolved in `2c42b3c7`; final CI passed 424/424 JavaScript tests and 20/20 Python tests. #214 acceptance criteria were checked and the issue was closed. |
 
 | 2026-11-07 | Incremental review through `2e82ddba2107a785774d98b2420f183340245fde` | Reviewed 29 commits since the prior checkpoint. Quick Launch, notification-action, and final workspace-filter CI runs passed; three intermediate workspace UI-test runs were red on stale source assertions and are documented with their final green rerun. GNOME runtime validation remains open. |
+| 2026-11-07 | Incremental review through `8be72301dea73780992190819ffe8e63a782b6ec` | Reviewed 36 commits since `cd0b60e4`. Focus Mode and Control Center implementation/tests are committed; intermediate test/source failures are retained with final green corrections. Runs 650, 664, 668 and 669 passed. GNOME runtime validation remains open for #120, #121 and #141. |
 
 
 ## Incremental review: 2026-11-07 — clipboard history implementation
