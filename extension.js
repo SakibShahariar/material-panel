@@ -266,6 +266,8 @@ export default class MaterialPanelExtension extends Extension {
                 );
                 if (registered === false) {
                     debugLog(`popup shortcut not registered (GNOME conflict or unavailable): ${target.label}`);
+                    Main.notifyError('Shortcut unavailable',
+                        `${target.label} shortcut could not be registered. GNOME or another extension may already use it.`);
                     continue;
                 }
                 this._registeredPopupKeybindings.add(target.key);

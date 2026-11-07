@@ -686,7 +686,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const popupShortcutGroup = new Adw.PreferencesGroup({
             title: 'Popup keyboard shortcuts',
-            description: 'Optional global shortcuts. Enter a GTK accelerator such as <Super><Alt>V. Leave a field empty to clear it. Assignments must be unique within Material Panel.',
+            description: 'Optional global shortcuts. Enter a GTK accelerator such as <Super><Alt>V. Leave a field empty to clear it. Assignments must be unique within Material Panel; GNOME-reserved shortcuts are rejected rather than overridden.',
         });
         generalPage.add(popupShortcutGroup);
         config.popupShortcuts = normalizePopupShortcuts(config.popupShortcuts);
