@@ -949,3 +949,10 @@ The four red results are retained as history; the failures were test/refactor sy
 
 - `cf9e2a8c9280d0f04b5b48d83969ae839f0b713b` — added behavior-level generated typography assertions, but CI [run #42427336415](https://github.com/SakibShahariar/material-panel/actions/runs/42427336415) failed one new test because its regular-expression character-class escaping was incorrect. Syntax passed; 638/639 JavaScript tests passed. This was a test assertion issue, not a renderer regression.
 - The follow-up replaces the fragile cross-line regular expressions with direct inspection of each generated CSS rule block. Its CI result is pending.
+
+
+## Follow-up: generated typography behavior test and direct dimension-input hardening
+
+- `cf9e2a8c9280d0f04b5b48d83969ae839f0b713b` — behavior-level typography test draft. CI [#42427336415](https://github.com/SakibShahariar/material-panel/actions/runs/42427336415) red: one new test assertion used over-escaped regex character classes (638/639 JS passed).
+- `c20ee794d9677a0c1906f172a62f5db5a403e405` — replaced the fragile regex with direct generated-rule inspection. CI [#42427422761](https://github.com/SakibShahariar/material-panel/actions/runs/42427422761) green: syntax, **639/639 JavaScript tests**, and **22/22 Python tests**.
+- Current follow-up hardens `renderDimensionsCss` against malformed direct-call inputs (including non-convertible Symbols and non-finite numbers), using the same global scale/gap bounds as persisted configuration and the existing per-zone/chip-gap bounds. This protects the extracted renderer from generating invalid `NaNpx`/infinite CSS if a caller bypasses ConfigStore normalization. Added direct-call regression coverage. CI is pending.

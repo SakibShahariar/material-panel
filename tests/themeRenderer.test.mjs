@@ -57,3 +57,29 @@ test('generated theme emits the shared caption, body, and title typography sizes
     assertRoleSize('.material-panel-type-body,', 12);
     assertRoleSize('.material-panel-type-title,', 14);
 });
+
+
+test('dimension renderer normalizes malformed numeric inputs without emitting invalid CSS', () => {
+    const css = renderDimensionsCss({
+        scale: Symbol('scale'),
+        gapTop: Symbol('top gap'),
+        gapBottom: NaN,
+        chipGap: Symbol('chip gap'),
+        zoneScale: {
+            left: Symbol('left scale'),
+            center: Infinity,
+            right: 1.1,
+        },
+    });
+    assert.doesNotMatch(css, /NaN|Infinity/);
+    assert.match(css, /height: 40px;/);
+    assert.match(css, /margin: 5px 3px 4px 3px/);
+
+    const legacy = renderDimensionsCss({
+        gap: Symbol('legacy gap'),
+        gapTop: null,
+        gapBottom: null,
+    });
+    assert.doesNotMatch(legacy, /NaN|Infinity/);
+    assert.match(legacy, /gapTop=5 gapBottom=4/);
+});
