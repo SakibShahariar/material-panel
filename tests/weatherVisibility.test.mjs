@@ -7,6 +7,7 @@ const weather = await readFile(new URL('../modules/weather.js', import.meta.url)
 test('Weather periodic refresh skips work while both chip and popup are hidden', () => {
     assert.ok(weather.includes('if (destroyed || (!button.mapped && !menu.isOpen))'));
     assert.ok(weather.includes('try { refreshIfStale(); } catch (e) {}'));
+    assert.ok(weather.includes("jitterMode: 'positive'"));
 });
 
 test('Weather refresh resumes when the chip is mapped or popup opens', () => {
@@ -42,4 +43,12 @@ test('weather forecast popup reuses hourly and daily rows by stable keys', async
     assert.match(source, /reconcileWeatherRows\(\s*dailyCol, dailyRows/);
     assert.doesNotMatch(source, /hourlyRow\.destroy_all_children\(\)/);
     assert.doesNotMatch(source, /dailyCol\.destroy_all_children\(\)/);
+});
+
+test('Weather refresh cadence uses positive jitter without shortening the provider minimum', () => {
+    assert.match(weather, /baseIntervalMs: 15 \* 60 \* 1000/);
+    assert.match(weather, /jitterMode: 'positive'/);
+    assert.match(weather, /scheduleWeatherRefresh\(\)/);
+    assert.match(weather, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
+    assert.match(weather, /if \(refreshId\) \{[\s\S]*?GLib\.source_remove\(refreshId\)/);
 });

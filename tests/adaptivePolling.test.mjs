@@ -91,3 +91,24 @@ test('network monitor reschedules adaptively while preserving its caller base in
     assert.match(source, /adaptiveSchedule\.nextDelay\(activeTraffic\)/);
     assert.match(source, /down > 0\.5 \|\| up > 0\.5/);
 });
+
+test('positive jitter only delays a fixed provider cadence and never advances it', () => {
+    const earliest = createAdaptivePollSchedule({
+        baseIntervalMs: 900000,
+        minIntervalMs: 900000,
+        maxIntervalMs: 900000,
+        jitterRatio: 0.05,
+        jitterMode: 'positive',
+        random: () => 0,
+    });
+    const latest = createAdaptivePollSchedule({
+        baseIntervalMs: 900000,
+        minIntervalMs: 900000,
+        maxIntervalMs: 900000,
+        jitterRatio: 0.05,
+        jitterMode: 'positive',
+        random: () => 1,
+    });
+    assert.equal(earliest.nextDelay(), 900000);
+    assert.equal(latest.nextDelay(), 945000);
+});

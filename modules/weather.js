@@ -15,6 +15,7 @@ import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
 import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
 import {getWeatherLocation, getWeatherLocations, getWeatherLocationIndex, setWeatherLocationIndex} from '../lib/weatherLocationState.js';
 import {setWeatherSummary, clearWeatherSummary} from '../lib/weatherSummaryState.js';
+import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -1041,14 +1042,33 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         }
         return GLib.SOURCE_REMOVE;
     });
-    const refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15 * 60, () => {
-        // Do not poll Open-Meteo while both the chip and popup are hidden.
-        try { refreshIfStale(); } catch (e) {}
-        return GLib.SOURCE_CONTINUE;
+    // Keep the provider's conservative 15-minute minimum cadence. Positive-only
+    // jitter staggers refreshes without ever requesting a forecast earlier.
+    const weatherSchedule = createAdaptivePollSchedule({
+        baseIntervalMs: 15 * 60 * 1000,
+        minIntervalMs: 15 * 60 * 1000,
+        maxIntervalMs: 15 * 60 * 1000,
+        jitterRatio: 0.05,
+        jitterMode: 'positive',
     });
+    let refreshId = 0;
+    const scheduleWeatherRefresh = () => {
+        const delayMs = weatherSchedule.nextDelay(false);
+        refreshId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            refreshId = 0;
+            // Do not poll Open-Meteo while both the chip and popup are hidden.
+            try { refreshIfStale(); } catch (e) {}
+            scheduleWeatherRefresh();
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    scheduleWeatherRefresh();
     button.connect('destroy', () => {
         try { cancellable.cancel(); } catch (e) {}
-        try { GLib.source_remove(refreshId); } catch (e) {}
+        if (refreshId) {
+            try { GLib.source_remove(refreshId); } catch (e) {}
+            refreshId = 0;
+        }
     });
 
     try { setChipA11y(button, savedLocations.length > 1 ? 'Weather, select a location in the popup' : 'Weather'); } catch (e) {}

@@ -557,3 +557,16 @@ Reviewed the Memory implementation commit after checkpoint `ebb78e679daf786c6362
 - Checkpoint SHA: `d1f2205266743ca1228b9aa4eda5f31cfe839e64`
 - Checkpoint date: 2026-11-07
 - Next session: review the commits after this checkpoint, including this ledger/code commit.
+
+
+## Incremental review: 2026-11-07 (Disk and GPU adaptive polling)
+
+Reviewed the Disk/GPU implementation commit after checkpoint `d1f2205266743ca1228b9aa4eda5f31cfe839e64`.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `12b89ba1d0e71d997ac398e6762a6eb83d4af056` | `perf(system): adapt disk and GPU polling cadence (Refs #223)` | green | 2026-11-07 | Workflow [42400497014](https://github.com/SakibShahariar/material-panel/actions/runs/42400497014) passed syntax, 559/559 JavaScript tests, and 22/22 Python tests. |
+
+- Checkpoint SHA: `12b89ba1d0e71d997ac398e6762a6eb83d4af056`
+- Checkpoint date: 2026-11-07
+- Next session: review commits after this checkpoint, including the following Weather cadence change.
