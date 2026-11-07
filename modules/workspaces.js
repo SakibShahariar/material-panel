@@ -34,7 +34,7 @@ function _allMetaWindows() {
     return out;
 }
 
-function _windowsOnWorkspace(ws, index) {
+function _windowsOnWorkspace(ws, index, {includeMinimized = false} = {}) {
     const wins = [];
     try {
         for (const w of ws.list_windows?.() || [])
@@ -50,7 +50,7 @@ function _windowsOnWorkspace(ws, index) {
     }
     return wins.filter(w => {
         try {
-            if (w.minimized)
+            if (!includeMinimized && w.minimized)
                 return false;
         } catch (e) {}
         try {
@@ -237,11 +237,12 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         for (let i = 0; i < n; i++) {
             const ws = manager.get_workspace_by_index(i);
             const liveWindows = _windowsOnWorkspace(ws, i);
+            const attentionWindows = _windowsOnWorkspace(ws, i, {includeMinimized: true});
             windowsByWorkspace.push(liveWindows);
-            allWindows.push(...liveWindows);
+            allWindows.push(...new Set([...liveWindows, ...attentionWindows]));
             workspaceStates.push({
                 occupied: liveWindows.length > 0,
-                urgent: liveWindows.some(_isUrgentWindow),
+                urgent: attentionWindows.some(_isUrgentWindow),
             });
             const windows = liveWindows.map(win => {
                 let identity = null;
