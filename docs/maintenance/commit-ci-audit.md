@@ -767,3 +767,19 @@ Issue #250 remains open (Category B): a real notification action still needs liv
 
 **Checkpoint SHA:** `9446b90c62b60fd9917a680d1a0fe3fe27fa8419`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 (Weather location preference delimiter safety, #143)
+
+Reviewed commits after checkpoint `9446b90c62b60fd9917a680d1a0fe3fe27fa8419`. The audit-ledger commit itself and both weather-location commits have green CI. Saved location names now replace the reserved `;` and `|` preference delimiters with spaces, preventing city labels from breaking the list serialization format.
+
+| Commit | Subject | CI result | Evidence |
+|---|---|---|---|
+| `553300c34670c1b2386fc0066b9dc34d4804f11b` | `docs(maintenance): record notification action CI review (Refs #250)` | green | [42421951850](https://github.com/SakibShahariar/material-panel/actions/runs/42421951850) — syntax passed; 626/626 JavaScript and 22/22 Python tests. |
+| `d89ff3b4aa0e88146debcf4b90037ff4963e8c3c` | `fix(weather): escape location preference delimiters (Refs #143)` | green | [42422428192](https://github.com/SakibShahariar/material-panel/actions/runs/42422428192) — syntax passed; 626/626 JavaScript and 22/22 Python tests. |
+| `39d7b7944109ecaacbbd0e47405fd39398ebdddc` | `test(weather): cover location delimiter round trips (Refs #143)` | green | [42422440766](https://github.com/SakibShahariar/material-panel/actions/runs/42422440766) — syntax passed; 627/627 JavaScript and 22/22 Python tests. |
+
+Issue #143 remains open (Category B) pending live weather-provider, per-location error, timezone, rapid-switching, and request-rate validation. Issues #248 and #250 also remain open for their documented live GNOME checks.
+
+**Checkpoint SHA:** `39d7b7944109ecaacbbd0e47405fd39398ebdddc`  
+**Checkpoint date:** 2026-11-08
