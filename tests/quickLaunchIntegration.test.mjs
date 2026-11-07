@@ -79,6 +79,7 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
     assert.match(module, /timeoutId = 0/);
     assert.match(module, /process\.wait_async/);
     assert.match(module, /Main\.notify\('Quick launch completed'/);
+    assert.match(module, /entry\.type === 'app' && launched/);
     assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
     assert.match(runner, /const argv = parseCommand\(entry\.target\)/);
     assert.match(runner, /spawnCommand\(argv\)/);
