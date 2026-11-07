@@ -60,3 +60,11 @@ test('sanitizes imported location labels before persistence formatting', () => {
     assert.equal(formatWeatherLocations(parsed),
         'Dhaka North|23.8|90.4; London west|51.5|-0.1');
 });
+
+test('preserves Unicode city names while removing formatting controls', () => {
+    const locations = normalizeWeatherLocations([
+        {name: 'ঢাকা', latitude: 23.8, longitude: 90.4},
+        {name: 'القاهرة', latitude: 30, longitude: 31.2},
+    ]);
+    assert.deepEqual(locations.map(location => location.name), ['ঢাকা', 'القاهرة']);
+});

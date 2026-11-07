@@ -670,3 +670,23 @@ All red runs were inspected and recorded, not omitted. The final state is green.
 
 **Checkpoint SHA:** `4ce7464c3aa5347c3513d0282ba4fa87b3ca5d56`  
 **Checkpoint date:** 2026-11-08
+
+## Incremental review: 2026-11-08 (Weather location label hardening)
+
+Reviewed the seven commits after checkpoint `b31439ca9a53991bf34785576fc46e552567f0f8`. The initial implementation and test commits exposed two test/regex defects; each was corrected in follow-up commits. The latest verified run passed JavaScript syntax, **608/608 JavaScript tests**, and **22/22 Python tests**.
+
+| Commit | Subject | CI result | Evidence / follow-up |
+|---|---|---|---|
+| `1f9a365423923d9d03e97f510e0abf575c51f9c6` | `fix(weather): sanitize configured location labels (Refs #143)` | red | [42419556139](https://github.com/SakibShahariar/material-panel/actions/runs/42419556139) exposed an over-escaped control-character regex that removed ordinary label characters; corrected in `3c549a03`. |
+| `3c549a03f1ef1019b4252fb458fa43ee459303a4` | `fix(weather): match actual location label controls (Refs #143)` | green | [42419584529](https://github.com/SakibShahariar/material-panel/actions/runs/42419584529) passed after correcting the regex to match actual Unicode control and bidi-formatting characters. |
+| `7ddf371c55068ed041775440c7ce1c2efa884263` | `test(weather): cover sanitized location labels (Refs #143)` | red | [42419595860](https://github.com/SakibShahariar/material-panel/actions/runs/42419595860) exposed test fixtures containing literal backslash sequences rather than actual controls; corrected in `172338dc`. |
+| `bea5988000e8e9bb45faf9224c6d8a02f4ca4075` | `fix(weather): expose selected city in accessible names (Refs #143)` | red | [42419642081](https://github.com/SakibShahariar/material-panel/actions/runs/42419642081) inherited the failing label fixtures from the preceding test commit. |
+| `ab79bdad9b5e482c2cfa390dcf84937535b64dee` | `test(weather): cover accessible saved-location state (Refs #143)` | red | [42419650960](https://github.com/SakibShahariar/material-panel/actions/runs/42419650960) inherited the same failing label fixtures. |
+| `172338dc76136668dc087f6c0823f97fbf39dc75` | `test(weather): use real control characters in label cases (Refs #143)` | red | [42419678441](https://github.com/SakibShahariar/material-panel/actions/runs/42419678441) fixed the fixtures but exposed a reversed ordering assumption in the new UI source assertion; corrected in `a4350b85`. |
+| `a4350b8574560415a41dfe43051705e4352837d4` | `test(weather): match saved-location selection order (Refs #143)` | green | [42419691509](https://github.com/SakibShahariar/material-panel/actions/runs/42419691509) passed syntax, **608/608 JavaScript tests**, and **22/22 Python tests**. |
+
+Changes covered: saved city labels now replace control characters, bidi overrides/isolates and direction marks with spaces, collapse repeated whitespace, and retain valid Unicode city names. Imported labels are sanitized before persistence. The Weather location chooser now exposes the active city state through each menu item's accessible name.
+
+**Checkpoint SHA:** `a4350b8574560415a41dfe43051705e4352837d4`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review the following commit, which adds a Unicode city-name preservation regression test and this ledger update.
