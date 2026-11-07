@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
-test('Quick Settings media row does not reference controls owned by the full media popup', async () => {
+test('Quick Settings media row keeps detailed-only controls separate from the full media popup', async () => {
     const source = await readFile(new URL('../modules/mediaPlayer.js', import.meta.url), 'utf8');
     const start = source.indexOf('export function buildMediaPlayerRow(');
     const end = source.indexOf('/** Panel chip + popup controls */', start);
@@ -15,7 +15,7 @@ test('Quick Settings media row does not reference controls owned by the full med
     ]) {
         assert.ok(!row.includes(popupOnlyName), `unexpected popup-only reference: ${popupOnlyName}`);
     }
-    assert.match(row, /watchPreferredPlayer\(name =>/);
+    assert.match(row, /watchPreferredPlayer\(\(name, players\) =>/);
     assert.match(row, /attach\(name\)/);
     assert.match(row, /row\.connect\('destroy'/);
     assert.match(row, /stopWatching\(\)/);
