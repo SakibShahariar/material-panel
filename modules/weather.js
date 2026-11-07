@@ -14,6 +14,7 @@ import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {radiansToDegreesLatLon} from '../lib/weatherCoordinates.js';
 import {getWeatherCache, setWeatherCache} from '../lib/weatherCache.js';
 import {getWeatherLocation} from '../lib/weatherLocationState.js';
+import {setWeatherSummary, clearWeatherSummary} from '../lib/weatherSummaryState.js';
 
 // Prefer the configured GNOME Weather location or explicit coordinates.
 // Never infer a city from IP data or show an unrelated default forecast.
@@ -415,8 +416,10 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         if (destroyed)
             return;
         detail = data;
-        if (data?.temp != null)
+        if (data?.temp != null) {
             lastSuccessAt = savedAt || GLib.get_monotonic_time();
+            setWeatherSummary({...data, savedAt: lastSuccessAt, stale: false});
+        }
         if (data?.temp != null)
             label.text = `${Math.round(data.temp)}°`;
         else
@@ -852,9 +855,17 @@ export function buildWeather(_extensionPath, scale = 1.0) {
                     place: 'Location unavailable',
                     source: 'Error',
                 };
+                setWeatherSummary({
+                    temp: null, condition: reason, place: 'Location unavailable',
+                    source: 'Error', savedAt: 0, stale: false,
+                });
                 try {
                     button.set_tooltip_text(reason);
                 } catch (e2) {}
+            } else {
+                // Keep the last good reading visible, but never imply that a
+                // failed refresh produced current data.
+                setWeatherSummary({...detail, savedAt: lastSuccessAt, stale: true});
             }
             fillPopup();
             // Retry failed startup/offline requests sooner than the 15-minute
@@ -915,6 +926,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
+        clearWeatherSummary();
         if (networkChangedId) {
             try { networkMonitor.disconnect(networkChangedId); } catch (e) {}
             networkChangedId = 0;

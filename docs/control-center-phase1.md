@@ -5,10 +5,10 @@ The optional `control-center` panel module is registered in Preferences but is n
 ## Current shell
 
 - The popup provides Home, Media and System navigation.
-- Home includes Focus Mode, a small Dark Mode / Night Light / Do Not Disturb action cluster, and a compact Now Playing row with a slim live progress bar and a no-media state.
+- Home includes Focus Mode, a small Dark Mode / Night Light / Do Not Disturb action cluster, a compact Now Playing row with a slim live progress bar, and a Weather summary that observes the existing Weather module state without starting a second network request.
 - Media now has a larger artwork-led player card with album metadata, player switching when multiple MPRIS players are active, playback state, and live position. Its optional restrained visualizer respects the existing preference and reduced-motion setting; both it and the one-second position sampler run only while the Media section is selected and mapped.
 - System now shows CPU, memory and CPU-temperature trends, a network summary from the shared Network Speed sample, and an asynchronous read-only top-process list. GPU queries are explicitly off by default and start only after enabling the System GPU toggle.
-- Home's weather and system-summary cards, media progress and responsive bento composition remain tracked in #121.
+- Home's weather snapshot is now shared with the Weather chip, including honest unavailable and stale-refresh states. CPU/RAM/temperature/disk summaries, calendar integration, independently hideable cards and responsive bento reflow remain tracked in #121.
 - Section actors are destroyed when switching sections and when the popup closes. The current shell does not start section-specific polling.
 - Popup sizing is bounded by the primary monitor; the popup arrow side is selected from the panel edge.
 

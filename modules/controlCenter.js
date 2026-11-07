@@ -1,5 +1,6 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
@@ -10,6 +11,7 @@ import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
 
 const SECTIONS = [
     {id: 'home', title: 'Home', description: 'Your panel controls and at-a-glance overview.'},
@@ -198,6 +200,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             card.add_child(mediaRow);
         }
         const systemView = section.id === 'system' ? buildControlCenterSystem() : null;
+        const homeCards = [];
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
@@ -238,19 +241,68 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             mediaCard.add_child(mediaTitle);
             mediaCard.add_child(noMedia);
             mediaCard.add_child(mediaRow);
-            page.add_child(mediaCard);
 
             actionsCard.add_child(actionsTitle);
             actionsCard.add_child(actionGrid);
-            page.add_child(actionsCard);
+
+            const weatherCard = new St.BoxLayout({
+                style_class: 'material-panel-control-center-card',
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            weatherCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+            const weatherTitle = new St.Label({text: 'Weather'});
+            weatherTitle.style = 'font-size: 14px; font-weight: 650;';
+            const weatherTemp = new St.Label({text: '—°'});
+            weatherTemp.style = 'font-size: 24px; font-weight: 700;';
+            const weatherCondition = new St.Label({text: 'No weather data yet'});
+            weatherCondition.style = 'font-size: 12px;';
+            const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
+            weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
+            weatherPlace.clutter_text.line_wrap = true;
+            weatherCard.add_child(weatherTitle);
+            weatherCard.add_child(weatherTemp);
+            weatherCard.add_child(weatherCondition);
+            weatherCard.add_child(weatherPlace);
+
+            const renderWeatherSummary = summary => {
+                if (!summary) {
+                    weatherTemp.text = '—°';
+                    weatherCondition.text = 'No weather data yet';
+                    weatherPlace.text = 'Enable Weather and configure a location';
+                    return;
+                }
+                if (summary.source === 'Error' || summary.temp == null) {
+                    weatherTemp.text = '—°';
+                    weatherCondition.text = summary.condition || 'Weather is unavailable';
+                    weatherPlace.text = 'Check the Weather module and its location settings';
+                    return;
+                }
+                weatherTemp.text = `${Math.round(summary.temp)}°`;
+                weatherCondition.text = summary.condition || 'Current conditions';
+                const ageMinutes = summary.savedAt > 0
+                    ? Math.max(0, Math.floor((GLib.get_monotonic_time() - summary.savedAt) / 60000000))
+                    : null;
+                const age = ageMinutes == null ? '' : ageMinutes < 1
+                    ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
+                const stale = summary.stale ? ' · refresh unavailable' : '';
+                weatherPlace.text = [summary.place, age].filter(Boolean).join(' · ') + stale;
+            };
+            const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
+            weatherCard.connect('destroy', stopWeatherWatch);
+
+            homeCards.push(mediaCard, actionsCard, weatherCard);
         }
 
         page.add_child(heading);
         page.add_child(description);
-        if (systemView)
+        if (section.id === 'home') {
+            homeCards.forEach(homeCard => page.add_child(homeCard));
+        } else if (systemView) {
             page.add_child(systemView);
-        else
+        } else {
             page.add_child(card);
+        }
 
         focusModeItem.visible = section.id === 'home';
         for (const [id, navButton] of navButtons) {

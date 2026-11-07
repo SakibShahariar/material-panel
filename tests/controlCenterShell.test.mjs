@@ -150,3 +150,17 @@ test('Control Center Home media row exposes a slim progress bar without detailed
     assert.match(media, /if \(showProgress\)/);
     assert.match(media, /if \(progressTime\)/);
 });
+
+test('Control Center Home observes the shared Weather snapshot without polling independently', async () => {
+    const [controlCenter, weather] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/weather.js'),
+    ]);
+    assert.match(controlCenter, /watchWeatherSummary\(renderWeatherSummary\)/);
+    assert.match(controlCenter, /refresh unavailable/);
+    assert.match(controlCenter, /Enable Weather and configure a location/);
+    assert.match(weather, /setWeatherSummary\(\{\.\.\.data, savedAt: lastSuccessAt, stale: false\}\)/);
+    assert.match(weather, /stale: true/);
+    assert.match(weather, /clearWeatherSummary\(\)/);
+    assert.doesNotMatch(controlCenter, /fetchOpenMeteo|httpGet/);
+});
