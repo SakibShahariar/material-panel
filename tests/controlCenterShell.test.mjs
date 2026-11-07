@@ -244,3 +244,17 @@ test('Weather and Calendar Home cards default on and can be hidden independently
     assert.match(config, /weather: homeCards\?\.weather !== false/);
     assert.match(config, /calendar: homeCards\?\.calendar !== false/);
 });
+
+
+test('Control Center Home hands wallpaper browsing to Wallmat and falls back to GNOME Background', async () => {
+    const module = await source('../modules/controlCenter.js');
+    assert.match(module, /import Gio from 'gi:\/\/Gio'/);
+    assert.match(module, /Gio\.DesktopAppInfo\.new\('dev\.sakib\.Wallmat\.desktop'\)/);
+    assert.match(module, /Gio\.AppInfo\.get_all\(\)/);
+    assert.match(module, /appInfo\.launch\(\[\], null\)/);
+    assert.match(module, /Gio\.Subprocess\.new\(\['gnome-control-center', 'background'\], Gio\.SubprocessFlags\.NONE\)/);
+    assert.match(module, /text: wallpaperApp \? 'Open Wallmat' : 'Open Background Settings'/);
+    assert.match(module, /wallpaperCard\.connect\('clicked', \(\) => openWallpaperDestination\(wallpaperApp\)\)/);
+    assert.match(module, /homeCards\.push\(mediaCard, actionsCard, wallpaperCard\)/);
+    assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
+});
