@@ -1,0 +1,566 @@
+import {setChipA11y} from '../lib/a11y.js';
+/**
+ * Clock chip + Omarchy-inspired calendar popup:
+ * month grid, event dots, day agenda, next-event countdown.
+ * Events: $XDG_CACHE_HOME/material-panel/calendar-events.json
+ */
+import St from 'gi://St';
+import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
+import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import {ConfigStore} from '../lib/configStore.js';
+import {formatClockDisplay, nextClockDisplayMode} from '../lib/clockDisplay.js';
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {wirePressedClass} from '../lib/pressFx.js';
+import {menuOpen, menuClose, isSessionLocked} from '../lib/shellCompat.js';
+import {getLayoutStyle} from '../lib/layoutStyleState.js';
+import {
+    loadCalendarDocument,
+    indexEventsByDate,
+    eventsForDateKey,
+    dateKeyFromYmd,
+    dateKeyToday,
+    nextEvent,
+    formatCountdown,
+    formatEventTimeRange,
+    meetingUrl,
+} from '../lib/calendarEvents.js';
+import {safeEventUrl} from '../lib/safeEventUrl.js';
+
+const CELL = 36;
+
+
+function daysInMonth(year, month) {
+    try {
+        return GLib.Date.get_days_in_month(month, year);
+    } catch (e) {
+        return new Date(year, month, 0).getDate();
+    }
+}
+
+/**
+ * @param {number} year
+ * @param {number} month
+ * @param {Map} eventIndex
+ * @param {string} selectedKey
+ * @param {function} onSelectKey
+ * @param {function} onPrev
+ * @param {function} onNext
+ */
+function buildCalendarActor(year, month, eventIndex, selectedKey, onSelectKey, onPrev, onNext) {
+    const outer = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-clock-cal',
+        x_expand: true,
+    });
+    try { outer.style = 'spacing: 6px;'; } catch (e) {}
+
+    const nav = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        style_class: 'material-panel-clock-cal-nav',
+        x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    const prevBtn = new St.Button({
+        style_class: 'material-panel-clock-cal-nav-btn',
+        label: '‹',
+        reactive: true,
+        track_hover: true,
+    });
+    const nextBtn = new St.Button({
+        style_class: 'material-panel-clock-cal-nav-btn',
+        label: '›',
+        reactive: true,
+        track_hover: true,
+    });
+    setChipA11y(prevBtn, 'Previous month');
+    setChipA11y(nextBtn, 'Next month');
+    wirePressedClass(prevBtn);
+    wirePressedClass(nextBtn);
+    const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
+    const title = new St.Label({
+        text: first.format('%B %Y') ?? `${month}/${year}`,
+        style_class: 'material-panel-clock-cal-title',
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try { title.style = 'font-weight: 700; font-size: 13px;'; } catch (e) {}
+    prevBtn.connect('clicked', () => onPrev?.());
+    nextBtn.connect('clicked', () => onNext?.());
+    nav.add_child(prevBtn);
+    nav.add_child(title);
+    nav.add_child(nextBtn);
+    outer.add_child(nav);
+
+    const grid = new St.Widget({
+        style_class: 'material-panel-clock-cal-grid',
+        layout_manager: new Clutter.GridLayout({column_homogeneous: true}),
+        x_expand: true,
+    });
+    const layout = grid.layout_manager;
+    const dows = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    for (let c = 0; c < 7; c++) {
+        const lab = new St.Label({
+            text: dows[c],
+            style_class: 'material-panel-clock-cal-dow-label',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        try { lab.style = 'font-size: 10px; opacity: 0.55; font-weight: 600;'; } catch (e) {}
+        layout.attach(lab, c, 0, 1, 1);
+    }
+
+    const startDow = first.get_day_of_week(); // 1=Mon..7=Sun
+    const dim = daysInMonth(year, month);
+    const today = GLib.DateTime.new_now_local();
+    const isThisMonth = today.get_year() === year && today.get_month() === month;
+    const todayDay = today.get_day_of_month();
+    let day = 1;
+
+    const totalCells = (startDow - 1) + dim;
+    const rowsNeeded = Math.ceil(totalCells / 7);
+    for (let row = 0; row < rowsNeeded; row++) {
+        for (let col = 0; col < 7; col++) {
+            const cellIndex = row * 7 + col;
+            const cell = new St.Button({
+                style_class: 'material-panel-clock-cal-day',
+                label: '',
+                reactive: false,
+                track_hover: true,
+                can_focus: true,
+                width: CELL,
+                height: CELL,
+            });
+            try {
+                cell.style =
+                    `width: ${CELL}px; height: ${CELL}px; border-radius: 999px; padding: 0; font-size: 12px;`;
+            } catch (e) {}
+
+            if (cellIndex >= startDow - 1 && day <= dim) {
+                const d = day;
+                const key = dateKeyFromYmd(year, month, d);
+                cell.label = String(d);
+                cell.reactive = true;
+                const eventCount = eventIndex?.get(key)?.length || 0;
+                const hasEvents = eventCount > 0;
+                const isToday = isThisMonth && d === todayDay;
+                const isSelected = selectedKey === key;
+                if (isToday)
+                    cell.add_style_class_name('today');
+                else if (isSelected)
+                    cell.add_style_class_name('selected');
+                if (hasEvents)
+                    cell.add_style_class_name('has-events');
+                const date = GLib.DateTime.new_local(year, month, d, 0, 0, 0);
+                const dateLabel = date?.format('%A, %B %-d, %Y') ?? `${year}-${month}-${d}`;
+                const state = [
+                    isToday ? 'today' : null,
+                    isSelected ? 'selected' : null,
+                    eventCount ? `${eventCount} events` : null,
+                ].filter(Boolean);
+                setChipA11y(cell, [dateLabel, ...state].join(', '));
+                cell.connect('clicked', () => onSelectKey?.(key));
+                day++;
+            }
+            layout.attach(cell, col, row + 1, 1, 1);
+        }
+    }
+
+    outer.add_child(grid);
+    return outer;
+}
+
+export function buildClock(_extensionPath, scale = 1.0) {
+    const store = new ConfigStore();
+    let use12h = false;
+    let clickCyclesFormat = false;
+    let displayMode = 'date-time';
+    let configLoadGeneration = 0;
+    let destroyed = false;
+
+    const isEnd4 = () => getLayoutStyle() === 'end4';
+    const label = new St.Label({
+        style_class: 'material-panel-clock',
+        y_align: Clutter.ActorAlign.CENTER,
+        text: formatClockDisplay(GLib.DateTime.new_now_local(), use12h, displayMode, isEnd4()),
+    });
+
+    const button = new St.Button({
+        style_class: 'material-panel-clock-btn material-panel-chip',
+        reactive: true,
+        track_hover: true,
+        can_focus: true,
+        child: label,
+    });
+
+    // Tick
+    const tick = () => {
+        label.text = formatClockDisplay(GLib.DateTime.new_now_local(), use12h, displayMode, isEnd4());
+        // Optional: announce next event on chip when close
+        try {
+            const doc = loadCalendarDocument();
+            if (doc?.events?.length) {
+                const n = nextEvent(doc.events);
+                if (n) {
+                    const st = n.start;
+                    const dt = GLib.DateTime.new_from_iso8601(String(st), null);
+                    if (dt) {
+                        const mins = (dt.to_unix() - GLib.DateTime.new_now_local().to_unix()) / 60;
+                        if (mins >= 0 && mins <= 30) {
+                            const title = String(n.title || 'Event').slice(0, 22);
+                            const cd = formatCountdown(n);
+                            label.text = isEnd4()
+                                ? `${title} · ${cd}`
+                                : `${title}  ${cd}`;
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+    };
+    // Config changes arrive through the directory monitor; the periodic tick
+    // only formats the current time and calendar countdown.
+    try {
+        store.watch(cfg => {
+            configLoadGeneration++;
+            const nextUse12h = cfg?.clockFormat === '12h';
+            const nextClickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            if (nextUse12h !== use12h || nextClickCyclesFormat !== clickCyclesFormat) {
+                use12h = nextUse12h;
+                clickCyclesFormat = nextClickCyclesFormat;
+                tick();
+            }
+        });
+        const generation = ++configLoadGeneration;
+        store.loadAsync().then(cfg => {
+            if (destroyed || generation !== configLoadGeneration)
+                return;
+            use12h = cfg?.clockFormat === '12h';
+            clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
+            tick();
+        }).catch(error => {
+            if (!destroyed)
+                logError(error, 'material-panel: asynchronous clock config load');
+        });
+    } catch (e) {
+        logError(e, 'material-panel: clock config watcher');
+    }
+
+    const tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 15, () => {
+        // The clock chip is visible UI, but its calendar/event lookup is
+        // unnecessary while the panel is hidden or the session is locked.
+        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
+            return GLib.SOURCE_CONTINUE;
+        tick();
+        return GLib.SOURCE_CONTINUE;
+    });
+    tick();
+
+    // Popup
+    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    menu.actor.add_style_class_name(
+        'material-panel-popup material-panel-clock-popup material-panel-calendar-popup');
+    attachPopupDismiss(menu, button);
+
+    const body = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-clock-popup-body',
+        x_expand: true,
+    });
+    try {
+        body.style = 'spacing: 8px; padding: 10px 12px 12px 12px; min-width: 268px; max-width: 320px;';
+    } catch (e) {}
+
+    // Next event banner
+    const nextBanner = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-cal-next',
+        x_expand: true,
+        visible: false,
+    });
+    try {
+        nextBanner.style =
+            'spacing: 2px; padding: 10px 12px; border-radius: 14px;';
+    } catch (e) {}
+    const nextTitle = new St.Label({
+        text: '',
+        style_class: 'material-panel-cal-next-title',
+        x_expand: true,
+    });
+    try {
+        nextTitle.style = 'font-weight: 700; font-size: 12px;';
+        nextTitle.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+    } catch (e) {}
+    const nextMeta = new St.Label({
+        text: '',
+        style_class: 'material-panel-cal-next-meta',
+    });
+    try { nextMeta.style = 'font-size: 11px; opacity: 0.7;'; } catch (e) {}
+    nextBanner.add_child(nextTitle);
+    nextBanner.add_child(nextMeta);
+    body.add_child(nextBanner);
+
+    // Calendar host (rebuilt on nav)
+    const calHost = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-cal-host',
+        x_expand: true,
+    });
+    body.add_child(calHost);
+
+    // Agenda
+    const agendaTitle = new St.Label({
+        text: 'Agenda',
+        style_class: 'material-panel-cal-agenda-title',
+    });
+    try {
+        agendaTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.6; padding-top: 2px;';
+    } catch (e) {}
+    body.add_child(agendaTitle);
+
+    const agendaBox = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-cal-agenda',
+        x_expand: true,
+    });
+    try { agendaBox.style = 'spacing: 4px;'; } catch (e) {}
+    body.add_child(agendaBox);
+
+    const hint = new St.Label({
+        text: '',
+        style_class: 'material-panel-cal-hint',
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    try {
+        hint.style = 'font-size: 10px; opacity: 0.4; padding-top: 6px;';
+    } catch (e) {}
+    body.add_child(hint);
+
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    item.add_child(body);
+    menu.addMenuItem(item);
+
+    let viewYear, viewMonth;
+    let selectedKey = dateKeyToday();
+    let eventIndex = new Map();
+    let allEvents = [];
+
+    const refreshEvents = () => {
+        const doc = loadCalendarDocument();
+        allEvents = doc?.events || [];
+        eventIndex = indexEventsByDate(allEvents);
+
+        let syncAge = '';
+        if (doc?.syncedAt) {
+            try {
+                const synced = GLib.DateTime.new_from_iso8601(String(doc.syncedAt), null);
+                if (synced) {
+                    const ageSeconds = Math.max(0,
+                        GLib.DateTime.new_now_utc().to_unix() - synced.to_unix());
+                    if (ageSeconds >= 86400)
+                        syncAge = `synced ${Math.floor(ageSeconds / 86400)} day${Math.floor(ageSeconds / 86400) === 1 ? '' : 's'} ago`;
+                    else if (ageSeconds >= 3600)
+                        syncAge = `synced ${Math.floor(ageSeconds / 3600)}h ago`;
+                    else if (ageSeconds >= 60)
+                        syncAge = `synced ${Math.floor(ageSeconds / 60)}m ago`;
+                    else
+                        syncAge = 'synced just now';
+                }
+            } catch (e) {}
+        }
+
+        if (doc?.source)
+            hint.text = [syncAge, doc.source].filter(Boolean).join(' · ');
+        else if (!doc)
+            hint.text = 'Sync: scripts/calendar-sync-ics.py';
+        else
+            hint.text = [syncAge, allEvents.length ? `${allEvents.length} events` : 'No events in range']
+                .filter(Boolean).join(' · ');
+    };
+
+    const fillNext = () => {
+        const n = nextEvent(allEvents);
+        if (!n) {
+            nextBanner.visible = false;
+            return;
+        }
+        nextBanner.visible = true;
+        nextTitle.text = String(n.title || 'Event');
+        const when = formatEventTimeRange(n);
+        const cd = formatCountdown(n);
+        nextMeta.text = [when, cd].filter(Boolean).join(' · ');
+    };
+
+    const fillAgenda = () => {
+        agendaBox.destroy_all_children();
+        const list = eventsForDateKey(eventIndex, selectedKey);
+        const pretty = selectedKey === dateKeyToday()
+            ? 'Today'
+            : selectedKey;
+        agendaTitle.text = list.length
+            ? `${pretty} · ${list.length}`
+            : pretty;
+
+        if (list.length === 0) {
+            const empty = new St.Label({
+                text: 'No events this day',
+                style_class: 'material-panel-cal-empty',
+            });
+            try {
+                empty.style = 'font-size: 11px; opacity: 0.45; padding: 2px 4px 0 4px;';
+            } catch (e) {}
+            agendaBox.add_child(empty);
+            return;
+        }
+
+        for (const ev of list.slice(0, 8)) {
+            const row = new St.Button({
+                style_class: 'material-panel-cal-event-row',
+                reactive: true,
+                track_hover: true,
+                x_expand: true,
+            });
+            try {
+                row.style =
+                    'padding: 8px 10px; border-radius: 12px;';
+            } catch (e) {}
+            const col = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            try { col.style = 'spacing: 2px;'; } catch (e) {}
+            const top = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
+            const t = new St.Label({
+                text: String(ev.title || 'Event'),
+                style_class: 'material-panel-cal-event-title',
+                x_expand: true,
+            });
+            try {
+                t.style = 'font-size: 12px; font-weight: 600;';
+                t.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+            } catch (e) {}
+            const tm = new St.Label({
+                text: formatEventTimeRange(ev),
+                style_class: 'material-panel-cal-event-time',
+            });
+            try { tm.style = 'font-size: 11px; opacity: 0.65;'; } catch (e) {}
+            top.add_child(t);
+            top.add_child(tm);
+            col.add_child(top);
+            if (ev.location) {
+                const loc = new St.Label({
+                    text: String(ev.location).slice(0, 40),
+                    style_class: 'material-panel-cal-event-loc',
+                });
+                try { loc.style = 'font-size: 10px; opacity: 0.55;'; } catch (e) {}
+                col.add_child(loc);
+            }
+            row.set_child(col);
+            const url = safeEventUrl(meetingUrl(ev) || ev.htmlLink);
+            setChipA11y(row, [
+                String(ev.title || 'Event'),
+                formatEventTimeRange(ev),
+                ev.location ? String(ev.location) : null,
+                url ? 'Open event link' : null,
+            ].filter(Boolean).join(', '));
+            row.connect('clicked', () => {
+                if (url) {
+                    try {
+                        Gio.AppInfo.launch_default_for_uri_async(url, null, null, null);
+                    } catch (e) {
+                        logError(e, 'material-panel: failed to open calendar event URL');
+                    }
+                }
+                return Clutter.EVENT_STOP;
+            });
+            agendaBox.add_child(row);
+        }
+    };
+
+    const rebuildCal = () => {
+        calHost.destroy_all_children();
+        calHost.add_child(buildCalendarActor(
+            viewYear,
+            viewMonth,
+            eventIndex,
+            selectedKey,
+            key => {
+                selectedKey = key;
+                rebuildCal();
+                fillAgenda();
+            },
+            () => {
+                viewMonth--;
+                if (viewMonth < 1) {
+                    viewMonth = 12;
+                    viewYear--;
+                }
+                rebuildCal();
+            },
+            () => {
+                viewMonth++;
+                if (viewMonth > 12) {
+                    viewMonth = 1;
+                    viewYear++;
+                }
+                rebuildCal();
+            },
+        ));
+    };
+
+    const openRefresh = () => {
+        const now = GLib.DateTime.new_now_local();
+        viewYear = now.get_year();
+        viewMonth = now.get_month();
+        selectedKey = dateKeyToday();
+        refreshEvents();
+        fillNext();
+        rebuildCal();
+        fillAgenda();
+    };
+
+    menu.connect('open-state-changed', (_m, open) => {
+        if (open)
+            openRefresh();
+    });
+
+    button.connect('clicked', () => {
+        if (clickCyclesFormat) {
+            displayMode = nextClockDisplayMode(displayMode);
+            tick();
+        } else if (menu.isOpen) {
+            menuClose(menu);
+        } else {
+            openRefresh();
+            menuOpen(menu);
+        }
+    });
+    // When click-to-cycle is enabled, keep the calendar available by
+    // opening it with the secondary mouse button.
+    button.connect('button-press-event', (_actor, event) => {
+        if (!clickCyclesFormat || event.get_button() !== 3)
+            return Clutter.EVENT_PROPAGATE;
+        openRefresh();
+        menuOpen(menu);
+        return Clutter.EVENT_STOP;
+    });
+    button.connect('destroy', () => {
+        destroyed = true;
+        configLoadGeneration++;
+        try { GLib.source_remove(tickId); } catch (e) {}
+        try { store.unwatch(); } catch (e) {}
+        try { menu.destroy(); } catch (e) {}
+    });
+
+    try { wirePressedClass(button); } catch (e) {}
+
+    try { setChipA11y(button, clickCyclesFormat
+        ? 'Clock. Click to cycle display format; right-click to open calendar'
+        : 'Clock. Click to open calendar'); } catch (e) {}
+    return button;
+}

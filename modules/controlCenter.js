@@ -182,20 +182,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             x_expand: true,
         });
         body.clutter_text.line_wrap = true;
-        if (section.id !== 'media')
-            card.add_child(body);
-        if (section.id === 'media') {
-            const mediaRow = buildMediaPlayerRow({detailed: true});
-            const noMedia = new St.Label({
-                text: 'No media is playing',
-                style_class: 'material-panel-control-center-placeholder',
-            });
-            mediaRow.connect('notify::visible', () => {
-                noMedia.visible = !mediaRow.visible;
-            });
-            card.add_child(noMedia);
-            card.add_child(mediaRow);
-        }
+        card.add_child(body);
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',

@@ -359,7 +359,7 @@ function watchPreferredPlayer(callback) {
 }
 
 /** QS media card */
-export function buildMediaPlayerRow({detailed = false} = {}) {
+export function buildMediaPlayerRow() {
     const row = new St.BoxLayout({
         style_class: 'material-panel-qs-media',
         orientation: Clutter.Orientation.HORIZONTAL,
@@ -369,25 +369,23 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     });
     try {
         // Cap width so long titles cannot stretch the QS menu
-        row.style = detailed
-            ? 'spacing: 14px; padding: 12px; border-radius: 16px; max-width: 460px;'
-            : 'spacing: 10px; padding: 8px 10px; border-radius: 16px; max-width: 360px;';
+        row.style = 'spacing: 10px; padding: 8px 10px; border-radius: 16px; max-width: 360px;';
     } catch (e) {}
 
     const artIcon = new St.Bin({
         style_class: 'material-panel-qs-media-art',
-        width: detailed ? 88 : 40,
-        height: detailed ? 88 : 40,
+        width: 40,
+        height: 40,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    try { artIcon.style = detailed ? 'border-radius: 14px;' : 'border-radius: 10px;'; } catch (e) {}
+    try { artIcon.style = 'border-radius: 10px;'; } catch (e) {}
 
     const textCol = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
     });
-    try { textCol.style = detailed ? 'spacing: 6px; min-width: 0;' : 'spacing: 2px;'; } catch (e) {}
+    try { textCol.style = 'spacing: 2px;'; } catch (e) {}
     const titleLabel = new St.Label({
         text: 'No media',
         style_class: 'material-panel-qs-media-title',
@@ -396,8 +394,8 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     });
     titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     try {
-        titleLabel.clutter_text.max_width_chars = detailed ? 48 : 28;
-        titleLabel.style = detailed ? 'font-size: 16px; font-weight: 700; max-width: 300px;' : 'max-width: 180px;';
+        titleLabel.clutter_text.max_width_chars = 28;
+        titleLabel.style = 'max-width: 180px;';
     } catch (e) {}
     const artistLabel = new St.Label({
         text: '',
@@ -407,58 +405,25 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     });
     artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     try {
-        artistLabel.clutter_text.max_width_chars = detailed ? 48 : 28;
-        artistLabel.style = detailed ? 'font-size: 12px; max-width: 300px;' : 'max-width: 180px;';
+        artistLabel.clutter_text.max_width_chars = 28;
+        artistLabel.style = 'max-width: 180px;';
     } catch (e) {}
     textCol.add_child(titleLabel);
     textCol.add_child(artistLabel);
-
-    let durationUs = 0;
-    let currentPositionUs = 0;
-    let positionTimerId = 0;
-    let progressFill = null;
-    let progressTime = null;
-    if (detailed) {
-        const progressTrack = new St.Widget({x_expand: true, height: 4});
-        try { progressTrack.style = 'background-color: rgba(127, 127, 127, 0.25); border-radius: 4px;'; } catch (e) {}
-        progressFill = new St.Widget({height: 4});
-        try { progressFill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;'; } catch (e) {}
-        progressTrack.add_child(progressFill);
-        progressTime = new St.Label({text: '—:— / —:—'});
-        try { progressTime.style = 'font-size: 10px; opacity: 0.7;'; } catch (e) {}
-        textCol.add_child(progressTrack);
-        textCol.add_child(progressTime);
-    }
-    const updateDetailedProgress = positionUs => {
-        currentPositionUs = Math.max(0, Number(positionUs) || 0);
-        if (!detailed || !progressFill || !progressTime)
-            return;
-        const ratio = durationUs > 0 ? Math.max(0, Math.min(1, currentPositionUs / durationUs)) : 0;
-        try { progressFill.set_width(Math.round(260 * ratio)); } catch (e) {}
-        progressTime.text = durationUs > 0
-            ? formatMediaTime(currentPositionUs) + ' / ' + formatMediaTime(durationUs)
-            : '—:— / —:—';
-    };
-    const stopPositionPolling = () => {
-        if (positionTimerId) {
-            try { GLib.source_remove(positionTimerId); } catch (e) {}
-            positionTimerId = 0;
-        }
-    };
 
     const controls = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: 'material-panel-qs-media-controls',
     });
-    try { controls.style = detailed ? 'spacing: 8px;' : 'spacing: 4px;'; } catch (e) {}
+    try { controls.style = 'spacing: 4px;'; } catch (e) {}
     const mk = name => {
         const b = new St.Button({
             style_class: 'material-panel-qs-media-btn',
             reactive: true,
             track_hover: true,
         });
-        b.set_child(new St.Icon({icon_name: name, icon_size: detailed ? 20 : 16}));
+        b.set_child(new St.Icon({icon_name: name, icon_size: 16}));
         return b;
     };
     const prevBtn = mk('media-skip-backward-symbolic');
@@ -491,25 +456,18 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
             refreshQuickSettingsChrome();
             titleLabel.text = 'No media';
             artistLabel.text = '';
-            setArtFromUrl(artIcon, null, detailed ? 88 : 40);
-            durationUs = 0;
-            currentPositionUs = 0;
-            updateDetailedProgress(0);
-            stopPositionPolling();
+            setArtFromUrl(artIcon, null, 40);
             return;
         }
         row.visible = true;
         bindPlayer(busName, {
-            onMeta: ({title, artist, artUrl, lengthUs}) => {
-                durationUs = Math.max(0, Number(lengthUs) || 0);
-                updateDetailedProgress(currentPositionUs);
+            onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
                 refreshQuickSettingsChrome();
                 titleLabel.text = title || 'Media';
                 artistLabel.text = artist || '';
-                setArtFromUrl(artIcon, artUrl, detailed ? 88 : 40);
+                setArtFromUrl(artIcon, artUrl, 40);
             },
-            onPosition: updateDetailedProgress,
             onStatus: playing => {
                 row.visible = true;
                 try {
@@ -519,26 +477,10 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
                     setChipA11y(playBtn, playing ? 'Play or pause, playing' : 'Play or pause, paused');
                 } catch (e) {}
             },
-            onReady: c => {
-                ctl = c;
-                if (detailed) {
-                    ctl.getPosition?.(updateDetailedProgress);
-                    if (!positionTimerId) {
-                        positionTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-                            if (!row.get_stage() || !attachedBusName || !ctl) {
-                                positionTimerId = 0;
-                                return GLib.SOURCE_REMOVE;
-                            }
-                            ctl.getPosition?.(updateDetailedProgress);
-                            return GLib.SOURCE_CONTINUE;
-                        });
-                    }
-                }
-            },
+            onReady: c => { ctl = c; },
             onGone: () => {
                 if (attachedBusName === busName) {
                     clearCtl();
-                    stopPositionPolling();
                     row.visible = false;
                 }
             },
@@ -555,7 +497,6 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     });
     row.connect('destroy', () => {
         stopWatching();
-        stopPositionPolling();
         clearCtl();
     });
     return row;

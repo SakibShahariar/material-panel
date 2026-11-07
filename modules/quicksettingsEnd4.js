@@ -1,0 +1,860 @@
+import {getThemeColor} from '../lib/themeColorState.js';
+/**
+ * End-4 QS — structured to match end-4 sidebarRight reference:
+ *   header (uptime + icon actions + battery)
+ *   dual volume|brightness capsule
+ *   toggle grid (round + wide mix)
+ *   notification cards
+ *   calendar
+ * No default QS imports.
+ */
+import GLib from 'gi://GLib';
+import {setChipA11y} from '../lib/a11y.js';
+import Gio from 'gi://Gio';
+import {wireFileIconPress, tintSymbolic, primaryColor, onPrimaryColor} from '../lib/pressFx.js';
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {menuOpen, menuClose} from '../lib/shellCompat.js';
+import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
+import {getMixerControl} from '../lib/audio.js';
+import {buildAudioDeviceSelectors} from '../lib/audioDeviceSelectors.js';
+import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
+import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
+import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
+import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
+import {createMaterialSymbol} from '../lib/materialSymbol.js';
+import {buildEnd4NotiSection, buildEnd4CalendarSection} from '../lib/end4QsExtras.js';
+import {wifiQsBlock, bluetoothTile} from './quicksettings.js';
+import {addFocusModeToggle} from './quicksettings.js';
+import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuickSettingsTiles} from '../lib/quickSettingsTiles.js';
+import {getQuickSettingsSliderStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
+import {confirmAndRun} from '../lib/powerConfirm.js';
+import {buildMediaPlayerRow} from './mediaPlayer.js';
+import {buildQuickLaunchSection} from './quickLaunch.js';
+
+const UUID = 'material-panel@SakibShahariar';
+const QS_W = 380;
+const QS_PAD = 12;
+const QS_INNER = QS_W - QS_PAD * 2;
+function accent() {
+    return getThemeColor('primary', '#89b4fa');
+}
+function onAccent() {
+    return getThemeColor('onPrimary', '#1e1e2e');
+}
+/** Matugen-driven surfaces (set in theme.apply). Never hardcode white alpha. */
+function surface() {
+    return getThemeColor('qsSurface', 'rgba(49, 50, 68, 0.55)');
+}
+function surfaceHover() {
+    return getThemeColor('hoverBg', 'rgba(205, 214, 244, 0.14)');
+}
+function surfaceHoverStrong() {
+    return getThemeColor('hoverBgStrong', 'rgba(205, 214, 244, 0.22)');
+}
+function style(actor, css) {
+    try { actor.style = css; } catch (e) {}
+}
+
+function loadGicon(key, onAccent = false) {
+    const keys = Array.isArray(key) ? key : [key];
+    for (const k of keys) {
+        try {
+            const p = onAccent ? iconPathOnAccent(k) : iconPath(k);
+            if (Gio.File.new_for_path(p).query_exists(null))
+                return Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
+        try {
+            const p = iconPath(k);
+            if (Gio.File.new_for_path(p).query_exists(null))
+                return Gio.FileIcon.new(Gio.File.new_for_path(p));
+        } catch (e) {}
+    }
+    return null;
+}
+
+function makeIcon(keys, size = 18, onAccent = false, symbolicFallback = null) {
+    const ic = new St.Icon({
+        icon_size: size,
+        y_align: Clutter.ActorAlign.CENTER,
+        x_align: Clutter.ActorAlign.CENTER,
+    });
+    const g = loadGicon(keys, onAccent);
+    if (g)
+        ic.gicon = g;
+    else if (symbolicFallback)
+        ic.icon_name = symbolicFallback;
+    return ic;
+}
+
+function wrapShell(child) {
+    const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    try { item.set_style('padding: 0; margin: 0; min-width: 0;'); } catch (e) {}
+    item.add_child(child);
+    return item;
+}
+
+function openPrefs() {
+    try {
+        GLib.spawn_command_line_async(`gnome-extensions prefs ${UUID}`);
+    } catch (e) {}
+}
+
+// ── Header (end-4: uptime | edit refresh settings power | battery badge) ──
+
+function isFedoraHost() {
+    try {
+        const [ok, bytes] = Gio.File.new_for_path('/etc/os-release').load_contents(null);
+        if (!ok)
+            return false;
+        const text = new TextDecoder('utf-8').decode(bytes);
+        const match = text.match(/^ID=(?:"([^"]+)"|'([^']+)'|([^\r\n]+))$/m);
+        return (match?.[1] || match?.[2] || match?.[3] || '').trim().toLowerCase() === 'fedora';
+    } catch (e) {
+        return false;
+    }
+}
+
+function buildHeader(menu) {
+    const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
+    style(row, 'spacing: 6px;');
+
+    const uptimePill = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    style(uptimePill, `background-color: ${surface()}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
+
+    // Only show Fedora branding on Fedora; use a neutral computer icon elsewhere.
+    const logo = new St.Icon({
+        icon_size: 16,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try {
+        const isFedora = isFedoraHost();
+        const g = loadGicon(isFedora ? ['fedora-logo'] : ['computer'], false);
+        if (g)
+            logo.gicon = g;
+        else
+            logo.icon_name = 'computer-symbolic';
+    } catch (e) {
+        try { logo.icon_name = 'computer-symbolic'; } catch (e2) {}
+    }
+    uptimePill.add_child(logo);
+
+    const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
+    style(uptime, 'font-size: 12px; font-weight: 600;');
+    uptimePill.add_child(uptime);
+    row.add_child(uptimePill);
+
+    const refreshUptime = () => {
+        try {
+            const [ok, out] = Gio.File.new_for_path('/proc/uptime').load_contents(null);
+            if (!ok)
+                return;
+            const secs = parseFloat(new TextDecoder().decode(out).split(' ')[0]);
+            if (!Number.isFinite(secs))
+                return;
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
+        } catch (e) {}
+    };
+    const refreshBattery = () => {
+        for (const bat of ['BAT0', 'BAT1']) {
+            try {
+                const [ok, out] = Gio.File.new_for_path(`/sys/class/power_supply/${bat}/capacity`).load_contents(null);
+                if (ok) {
+                    const value = Number.parseInt(new TextDecoder().decode(out).trim(), 10);
+                    if (Number.isFinite(value) && value >= 0 && value <= 100) {
+                        batt.text = `${value}%`;
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        batt.text = '—%';
+    };
+    refreshUptime();
+
+    row.add_child(new St.Widget({x_expand: true}));
+
+            const mkBtn = (symbolic, fn, accessibleName) => {
+        const b = new St.Button({
+            style_class: 'material-panel-e4qs-header-btn',
+            reactive: true,
+            track_hover: true,
+            can_focus: true,
+        });
+        // Prefer *-symbolic so St tints with CSS color (on_primary on press)
+        let name = symbolic;
+        if (name && !String(name).endsWith('-symbolic'))
+            name = `${name}-symbolic`;
+        const ic = new St.Icon({
+            icon_name: name,
+            icon_size: 14,
+            style_class: 'material-panel-e4qs-header-icon',
+        });
+        try { ic.style = `-st-icon-style: symbolic; color: ${accent()};`; } catch (e) {}
+        const apply = state => {
+            try {
+                b.remove_style_class_name('pressed');
+                b.remove_style_class_name('hover');
+            } catch (e) {}
+            let bg = surface();
+            let fg = accent();
+            if (state === 'active' || state === 'pressed') {
+                bg = accent();
+                fg = onAccent();
+                try { b.add_style_class_name('pressed'); } catch (e) {}
+            } else if (state === 'hover' || state === 'focus') {
+                bg = surfaceHover();
+                try { b.add_style_class_name('hover'); } catch (e) {}
+            }
+            // Inline mirrors CSS so FileIcon/symbolic always gets on_primary, not default white
+            style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
+            try {
+                ic.style = `-st-icon-style: symbolic; color: ${fg};`;
+            } catch (e) {}
+        };
+        apply('normal');
+        b.set_child(ic);
+        setChipA11y(b, accessibleName);
+        b.connect('notify::hover', () => apply(b.hover ? 'hover' : 'normal'));
+        b.connect('button-press-event', () => { apply('pressed'); return Clutter.EVENT_PROPAGATE; });
+        b.connect('button-release-event', () => { apply(b.hover ? 'hover' : 'normal'); return Clutter.EVENT_PROPAGATE; });
+        b.connect('leave-event', () => { apply('normal'); return Clutter.EVENT_PROPAGATE; });
+        b.connect('clicked', () => { try { fn(); } catch (e) {} });
+        return b;
+    };
+    row.add_child(mkBtn('document-edit-symbolic', openPrefs, 'Edit panel preferences'));
+    // Don't present a refresh control until it has a real refresh operation.
+    row.add_child(mkBtn('emblem-system-symbolic', openPrefs, 'Open panel preferences'));
+    row.add_child(mkBtn('system-shutdown-symbolic', () => {
+        try { menuClose(menu); } catch (e) {}
+        confirmAndRun('Power off', 'Power off this system?', 'Power off', 'systemctl poweroff');
+    }, 'Power off'));
+
+    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
+    style(batt, `background-color: ${surface()}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
+    row.add_child(batt);
+    refreshBattery();
+    let refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
+        try {
+            if (!row.get_stage())
+                return GLib.SOURCE_CONTINUE;
+            refreshUptime();
+            refreshBattery();
+        } catch (e) {}
+        return GLib.SOURCE_CONTINUE;
+    });
+    row.connect('destroy', () => {
+        if (refreshId) {
+            try { GLib.source_remove(refreshId); } catch (e) {}
+            refreshId = 0;
+        }
+    });
+    return row;
+}
+
+// ── Dual slider capsule (end-4 continuous bar) ──
+
+function buildDualSliders() {
+    // end-4-inspired: two full-width slider rows (not side-by-side)
+    const trackW = QS_INNER - 28 - 16; // padding + icon
+
+    const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: false});
+    style(col, `spacing: 8px; width: ${QS_INNER}px;`);
+    try { col.width = QS_INNER; } catch (e) {}
+
+    const mkRow = (iconKeys, symbolic, slider) => {
+        const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: false});
+        style(row, `background-color: ${surface()}; border-radius: 999px; padding: 10px 14px; spacing: 12px; width: ${QS_INNER}px;`);
+        try { row.width = QS_INNER; } catch (e) {}
+        const ic = makeIcon(iconKeys, 18, false, symbolic);
+        try { if (symbolic) ic.icon_name = symbolic; } catch (e) {}
+        row.add_child(ic);
+        row.add_child(slider.actor);
+        return row;
+    };
+
+    let sink = null;
+    let control = null;
+    const controlSignalIds = [];
+    const volStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'volume');
+    const volW = volStyle.id === 'arc' ? 112 : (volStyle.id === 'rails' ? 28 : trackW);
+    const volSlider = createSlider({
+        accessibleName: 'Volume',
+        initialValue: 0.7,
+        width: volW,
+        style: volStyle.id,
+        accent: volStyle.accent,
+        onChange: value => {
+            try {
+                if (sink && control) {
+                    if (sink.is_muted && value > 0)
+                        sink.change_is_muted(false);
+                    sink.volume = Math.round(value * control.get_vol_max_norm());
+                    sink.push_volume();
+                }
+            } catch (e) {}
+        },
+    });
+    const volRow = mkRow(['volume-high'], 'audio-volume-high-symbolic', volSlider);
+    // keep icon ref for updates
+    const volIcon = volRow.get_child_at_index(0);
+    try {
+        control = getMixerControl();
+        const bind = () => {
+            try {
+                sink = control.get_default_sink?.() ?? null;
+                if (!sink || !control)
+                    return;
+                const max = control.get_vol_max_norm();
+                const v = max > 0 ? sink.volume / max : 0;
+                if (typeof volSlider.setValue === 'function')
+                    volSlider.setValue(v);
+                const pct = Math.round(v * 100);
+                const key = pct === 0 ? 'volume-muted' : pct < 33 ? 'volume-low' : pct < 66 ? 'volume-medium' : 'volume-high';
+                const g = loadGicon(key);
+                if (g && volIcon)
+                    volIcon.gicon = g;
+            } catch (e) {}
+        };
+        if (control) {
+            try { controlSignalIds.push(control.connect('state-changed', bind)); } catch (e) {}
+            try { controlSignalIds.push(control.connect('default-sink-changed', bind)); } catch (e) {}
+            bind();
+        }
+    } catch (e) {}
+
+    const briStyle = sliderStyleFor(getQuickSettingsSliderStyle(), 'brightness');
+    const briW = briStyle.id === 'arc' ? 112 : (briStyle.id === 'rails' ? 28 : trackW);
+    const briSlider = createSlider({
+        accessibleName: 'Brightness',
+        // Safe fallback while brightnessctl is probed without blocking Shell.
+        initialValue: 0.5,
+        width: briW,
+        style: briStyle.id,
+        accent: briStyle.accent,
+        onChange: value => {
+            try {
+                Gio.Subprocess.new(
+                    ['brightnessctl', 'set', `${Math.max(1, Math.round(value * 100))}%`],
+                    Gio.SubprocessFlags.NONE);
+            } catch (e) {}
+        },
+    });
+    const briRow = mkRow(['brightness'], 'weather-clear-symbolic', briSlider);
+
+    col.add_child(volRow);
+    col.add_child(briRow);
+    let brightnessProbeCancelled = false;
+    const probeBrightness = (args, done) => {
+        try {
+            const proc = Gio.Subprocess.new(
+                ['brightnessctl', ...args],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, null, (source, result) => {
+                try {
+                    const [, stdout] = source.communicate_utf8_finish(result);
+                    const value = Number.parseInt(String(stdout ?? '').trim(), 10);
+                    done(source.get_successful() && Number.isFinite(value) ? value : null);
+                } catch (e) {
+                    done(null);
+                }
+            });
+        } catch (e) {
+            done(null);
+        }
+    };
+    let maxBrightness = null;
+    let currentBrightness = null;
+    let pendingBrightnessProbes = 2;
+    const finishBrightnessProbe = () => {
+        pendingBrightnessProbes--;
+        if (pendingBrightnessProbes !== 0 || brightnessProbeCancelled)
+            return;
+        if (Number.isFinite(maxBrightness) && maxBrightness > 0 &&
+            Number.isFinite(currentBrightness) && currentBrightness >= 0) {
+            try {
+                briSlider.setValue(Math.min(1, Math.max(0.01, currentBrightness / maxBrightness)));
+            } catch (e) {}
+        }
+    };
+    probeBrightness(['max'], value => {
+        maxBrightness = value;
+        finishBrightnessProbe();
+    });
+    probeBrightness(['get'], value => {
+        currentBrightness = value;
+        finishBrightnessProbe();
+    });
+    col.connect('destroy', () => {
+        brightnessProbeCancelled = true;
+        if (control) {
+            for (const id of controlSignalIds) {
+                try { control.disconnect(id); } catch (e) {}
+            }
+        }
+        controlSignalIds.length = 0;
+        sink = null;
+        control = null;
+    });
+    return col;
+}
+
+// ── Toggles (end-4 style: round + labeled wide) ──
+
+function toggleBackground(on, pressed, hovered) {
+    if (pressed)
+        return on ? accent() : surfaceHoverStrong();
+    if (hovered && !on)
+        return surfaceHover();
+    if (hovered && on)
+        return accent();
+    return on ? accent() : surface();
+}
+
+function bindPressedPaint(btn, paint) {
+    let pressed = false;
+    const render = () => paint(pressed, !!btn.hover);
+    btn.connect('notify::hover', render);
+    btn.connect('button-press-event', () => {
+        pressed = true;
+        render();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    btn.connect('button-release-event', () => {
+        pressed = false;
+        render();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    render();
+    return render;
+}
+
+function bindToggleButton(btn, {
+    label, announceState = true, icon, iconKeys, symbolic,
+    getOn, setOn, settings = null, settingKey = null, paint,
+}) {
+    const render = bindPressedPaint(btn, (pressed, hovered) => {
+        let on = false;
+        try { on = !!getOn(); } catch (e) {}
+        setChipA11y(btn, announceState ? `${label}, ${on ? 'on' : 'off'}` : label);
+        try {
+            const g = loadGicon(iconKeys, on);
+            if (g) {
+                icon.gicon = g;
+            } else if (symbolic) {
+                icon.icon_name = symbolic;
+                tintSymbolic(icon, on || pressed ? onPrimaryColor() : primaryColor());
+            }
+        } catch (e) {}
+        paint(on, pressed, toggleBackground(on, pressed, hovered));
+    });
+
+    btn.connect('clicked', () => {
+        try { setOn(!getOn()); } catch (e) {}
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+            render();
+            return GLib.SOURCE_REMOVE;
+        });
+    });
+
+    let settingsSignalId = 0;
+    if (settings && settingKey) {
+        try { settingsSignalId = settings.connect(`changed::${settingKey}`, render); } catch (e) {}
+    }
+    btn.connect('destroy', () => {
+        if (settings && settingsSignalId) {
+            try { settings.disconnect(settingsSignalId); } catch (e) {}
+            settingsSignalId = 0;
+        }
+    });
+}
+function makeRoundToggle({label, announceState = true, iconKeys, symbolic, getOn, setOn, settings = null, settingKey = null}) {
+    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
+    const ic = makeIcon(iconKeys, 20, false, symbolic);
+    btn.set_child(ic);
+
+    const paint = (on, pressed, bg) => {
+        style(btn, `border-radius: 999px; width: 52px; height: 52px; background-color: ${bg};`);
+        try { btn.width = 52; btn.height = 52; } catch (e) {}
+        try { btn.remove_style_class_name('pressed'); } catch (e) {}
+        if (pressed) {
+            try { btn.add_style_class_name('pressed'); } catch (e) {}
+        }
+    };
+    bindToggleButton(btn, {label, announceState, icon: ic, iconKeys, symbolic, getOn, setOn, settings, settingKey, paint});
+    return btn;
+}
+
+function makeWideToggle({label, sub, iconKeys, symbolic, getOn, setOn, width, settings = null, settingKey = null}) {
+    const btn = new St.Button({reactive: true, can_focus: true, track_hover: true, x_expand: false});
+    const box = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, y_align: Clutter.ActorAlign.CENTER, x_expand: true});
+    style(box, 'spacing: 10px; padding: 0 4px;');
+    const ic = makeIcon(iconKeys, 18, false, symbolic);
+    box.add_child(ic);
+    const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+    const title = new St.Label({text: label});
+    style(title, 'font-size: 12px; font-weight: 700;');
+    col.add_child(title);
+    let subLab = null;
+    if (sub) {
+        subLab = new St.Label({text: sub});
+        style(subLab, 'font-size: 11px; opacity: 0.7;');
+        col.add_child(subLab);
+    }
+    box.add_child(col);
+    btn.set_child(box);
+
+    const paint = (on, _pressed, bg) => {
+        const w = width || 140;
+        style(btn, `border-radius: 18px; height: 52px; width: ${w}px; padding: 6px 10px; background-color: ${bg};`);
+        try { btn.width = w; btn.height = 52; } catch (e) {}
+        style(title, on
+            ? `font-size: 12px; font-weight: 700; color: ${onAccent()};`
+            : `font-size: 12px; font-weight: 700; color: ${getThemeColor('onSurface', '#cdd6f4')};`);
+        if (subLab)
+            style(subLab, on
+                ? `font-size: 11px; color: ${onAccent()}; opacity: 0.85;`
+                : `font-size: 11px; opacity: 0.75; color: ${getThemeColor('onSurface', '#cdd6f4')};`);
+    };
+    bindToggleButton(btn, {label, icon: ic, iconKeys, symbolic, getOn, setOn, settings, settingKey, paint});
+    return btn;
+}
+
+function buildToggleGrid() {
+    const root = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: false});
+    style(root, `spacing: 8px; width: ${QS_INNER}px;`);
+    try { root.width = QS_INNER; } catch (e) {}
+
+    // Respect the shared tile visibility settings in every Quick Settings layout.
+    const enabledTiles = new Set(normalizeQuickSettingsTiles(getQuickSettingsTiles()));
+    const favorites = normalizeQuickSettingsFavorites(getQuickSettingsFavorites());
+    const showWifi = enabledTiles.has('wifi');
+    const showBluetooth = enabledTiles.has('bluetooth');
+    const showDarkMode = enabledTiles.has('dark-mode');
+    const showDnd = enabledTiles.has('do-not-disturb');
+    const showNightLight = enabledTiles.has('night-light');
+
+    // Avoid opening settings backends for controls that are not configured.
+    const iface = showDarkMode ? new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}) : null;
+    let dndSettings = null;
+    if (showDnd) {
+        try { dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'}); } catch (e) {}
+    }
+    let nlSettings = null;
+    if (showNightLight) {
+        try { nlSettings = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.plugins.color'}); } catch (e) {}
+    }
+
+    // Full Wi-Fi + Bluetooth (NM / BlueZ) — not stub nmcli toggles.
+    const wifi = showWifi ? wifiQsBlock() : null;
+    const bt = showBluetooth ? bluetoothTile() : null;
+    try {
+        if (wifi) wifi.x_expand = true;
+        if (wifi) wifi.width = QS_INNER;
+        if (wifi?.style_class && !wifi.style_class.includes('material-panel-qs-wifi-row'))
+            wifi.add_style_class_name('material-panel-qs-wifi-row');
+    } catch (e) {}
+    try {
+        if (bt) bt.x_expand = true;
+        if (bt) bt.width = QS_INNER;
+        if (bt) bt.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px;`;
+    } catch (e) {}
+    try {
+        wifi.style = `width: ${QS_INNER}px; min-width: ${QS_INNER}px; border-radius: 18px;`;
+    } catch (e) {}
+
+    const networkGroups = {};
+    const networkTiles = {wifi, bluetooth: bt};
+    for (const id of ['wifi', 'bluetooth']) {
+        const tile = networkTiles[id];
+        if (!tile)
+            continue;
+        const group = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+        style(group, 'spacing: 8px;');
+        group.add_child(tile);
+        const panel = id === 'wifi' ? tile.listPanel : tile.devicePanel;
+        if (panel) {
+            try {
+                panel.visible = false;
+                panel.x_expand = true;
+                panel.width = QS_INNER;
+            } catch (e) {}
+            group.add_child(panel);
+        }
+        networkGroups[id] = group;
+    }
+
+    // Row of round toggles: dark / dnd / night (former third slot + rest)
+    const darkRound = showDarkMode ? makeRoundToggle({
+        label: 'Dark style',
+        iconKeys: ['dark-mode', 'light-mode'],
+        symbolic: 'weather-clear-night-symbolic',
+        settings: iface,
+        settingKey: 'color-scheme',
+        getOn: () => {
+            try { return iface.get_string('color-scheme') === 'prefer-dark'; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { iface.set_string('color-scheme', on ? 'prefer-dark' : 'default'); } catch (e) {}
+        },
+    }) : null;
+
+    // Row 1 — end-4 second row of rounds + status: Night light, DND as wide, lock as round
+    const night = showNightLight ? makeRoundToggle({
+        label: 'Night light',
+        iconKeys: ['night-light'],
+        symbolic: 'night-light-symbolic',
+        settings: nlSettings,
+        settingKey: 'night-light-enabled',
+        getOn: () => {
+            try { return nlSettings?.get_boolean('night-light-enabled') ?? false; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { nlSettings?.set_boolean('night-light-enabled', on); } catch (e) {}
+        },
+    }) : null;
+    const dndW = QS_INNER - 52 * 2 - 16;
+    const dnd = showDnd ? makeWideToggle({
+        label: 'Do not disturb',
+        sub: 'Hide banners',
+        width: Math.max(120, dndW),
+        iconKeys: ['dnd-active', 'dnd-inactive'],
+        symbolic: 'notifications-disabled-symbolic',
+        settings: dndSettings,
+        settingKey: 'show-banners',
+        getOn: () => {
+            try { return dndSettings ? !dndSettings.get_boolean('show-banners') : false; } catch (e) { return false; }
+        },
+        setOn: on => {
+            try { dndSettings?.set_boolean('show-banners', !on); } catch (e) {}
+        },
+    }) : null;
+    const lockBtn = makeRoundToggle({
+        label: 'Lock screen',
+        announceState: false,
+        iconKeys: ['lock'],
+        symbolic: 'system-lock-screen-symbolic',
+        getOn: () => false,
+        setOn: () => {
+            try { GLib.spawn_command_line_async('loginctl lock-session'); } catch (e) {}
+        },
+    });
+    // Force lock to use symbolic always
+    try {
+        lockBtn.get_child().icon_name = 'system-lock-screen-symbolic';
+    } catch (e) {}
+    const toggleActors = {
+        wifi: networkGroups.wifi,
+        bluetooth: networkGroups.bluetooth,
+        'dark-mode': darkRound,
+        'night-light': night,
+        'do-not-disturb': dnd,
+    };
+    const visibleToggleIds = Object.keys(toggleActors).filter(id => toggleActors[id]);
+    const orderedToggleIds = orderQuickSettingsTiles(visibleToggleIds, favorites);
+    let roundRow = null;
+    const flushRoundRow = () => {
+        if (roundRow && roundRow.get_n_children() > 0)
+            root.add_child(roundRow);
+        roundRow = null;
+    };
+    for (const id of orderedToggleIds) {
+        const actor = toggleActors[id];
+        if (id === 'dark-mode' || id === 'night-light') {
+            if (!roundRow) {
+                roundRow = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL});
+                style(roundRow, 'spacing: 8px;');
+            }
+            roundRow.add_child(actor);
+        } else {
+            flushRoundRow();
+            root.add_child(actor);
+        }
+    }
+    flushRoundRow();
+    root.add_child(lockBtn);
+
+    return root;
+}
+
+// ── Power strip (compact, under toggles — end-4 puts some in header; keep reboot/power) ──
+
+function buildPowerStrip(menu) {
+    const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: false});
+    const gap = 8;
+    const n = 3;
+    const btnW = Math.floor((QS_INNER - gap * (n - 1)) / n);
+    style(row, `spacing: ${gap}px; width: ${QS_INNER}px;`);
+    try { row.width = QS_INNER; } catch (e) {}
+    const actions = [
+        {icon: 'system-log-out-symbolic', title: 'Log out', body: 'Close all apps and log out?', confirm: 'Log out', cmd: 'gnome-session-quit --logout --no-prompt'},
+        {icon: 'view-refresh-symbolic', title: 'Restart', body: 'Restart this system now?', confirm: 'Restart', cmd: 'systemctl reboot'},
+        {icon: 'system-shutdown-symbolic', title: 'Power off', body: 'Power off this system?', confirm: 'Power off', cmd: 'systemctl poweroff'},
+    ];
+    for (const a of actions) {
+        const b = new St.Button({reactive: true, x_expand: false});
+        setChipA11y(b, a.title);
+        const ic = new St.Icon({
+            icon_name: a.icon,
+            icon_size: 16,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        try { b.width = btnW; b.height = 42; } catch (e) {}
+        b.set_child(ic);
+        try { b.track_hover = true; } catch (e) {}
+        bindPressedPaint(b, (pressed, hovered) => {
+            let bg = surface();
+            let fg = accent();
+            if (pressed) {
+                bg = accent();
+                fg = onAccent();
+            } else if (hovered) {
+                bg = surfaceHover();
+            }
+            style(b, `border-radius: 999px; height: 42px; width: ${btnW}px; background-color: ${bg};`);
+            try { tintSymbolic(ic, fg); } catch (e) {}
+        });
+        b.connect('clicked', () => {
+            try { menuClose(menu); } catch (e) {}
+            confirmAndRun(a.title, a.body, a.confirm, a.cmd);
+        });
+        row.add_child(b);
+    }
+    return row;
+}
+
+export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
+    const qsSize = Math.round(17 * scale);
+    let qsSymbol = createMaterialSymbol('quicksettings', qsSize, getThemeColor('primary', '#89b4fa'), 1);
+    let qsIcon = null;
+    if (!qsSymbol) {
+        qsIcon = new St.Icon({
+            icon_size: qsSize,
+            y_align: Clutter.ActorAlign.CENTER,
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('quicksettings'))),
+        });
+    }
+    const button = new St.Button({
+        style_class: 'material-panel-quicksettings-btn material-panel-chip',
+        reactive: true,
+        track_hover: true,
+        child: qsSymbol || qsIcon,
+    });
+    try {
+        wireFileIconPress(button, () => qsSymbol
+            ? [{symbol: qsSymbol, key: 'quicksettings'}]
+            : [{icon: qsIcon, key: 'quicksettings'}]);
+    } catch (e) {}
+
+    setChipA11y(button, 'Quick Settings');
+    const menu = new PopupMenu.PopupMenu(button, 1.0, St.Side.TOP);
+    menu.actor.add_style_class_name('material-panel-e4qs-menu material-panel-popup material-panel-qs-end4');
+    Main.uiGroup.add_child(menu.actor);
+    menu.actor.hide();
+    attachPopupDismiss(menu, button);
+
+    const shell = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        x_expand: false,
+        style_class: 'material-panel-e4qs-shell',
+    });
+    style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 10px; border-radius: 22px;`);
+
+    shell.add_child(buildHeader(menu));
+    const quickLaunchSection = buildQuickLaunchSection();
+    if (quickLaunchSection)
+        shell.add_child(quickLaunchSection);
+    // Keep the same primary content order as Default and Ryoku: media first,
+    // then volume/brightness, connectivity, and the remaining controls.
+    try {
+        const media = buildMediaPlayerRow();
+        if (media) {
+            try { media.x_expand = true; media.width = QS_INNER; } catch (e) {}
+            shell.add_child(media);
+        }
+    } catch (e) { logError(e, 'e4 qs media'); }
+    shell.add_child(buildDualSliders());
+    shell.add_child(buildToggleGrid());
+    shell.add_child(buildPowerStrip(menu));
+    try { shell.add_child(buildEnd4NotiSection()); } catch (e) { logError(e, 'e4 noti'); }
+    try { shell.add_child(buildEnd4CalendarSection()); } catch (e) { logError(e, 'e4 cal'); }
+
+    const scroll = new St.ScrollView({
+        style_class: 'material-panel-e4qs-scroll material-panel-qs-scroll',
+        x_expand: false,
+        y_expand: true,
+        overlay_scrollbars: true,
+    });
+    try {
+        // Scroll when content overflows; overlay + CSS hide the bar
+        scroll.overlay_scrollbars = true;
+        if (St.PolicyType) {
+            scroll.vscrollbar_policy = St.PolicyType.AUTOMATIC;
+            scroll.hscrollbar_policy = St.PolicyType.NEVER;
+        }
+        if (scroll.set_policy)
+            scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+    } catch (e) {}
+    try {
+        if (scroll.add_actor)
+            scroll.add_actor(shell);
+        else
+            scroll.set_child(shell);
+    } catch (e) {
+        try { scroll.add_child(shell); } catch (e2) {}
+    }
+    menu.addMenuItem(wrapShell(scroll));
+    addFocusModeToggle(menu);
+
+    const audioSelectors = buildAudioDeviceSelectors(getMixerControl());
+    if (audioSelectors) {
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        menu.addMenuItem(audioSelectors.section);
+        menu.actor.connect('destroy', () => audioSelectors.destroy());
+    }
+    const appVolumeMixer = buildAppVolumeMixer(getMixerControl());
+    if (appVolumeMixer) {
+        menu.addMenuItem(appVolumeMixer.section);
+        menu.actor.connect('destroy', () => appVolumeMixer.destroy());
+    }
+    const powerProfiles = buildPowerProfileSelector();
+    menu.addMenuItem(powerProfiles.section);
+    menu.actor.connect('destroy', () => powerProfiles.destroy());
+    const keepAwake = buildKeepAwakeMenu();
+    menu.addMenuItem(keepAwake.section);
+    menu.actor.connect('destroy', () => keepAwake.destroy());
+
+    menu.connect('open-state-changed', (_m, open) => {
+        if (!open)
+            return;
+        try {
+            const mon = Main.layoutManager.primaryMonitor;
+            const maxH = mon ? Math.floor(mon.height * 0.88) : 720;
+            menu.box.style = `max-height: ${maxH}px; width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: 0; margin: 0; border-radius: 22px;`;
+            menu.box.clip_to_allocation = true;
+            try { menu.actor.width = QS_W; } catch (e) {}
+            try { shell.width = QS_W; } catch (e) {}
+            try { scroll.width = QS_W; } catch (e) {}
+        } catch (e) {}
+    });
+
+    button.connect('clicked', () => {
+        if (menu.isOpen)
+            menuClose(menu);
+        else
+            menuOpen(menu);
+    });
+    button.connect('destroy', () => { try { menu.destroy(); } catch (e) {} });
+
+    return button;
+}

@@ -1,0 +1,461 @@
+import {setChipA11y} from '../lib/a11y.js';
+/**
+ * end-4 workspaces: overlapping app icons + focus ring + empty dots.
+ * Multi-app clusters use fixed width so negative margins never break allocation.
+ */
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import Shell from 'gi://Shell';
+import Meta from 'gi://Meta';
+import GLib from 'gi://GLib';
+import {wirePressedClass} from '../lib/pressFx.js';
+import {resolveWorkspaceDisplayMode} from '../lib/workspaceDisplay.js';
+import {filterWorkspaceIndices} from '../lib/workspaceFilter.js';
+import {getWorkspaceDisplayMode, getWorkspaceFilter, isWorkspaceScrollSwitchEnabled} from '../lib/workspaceState.js';
+import {getLayoutStyle} from '../lib/layoutStyleState.js';
+
+const MAX_ICONS = 5;
+// App icon GIcons are stable for the lifetime of a Shell.App object; cache
+// them across workspace snapshots instead of resolving each icon on every
+// focus/restack notification.
+const _appIconCache = new WeakMap();
+
+function _allMetaWindows() {
+    const out = [];
+    try {
+        for (const a of global.get_window_actors?.() || []) {
+            try {
+                const w = a.meta_window;
+                if (w)
+                    out.push(w);
+            } catch (e) {}
+        }
+    } catch (e) {}
+    return out;
+}
+
+function _windowsOnWorkspace(ws, index, {includeMinimized = false} = {}) {
+    const wins = [];
+    try {
+        for (const w of ws.list_windows?.() || [])
+            wins.push(w);
+    } catch (e) {}
+    if (wins.length === 0) {
+        for (const w of _allMetaWindows()) {
+            try {
+                if (w.get_workspace?.()?.index() === index)
+                    wins.push(w);
+            } catch (e) {}
+        }
+    }
+    return wins.filter(w => {
+        try {
+            if (!includeMinimized && w.minimized)
+                return false;
+        } catch (e) {}
+        try {
+            if (w.skip_taskbar || (typeof w.is_skip_taskbar === 'function' && w.is_skip_taskbar()))
+                return false;
+        } catch (e) {}
+        try {
+            const t = w.get_window_type?.();
+            const WT = Meta?.WindowType;
+            if (WT && (t === WT.DESKTOP || t === WT.DOCK || t === WT.N_A))
+                return false;
+        } catch (e) {}
+        return true;
+    });
+}
+
+function _appsOnWorkspace(ws, index, windows = null) {
+    const tracker = Shell.WindowTracker.get_default();
+    const seen = new Set();
+    const apps = [];
+    for (const win of windows ?? _windowsOnWorkspace(ws, index)) {
+        try {
+            const app = tracker.get_window_app(win);
+            if (!app)
+                continue;
+            const id = app.get_id?.() || app.get_name?.() || win.get_wm_class?.() || `w${apps.length}`;
+            if (seen.has(id))
+                continue;
+            seen.add(id);
+            let gicon;
+            if (_appIconCache.has(app)) {
+                gicon = _appIconCache.get(app);
+            } else {
+                try { gicon = app.get_icon(); } catch (e) { gicon = null; }
+                _appIconCache.set(app, gicon ?? null);
+            }
+            if (!gicon)
+                continue;
+            apps.push({app, gicon, id});
+            if (apps.length >= MAX_ICONS)
+                break;
+        } catch (e) {}
+    }
+    return apps;
+}
+
+function _isUrgentWindow(win) {
+    try {
+        if (win.demands_attention === true || win.urgent === true)
+            return true;
+    } catch (e) {}
+    try {
+        if (win.is_demands_attention?.())
+            return true;
+    } catch (e) {}
+    return false;
+}
+
+function _focusAppId() {
+    try {
+        const win = global.display.focus_window;
+        if (!win)
+            return null;
+        const app = Shell.WindowTracker.get_default().get_window_app(win);
+        return app?.get_id?.() || app?.get_name?.() || win.get_wm_class?.() || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+export function buildWorkspaces(_extensionPath, scale = 1.0) {
+    const box = new St.BoxLayout({
+        style_class: 'material-panel-workspaces material-panel-chip',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try {
+        box.style = 'spacing: 8px; padding: 2px 8px; border-radius: 999px;';
+    } catch (e) {}
+
+    const manager = global.workspace_manager;
+
+    // Scroll over the workspace chip to switch workspaces. Keep the range
+    // bounded; unlike app windows, the panel should not create new workspaces.
+    // Retain the signal ID so teardown explicitly disconnects the handler.
+    let scrollSignalId = 0;
+    if (isWorkspaceScrollSwitchEnabled()) {
+        scrollSignalId = box.connect('scroll-event', (_actor, event) => {
+        try {
+            const direction = event.get_scroll_direction();
+            let delta = 0;
+            if (direction === Clutter.ScrollDirection.UP)
+                delta = -1;
+            else if (direction === Clutter.ScrollDirection.DOWN)
+                delta = 1;
+            if (!delta)
+                return Clutter.EVENT_PROPAGATE;
+            const current = manager.get_active_workspace_index();
+            const next = current + delta;
+            if (next < 0 || next >= manager.get_n_workspaces())
+                return Clutter.EVENT_STOP;
+            const workspace = manager.get_workspace_by_index(next);
+            workspace?.activate(global.get_current_time());
+            return Clutter.EVENT_STOP;
+        } catch (e) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        });
+    }
+
+    const iconSize = Math.max(16, Math.round(20 * (scale || 1)));
+    // Overlap amount — keep modest so layout stays valid
+    const pull = Math.max(6, Math.round(iconSize * 0.38));
+    const ringPad = 4; // border + padding around icon
+
+    let rebuildTimer = 0;
+    const scheduleRebuild = () => {
+        if (rebuildTimer)
+            return;
+        rebuildTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+            rebuildTimer = 0;
+            try { rebuild(); } catch (e) {
+                logError(e, 'material-panel: workspaces rebuild');
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+
+    let lastSnapshotKey = null;
+    let focusRings = [];
+    const windowSignalIds = new Map();
+    const syncWindowSignals = windows => {
+        const current = new Set(windows);
+        for (const [win, ids] of windowSignalIds) {
+            if (current.has(win))
+                continue;
+            for (const id of ids) {
+                try { win.disconnect(id); } catch (e) {}
+            }
+            windowSignalIds.delete(win);
+        }
+        for (const win of current) {
+            if (windowSignalIds.has(win))
+                continue;
+            const ids = [];
+            for (const signal of [
+                'notify::demands-attention',
+                'notify::urgent',
+                'unmanaged',
+            ]) {
+                try { ids.push(win.connect(signal, scheduleRebuild)); } catch (e) {}
+            }
+            if (ids.length)
+                windowSignalIds.set(win, ids);
+        }
+    };
+    const updateFocusRings = (focusId, activeIndex) => {
+        for (const entry of focusRings) {
+            const focused = entry.workspaceIndex === activeIndex && !!focusId &&
+                (entry.id === focusId || entry.appId === focusId || entry.appName === focusId);
+            try {
+                entry.ring.style_class = focused
+                    ? 'material-panel-ws-app-ring active'
+                    : 'material-panel-ws-app-ring';
+                entry.ring.style = `width: ${entry.slot}px; height: ${entry.slot}px; border-radius: 999px;` +
+                    (focused ? 'border: 2px solid; padding: 2px;' : 'border: 2px solid transparent; padding: 2px;');
+            } catch (e) {}
+        }
+    };
+    const rebuild = () => {
+        const end4 = getLayoutStyle() === 'end4';
+        const displayMode = resolveWorkspaceDisplayMode(
+            getWorkspaceDisplayMode(), end4);
+        const activeIndex = manager.get_active_workspace_index();
+        const n = manager.get_n_workspaces();
+        const focusId = _focusAppId();
+
+        // Mutter can emit restacked for changes that do not alter this chip's
+        // visible contents. Compare a lightweight window snapshot before
+        // destroying/recreating actors to avoid needless layout and icon churn.
+        const workspaceWindows = [];
+        const windowsByWorkspace = [];
+        const allWindows = [];
+        const workspaceStates = [];
+        for (let i = 0; i < n; i++) {
+            const ws = manager.get_workspace_by_index(i);
+            const liveWindows = _windowsOnWorkspace(ws, i);
+            const attentionWindows = _windowsOnWorkspace(ws, i, {includeMinimized: true});
+            windowsByWorkspace.push(liveWindows);
+            allWindows.push(...new Set([...liveWindows, ...attentionWindows]));
+            workspaceStates.push({
+                occupied: liveWindows.length > 0,
+                urgent: attentionWindows.some(_isUrgentWindow),
+            });
+            const windows = liveWindows.map(win => {
+                let identity = null;
+                try { identity = win.get_stable_sequence?.() ?? win.get_id?.() ?? null; } catch (e) {}
+                let appId = null;
+                try {
+                    const app = Shell.WindowTracker.get_default().get_window_app(win);
+                    appId = app?.get_id?.() || app?.get_name?.() || null;
+                } catch (e) {}
+                return [identity, appId, win.get_wm_class?.() || '', win.get_title?.() || ''];
+            });
+            workspaceWindows.push(windows);
+        }
+        syncWindowSignals(allWindows);
+        const workspaceFilter = getWorkspaceFilter();
+        const visibleIndices = filterWorkspaceIndices(
+            workspaceFilter, workspaceStates, activeIndex);
+        const snapshotKey = JSON.stringify([
+            end4, activeIndex, n, workspaceFilter, workspaceStates, workspaceWindows,
+        ]);
+        if (snapshotKey === lastSnapshotKey) {
+            updateFocusRings(focusId, activeIndex);
+            return;
+        }
+        lastSnapshotKey = snapshotKey;
+        focusRings = [];
+        box.destroy_all_children();
+
+        if (displayMode === 'numbers') {
+            for (const i of visibleIndices) {
+                const active = i === activeIndex;
+                const ws = manager.get_workspace_by_index(i);
+                const btn = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-btn active'
+                        : 'material-panel-workspace-btn',
+                    label: `${i + 1}`,
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                wirePressedClass(btn);
+                setChipA11y(btn, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
+                btn.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(btn);
+            }
+            return;
+        }
+
+        if (displayMode === 'dots') {
+            for (const i of visibleIndices) {
+                const active = i === activeIndex;
+                const ws = manager.get_workspace_by_index(i);
+                const dot = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-dot active'
+                        : 'material-panel-workspace-dot',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                const d = active ? 10 : 8;
+                try {
+                    dot.style =
+                        `width: ${d}px; height: ${d}px; min-width: ${d}px; min-height: ${d}px;` +
+                        'padding: 0; border-radius: 999px; border: none;';
+                } catch (e) {}
+                wirePressedClass(dot);
+                setChipA11y(dot, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
+                dot.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(dot);
+            }
+            return;
+        }
+
+        for (const i of visibleIndices) {
+            const active = i === activeIndex;
+            const ws = manager.get_workspace_by_index(i);
+            const apps = _appsOnWorkspace(ws, i, windowsByWorkspace[i]);
+
+            if (apps.length === 0) {
+                const dot = new St.Button({
+                    style_class: active
+                        ? 'material-panel-workspace-dot active'
+                        : 'material-panel-workspace-dot',
+                    reactive: true,
+                    track_hover: true,
+                    can_focus: true,
+                });
+                try {
+                    const d = active ? 10 : 8;
+                    dot.style =
+                        `width: ${d}px; height: ${d}px; min-width: ${d}px; min-height: ${d}px;` +
+                        'padding: 0; border-radius: 999px; border: none;';
+                } catch (e) {}
+                wirePressedClass(dot);
+                setChipA11y(dot, active ? `Workspace ${i + 1}, active` : `Workspace ${i + 1}`);
+                dot.connect('clicked', () => ws.activate(global.get_current_time()));
+                box.add_child(dot);
+                continue;
+            }
+
+            const slot = iconSize + ringPad * 2;
+            const count = apps.length;
+            // Fixed width so St never collapses from negative margins
+            const clusterW = slot + (count - 1) * (slot - pull) + 8;
+            const clusterH = slot + 4;
+
+            const cluster = new St.Widget({
+                style_class: active
+                    ? 'material-panel-ws-cluster active'
+                    : 'material-panel-ws-cluster',
+                reactive: false,
+                width: clusterW,
+                height: clusterH,
+            });
+            try {
+                cluster.style =
+                    `width: ${clusterW}px; height: ${clusterH}px; min-width: ${clusterW}px;` +
+                    'border-radius: 999px;';
+            } catch (e) {}
+
+            apps.forEach((entry, idx) => {
+                const x = 4 + idx * (slot - pull);
+                const ring = new St.Bin({
+                    style_class: 'material-panel-ws-app-ring',
+                    x_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.CENTER,
+                    width: slot,
+                    height: slot,
+                });
+                try {
+                    ring.style = `width: ${slot}px; height: ${slot}px; border-radius: 999px;` +
+                        'border: 2px solid transparent; padding: 2px;';
+                } catch (e) {}
+                focusRings.push({
+                    ring, id: entry.id, appId: entry.app.get_id?.() || null,
+                    appName: entry.app.get_name?.() || null, workspaceIndex: i, slot,
+                });
+                const img = new St.Icon({
+                    style_class: 'material-panel-workspace-app',
+                    gicon: entry.gicon,
+                    icon_size: iconSize,
+                });
+                ring.set_child(img);
+                cluster.add_child(ring);
+                try {
+                    ring.set_position(x, Math.round((clusterH - slot) / 2));
+                } catch (e) {}
+            });
+
+            const btn = new St.Button({
+                style_class: active
+                    ? 'material-panel-workspace-btn cluster active'
+                    : 'material-panel-workspace-btn cluster',
+                reactive: true,
+                track_hover: true,
+                can_focus: true,
+                child: cluster,
+            });
+            try {
+                btn.style =
+                    `background-color: transparent; border: none; padding: 0;` +
+                    `border-radius: 999px; width: ${clusterW}px; height: ${clusterH}px;` +
+                    `min-width: ${clusterW}px; min-height: ${clusterH}px;`;
+            } catch (e) {}
+            wirePressedClass(btn);
+            const appNames = apps.map(entry => entry.app.get_name?.() || entry.app.get_id?.())
+                .filter(Boolean);
+            const workspaceName = `Workspace ${i + 1}: ${appNames.join(', ')}${active ? ', active' : ''}`;
+            setChipA11y(btn, workspaceName);
+            btn.connect('clicked', () => ws.activate(global.get_current_time()));
+            box.add_child(btn);
+        }
+        updateFocusRings(focusId, activeIndex);
+    };
+
+    rebuild();
+    const ids = [];
+    try { ids.push(['m', manager.connect('active-workspace-changed', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['m', manager.connect('notify::n-workspaces', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('restacked', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('window-created', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['d', global.display.connect('notify::focus-window', scheduleRebuild)]); } catch (e) {}
+    try { ids.push(['w', global.window_manager.connect('switch-workspace', scheduleRebuild)]); } catch (e) {}
+
+    box.connect('destroy', () => {
+        if (scrollSignalId) {
+            try { box.disconnect(scrollSignalId); } catch (e) {}
+            scrollSignalId = 0;
+        }
+        if (rebuildTimer) {
+            try { GLib.source_remove(rebuildTimer); } catch (e) {}
+            rebuildTimer = 0;
+        }
+        for (const [win, signalIds] of windowSignalIds) {
+            for (const id of signalIds) {
+                try { win.disconnect(id); } catch (e) {}
+            }
+        }
+        windowSignalIds.clear();
+        for (const [kind, id] of ids) {
+            try {
+                if (kind === 'm')
+                    manager.disconnect(id);
+                else if (kind === 'd')
+                    global.display.disconnect(id);
+                else
+                    global.window_manager.disconnect(id);
+            } catch (e) {}
+        }
+    });
+
+    try { setChipA11y(box, 'Workspaces'); } catch (e) {}
+    return box;
+}
