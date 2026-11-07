@@ -217,3 +217,26 @@ test('disabling after history-load failure still attempts to erase the store', a
     await controller.disable();
     assert.equal(store.clears, 1);
 });
+
+test('storage write failures report a generic error without exposing clipboard text', async () => {
+    const {controller, selection, clipboard, store} = setup();
+    let reported = '';
+    controller.setOnError(message => { reported = message; });
+    await controller.enable();
+    store.write = async () => { throw new Error('synthetic private clipboard payload'); };
+    clipboard.text = 'synthetic private clipboard payload';
+    selection.emit();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.match(reported, /could not be saved/);
+    assert.equal(reported.includes('synthetic private clipboard payload'), false);
+    assert.equal(controller.entries.length, 0);
+});
+
+test('deletion failure leaves capture disabled and propagates the failure', async () => {
+    const {controller, selection, store} = setup();
+    await controller.enable();
+    store.clear = async () => { throw new Error('synthetic delete failure'); };
+    await assert.rejects(controller.disable(), /synthetic delete failure/);
+    assert.equal(controller.enabled, false);
+    assert.equal(selection.listeners.size, 0);
+});
