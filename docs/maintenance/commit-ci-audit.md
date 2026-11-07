@@ -814,3 +814,18 @@ Clipboard History popup previews now collapse whitespace and truncate by Unicode
 
 **Checkpoint SHA:** `e43472726ad5da45e645982eace250b688686116`  
 **Checkpoint date:** 2026-11-08
+
+
+## Follow-up review: 2026-11-08 (Clipboard preview regression recovery, #254)
+
+Two later test/ledger commits were also reviewed. Both failed because the tree for the test-only commit was accidentally based on an older tree, dropping the new preview helper and its module import. This is corrected in the current commit using the verified current HEAD tree; no unrelated source changes are intended.
+
+| Commit | Subject | CI result | Evidence / failure notes |
+|---|---|---|---|
+| `a5241cc867dbbc38c441f7bc3aa971896f55ed7b` | `test(clipboard): cover preview truncation boundaries (Refs #254)` | red | [42424403219](https://github.com/SakibShahariar/material-panel/actions/runs/42424403219) — test module could not import `formatClipboardHistoryPreview` because the commit tree omitted the preceding implementation. |
+| `ffc5bd31aafbc452df21fe3cf4ef44b119f0a6c8` | `test(clipboard): use actual whitespace in preview boundary case (Refs #254)` | red | [42424415687](https://github.com/SakibShahariar/material-panel/actions/runs/42424415687) — inherited missing-export failure from the preceding tree. |
+
+The helper and module wiring are restored below the current branch head; the current commit's CI will verify the complete tree.
+
+**Checkpoint SHA:** `ffc5bd31aafbc452df21fe3cf4ef44b119f0a6c8`  
+**Checkpoint date:** 2026-11-08
