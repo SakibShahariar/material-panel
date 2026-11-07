@@ -100,3 +100,16 @@ test('normalizes per-zone scale independently and clamps invalid values', () => 
         center: null,
     }), {left: 1, center: 1, right: 1});
 });
+
+
+test('context visibility rules default off and discard unknown or malformed modules', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /moduleVisibilityRules: \{\}/);
+    assert.match(source, /normalizeModuleVisibilityRules\(merged\.moduleVisibilityRules\)/);
+    const {normalizeModuleVisibilityRules} = await import('../lib/moduleVisibility.js');
+    assert.deepEqual(normalizeModuleVisibilityRules({
+        clock: {hideWhenFullscreen: true},
+        unknown: {hideInOverview: true},
+        volume: null,
+    }), {clock: {hideWhenFullscreen: true, hideInOverview: false}});
+});
