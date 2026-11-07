@@ -92,3 +92,12 @@ test('user retention limits can only reduce the built-in safety bounds', () => {
     assert.equal(result[0].text, 'limited-0');
     assert.equal(result.at(-1).text, 'limited-3');
 });
+
+test('retention age limit is applied independently from entry count', () => {
+    const entries = Array.from({length: 12}, (_, i) => ({
+        id: String(i), text: `age-${i}`, createdAt: now - i * 86400,
+    }));
+    const result = normalizeClipboardHistory(entries, now, {maxEntries: 50, maxAgeSeconds: 3 * 86400});
+    assert.equal(result.length, 4);
+    assert.equal(result.at(-1).text, 'age-3');
+});
