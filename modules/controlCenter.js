@@ -1,6 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
@@ -29,6 +30,47 @@ const SECTIONS = [
 
 function themedSurface() {
     return getThemeColor('qsSurface', 'rgba(49, 50, 68, 0.55)');
+}
+
+function findWallmatApp() {
+    try {
+        const preferred = Gio.DesktopAppInfo.new('dev.sakib.Wallmat.desktop');
+        if (preferred)
+            return preferred;
+        return Gio.AppInfo.get_all().find(app => {
+            try {
+                return String(app.get_name?.() ?? '').toLowerCase().includes('wallmat')
+                    || String(app.get_id?.() ?? '').toLowerCase().includes('wallmat');
+            } catch (e) {
+                return false;
+            }
+        }) ?? null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function openWallpaperDestination(appInfo) {
+    if (appInfo) {
+        try {
+            appInfo.launch([], null);
+            return;
+        } catch (error) {
+            logError(error, 'material-panel: failed to launch Wallmat; opening GNOME Background settings');
+        }
+    }
+
+    try {
+        // Gio.Subprocess.new starts the settings application asynchronously;
+        // never block the Shell main loop while handing off to another app.
+        Gio.Subprocess.new(['gnome-control-center', 'background'], Gio.SubprocessFlags.NONE);
+    } catch (error) {
+        logError(error, 'material-panel: failed to open GNOME Background settings');
+        try {
+            Main.notifyError('Wallpaper settings could not be opened',
+                'Install Wallmat or GNOME Control Center, then try again.');
+        } catch (notifyError) {}
+    }
 }
 
 function clearActors(box) {
@@ -487,7 +529,47 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             };
             const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
             systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
-            homeCards.push(mediaCard, actionsCard);
+            const wallpaperApp = findWallmatApp();
+            const wallpaperCard = new St.Button({
+                style_class: 'material-panel-control-center-card',
+                reactive: true,
+                can_focus: true,
+                x_expand: true,
+            });
+            wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
+            const wallpaperContent = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            wallpaperContent.style = 'spacing: 6px;';
+            const wallpaperTitle = new St.Label({text: 'Wallpaper'});
+            wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
+            const wallpaperDescription = new St.Label({
+                text: wallpaperApp
+                    ? 'Browse and apply wallpapers with Wallmat.'
+                    : "Wallmat isn't installed. Open GNOME Background settings instead.",
+                x_expand: true,
+            });
+            wallpaperDescription.clutter_text.line_wrap = true;
+            wallpaperDescription.style = 'font-size: 11px; opacity: 0.78;';
+            const wallpaperAction = new St.Label({
+                text: wallpaperApp ? 'Open Wallmat' : 'Open Background Settings',
+                x_expand: true,
+            });
+            wallpaperAction.style = 'font-size: 12px; font-weight: 650;';
+            wallpaperContent.add_child(wallpaperTitle);
+            wallpaperContent.add_child(wallpaperDescription);
+            wallpaperContent.add_child(wallpaperAction);
+            wallpaperCard.set_child(wallpaperContent);
+            wallpaperCard.accessible_name = wallpaperApp
+                ? 'Open Wallmat wallpaper chooser'
+                : 'Open GNOME Background settings';
+            wallpaperCard.set_tooltip_text(wallpaperApp
+                ? 'Browse and apply wallpapers with Wallmat'
+                : 'Open GNOME Background settings');
+            wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
+
+            homeCards.push(mediaCard, actionsCard, wallpaperCard);
             if (homeCardVisibility.weather)
                 homeCards.push(weatherCard);
             else
