@@ -112,3 +112,18 @@ test('positive jitter only delays a fixed provider cadence and never advances it
     assert.equal(earliest.nextDelay(), 900000);
     assert.equal(latest.nextDelay(), 945000);
 });
+
+
+test('malformed non-numeric option values cannot throw during schedule creation', () => {
+    const schedule = createAdaptivePollSchedule({
+        baseIntervalMs: Symbol('base'),
+        minIntervalMs: Symbol('minimum'),
+        maxIntervalMs: Symbol('maximum'),
+        stableSamplesToSlow: Symbol('stable samples'),
+        growthFactor: Symbol('growth'),
+        jitterRatio: Symbol('jitter'),
+        random: () => 0.5,
+    });
+    assert.equal(schedule.nextDelay(), 1000);
+    assert.equal(schedule.getIntervalMs(), 1000);
+});

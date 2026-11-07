@@ -890,3 +890,22 @@ The persisted `layoutStyle` value was only defaulted when null. Unsupported stri
 - `674dc83adae1edb1a94ee6ae73a90a45cff39ede` — added the missing import; CI [42425170794](https://github.com/SakibShahariar/material-panel/actions/runs/42425170794) green: syntax passed, **635/635 JavaScript tests**, and **22/22 Python tests**.
 
 The shared layout-style state setter is now being hardened to use the same whitelist, preventing invalid values from being reintroduced by future callers.
+
+
+## Incremental review: 2026-11-08 — Popup shortcut hardening and layout normalization
+
+The previous recorded checkpoint was `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`. Reviewed the commits through `03a405897b206efe2775067141338b476539b999` using their exact commit-associated workflow runs.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `4243e1a9` | `fix(layout): validate shared layout state (Refs #132)` | green | 2026-11-08 | [Run #42425236096](https://github.com/SakibShahariar/material-panel/actions/runs/42425236096) passed syntax, 636/636 JavaScript tests, and 22/22 Python tests. |
+| `f46ff190` | `fix(shortcuts): sanitize imported accelerator controls (Refs #249)` | red | 2026-11-08 | [Run #42425648451](https://github.com/SakibShahariar/material-panel/actions/runs/42425648451) failed one new test: fixture used literal backslash sequences rather than actual Unicode controls (636/637 JS tests passed). Corrected by `bca10f36` and `d2b53e18`; final green run #42425728902. |
+| `bca10f36` | `test(shortcuts): fix escaped control fixtures (Refs #249)` | red | 2026-11-08 | [Run #42425706112](https://github.com/SakibShahariar/material-panel/actions/runs/42425706112) still failed one new assertion because the newline fixture remained escaped (636/637 JS tests passed). Corrected by `d2b53e18`; final green run #42425728902. |
+| `d2b53e18` | `test(shortcuts): correct control-character fixture (Refs #249)` | green | 2026-11-08 | [Run #42425728902](https://github.com/SakibShahariar/material-panel/actions/runs/42425728902) passed syntax, 637/637 JavaScript tests, and 22/22 Python tests. |
+| `03a40589` | `fix(shortcuts): reject oversized imported accelerators (Refs #249)` | green | 2026-11-08 | [Run #42425782123](https://github.com/SakibShahariar/material-panel/actions/runs/42425782123) passed syntax, 637/637 JavaScript tests, and 22/22 Python tests. |
+
+The two red shortcut runs were test-fixture mistakes, not production regressions. Both were corrected in subsequent commits, and the final implementation commits are green. Issues #132 and #249 remain open for their explicitly outstanding live GNOME visual/interaction validation; no desktop behavior is claimed as verified.
+
+**Checkpoint SHA:** `03a405897b206efe2775067141338b476539b999`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review commits after this checkpoint, including the scheduler hardening change currently being prepared.
