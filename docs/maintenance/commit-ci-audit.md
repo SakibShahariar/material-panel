@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `365f1872e13c28d7a7a707f751c645fd05b052ba`
+- Checkpoint SHA: `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -488,5 +488,22 @@ Reviewed all commits newer than checkpoint `f1169feabcae0ff3762051bdf55809796597
 **Unresolved validation:** #249 remains Category B and open for live global-keybinding/conflict/popup/teardown checks on GNOME 49–51. #143 remains open for live Weather provider, timezone, popup and rate-limit checks. #251, #121, #122, #123 and #254 retain their previously documented live-validation requirements.
 
 - Checkpoint SHA: `365f1872e13c28d7a7a707f751c645fd05b052ba`
+- Checkpoint date: 2026-11-07
+- Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
+
+
+## Incremental review: 2026-11-07 (per-zone density)
+
+Reviewed commits newer than checkpoint `365f1872e13c28d7a7a707f751c645fd05b052ba` and checked their actual GitHub Actions results.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `f34b170b314cb41253b1aa35d0d100140486cf13` | `docs: record popup shortcut CI review` | green | 2026-11-07 | Workflow [42395509405](https://github.com/SakibShahariar/material-panel/actions/runs/42395509405) passed syntax, JavaScript regression, and calendar/Python regression steps. |
+| `6d81d1a8ea2f083c21bc8533e081db8d7cb27c9a` | `feat(panel): add per-zone density controls (Refs #111)` | red | 2026-11-07 | Workflow [42396156634](https://github.com/SakibShahariar/material-panel/actions/runs/42396156634) passed syntax but failed three JavaScript tests: the new per-zone CSS output assertion and two existing theme-renderer tests. The generated zone override interpolation had been inserted into the color stylesheet template instead of the dimensions stylesheet template. |
+| `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04` | `fix(panel): scope zone density CSS to dimension renderer (Refs #111)` | green | 2026-11-07 | Workflow [42396258847](https://github.com/SakibShahariar/material-panel/actions/runs/42396258847) passed JavaScript syntax, all JavaScript regression tests, and calendar/Python regression tests. |
+
+**Unresolved validation:** #111 remains Category B and open for live visual/monitor-scale checks in both layouts. #249 remains open for live global-keybinding/conflict/teardown checks. #143 remains open for live Weather provider/timezone/switching/rate-limit checks. #251, #121, #122, #123 and #254 retain their previously documented live-validation requirements.
+
+- Checkpoint SHA: `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`
 - Checkpoint date: 2026-11-07
 - Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
