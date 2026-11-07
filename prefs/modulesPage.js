@@ -89,7 +89,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
     // Context-aware visibility remains opt-in and independent from manual visibility and Focus Mode.
     const contextVisibilityGroup = new Adw.PreferencesGroup({
         title: 'Context-aware Visibility',
-        description: 'Optionally hide selected modules while a window is fullscreen, the Overview is open, or Do Not Disturb is active. All rules are off by default.',
+        description: 'Optionally hide selected modules while a window is fullscreen, the Overview is open, Do Not Disturb is active, or the system is offline. All rules are off by default.',
     });
     modulesPage.add(contextVisibilityGroup);
     if (!config.moduleVisibilityRules || typeof config.moduleVisibilityRules !== 'object')
@@ -99,6 +99,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             hideWhenFullscreen: false,
             hideInOverview: false,
             hideWhenDnd: false,
+            hideWhenOffline: false,
         };
         const fullscreenRow = new Adw.ActionRow({
             title: `${module.name} · Hide in fullscreen`,
@@ -112,7 +113,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenFullscreen = fullscreenSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -134,7 +135,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideInOverview = overviewSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -156,7 +157,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenDnd = dndSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -165,6 +166,28 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         dndRow.add_suffix(dndSwitch);
         dndRow.activatable_widget = dndSwitch;
         contextVisibilityGroup.add(dndRow);
+
+        const offlineRow = new Adw.ActionRow({
+            title: `${module.name} · Hide while offline`,
+            subtitle: 'Hide when GNOME reports no network connection is available',
+        });
+        const offlineSwitch = new Gtk.Switch({
+            active: rule.hideWhenOffline === true,
+            valign: Gtk.Align.CENTER,
+        });
+        offlineSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            rule.hideWhenOffline = offlineSwitch.active;
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        offlineRow.add_suffix(offlineSwitch);
+        offlineRow.activatable_widget = offlineSwitch;
+        contextVisibilityGroup.add(offlineRow);
     }
 
     // Status indicators are informational; their existing modules retain control ownership.
