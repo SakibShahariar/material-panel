@@ -40,7 +40,7 @@ test('popup shortcut normalization bounds accelerator text', () => {
 
 test('popup shortcut normalization removes invisible controls from imported configuration', () => {
     assert.equal(normalizePopupShortcuts({
-        volume: '<Super>\u202E<Alt>\\nV',
+        volume: '<Super>\u202E<Alt>\nV',
         network: '<Super>\u200B<Alt>C',
     }).volume, '<Super><Alt>V');
     assert.equal(normalizePopupShortcuts({
