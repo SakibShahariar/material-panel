@@ -43,6 +43,8 @@ test('parses and formats ordered city and IANA time-zone preferences', () => {
         'Dhaka|Asia/Dhaka; New York|America/New_York');
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Broken'), null);
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Other|Asia/Dhaka'), null);
+    assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Boston|US/Eastern'), null);
+    assert.equal(parseWorldClockEntries('Bad|Name|Asia/Dhaka'), null);
 });
 
 test('formats local time, date and previous-day offset using IANA time zones', () => {
