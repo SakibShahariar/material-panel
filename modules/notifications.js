@@ -878,6 +878,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             return;
         const ids = [];
         try { ids.push(notification.connect('notify::acknowledged', scheduleCount)); } catch (e) {}
+        try { ids.push(notification.connect('action-added', scheduleCount)); } catch (e) {}
+        try { ids.push(notification.connect('action-removed', scheduleCount)); } catch (e) {}
         try { ids.push(notification.connect('destroy', () => unhookNotification(notification))); } catch (e) {}
         if (ids.length)
             notificationIds.set(notification, ids);
