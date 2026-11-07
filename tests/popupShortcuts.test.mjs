@@ -33,8 +33,9 @@ test('duplicate popup accelerators are reported together and empty assignments d
     assert.deepEqual(findPopupShortcutConflicts({}), []);
 });
 
-test('popup shortcut normalization bounds accelerator text', () => {
-    assert.equal(normalizePopupShortcuts({volume: 'x'.repeat(120)}).volume.length, 80);
+test('popup shortcut normalization rejects oversized imported accelerators instead of truncating them', () => {
+    assert.equal(normalizePopupShortcuts({volume: 'x'.repeat(120)}).volume, '');
+    assert.equal(normalizePopupShortcuts({volume: 'x'.repeat(80)}).volume, 'x'.repeat(80));
 });
 
 
