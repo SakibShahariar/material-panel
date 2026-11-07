@@ -703,3 +703,33 @@ Reviewed the commits after checkpoint `a4350b8574560415a41dfe43051705e4352837d4`
 **Checkpoint SHA:** `1761ce3a48d87483867122f999bdacac7e1c2a68`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review the following regression-test/ledger commit and its CI result.
+
+## Incremental review: 2026-11-08 (World Clock #248)
+
+Reviewed all 17 commits after checkpoint `4f3ee1878606c08bcd930b7382618839f34b4471`. The first 13 commits failed the JavaScript syntax step because the initial helper contained escaped template-literal delimiters. Commit `ca99e8e8` corrected the source syntax; subsequent CI runs exposed test expectation issues in preferences wiring, time-zone alias normalization, locale-specific formatting, clock teardown assertions, and the panel-rebuild classifier assertion. These were corrected in `efb1a2cd` and `60cca49f`. The final verified run is green.
+
+| Commit | Subject | CI result | Evidence / failure notes |
+|---|---|---|---|
+| `77b98ee9c5c732ff4cb2b370116e692289cdb829` | `feat(clock): add world clock data helpers (Refs #248)` | red | [42420358204](https://github.com/SakibShahariar/material-panel/actions/runs/42420358204) — JavaScript syntax failure: escaped template-literal delimiters. |
+| `9fee3e158c233e0df47791f33d34854002b9a4e7` | `test(clock): cover world clock normalization and time zones (Refs #248)` | red | [42420384609](https://github.com/SakibShahariar/material-panel/actions/runs/42420384609) — inherited syntax failure. |
+| `94fe77d2c9a03528b426696d8418d1c0a3058536` | `feat(config): persist normalized world clock entries (Refs #248)` | red | [42420395243](https://github.com/SakibShahariar/material-panel/actions/runs/42420395243) — inherited syntax failure. |
+| `0358060098d9cdd89a4e33f801e47e621f132c3b` | `test(config): cover world clock persistence normalization (Refs #248)` | red | [42420406782](https://github.com/SakibShahariar/material-panel/actions/runs/42420406782) — inherited syntax failure. |
+| `4db0d55bdfa6f4045467b71294c36bbb3dd76498` | `feat(prefs): add world clock city configuration (Refs #248)` | red | [42420426626](https://github.com/SakibShahariar/material-panel/actions/runs/42420426626) — inherited syntax failure. |
+| `cbed9471b99a354cf0043688f9542533e0dd78a0` | `feat(clock): show saved world clocks in calendar popup (Refs #248)` | red | [42420455474](https://github.com/SakibShahariar/material-panel/actions/runs/42420455474) — inherited syntax failure. |
+| `265fef89e9ce70851f3431fab5c0768273190e6f` | `fix(clock): refresh world clocks after preference changes (Refs #248)` | red | [42420469584](https://github.com/SakibShahariar/material-panel/actions/runs/42420469584) — inherited syntax failure. |
+| `a3cf45b085b638ed479a77cec550463b2ece7d4c` | `fix(clock): tick world clocks only while popup is open (Refs #248)` | red | [42420493610](https://github.com/SakibShahariar/material-panel/actions/runs/42420493610) — inherited syntax failure. |
+| `a971a556799b10d3ccf36cb26382e4d2c8ba38ac` | `fix(config): apply world clock changes without panel rebuild (Refs #248)` | red | [42420512229](https://github.com/SakibShahariar/material-panel/actions/runs/42420512229) — inherited syntax failure. |
+| `d9b7396255de4709a1afa519ffa28cdb5a38f4b5` | `test(config): cover world clock watcher classification (Refs #248)` | red | [42420520631](https://github.com/SakibShahariar/material-panel/actions/runs/42420520631) — inherited syntax failure. |
+| `cc03323787b8b1352fa08bcefff8f222571fbf02` | `test(clock): cover world clock update and timer lifecycle (Refs #248)` | red | [42420539980](https://github.com/SakibShahariar/material-panel/actions/runs/42420539980) — inherited syntax failure. |
+| `3e75276e173fe685e8c09c2dd5a054fdf0ec2323` | `test(prefs): cover world clock configuration controls (Refs #248)` | red | [42420550695](https://github.com/SakibShahariar/material-panel/actions/runs/42420550695) — inherited syntax failure. |
+| `1fc86c1b2b1204257e32fdf91f3ff1f38d483fd5` | `fix(clock): canonicalize and validate world clock entries (Refs #248)` | red | [42420570110](https://github.com/SakibShahariar/material-panel/actions/runs/42420570110) — inherited template-literal syntax failure; source syntax corrected next. |
+| `ca99e8e886530434fb3ca448e3bf667260ddfd6b` | `fix(clock): correct world clock formatting templates (Refs #248)` | red | [42420581627](https://github.com/SakibShahariar/material-panel/actions/runs/42420581627) — syntax passed; tests exposed incorrect helper-name, alias, date-order, and zero-padded-hour expectations. |
+| `6c058015c3366e6d18669cbfb18d73856eb3324d` | `test(clock): cover duplicate aliases and invalid world clock labels (Refs #248)` | red | [42420594600](https://github.com/SakibShahariar/material-panel/actions/runs/42420594600) — remaining preferences/test expectation mismatches. |
+| `efb1a2cdb18c539d6b2f88bfa8635cf269ccf619` | `fix(clock): stabilize world clock formatting and regression tests (Refs #248)` | red | [42420669687](https://github.com/SakibShahariar/material-panel/actions/runs/42420669687) — remaining lifecycle teardown, classifier-source assertion, and canonical time-zone expectation mismatches. |
+| `60cca49f9fb885952fc707cd4de0e008d103cc87` | `fix(clock): align world clock lifecycle tests and teardown (Refs #248)` | green | [42420747480](https://github.com/SakibShahariar/material-panel/actions/runs/42420747480) — syntax passed, **621/621 JavaScript tests**, and **22/22 Python tests**. |
+
+Implemented so far: a bounded list of up to 12 saved cities; validated IANA identifiers; control/bidi-safe Unicode city labels; ordered Preferences configuration; persistence through ConfigStore; DST-aware local time/date formatting; previous/today/next-day labels; accessible popup rows; a bounded scroll area; one-minute refresh only while the Clock popup is open; and watcher/timer cleanup on teardown. World Clock changes use the existing Clock config watcher and do not force a panel reconstruction.
+
+**Checkpoint SHA:** `60cca49f9fb885952fc707cd4de0e008d103cc87`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** the next commit after this checkpoint, which adds a 12-hour-format regression test and this ledger update.

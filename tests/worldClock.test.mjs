@@ -77,3 +77,16 @@ test('uses daylight-saving rules from the time-zone database', () => {
 test('rejects invalid entries before formatting', () => {
     assert.equal(formatWorldClockEntry({name: 'Invalid', timeZone: 'Mars/Olympus'}), null);
 });
+
+test('formats twelve-hour time while retaining the local day offset', () => {
+    const result = formatWorldClockEntry({
+        name: 'New York',
+        timeZone: 'America/New_York',
+    }, new Date('2026-01-01T01:00:00Z'), {
+        locale: 'en-US',
+        localTimeZone: 'Asia/Dhaka',
+        use12h: true,
+    });
+    assert.equal(result.time, '08:00 PM');
+    assert.equal(result.dayOffsetLabel, 'Yesterday');
+});
