@@ -21,8 +21,8 @@ test('normalizes only explicit boolean rules for known modules', () => {
         volume: {hideWhenFullscreen: 'yes', hideInOverview: true},
         network: 'invalid',
     }), {
-        clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false},
-        volume: {hideWhenFullscreen: false, hideInOverview: true, hideWhenDnd: false},
+        clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false},
+        volume: {hideWhenFullscreen: false, hideInOverview: true, hideWhenDnd: false, hideWhenOffline: false},
     });
 });
 
