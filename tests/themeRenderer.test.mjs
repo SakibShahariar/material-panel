@@ -41,3 +41,11 @@ test('dimension renderer keeps legacy gap migration behavior', () => {
     assert.match(css, /gapTop=8 gapBottom=7/);
     assert.match(css, /margin: 8px 3px 7px 3px/);
 });
+
+
+test('generated theme emits the shared caption, body, and title typography sizes', () => {
+    const css = renderThemeCss({});
+    assert.match(css, /\.material-panel-type-caption,[\\s\\S]*?font-size: 10\.5px;/);
+    assert.match(css, /\.material-panel-type-body,[\\s\\S]*?font-size: 12px;/);
+    assert.match(css, /\.material-panel-type-title,[\\s\\S]*?font-size: 14px;/);
+});

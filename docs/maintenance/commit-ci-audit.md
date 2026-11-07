@@ -924,3 +924,22 @@ The new regression test covers non-convertible JavaScript values for all numeric
 **Checkpoint SHA:** `3929ab3bb151c64dc36f1f7614a05b3166bc81bf`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review commits after this checkpoint.
+
+
+## Incremental review: 2026-11-08 — Theme renderer extraction and typography tokens (#221)
+
+Reviewed every commit after checkpoint `3929ab3bb151c64dc36f1f7614a05b3166bc81bf`. Four intermediate commits had red CI while the refactor and its tests were being synchronized; all failures were traced and the latest follow-up is green.
+
+| Commit (full SHA) | Subject | CI result | Evidence / resolution |
+|---|---|---|---|
+| `ee796790818e83956dfaf62733a6ecd6b75dc76b` | `docs: record adaptive polling CI review` | green | [Run #42426616543](https://github.com/SakibShahariar/material-panel/actions/runs/42426616543): syntax passed, 638/638 JavaScript tests, 22/22 Python tests. |
+| `18f8cc83ea0d53fb583ba252d97cb577e17b52a3` | `refactor(theme): extract panel dimension renderer (Refs #221)` | red | [Run #42426903994](https://github.com/SakibShahariar/material-panel/actions/runs/42426903994): 634/638 JS passed. Four failures were stale tests still looking for palette renderer exports and the typography constant in the old module after extraction. |
+| `cb30c26b78303de412687792ad2daa5cf4b336df` | `test(theme): follow extracted dimension renderer (Refs #221)` | red | [Run #42426964814](https://github.com/SakibShahariar/material-panel/actions/runs/42426964814): 635/638 JS passed. Three failures remained in palette renderer tests and the typography source assertion; the tests still needed to follow the new module ownership. |
+| `7f0920172884ec9b34063259f0ab303b613aa637` | `test(theme): update typography scale source assertion (Refs #221)` | red | [Run #42427000970](https://github.com/SakibShahariar/material-panel/actions/runs/42427000970): 635/638 JS passed. The test now followed the extracted constant but exposed that body/title typography tokens were not yet consumed by generated CSS. |
+| `18cea01c503f107b2d1b9aec571fb5b3dff43ac8` | `fix(theme): share typography tokens across renderers (Refs #221)` | red | [Run #42427036671](https://github.com/SakibShahariar/material-panel/actions/runs/42427036671): 637/638 JS passed. The remaining source assertion still expected a body-token use in a particular source expression; the subsequent test update verified the shared token contract in the final renderer. |
+| `d28a101b7750c6c6498d8855a4c21c15dd4ef31b` | `test(theme): check shared typography tokens across renderers (Refs #221)` | green | [Run #42427091287](https://github.com/SakibShahariar/material-panel/actions/runs/42427091287): syntax passed, 638/638 JavaScript tests, 22/22 Python tests. |
+
+The four red results are retained as history; the failures were test/refactor synchronization and the missing generated body/title token use, corrected by later commits. A new behavior-level regression test now asserts that the generated stylesheet actually emits caption (10.5px), body (12px), and title (14px) role declarations rather than merely checking source text.
+
+**Next checkpoint:** pending the behavior-test commit's CI result.  
+**Reviewed range ends at:** `d28a101b7750c6c6498d8855a4c21c15dd4ef31b`.
