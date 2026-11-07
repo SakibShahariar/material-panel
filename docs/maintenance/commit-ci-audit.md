@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `f1169feabcae0ff3762051bdf558097965977b96`
+- Checkpoint SHA: `365f1872e13c28d7a7a707f751c645fd05b052ba`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -471,5 +471,22 @@ The commits newer than the previous checkpoint `fb07322da00ce602ae086ad1b24c9948
 **Unresolved validation:** #143 remains Category B and open for live GNOME popup/provider/timezone/switching/rate-limit checks. #251 remains open for live GNOME state-transition and Shell-version checks. #121, #122, #123 and #254 retain their previously documented live-validation requirements.
 
 - Checkpoint SHA: `f1169feabcae0ff3762051bdf558097965977b96`
+- Checkpoint date: 2026-11-07
+- Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
+
+
+## Incremental review: 2026-11-07 (global popup shortcuts)
+
+Reviewed all commits newer than checkpoint `f1169feabcae0ff3762051bdf558097965977b96` and checked the actual GitHub Actions results.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `4b16917932176c06510c4be5de516052b14abc55` | `docs: record weather implementation CI review` | green | 2026-11-07 | Workflow [42394710527](https://github.com/SakibShahariar/material-panel/actions/runs/42394710527) passed syntax, JavaScript regression, and calendar/Python regression steps. |
+| `9b806a88e3f037d223eda194c61031acf699dd79` | `feat(shortcuts): add configurable global popup keybindings (Refs #249)` | red | 2026-11-07 | Workflow [42395282154](https://github.com/SakibShahariar/material-panel/actions/runs/42395282154) passed GLib schema compiler installation and JavaScript syntax, then failed two source assertions in `tests/networkSpeedUnits.test.mjs` and `tests/panelRebuildCoalescing.test.mjs` because they expected the exact old `only(['networkSpeedUnit'])` classifier expression. |
+| `365f1872e13c28d7a7a707f751c645fd05b052ba` | `fix(shortcuts): preserve module setting classifier compatibility (Refs #249)` | green | 2026-11-07 | Workflow [42395383033](https://github.com/SakibShahariar/material-panel/actions/runs/42395383033) passed GLib schema compiler installation, JavaScript syntax, all JavaScript regression tests, and calendar/Python regression tests. The original network-speed classifier remains unchanged and popup shortcuts now have their own module-setting branch. |
+
+**Unresolved validation:** #249 remains Category B and open for live global-keybinding/conflict/popup/teardown checks on GNOME 49–51. #143 remains open for live Weather provider, timezone, popup and rate-limit checks. #251, #121, #122, #123 and #254 retain their previously documented live-validation requirements.
+
+- Checkpoint SHA: `365f1872e13c28d7a7a707f751c645fd05b052ba`
 - Checkpoint date: 2026-11-07
 - Next session: start with the commit after this checkpoint, and revisit only entries explicitly marked red, pending, or requiring follow-up.
