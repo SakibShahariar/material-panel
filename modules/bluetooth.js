@@ -321,8 +321,10 @@ export function buildBluetooth(_extensionPath, scale = 1.0) {
     let adapterMenuItems = [];
 
     // Header — Bluetooth power switch and adapter chooser.
-    const btTitle = new St.Label({text: 'Bluetooth', style_class: 'material-panel-popup-title'});
-    const btStatus = new St.Label({text: 'Checking adapter…', style_class: 'material-panel-popup-status'});
+    const btTitle = new St.Label({text: 'Bluetooth', style_class: 'material-panel-bt-header-label'});
+    try { btTitle.style = 'font-size: 15px; font-weight: 700;'; } catch (e) {}
+    const btStatus = new St.Label({text: 'Checking adapter…', style_class: 'material-panel-bt-device-status'});
+    try { btStatus.style = 'font-size: 11px; opacity: 0.7;'; } catch (e) {}
     const btHeader = createPopupHeader({titleActor: btTitle, statusActor: btStatus});
     const btHeaderItem = wrapAsMenuItem(btHeader.actor);
     const btSwitch = new PopupMenu.PopupSwitchMenuItem('Bluetooth', false);
