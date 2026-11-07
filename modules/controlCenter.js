@@ -58,6 +58,22 @@ function addFocusModeControl(menu) {
     return item;
 }
 
+function popupArrowSide() {
+    try {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const panelBox = Main.layoutManager.panelBox;
+        if (!monitor || !panelBox)
+            return St.Side.TOP;
+        const [x, y] = panelBox.get_transformed_position();
+        const [width, height] = panelBox.get_transformed_size();
+        if (height > width)
+            return x > monitor.x + monitor.width / 2 ? St.Side.LEFT : St.Side.RIGHT;
+        return y > monitor.y + monitor.height / 2 ? St.Side.BOTTOM : St.Side.TOP;
+    } catch (e) {
+        return St.Side.TOP;
+    }
+}
+
 export function buildControlCenter(_extensionPath, scale = 1.0) {
     const icon = new St.Icon({
         icon_name: 'view-grid-symbolic',
@@ -72,7 +88,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     });
     setChipA11y(button, 'Control Center');
 
-    const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+    const menu = new PopupMenu.PopupMenu(button, 0.5, popupArrowSide());
     menu.actor.add_style_class_name('material-panel-popup material-panel-control-center-popup');
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
