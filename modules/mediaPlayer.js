@@ -459,7 +459,7 @@ export function buildMediaPlayerRow() {
             setArtFromUrl(artIcon, null, 40);
             return;
         }
-        button.visible = true;
+        row.visible = true;
         bindPlayer(busName, {
             onMeta: ({title, artist, artUrl}) => {
                 row.visible = true;
