@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {renderThemeCss, renderDimensionsCss} from '../lib/themeRenderer.js';
+import {renderDimensionsCss as renderDimensionsCssDirect} from '../lib/themeDimensionsRenderer.js';
 
 test('theme renderer resolves supplied Matugen palette roles into concrete stylesheet colors', () => {
     const css = renderThemeCss({
@@ -32,6 +33,7 @@ test('dimension renderer preserves default and End-4 geometry contracts', () => 
     assert.match(standard, /\.material-panel-bar/);
     assert.match(end4, /\.material-panel-layout-end4/);
     assert.match(end4, /min-height:/);
+    assert.equal(renderDimensionsCssDirect(), standard);
 });
 
 test('dimension renderer keeps legacy gap migration behavior', () => {
