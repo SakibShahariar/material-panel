@@ -64,3 +64,17 @@ test('Quick Launch section stays absent when empty and makes unavailable entries
     assert.match(module, /if \(!available\)\s*\{[\s\S]*?button\.opacity = 150;[\s\S]*?button\.set_tooltip_text\(unavailableReason\)/);
     assert.match(module, /button\.connect\('clicked', \(\) => launchEntry\(entry\)\)/);
 });
+
+
+test('Quick Launch command entries are tokenized to argv and never evaluated by a shell', async () => {
+    const [module, runner] = await Promise.all([
+        source('../modules/quickLaunch.js'),
+        source('../lib/quickLaunchRunner.js'),
+    ]);
+    assert.match(module, /GLib\.shell_parse_argv\(command\)/);
+    assert.match(module, /GLib\.spawn_async\(\s*null, argv, null, GLib\.SpawnFlags\.SEARCH_PATH/);
+    assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
+    assert.match(runner, /const argv = parseCommand\(entry\.target\)/);
+    assert.match(runner, /spawnCommand\(argv\)/);
+    assert.doesNotMatch(runner, /exec\(|eval\(|shell=True/);
+});
