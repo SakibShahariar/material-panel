@@ -4,6 +4,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
+import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
@@ -203,6 +204,27 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 action.x_expand = true;
                 actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
             });
+            const mediaCard = new St.BoxLayout({
+                style_class: 'material-panel-control-center-card',
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
+            const mediaTitle = new St.Label({text: 'Now playing'});
+            mediaTitle.style = 'font-size: 14px; font-weight: 650;';
+            const mediaRow = buildMediaPlayerRow();
+            const noMedia = new St.Label({
+                text: 'No media is playing',
+                style_class: 'material-panel-control-center-placeholder',
+            });
+            mediaRow.connect('notify::visible', () => {
+                noMedia.visible = !mediaRow.visible;
+            });
+            mediaCard.add_child(mediaTitle);
+            mediaCard.add_child(noMedia);
+            mediaCard.add_child(mediaRow);
+            page.add_child(mediaCard);
+
             actionsCard.add_child(actionsTitle);
             actionsCard.add_child(actionGrid);
             page.add_child(actionsCard);
