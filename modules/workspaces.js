@@ -180,6 +180,32 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
 
     let lastSnapshotKey = null;
     let focusRings = [];
+    const windowSignalIds = new Map();
+    const syncWindowSignals = windows => {
+        const current = new Set(windows);
+        for (const [win, ids] of windowSignalIds) {
+            if (current.has(win))
+                continue;
+            for (const id of ids) {
+                try { win.disconnect(id); } catch (e) {}
+            }
+            windowSignalIds.delete(win);
+        }
+        for (const win of current) {
+            if (windowSignalIds.has(win))
+                continue;
+            const ids = [];
+            for (const signal of [
+                'notify::demands-attention',
+                'notify::urgent',
+                'unmanaged',
+            ]) {
+                try { ids.push(win.connect(signal, scheduleRebuild)); } catch (e) {}
+            }
+            if (ids.length)
+                windowSignalIds.set(win, ids);
+        }
+    };
     const updateFocusRings = (focusId, activeIndex) => {
         for (const entry of focusRings) {
             const focused = entry.workspaceIndex === activeIndex && !!focusId &&
@@ -206,11 +232,13 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
         // destroying/recreating actors to avoid needless layout and icon churn.
         const workspaceWindows = [];
         const windowsByWorkspace = [];
+        const allWindows = [];
         const workspaceStates = [];
         for (let i = 0; i < n; i++) {
             const ws = manager.get_workspace_by_index(i);
             const liveWindows = _windowsOnWorkspace(ws, i);
             windowsByWorkspace.push(liveWindows);
+            allWindows.push(...liveWindows);
             workspaceStates.push({
                 occupied: liveWindows.length > 0,
                 urgent: liveWindows.some(_isUrgentWindow),
@@ -227,6 +255,7 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             });
             workspaceWindows.push(windows);
         }
+        syncWindowSignals(allWindows);
         const workspaceFilter = getWorkspaceFilter();
         const visibleIndices = filterWorkspaceIndices(
             workspaceFilter, workspaceStates, activeIndex);
@@ -408,6 +437,12 @@ export function buildWorkspaces(_extensionPath, scale = 1.0) {
             try { GLib.source_remove(rebuildTimer); } catch (e) {}
             rebuildTimer = 0;
         }
+        for (const [win, signalIds] of windowSignalIds) {
+            for (const id of signalIds) {
+                try { win.disconnect(id); } catch (e) {}
+            }
+        }
+        windowSignalIds.clear();
         for (const [kind, id] of ids) {
             try {
                 if (kind === 'm')
