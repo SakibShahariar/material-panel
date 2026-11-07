@@ -27,14 +27,17 @@ test('system metric polling skips hidden chips with closed popups', () => {
     }
 });
 
-test('CPU periodic sampling pauses while its chip and popup are hidden', async () => {
+test('CPU periodic sampling adapts to activity and pauses while hidden', async () => {
     const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
-    assert.match(
-        cpu,
-        /let timerId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, 2, \(\) => \{[\s\S]*?if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\)[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?updateLabels\(\);/
-    );
+    assert.match(cpu, /createAdaptivePollSchedule/);
+    assert.match(cpu, /baseIntervalMs: 2000/);
+    assert.match(cpu, /maxIntervalMs: 5000/);
+    assert.match(cpu, /const currentCpuPct = latestMetricSample\?\.totalPct/);
+    assert.match(cpu, /currentCpuPct >= 20/);
+    assert.match(cpu, /Math\.abs\(currentCpuPct - previousCpuPct\) >= 5/);
+    assert.match(cpu, /if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\) \{[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?cpuSchedule\.reset\(\)/);
+    assert.match(cpu, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
 });
-
 test('system metric polling also pauses while GNOME is locked', () => {
     assert.match(shellCompat, /Main\.sessionMode\.isLocked/);
     for (const [name, source] of modules) {

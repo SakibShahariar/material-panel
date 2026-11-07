@@ -11,6 +11,7 @@ import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
+import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 import {getGpuMetrics, getNetworkMetrics} from '../lib/systemMetricsState.js';
 import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
@@ -933,18 +934,47 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     updateLabels();
-    let timerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
-        // Avoid CPU, temperature, and memory reads while the chip and popup
-        // are hidden. Reset the CPU baseline so the next visible sample does
-        // not average activity across the entire hidden interval.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
-            primed = false;
-            prevCores = [];
-            return GLib.SOURCE_CONTINUE;
-        }
-        updateLabels();
-        return GLib.SOURCE_CONTINUE;
+    let previousCpuPct = Number.isFinite(latestMetricSample?.totalPct)
+        ? latestMetricSample.totalPct
+        : null;
+    const cpuSchedule = createAdaptivePollSchedule({
+        baseIntervalMs: 2000,
+        minIntervalMs: 2000,
+        maxIntervalMs: 5000,
+        stableSamplesToSlow: 4,
+        growthFactor: 1.25,
+        jitterRatio: 0.05,
     });
+    let timerId = 0;
+    const scheduleCpuSample = (active = false) => {
+        const delayMs = cpuSchedule.nextDelay(active);
+        timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            timerId = 0;
+            // Avoid CPU, temperature, and memory reads while the chip and popup
+            // are hidden. Reset the CPU baseline so the next visible sample does
+            // not average activity across the entire hidden interval.
+            if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
+                primed = false;
+                prevCores = [];
+                previousCpuPct = null;
+                cpuSchedule.reset();
+            } else {
+                updateLabels();
+                const currentCpuPct = latestMetricSample?.totalPct;
+                const active = Number.isFinite(currentCpuPct) && (
+                    currentCpuPct >= 20 ||
+                    (previousCpuPct !== null && Math.abs(currentCpuPct - previousCpuPct) >= 5)
+                );
+                if (Number.isFinite(currentCpuPct))
+                    previousCpuPct = currentCpuPct;
+                scheduleCpuSample(active);
+                return GLib.SOURCE_REMOVE;
+            }
+            scheduleCpuSample(false);
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+    scheduleCpuSample();
     let fastTimerId = 0;
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {
