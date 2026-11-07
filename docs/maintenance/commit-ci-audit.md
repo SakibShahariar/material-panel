@@ -617,3 +617,33 @@ Reviewed all ten commits after checkpoint `3beac0ac6f2556696948b3133537e8084c4e0
 - Checkpoint SHA: `aec4c3054fb3ce65dfdda99d33d061d366209ee4`
 - Checkpoint date: 2026-11-08
 - Next session: review commits after this checkpoint, including the ledger update commit.
+
+
+## Incremental review: 2026-11-08 (popup continuation and Quick Launch icons)
+
+Reviewed all commits after checkpoint `aec4c3054fb3ce65dfdda99d33d061d366209ee4`. All ten popup-header continuation commits and six Quick Launch icon commits have completed workflows; one test-only commit had a red run caused by an over-escaped regex in the new test and was corrected in the subsequent commit. The final workflow passed syntax, **600/600 JavaScript tests**, and **22/22 Python tests**.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `5030954dec44c14fefc30661a2d2b6fcec724884` | `refactor(dnd): use shared popup header (Refs #208)` | green | 2026-11-08 | [42417451554](https://github.com/SakibShahariar/material-panel/actions/runs/42417451554) |
+| `38e86c81df76a8864dbefb8908860974ac7546ca` | `test(dnd): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | [42417460541](https://github.com/SakibShahariar/material-panel/actions/runs/42417460541) |
+| `0dca7e8cc56accbc7c217112e7df11b799a07c0b` | `refactor(power): use shared popup header (Refs #208)` | green | 2026-11-08 | [42417469693](https://github.com/SakibShahariar/material-panel/actions/runs/42417469693) |
+| `dd978dd39444faf15a2b9713e70b0ef90cd50c70` | `test(power): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | [42417480574](https://github.com/SakibShahariar/material-panel/actions/runs/42417480574) |
+| `e34617c78bf56f8cd9916e2856a4cfb74add0b8d` | `refactor(calendar): use shared popup header (Refs #208)` | green | 2026-11-08 | [42417494186](https://github.com/SakibShahariar/material-panel/actions/runs/42417494186) |
+| `67b0dfbfeaff7b2897dc152d98f4c7bb0f1a7033` | `test(calendar): cover shared popup header wiring (Refs #208)` | green | 2026-11-08 | [42417502726](https://github.com/SakibShahariar/material-panel/actions/runs/42417502726) |
+| `9a642e7843723e639d9d77e78451418e54cd6626` | `refactor(quick-settings): use shared popup header (Refs #208)` | green | 2026-11-08 | [42417544213](https://github.com/SakibShahariar/material-panel/actions/runs/42417544213) |
+| `8a1a591ede1d76203f78be04d0aab436392dd525` | `test(quick-settings): cover shared popup header (Refs #208)` | green | 2026-11-08 | [42417552711](https://github.com/SakibShahariar/material-panel/actions/runs/42417552711) |
+| `07e9dc04d0e19c5c92aad8f2a4c1b2c8f7bafe49` | `refactor(control-center): share section header hierarchy (Refs #208)` | green | 2026-11-08 | [42417572552](https://github.com/SakibShahariar/material-panel/actions/runs/42417572552) |
+| `d8632268caf50fac3a322ba72d4536f16c2058c9` | `test(control-center): cover shared section header (Refs #208)` | green | 2026-11-08 | [42417580850](https://github.com/SakibShahariar/material-panel/actions/runs/42417580850); 597/597 JavaScript and 22/22 Python tests passed. |
+| `0398d5ddd8231e1f8b280b2abebb0239d1deada2` | `feat(quick-launch): support validated symbolic icons (Refs #71)` | green | 2026-11-08 | [42417980832](https://github.com/SakibShahariar/material-panel/actions/runs/42417980832) |
+| `859da1821ad239c0dffbc1c8e6b0618b16279830` | `test(quick-launch): cover symbolic icon validation (Refs #71)` | green | 2026-11-08 | [42417992645](https://github.com/SakibShahariar/material-panel/actions/runs/42417992645) |
+| `08f9415cfa79ff2fe3b34d3ec3ed3d13886fc00f` | `feat(quick-launch): render configured symbolic icons (Refs #71)` | green | 2026-11-08 | [42418004438](https://github.com/SakibShahariar/material-panel/actions/runs/42418004438) |
+| `ce0fb01e0136fea16542b73114aa99079d1f5798` | `feat(quick-launch): configure shortcut icons in preferences (Refs #71)` | green | 2026-11-08 | [42418049131](https://github.com/SakibShahariar/material-panel/actions/runs/42418049131) |
+| `72e6ec0282f6dfc533b87fcd10d2bfe2db94231a` | `test(quick-launch): cover icon preferences and rendering (Refs #71)` | red | 2026-11-08 | [42418063892](https://github.com/SakibShahariar/material-panel/actions/runs/42418063892) failed because the test file contained an over-escaped regular expression; JavaScript syntax checks passed and the other 598 tests passed. Corrected in `21144e16`. |
+| `21144e16fd62f8599bd9aaf00a09ebbd1b4eb406` | `test(quick-launch): fix icon UI regression assertions (Refs #71)` | green | 2026-11-08 | [42418123203](https://github.com/SakibShahariar/material-panel/actions/runs/42418123203) passed syntax, 600/600 JavaScript tests and 22/22 Python tests. |
+
+**Issue follow-up:** #208 remains open for live GNOME visual/accessibility validation. #71 now supports optional symbolic icons, but optional toggle-state semantics and live GNOME validation remain outstanding; it stays open.
+
+**Checkpoint SHA:** `21144e16fd62f8599bd9aaf00a09ebbd1b4eb406`  
+**Checkpoint date:** 2026-11-08  
+**Next session:** review commits after this checkpoint, including the related README/ledger documentation commit.
