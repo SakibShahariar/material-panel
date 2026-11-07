@@ -33,6 +33,7 @@ import {normalizeQuickSettingsFavorites, normalizeQuickSettingsTiles, orderQuick
 import {getQuickSettingsSliderStyle, getQuickSettingsTiles, getQuickSettingsFavorites} from '../lib/quickSettingsState.js';
 import {confirmAndRun} from '../lib/powerConfirm.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
+import {buildQuickLaunchSection} from './quickLaunch.js';
 
 const UUID = 'material-panel@SakibShahariar';
 const QS_W = 380;
@@ -769,6 +770,9 @@ export function buildQuickSettingsEnd4(_extensionPath, scale = 1.0) {
     style(shell, `width: ${QS_W}px; min-width: ${QS_W}px; max-width: ${QS_W}px; padding: ${QS_PAD}px; spacing: 10px; border-radius: 22px;`);
 
     shell.add_child(buildHeader(menu));
+    const quickLaunchSection = buildQuickLaunchSection();
+    if (quickLaunchSection)
+        shell.add_child(quickLaunchSection);
     // Keep the same primary content order as Default and Ryoku: media first,
     // then volume/brightness, connectivity, and the remaining controls.
     try {

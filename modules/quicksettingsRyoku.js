@@ -7,6 +7,7 @@ import St from 'gi://St';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {buildProfileCard} from './profileCard.js';
+import {buildQuickLaunchSection} from './quickLaunch.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {menuClose} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
@@ -61,6 +62,9 @@ export function fillRyokuQsMenu(menu, api) {
             try { menuClose(menu); } catch (e) {}
         },
     }));
+    const quickLaunchSection = buildQuickLaunchSection();
+    if (quickLaunchSection)
+        root.add_child(quickLaunchSection);
     root.add_child(buildMediaPlayerRow());
 
     const body = new St.BoxLayout({

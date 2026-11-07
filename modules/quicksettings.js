@@ -23,6 +23,7 @@ import {buildAppVolumeMixer} from '../lib/appVolumeMixer.js';
 import {buildPowerProfileSelector} from '../lib/powerProfileSelector.js';
 import {buildKeepAwakeMenu} from '../lib/keepAwakeMenu.js';
 import {buildProfileCard} from './profileCard.js';
+import {buildQuickLaunchSection} from './quickLaunch.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 
 import {iconPath, iconPathOnAccent, iconPathPrimary} from '../lib/iconTheme.js';
@@ -2377,17 +2378,18 @@ export function buildQuickSettings(_extensionPath, scale = 1.0) {
         return button;
     }
 
-    // Section: identity + media
-    menu.addMenuItem(wrapAsMenuItem(qsSection(
-        null,
-        buildProfileCard({
-            onPrefs: () => {
-                openExtensionPrefs();
-                try { menuClose(menu); } catch (e) {}
-            },
-        }),
-        buildMediaPlayerRow(),
-    )));
+    // Section: identity, optional quick-launch shortcuts, and media.
+    const identityAndMedia = [buildProfileCard({
+        onPrefs: () => {
+            openExtensionPrefs();
+            try { menuClose(menu); } catch (e) {}
+        },
+    })];
+    const quickLaunchSection = buildQuickLaunchSection();
+    if (quickLaunchSection)
+        identityAndMedia.push(quickLaunchSection);
+    identityAndMedia.push(buildMediaPlayerRow());
+    menu.addMenuItem(wrapAsMenuItem(qsSection(null, ...identityAndMedia)));
 
     // Section: volume + brightness (end4: combined dual capsule)
     if (end4) {

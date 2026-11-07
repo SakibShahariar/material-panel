@@ -25,6 +25,7 @@ import {setMediaVisualizerEnabled, clearMediaVisualizerState} from './lib/mediaV
 import {setWeatherLocation, clearWeatherLocation} from './lib/weatherLocationState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
+import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchState.js';
 
 function scaleOf(c) {
     const s = Number(c?.panelSize?.scale);
@@ -56,6 +57,7 @@ export default class MaterialPanelExtension extends Extension {
         // panel once the shared mixer control becomes available.
         setMixerControlReadyCallback(() => this._schedulePanelRebuild('audio-recovered'));
         setWeatherLocation(this._config.weatherLocation);
+        setQuickLaunchEntries(this._config.quickLaunch);
         this._sizeDebounceId = 0;
         this._reducedMotionCleanup = watchReducedMotion();
 
@@ -81,6 +83,7 @@ export default class MaterialPanelExtension extends Extension {
             this._config = newConfig;
             setProfileIdentityHidden(newConfig.hideProfileIdentity === true);
             setWeatherLocation(newConfig.weatherLocation);
+            setQuickLaunchEntries(newConfig.quickLaunch);
 
             // Classification must never strand the watcher. Unknown or malformed
             // shapes fall back to a full rebuild and a tray placement refresh.
@@ -239,6 +242,7 @@ export default class MaterialPanelExtension extends Extension {
             setWorkspaceScrollSwitch(this._config.workspaceScrollSwitch);
             setNetworkSpeedUnit(this._config.networkSpeedUnit);
             setProfileIdentityHidden(this._config.hideProfileIdentity === true);
+            setQuickLaunchEntries(this._config.quickLaunch);
         } catch (e) {}
         try {
             // Only adjust in-memory layout placement — never save here (save → watch → rebuild loop)
@@ -388,6 +392,7 @@ export default class MaterialPanelExtension extends Extension {
         clearMediaVisualizerState();
         clearWeatherLocation();
         clearQuickSettingsState();
+        clearQuickLaunchEntries();
         clearLayoutStyle();
 
         this._config = null;
