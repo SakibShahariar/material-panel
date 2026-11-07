@@ -105,6 +105,6 @@ test('Preferences exposes an ordered, validated list of optional world clocks', 
     assert.match(entry, /formatWorldClockEntries\(config\.worldClocks\)/);
     assert.match(entry, /parseWorldClockEntries\(worldClockRow\.get_text\(\)\)/);
     assert.match(entry, /config\.worldClocks = parsed/);
-    assert.match(helpers, /function isValidTimeZone/);
+    assert.match(helpers, /function canonicalTimeZone/);
     assert.match(helpers, /new Intl\.DateTimeFormat\('en', \{timeZone: value\}\)/);
 });

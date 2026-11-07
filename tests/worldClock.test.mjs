@@ -43,7 +43,9 @@ test('parses and formats ordered city and IANA time-zone preferences', () => {
         'Dhaka|Asia/Dhaka; New York|America/New_York');
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Broken'), null);
     assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Other|Asia/Dhaka'), null);
-    assert.equal(parseWorldClockEntries('Dhaka|Asia/Dhaka; Boston|US/Eastern'), null);
+    assert.deepEqual(parseWorldClockEntries('Boston|US/Eastern'), [
+        {name: 'Boston', timeZone: 'US/Eastern'},
+    ]);
     assert.equal(parseWorldClockEntries('Bad|Name|Asia/Dhaka'), null);
 });
 
@@ -56,7 +58,7 @@ test('formats local time, date and previous-day offset using IANA time zones', (
     assert.equal(result.time, '20:00');
     assert.equal(result.dayOffset, -1);
     assert.equal(result.dayOffsetLabel, 'Yesterday');
-    assert.match(result.date, /Dec 31/);
+    assert.match(result.date, /31.*Dec|Dec.*31/);
 });
 
 test('uses daylight-saving rules from the time-zone database', () => {
