@@ -7,6 +7,7 @@ import {readMemInfo} from '../lib/memInfo.js';
 import {getNetworkMetrics} from '../lib/systemMetricsState.js';
 import {parseProcessSnapshot, filterAndSortProcesses} from '../lib/processSnapshot.js';
 import {getThemeColor} from '../lib/themeColorState.js';
+import {calculateCpuPercent, parseTemperatureValue, formatNetworkRate} from '../lib/controlCenterMetrics.js';
 import {readGpuInfoAsync} from './gpu.js';
 
 const HISTORY_LENGTH = 18;
@@ -28,10 +29,8 @@ function readCpuUsage(previous) {
         const total = values.reduce((sum, value) => sum + value, 0);
         if (!previous || total <= previous.total || idle < previous.idle)
             return {value: null, previous: {idle, total}};
-        const totalDelta = total - previous.total;
-        const idleDelta = idle - previous.idle;
         return {
-            value: Math.max(0, Math.min(100, Math.round((1 - idleDelta / totalDelta) * 100))),
+            value: calculateCpuPercent(previous, {idle, total}),
             previous: {idle, total},
         };
     } catch (e) {
@@ -80,24 +79,12 @@ function readTemperature(path) {
         const [ok, contents] = Gio.File.new_for_path(path).load_contents(null);
         if (!ok)
             return null;
-        const raw = Number.parseInt(new TextDecoder('utf-8').decode(contents).trim(), 10);
-        if (!Number.isFinite(raw))
-            return null;
-        const value = raw > 1000 ? raw / 1000 : raw;
-        return value >= -30 && value <= 150 ? Math.round(value) : null;
+        return parseTemperatureValue(new TextDecoder('utf-8').decode(contents));
     } catch (e) {
         return null;
     }
 }
 
-function formatRate(bytesPerSecond) {
-    const value = Math.max(0, Number(bytesPerSecond) || 0);
-    if (value < 1024)
-        return Math.round(value) + ' B/s';
-    if (value < 1024 * 1024)
-        return (value / 1024).toFixed(1) + ' KB/s';
-    return (value / (1024 * 1024)).toFixed(1) + ' MB/s';
-}
 
 function metricCard(title, initialValue, description) {
     const card = new St.BoxLayout({
@@ -379,8 +366,8 @@ export function buildControlCenterSystem() {
 
         const network = getNetworkMetrics();
         const freshNetwork = network && GLib.get_monotonic_time() - network.updatedAt < 5000000;
-        download.text = freshNetwork ? '↓ Download  ' + formatRate(network.down) : '↓ Download  Unavailable';
-        upload.text = freshNetwork ? '↑ Upload  ' + formatRate(network.up) : '↑ Upload  Unavailable';
+        download.text = freshNetwork ? '↓ Download  ' + formatNetworkRate(network.down) : '↓ Download  Unavailable';
+        upload.text = freshNetwork ? '↑ Upload  ' + formatNetworkRate(network.up) : '↑ Upload  Unavailable';
         networkNote.text = freshNetwork
             ? 'Using the shared Network Speed sampler'
             : 'Enable the Network Speed module to provide live samples';

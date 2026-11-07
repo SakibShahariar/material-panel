@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `8be72301dea73780992190819ffe8e63a782b6ec`
+- Checkpoint SHA: `75a8e01fba3ebb34a1ce7a19427d23762c092747`
 - Checkpoint date: 2026-11-07
-- Next session: start with the ledger/test commit immediately following this checkpoint, then review every subsequent commit.
+- Next session: start with the substantive System metric-helper/test commit immediately following this checkpoint, then review every subsequent commit.
 
 ## Initial audit baseline
 
@@ -368,3 +368,19 @@ Reviewed every commit after the previous checkpoint through `cd0b60e45e7f2c436b6
 | `cd0b60e4` | `test(clipboard): verify history files ship in extension zip (Refs #254)` | green | 2026-11-07 | Actions run [42372815244](https://github.com/SakibShahariar/material-panel/actions/runs/42372815244) completed successfully. |
 
 **Unresolved validation:** #254 remains open until the feature is exercised in real GNOME Shell 49, 50, and 51 sessions. CI success does not establish compositor/clipboard runtime compatibility.
+
+
+## Incremental review: 2026-11-07
+
+The following commits were reviewed individually against their associated GitHub Actions workflow runs. Failures were investigated from job logs and corrected in later commits. No issue was closed based on source tests alone; #122 and #123 remain open for live GNOME validation.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `163c5e5f` | `revert: restore repository tree after broken Media commit (Refs #122)` | green | 2026-11-07 | Workflow [42388365811](https://github.com/SakibShahariar/material-panel/actions/runs/42388365811) passed. Recovery commit restores the complete original tracked tree without rewriting history. |
+| `71a062a9` | `feat(control-center): add detailed Media section player (Refs #122)` | red | 2026-11-07 | Workflow [42388472454](https://github.com/SakibShahariar/material-panel/actions/runs/42388472454) failed two source-boundary tests because they expected the previous zero-argument builder signature. Corrected in `e7359d50`; rerun passed. |
+| `e7359d50` | `test(media): update player row source boundary (Refs #122)` | green | 2026-11-07 | Workflow [42388543342](https://github.com/SakibShahariar/material-panel/actions/runs/42388543342) passed. |
+| `a79f30c0` | `feat(media): add player switching and section visualizer (Refs #122)` | red | 2026-11-07 | Workflow [42388978554](https://github.com/SakibShahariar/material-panel/actions/runs/42388978554) failed tests that assumed no detailed-only player switcher and an adjacent `row.visible`/attach sequence. Updated test expectations in `7fbeb0df` and `f24a1aa8`; final rerun passed. |
+| `7fbeb0df` | `test(media): cover detailed player row ownership (Refs #122)` | red | 2026-11-07 | Workflow [42389029726](https://github.com/SakibShahariar/material-panel/actions/runs/42389029726) exposed one remaining old watcher callback expectation. Corrected in `f24a1aa8`; rerun passed. |
+| `f24a1aa8` | `test(media): align player watcher assertions (Refs #122)` | green | 2026-11-07 | Workflow [42389193405](https://github.com/SakibShahariar/material-panel/actions/runs/42389193405) passed, including syntax, JavaScript regressions and calendar regressions. |
+| `e545d0d0` | `feat(control-center): add System health overview (Refs #123)` | red | 2026-11-07 | Workflow [42389385033](https://github.com/SakibShahariar/material-panel/actions/runs/42389385033) failed one new source assertion: the test expected a const arrow function while the implementation used a function declaration. Corrected in `75a8e01f`; rerun passed. |
+| `75a8e01f` | `fix(control-center): harden System monitoring lifecycle (Refs #123)` | green | 2026-11-07 | Workflow [42389437714](https://github.com/SakibShahariar/material-panel/actions/runs/42389437714) passed, including syntax, JavaScript regressions and calendar regressions. |

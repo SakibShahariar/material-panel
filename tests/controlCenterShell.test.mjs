@@ -120,3 +120,19 @@ test('Control Center System view samples metrics only while its section actor ex
     assert.match(system, /gpuCancellable\?\.cancel\(\)/);
     assert.match(gpu, /export function readGpuInfoAsync/);
 });
+
+
+test('Control Center System metric helpers handle counter resets and unavailable sensors', async () => {
+    const {calculateCpuPercent, parseTemperatureValue, formatNetworkRate} =
+        await import('../lib/controlCenterMetrics.js');
+    assert.equal(calculateCpuPercent({idle: 40, total: 100}, {idle: 50, total: 120}), 50);
+    assert.equal(calculateCpuPercent(null, {idle: 50, total: 120}), null);
+    assert.equal(calculateCpuPercent({idle: 40, total: 100}, {idle: 39, total: 120}), null);
+    assert.equal(calculateCpuPercent({idle: 40, total: 100}, {idle: 50, total: 90}), null);
+    assert.equal(parseTemperatureValue('42000'), 42);
+    assert.equal(parseTemperatureValue('47'), 47);
+    assert.equal(parseTemperatureValue('not-a-sensor'), null);
+    assert.equal(parseTemperatureValue('190000'), null);
+    assert.equal(formatNetworkRate(512), '512 B/s');
+    assert.equal(formatNetworkRate(2048), '2.0 KB/s');
+});
