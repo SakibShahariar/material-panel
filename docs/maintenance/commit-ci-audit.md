@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `2e82ddba2107a785774d98b2420f183340245fde`
+- Checkpoint SHA: `cd0b60e45e7f2c436b64e5c5454eda8bff802977`
 - Checkpoint date: 2026-11-07
 - Next session: start with the ledger/test commit immediately following this checkpoint, then review every subsequent commit.
 
@@ -258,3 +258,28 @@ The initial baseline contained no confirmed red results. The later preferences-r
 | 2026-11-02 | Incremental review through `2c42b3c744c81a490965e5b73433506d234ebf04` | Reviewed five commits: DND focus-session tests had two rounds of stale source assertions, resolved in `2c42b3c7`; final CI passed 424/424 JavaScript tests and 20/20 Python tests. #214 acceptance criteria were checked and the issue was closed. |
 
 | 2026-11-07 | Incremental review through `2e82ddba2107a785774d98b2420f183340245fde` | Reviewed 29 commits since the prior checkpoint. Quick Launch, notification-action, and final workspace-filter CI runs passed; three intermediate workspace UI-test runs were red on stale source assertions and are documented with their final green rerun. GNOME runtime validation remains open. |
+
+
+## Incremental review: 2026-11-07 — clipboard history implementation
+
+Reviewed every commit after the previous checkpoint through `cd0b60e45e7f2c436b64e5c5454eda8bff802977`. Each commit has an associated completed successful `python-regressions` GitHub Actions run. No red or pending checks remain in this reviewed range. GNOME Shell runtime validation is not represented by CI and remains open under #254.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `d4904ae0` | `test(workspaces): verify filtered accessible names (Refs #219)` | green | 2026-11-07 | Actions run [42336962553](https://github.com/SakibShahariar/material-panel/actions/runs/42336962553) completed successfully. |
+| `03bf0179` | `feat(clipboard): add bounded history state helpers (Refs #254)` | green | 2026-11-07 | Actions run [42372053871](https://github.com/SakibShahariar/material-panel/actions/runs/42372053871) completed successfully. |
+| `a34514c8` | `feat(clipboard): add opt-in capture lifecycle (Refs #254)` | green | 2026-11-07 | Actions run [42372084590](https://github.com/SakibShahariar/material-panel/actions/runs/42372084590) completed successfully. |
+| `929d08fa` | `feat(clipboard): add private local history store (Refs #254)` | green | 2026-11-07 | Actions run [42372141084](https://github.com/SakibShahariar/material-panel/actions/runs/42372141084) completed successfully. |
+| `2cf4c462` | `feat(clipboard): add history popup and preferences page (Refs #254)` | green | 2026-11-07 | Actions run [42372283109](https://github.com/SakibShahariar/material-panel/actions/runs/42372283109) completed successfully. |
+| `ee2f4aa0` | `feat(clipboard): wire opt-in history into panel (Refs #254)` | green | 2026-11-07 | Actions run [42372332716](https://github.com/SakibShahariar/material-panel/actions/runs/42372332716) completed successfully. |
+| `52b2db30` | `feat(clipboard): make retention limits configurable (Refs #254)` | green | 2026-11-07 | Actions run [42372425920](https://github.com/SakibShahariar/material-panel/actions/runs/42372425920) completed successfully. |
+| `00f56909` | `feat(clipboard): expose bounded retention preferences (Refs #254)` | green | 2026-11-07 | Actions run [42372507007](https://github.com/SakibShahariar/material-panel/actions/runs/42372507007) completed successfully. |
+| `717e61cb` | `fix(clipboard): enforce configured history age limits (Refs #254)` | green | 2026-11-07 | Actions run [42372556803](https://github.com/SakibShahariar/material-panel/actions/runs/42372556803) completed successfully. |
+| `63dd361a` | `fix(clipboard): harden capture feedback and self-copy guard (Refs #254)` | green | 2026-11-07 | Actions run [42372604145](https://github.com/SakibShahariar/material-panel/actions/runs/42372604145) completed successfully. |
+| `28e15a6c` | `fix(clipboard): serialize retention and capture lifecycle updates (Refs #254)` | green | 2026-11-07 | Actions run [42372685071](https://github.com/SakibShahariar/material-panel/actions/runs/42372685071) completed successfully. |
+| `cef219f8` | `feat(clipboard): clarify active panel indicator (Refs #254)` | green | 2026-11-07 | Actions run [42372725619](https://github.com/SakibShahariar/material-panel/actions/runs/42372725619) completed successfully. |
+| `4a049dcc` | `test(clipboard): cover opt-in and pause lifecycle races (Refs #254)` | green | 2026-11-07 | Actions run [42372758416](https://github.com/SakibShahariar/material-panel/actions/runs/42372758416) completed successfully. |
+| `e340906b` | `test(clipboard): cover storage failure handling (Refs #254)` | green | 2026-11-07 | Actions run [42372786671](https://github.com/SakibShahariar/material-panel/actions/runs/42372786671) completed successfully. |
+| `cd0b60e4` | `test(clipboard): verify history files ship in extension zip (Refs #254)` | green | 2026-11-07 | Actions run [42372815244](https://github.com/SakibShahariar/material-panel/actions/runs/42372815244) completed successfully. |
+
+**Unresolved validation:** #254 remains open until the feature is exercised in real GNOME Shell 49, 50, and 51 sessions. CI success does not establish compositor/clipboard runtime compatibility.
