@@ -3,6 +3,7 @@ import {setChipA11y} from '../lib/a11y.js';
  * Connected headphones chip + focused popup (not full BT device browser).
  */
 import St from 'gi://St';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -108,7 +109,12 @@ export function buildBtConnected(_extensionPath, scale = 1.0) {
         text: 'Headphones',
         style_class: 'material-panel-headphones-title',
     });
-    body.add_child(title);
+    const {actor: popupHeader} = createPopupHeader({
+        titleActor: title,
+        styleClass: 'material-panel-headphones-popup-header',
+        style: 'spacing: 8px; padding: 4px 2px;',
+    });
+    body.add_child(popupHeader);
 
     const listBox = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
