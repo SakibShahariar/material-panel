@@ -37,11 +37,12 @@ function launchEntry(entry) {
                 argv,
                 Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
             let timedOut = false;
-            const timeoutId = GLib.timeout_add_seconds(
+            let timeoutId = GLib.timeout_add_seconds(
                 GLib.PRIORITY_DEFAULT,
                 QUICK_LAUNCH_TIMEOUT_SECONDS,
                 () => {
                     timedOut = true;
+                    timeoutId = 0;
                     process.force_exit();
                     return GLib.SOURCE_REMOVE;
                 });
