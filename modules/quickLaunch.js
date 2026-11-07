@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getQuickLaunchEntries} from '../lib/quickLaunchState.js';
+import {QUICK_LAUNCH_TIMEOUT_SECONDS} from '../lib/quickLaunch.js';
 import {launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
 
 function commandArgv(command) {
@@ -29,9 +30,39 @@ function launchEntry(entry) {
     launchQuickLaunchEntry(entry, {
         getDesktopAppInfo: id => Gio.DesktopAppInfo.new(id),
         parseCommand: command => commandArgv(command),
-        // Parsed argv is passed straight to GLib; no shell is created.
-        spawnCommand: argv => GLib.spawn_async(
-            null, argv, null, GLib.SpawnFlags.SEARCH_PATH, null),
+        // Parsed argv is passed directly to GSubprocess; no shell is created.
+        // Commands are bounded so a hung action cannot run indefinitely.
+        spawnCommand: argv => {
+            const process = Gio.Subprocess.new(
+                argv,
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+            let timedOut = false;
+            const timeoutId = GLib.timeout_add_seconds(
+                GLib.PRIORITY_DEFAULT,
+                QUICK_LAUNCH_TIMEOUT_SECONDS,
+                () => {
+                    timedOut = true;
+                    process.force_exit();
+                    return GLib.SOURCE_REMOVE;
+                });
+            process.wait_async(null, (subprocess, result) => {
+                if (timeoutId)
+                    GLib.source_remove(timeoutId);
+                try {
+                    subprocess.wait_finish(result);
+                    if (timedOut) {
+                        notifyLaunchFailure(entry, new Error(
+                            `Command exceeded the ${QUICK_LAUNCH_TIMEOUT_SECONDS}-second time limit.`));
+                    } else if (subprocess.get_successful()) {
+                        Main.notify('Quick launch completed', entry.name);
+                    } else {
+                        notifyLaunchFailure(entry, new Error('Command exited unsuccessfully.'));
+                    }
+                } catch (error) {
+                    notifyLaunchFailure(entry, error);
+                }
+            });
+        },
         onError: (failedEntry, error) => notifyLaunchFailure(failedEntry, error),
     });
 }
