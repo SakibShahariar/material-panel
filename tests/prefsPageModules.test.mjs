@@ -101,6 +101,11 @@ test('Preferences exposes an ordered, validated list of optional world clocks', 
         read('prefs.js'), read('lib/worldClock.js'),
     ]);
     assert.match(entry, /title: 'World Clock'/);
+    assert.match(entry, /parseWorldClockZoneTab\(new TextDecoder\(\)\.decode\(bytes\)\)/);
+    assert.match(entry, /enable_search: true/);
+    assert.match(entry, /title: 'Find a city'/);
+    assert.match(entry, /worldClockAddButton\.connect\('clicked'/);
+    assert.match(entry, /Search by city or time-zone name/);
     assert.match(entry, /Cities and time zones \(up to 12\)/);
     assert.match(entry, /formatWorldClockEntries\(config\.worldClocks\)/);
     assert.match(entry, /parseWorldClockEntries\(worldClockRow\.get_text\(\)\)/);
