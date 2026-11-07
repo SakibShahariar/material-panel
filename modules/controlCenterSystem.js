@@ -368,6 +368,7 @@ export function buildControlCenterSystem() {
         setControlCenterMetrics({
             cpu: cpuSample.value, memory: mem?.usedPct ?? null, temperature: temp,
             sampledAt: GLib.get_monotonic_time(),
+            sampledAtLabel: GLib.DateTime.new_now_local().format('%H:%M'),
         });
 
         const network = getNetworkMetrics();

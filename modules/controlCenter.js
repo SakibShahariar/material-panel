@@ -417,7 +417,9 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             systemSummaryCard.accessible_name = 'System overview; open detailed System view';
             systemSummaryCard.set_tooltip_text('Open detailed System view');
             systemSummaryCard.connect('clicked', () => renderSection('system'));
-            const sampleAge = sampledAt => {
+            const sampleAge = (sampledAt, sampledAtLabel) => {
+                if (sampledAtLabel)
+                    return `at ${sampledAtLabel}`;
                 if (!(sampledAt > 0))
                     return 'sample time unavailable';
                 const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
@@ -433,8 +435,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 cpuMetric.update(system?.cpu);
                 memoryMetric.update(system?.memory);
                 diskMetric.update(disk?.pct);
-                const systemAge = system ? sampleAge(system.sampledAt) : null;
-                const diskAge = disk ? sampleAge(disk.sampledAt) : null;
+                const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
+                const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
                 if (!system) {
                     systemSummaryMeta.text = disk
                         ? `Open System for CPU, memory and temperature · Disk ${diskAge}`

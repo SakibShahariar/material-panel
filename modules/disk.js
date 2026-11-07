@@ -134,7 +134,9 @@ export function buildDisk(_extensionPath, scale = 1.0) {
         else
             homeL.text = 'Home  —';
         setControlCenterDiskSummary(root ? {
-            pct: root.pct, used: root.used, size: root.size, sampledAt: GLib.get_monotonic_time(),
+            pct: root.pct, used: root.used, size: root.size,
+            sampledAt: GLib.get_monotonic_time(),
+            sampledAtLabel: GLib.DateTime.new_now_local().format('%H:%M'),
         } : null);
     };
 

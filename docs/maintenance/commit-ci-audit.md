@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `8828979a74521358efbd562edf627da021977792`
+- Checkpoint SHA: `daf166336358234c5d96986abd59f0a46fdbfe3d`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -423,3 +423,15 @@ The Home System overview change had one red CI result because the earlier respon
 | `8828979a74521358efbd562edf627da021977792` | `test(control-center): cover Home system summary grid placement (Refs #121)` | green | 2026-11-07 | Workflow [42391434846](https://github.com/SakibShahariar/material-panel/actions/runs/42391434846) completed successfully with the updated two-column placement assertions. |
 
 **Unresolved validation:** System summary sample freshness, usage bars, and the System shortcut still require live GNOME interaction/visual checks. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (Home System overview follow-up)
+
+The Home System summary implementation commit had one red CI result due to an existing source assertion still expecting the previous Home empty-state wording. The implementation and syntax checks were successful; the test was updated to assert the current copy. The original failure and successful correction are recorded below.
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `1bc76a41e9842fed03c5b7f10e7898a515936321` | `feat(control-center): add Home metric bars and System shortcut (Refs #121, #123)` | red | 2026-11-07 | Workflow [42391552549](https://github.com/SakibShahariar/material-panel/actions/runs/42391552549), job [128460020452](https://github.com/SakibShahariar/material-panel/actions/runs/42391552549). One source assertion expected the previous empty-state sentence; 519 other tests passed and JavaScript syntax checks passed. |
+| `daf166336358234c5d96986abd59f0a46fdbfe3d` | `test(control-center): align Home summary empty-state assertion (Refs #121)` | green | 2026-11-07 | Workflow [42391607071](https://github.com/SakibShahariar/material-panel/actions/runs/42391607071) completed successfully after updating the expected text. |
+
+**Unresolved validation:** The Home System shortcut, metric bars, and timestamp display still require live GNOME interaction/visual checks. #121 remains open.

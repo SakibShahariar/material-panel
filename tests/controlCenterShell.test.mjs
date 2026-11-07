@@ -216,3 +216,15 @@ test('Home system summary uses bounded usage bars and opens the detailed System 
     assert.match(module, /fill\.set_width\(valid \? Math\.round\(Math\.max\(0, Math\.min\(100, number\)\)\) : 0\)/);
     assert.match(module, /const diskAge = disk \? sampleAge\(disk\.sampledAt\)/);
 });
+
+test('Home System overview uses fixed sample-time labels so last-known values do not look live', async () => {
+    const [controlCenter, system, disk] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/controlCenterSystem.js'),
+        source('../modules/disk.js'),
+    ]);
+    assert.match(controlCenter, /sampleAge\(system\.sampledAt, system\.sampledAtLabel\)/);
+    assert.match(controlCenter, /sampleAge\(disk\.sampledAt, disk\.sampledAtLabel\)/);
+    assert.match(system, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
+    assert.match(disk, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
+});
