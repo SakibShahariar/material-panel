@@ -55,7 +55,7 @@ test('module preferences expose independent active-only controls for supported s
 
 
 test('Modules Preferences exposes opt-in fullscreen and Overview rules independently of Focus Mode', async () => {
-    const source = await read('../prefs/modulesPage.js');
+    const source = await read('prefs/modulesPage.js');
     assert.match(source, /title: 'Context-aware Visibility'/);
     assert.match(source, /hideWhenFullscreen/);
     assert.match(source, /hideInOverview/);
@@ -66,7 +66,7 @@ test('Modules Preferences exposes opt-in fullscreen and Overview rules independe
 });
 
 test('PanelBuilder merges context rules with manual visibility and Focus Mode', async () => {
-    const source = await read('../lib/panelBuilder.js');
+    const source = await read('lib/panelBuilder.js');
     assert.match(source, /getContextHiddenModules\(config\.moduleVisibilityRules/);
     assert.match(source, /fullscreen: focusedWindowFullscreen/);
     assert.match(source, /overview: overviewVisible/);
@@ -74,10 +74,10 @@ test('PanelBuilder merges context rules with manual visibility and Focus Mode', 
 });
 
 test('context visibility watches Overview, focus changes and fullscreen changes with teardown', async () => {
-    const source = await read('../extension.js');
+    const source = await read('extension.js');
     assert.match(source, /Main\.overview\.connect\(signal, refresh\)/);
     assert.match(source, /global\.display\.connect\('notify::focus-window'/);
     assert.match(source, /window\.connect\('notify::fullscreen', refresh\)/);
     assert.match(source, /_unwatchContextVisibility\(\)/);
-    assert.match(source, /this\._unwatchContextVisibility\(\);[\s\S]*?disable\(\)/);
+    assert.match(source, /disable\(\)\s*\{[\s\S]*?this\._unwatchContextVisibility\(\);/);
 });
