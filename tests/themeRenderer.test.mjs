@@ -45,7 +45,15 @@ test('dimension renderer keeps legacy gap migration behavior', () => {
 
 test('generated theme emits the shared caption, body, and title typography sizes', () => {
     const css = renderThemeCss({});
-    assert.match(css, /\.material-panel-type-caption,[\\s\\S]*?font-size: 10\.5px;/);
-    assert.match(css, /\.material-panel-type-body,[\\s\\S]*?font-size: 12px;/);
-    assert.match(css, /\.material-panel-type-title,[\\s\\S]*?font-size: 14px;/);
+    const assertRoleSize = (selector, size) => {
+        const start = css.indexOf(selector);
+        assert.notEqual(start, -1, `generated CSS includes ${selector}`);
+        const end = css.indexOf('}', start);
+        assert.notEqual(end, -1, `generated CSS closes ${selector} rule`);
+        assert.ok(css.slice(start, end).includes(`font-size: ${size}px;`),
+            `${selector} uses ${size}px`);
+    };
+    assertRoleSize('.material-panel-type-caption,', 10.5);
+    assertRoleSize('.material-panel-type-body,', 12);
+    assertRoleSize('.material-panel-type-title,', 14);
 });

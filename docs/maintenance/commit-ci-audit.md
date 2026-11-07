@@ -943,3 +943,9 @@ The four red results are retained as history; the failures were test/refactor sy
 
 **Next checkpoint:** pending the behavior-test commit's CI result.  
 **Reviewed range ends at:** `d28a101b7750c6c6498d8855a4c21c15dd4ef31b`.
+
+
+### Follow-up test assertion correction
+
+- `cf9e2a8c9280d0f04b5b48d83969ae839f0b713b` — added behavior-level generated typography assertions, but CI [run #42427336415](https://github.com/SakibShahariar/material-panel/actions/runs/42427336415) failed one new test because its regular-expression character-class escaping was incorrect. Syntax passed; 638/639 JavaScript tests passed. This was a test assertion issue, not a renderer regression.
+- The follow-up replaces the fragile cross-line regular expressions with direct inspection of each generated CSS rule block. Its CI result is pending.
