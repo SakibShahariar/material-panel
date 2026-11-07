@@ -44,9 +44,9 @@ test('parses and formats two or more named locations', () => {
 
 test('sanitizes control and bidirectional formatting characters in location labels', () => {
     const locations = normalizeWeatherLocations([
-        {name: '  Dhaka\\n\\tCentral  ', latitude: 23.8, longitude: 90.4},
-        {name: 'London\\u202Etxt', latitude: 51.5, longitude: -0.1},
-        {name: '\\u0000\\u200F', latitude: 1, longitude: 2},
+        {name: '  Dhaka\n\tCentral  ', latitude: 23.8, longitude: 90.4},
+        {name: 'London\u202Etxt', latitude: 51.5, longitude: -0.1},
+        {name: '\u0000\u200F', latitude: 1, longitude: 2},
     ]);
     assert.equal(locations[0].name, 'Dhaka Central');
     assert.equal(locations[1].name, 'London txt');
@@ -55,7 +55,7 @@ test('sanitizes control and bidirectional formatting characters in location labe
 
 test('sanitizes imported location labels before persistence formatting', () => {
     const parsed = parseWeatherLocations(
-        'Dhaka\\nNorth|23.8|90.4; London\\u202Ewest|51.5|-0.1');
+        'Dhaka\nNorth|23.8|90.4; London\u202Ewest|51.5|-0.1');
     assert.deepEqual(parsed.map(location => location.name), ['Dhaka North', 'London west']);
     assert.equal(formatWeatherLocations(parsed),
         'Dhaka North|23.8|90.4; London west|51.5|-0.1');
