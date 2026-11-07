@@ -69,7 +69,7 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
 
     const commandHint = new Adw.ActionRow({
         title: 'Command safety',
-        subtitle: 'Commands run directly without a shell. Pipes, redirects, substitutions, and shell expansion are not supported.',
+        subtitle: 'Commands run directly without a shell and are stopped after 30 seconds. Pipes, redirects, substitutions, and shell expansion are not supported.',
     });
     description.add(commandHint);
 
