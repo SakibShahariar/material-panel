@@ -29,14 +29,26 @@ export function buildClipboardHistory() {
         reactive: true,
         can_focus: true,
         track_hover: true,
-        child: new St.Icon({
-            icon_name: 'edit-paste-symbolic',
-            icon_size: 18,
+        child: new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
             y_align: Clutter.ActorAlign.CENTER,
+            style: 'spacing: 5px;',
         }),
     });
-    setChipA11y(button, 'Clipboard history');
-    button.set_tooltip_text('Clipboard history');
+    const chipContent = button.get_child();
+    chipContent.add_child(new St.Icon({
+        icon_name: 'edit-paste-symbolic',
+        icon_size: 18,
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+    chipContent.add_child(new St.Label({
+        text: controller.paused ? 'Clipboard · Paused' : 'Clipboard · On',
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+    setChipA11y(button, controller.paused ? 'Clipboard history, paused' : 'Clipboard history, recording');
+    button.set_tooltip_text(controller.paused
+        ? 'Clipboard history is paused'
+        : 'Clipboard history is recording');
 
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup material-panel-clipboard-history-popup');

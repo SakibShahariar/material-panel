@@ -95,7 +95,7 @@ export default class MaterialPanelExtension extends Extension {
             const clearToken = newConfig.clipboardHistoryClearToken ?? '';
             if (clearToken !== this._clipboardHistoryClearToken) {
                 this._clipboardHistoryClearToken = clearToken;
-                const clearOperation = this._clipboardHistoryController
+                const clearOperation = this._clipboardHistoryController?.enabled
                     ? this._clipboardHistoryController.clear()
                     : new ClipboardHistoryFileStore().clear();
                 clearOperation.catch(() => {
