@@ -87,6 +87,10 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /window\.connect\('notify::fullscreen', refresh\)/);
     assert.match(source, /org\.gnome\.desktop\.notifications/);
     assert.match(source, /changed::show-banners/);
+    assert.match(source, /Gio\.NetworkMonitor\.get_default\(\)/);
+    assert.match(source, /monitor\.connect\('network-changed', syncNetwork\)/);
+    assert.match(source, /setNetworkOffline\(!monitor\.network_available\)/);
+    assert.match(source, /setNetworkOffline\(false\)/);
     assert.match(source, /setDoNotDisturbActive\(active\)/);
     assert.match(source, /_unwatchContextVisibility\(\)/);
     assert.match(source, /disable\(\)\s*\{[\s\S]*?this\._unwatchContextVisibility\(\);/);
