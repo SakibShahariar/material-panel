@@ -12,6 +12,13 @@ import {setChipA11y} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
+import {
+    loadCalendarDocumentAsync,
+    watchCalendarDocument,
+    nextEvent,
+    formatCountdown,
+    formatEventTimeRange,
+} from '../lib/calendarEvents.js';
 
 const SECTIONS = [
     {id: 'home', title: 'Home', description: 'Your panel controls and at-a-glance overview.'},
@@ -291,7 +298,57 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
             weatherCard.connect('destroy', stopWeatherWatch);
 
-            homeCards.push(mediaCard, actionsCard, weatherCard);
+            const calendarCard = new St.BoxLayout({
+                style_class: 'material-panel-control-center-card',
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+            });
+            calendarCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+            const calendarTitle = new St.Label({text: 'Calendar'});
+            calendarTitle.style = 'font-size: 14px; font-weight: 650;';
+            const calendarEvent = new St.Label({text: 'Calendar not synced'});
+            calendarEvent.style = 'font-size: 13px; font-weight: 600;';
+            calendarEvent.clutter_text.line_wrap = true;
+            const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
+            calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
+            calendarMeta.clutter_text.line_wrap = true;
+            calendarCard.add_child(calendarTitle);
+            calendarCard.add_child(calendarEvent);
+            calendarCard.add_child(calendarMeta);
+
+            let calendarCardDestroyed = false;
+            const renderCalendarSummary = document => {
+                if (calendarCardDestroyed)
+                    return;
+                if (!document) {
+                    calendarEvent.text = 'Calendar not synced';
+                    calendarMeta.text = 'Sync a calendar to see upcoming events';
+                    return;
+                }
+                const events = Array.isArray(document.events) ? document.events : [];
+                const upcoming = nextEvent(events);
+                if (upcoming) {
+                    calendarEvent.text = String(upcoming.title || 'Upcoming event');
+                    calendarMeta.text = [formatEventTimeRange(upcoming), formatCountdown(upcoming)]
+                        .filter(Boolean).join(' · ');
+                } else if (events.length > 0) {
+                    calendarEvent.text = 'No upcoming timed events';
+                    calendarMeta.text = 'Your synced calendar has no future timed event';
+                } else {
+                    calendarEvent.text = 'No upcoming events';
+                    calendarMeta.text = 'Your synced calendar is currently empty';
+                }
+            };
+            const stopCalendarWatch = watchCalendarDocument(() => {
+                loadCalendarDocumentAsync(renderCalendarSummary);
+            });
+            loadCalendarDocumentAsync(renderCalendarSummary);
+            calendarCard.connect('destroy', () => {
+                calendarCardDestroyed = true;
+                stopCalendarWatch();
+            });
+
+            homeCards.push(mediaCard, actionsCard, weatherCard, calendarCard);
         }
 
         page.add_child(heading);

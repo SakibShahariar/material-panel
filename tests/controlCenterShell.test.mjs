@@ -164,3 +164,18 @@ test('Control Center Home observes the shared Weather snapshot without polling i
     assert.match(weather, /clearWeatherSummary\(\)/);
     assert.doesNotMatch(controlCenter, /fetchOpenMeteo|httpGet/);
 });
+
+test('Control Center Home uses the shared asynchronous calendar cache and releases its watcher', async () => {
+    const [controlCenter, calendar] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../lib/calendarEvents.js'),
+    ]);
+    assert.match(controlCenter, /loadCalendarDocumentAsync\(renderCalendarSummary\)/);
+    assert.match(controlCenter, /watchCalendarDocument\(\(\) =>/);
+    assert.match(controlCenter, /stopCalendarWatch\(\)/);
+    assert.match(controlCenter, /No upcoming timed events/);
+    assert.match(controlCenter, /Calendar not synced/);
+    assert.match(calendar, /export function loadCalendarDocumentAsync\(callback\)/);
+    assert.match(calendar, /export function watchCalendarDocument\(callback\)/);
+    assert.doesNotMatch(controlCenter, /loadCalendarDocument\(\)/);
+});
