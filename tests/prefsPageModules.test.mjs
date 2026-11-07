@@ -65,6 +65,8 @@ test('Modules Preferences exposes opt-in fullscreen and Overview rules independe
     assert.match(source, /GNOME Overview is open/);
     assert.match(source, /delete config\.moduleVisibilityRules\[module\.id\]/);
     assert.match(source, /Focus Mode selection is independent/);
+    // Turning off Overview must retain an independently enabled DND rule.
+    assert.match(source, /!rule\.hideWhenFullscreen && !rule\.hideInOverview && !rule\.hideWhenDnd/);
 });
 
 test('PanelBuilder merges context rules with manual visibility and Focus Mode', async () => {
