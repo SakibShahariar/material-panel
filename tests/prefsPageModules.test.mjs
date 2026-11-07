@@ -59,6 +59,8 @@ test('Modules Preferences exposes opt-in fullscreen and Overview rules independe
     assert.match(source, /title: 'Context-aware Visibility'/);
     assert.match(source, /hideWhenFullscreen/);
     assert.match(source, /hideInOverview/);
+    assert.match(source, /hideWhenDnd/);
+    assert.match(source, /Hide during Do Not Disturb/);
     assert.match(source, /focused window is fullscreen/);
     assert.match(source, /GNOME Overview is open/);
     assert.match(source, /delete config\.moduleVisibilityRules\[module\.id\]/);
