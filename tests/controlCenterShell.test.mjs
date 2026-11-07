@@ -90,4 +90,12 @@ test('Control Center Media section uses a detailed MPRIS card with section-scope
     assert.match(rowBuilder, /if \(destroyed\)/);
     assert.match(rowBuilder, /c\?\.destroy\(\)/);
     assert.match(rowBuilder, /formatMediaTime\(currentPositionUs\)/);
+    assert.match(rowBuilder, /albumLabel/);
+    assert.match(rowBuilder, /updatePlayerChoices\(name, players\)/);
+    assert.match(rowBuilder, /playerButton\.visible = players\.length > 1/);
+    assert.match(rowBuilder, /selectPreferredPlayer\?\.\(name\)/);
+    assert.match(rowBuilder, /generation !== playerGeneration/);
+    assert.match(rowBuilder, /isMediaVisualizerEnabled\(\)/);
+    assert.match(rowBuilder, /prefersReducedMotion\(\)/);
+    assert.match(rowBuilder, /notify::mapped/);
 });

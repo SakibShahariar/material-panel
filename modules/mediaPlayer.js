@@ -139,7 +139,8 @@ function bindPlayer(busName, hooks) {
                     const trackId = metaField(meta, 'mpris:trackid');
                     let lengthUs = 0;
                     try { lengthUs = Number(meta['mpris:length']?.deep_unpack?.()) || 0; } catch (e) {}
-                    hooks.onMeta?.({title, artist, artUrl, trackId, lengthUs, busName: name});
+                    const album = metaField(meta, 'xesam:album');
+                    hooks.onMeta?.({title, artist, album, artUrl, trackId, lengthUs, busName: name});
                 } catch (e) {}
             };
             const applyStatus = variant => {
@@ -410,8 +411,21 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
         artistLabel.clutter_text.max_width_chars = detailed ? 48 : 28;
         artistLabel.style = detailed ? 'font-size: 12px; max-width: 300px;' : 'max-width: 180px;';
     } catch (e) {}
+    const albumLabel = detailed ? new St.Label({text: '', x_expand: true}) : null;
+    const playbackLabel = detailed ? new St.Label({text: 'Connecting…'}) : null;
+    if (albumLabel) {
+        albumLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        albumLabel.style = 'font-size: 11px; opacity: 0.72; max-width: 300px;';
+        albumLabel.visible = false;
+    }
+    if (playbackLabel)
+        playbackLabel.style = 'font-size: 10px; opacity: 0.7;';
     textCol.add_child(titleLabel);
     textCol.add_child(artistLabel);
+    if (albumLabel)
+        textCol.add_child(albumLabel);
+    if (playbackLabel)
+        textCol.add_child(playbackLabel);
 
     let durationUs = 0;
     let currentPositionUs = 0;
@@ -473,13 +487,146 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     controls.add_child(playBtn);
     controls.add_child(nextBtn);
 
+    const visualizerEnabled = detailed && isMediaVisualizerEnabled();
+    const visualizer = visualizerEnabled
+        ? new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, y_align: Clutter.ActorAlign.CENTER})
+        : null;
+    const visualizerBars = [];
+    if (visualizer) {
+        visualizer.style = 'spacing: 2px; width: 22px; height: 16px;';
+        for (const height of [5, 9, 6, 12, 7]) {
+            const bar = new St.Widget({width: 3, height});
+            bar.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 2px;';
+            visualizer.add_child(bar);
+            visualizerBars.push(bar);
+        }
+        visualizer.visible = false;
+    }
+
+    const playerButton = detailed ? new St.Button({
+        style_class: 'material-panel-qs-media-btn',
+        reactive: true,
+        track_hover: true,
+        can_focus: true,
+        child: new St.Label({text: 'Player'}),
+    }) : null;
+    if (playerButton) {
+        playerButton.visible = false;
+        playerButton.child.style = 'font-size: 10px;';
+        setChipA11y(playerButton, 'Choose media player');
+    }
+    const playerMenu = playerButton ? new PopupMenu.PopupMenu(playerButton, 0.5, St.Side.TOP) : null;
+    if (playerMenu) {
+        Main.uiGroup.add_child(playerMenu.actor);
+        playerMenu.actor.hide();
+        attachPopupDismiss(playerMenu, playerButton);
+    }
+    let playerChoices = [];
+    let playerNamesSignature = '';
+    let selectPreferredPlayer = null;
+    const playerDisplayName = name => String(name || '')
+        .replace(MPRIS_PREFIX, '')
+        .replace(/[-_]/g, ' ');
+    const updatePlayerChoices = (selectedName, players = []) => {
+        if (!playerMenu || !playerButton)
+            return;
+        const signature = players.join('|');
+        if (signature !== playerNamesSignature) {
+            for (const choice of playerChoices) {
+                try { playerMenu.removeMenuItem(choice.item); } catch (e) {}
+            }
+            playerChoices = [];
+            playerNamesSignature = signature;
+            for (const name of players) {
+                const choice = new PopupMenu.PopupMenuItem(playerDisplayName(name));
+                choice.connect('activate', () => {
+                    selectPreferredPlayer?.(name);
+                    menuClose(playerMenu);
+                });
+                playerMenu.addMenuItem(choice);
+                playerChoices.push({name, item: choice});
+            }
+        }
+        playerButton.visible = players.length > 1;
+        playerButton.child.text = players.length > 1
+            ? playerDisplayName(selectedName)
+            : 'Player';
+        setChipA11y(playerButton, players.length > 1
+            ? 'Choose media player, current ' + playerDisplayName(selectedName)
+            : 'Choose media player');
+        for (const choice of playerChoices) {
+            try {
+                choice.item.setOrnament(choice.name === selectedName
+                    ? PopupMenu.Ornament.DOT
+                    : PopupMenu.Ornament.NONE);
+            } catch (e) {}
+        }
+    };
+    if (playerButton) {
+        playerButton.connect('clicked', () => {
+            if (playerMenu.isOpen)
+                menuClose(playerMenu);
+            else
+                menuOpen(playerMenu);
+        });
+    }
+
     row.add_child(artIcon);
     row.add_child(textCol);
+    if (visualizer)
+        row.add_child(visualizer);
+    if (playerButton)
+        row.add_child(playerButton);
     row.add_child(controls);
 
     let ctl = null;
     let attachedBusName = null;
+    let playerGeneration = 0;
     let destroyed = false;
+    let visualizerPlaying = false;
+    let visualizerTimerId = 0;
+    const resetVisualizer = () => {
+        [5, 9, 6, 12, 7].forEach((height, index) => {
+            try { visualizerBars[index].height = height; } catch (e) {}
+        });
+    };
+    const stopVisualizer = () => {
+        if (visualizerTimerId) {
+            try { GLib.source_remove(visualizerTimerId); } catch (e) {}
+            visualizerTimerId = 0;
+        }
+        if (visualizer) {
+            visualizer.visible = false;
+            resetVisualizer();
+        }
+    };
+    const startVisualizer = () => {
+        if (!visualizer || !visualizerPlaying || !row.mapped || prefersReducedMotion())
+            return;
+        visualizer.visible = true;
+        if (visualizerTimerId)
+            return;
+        visualizerTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
+            if (destroyed || !visualizerPlaying || !row.mapped || prefersReducedMotion()) {
+                visualizerTimerId = 0;
+                visualizer.visible = false;
+                resetVisualizer();
+                return GLib.SOURCE_REMOVE;
+            }
+            for (const bar of visualizerBars) {
+                try { bar.height = 4 + Math.floor(Math.random() * 13); } catch (e) {}
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    };
+    if (visualizer) {
+        row.connect('notify::mapped', () => {
+            if (row.mapped)
+                startVisualizer();
+            else
+                stopVisualizer();
+        });
+    }
     const clearCtl = () => {
         try { ctl?.destroy(); } catch (e) {}
         ctl = null;
@@ -487,6 +634,8 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     };
 
     const attach = busName => {
+        const generation = ++playerGeneration;
+        stopPositionPolling();
         clearCtl();
         attachedBusName = busName || null;
         if (!busName) {
@@ -494,6 +643,14 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
             refreshQuickSettingsChrome();
             titleLabel.text = 'No media';
             artistLabel.text = '';
+            if (albumLabel) {
+                albumLabel.text = '';
+                albumLabel.visible = false;
+            }
+            if (playbackLabel)
+                playbackLabel.text = 'No player';
+            visualizerPlaying = false;
+            stopVisualizer();
             setArtFromUrl(artIcon, null, detailed ? 88 : 40);
             durationUs = 0;
             currentPositionUs = 0;
@@ -502,23 +659,42 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
             return;
         }
         row.visible = true;
+        titleLabel.text = 'Connecting…';
+        artistLabel.text = '';
+        if (albumLabel) {
+            albumLabel.text = '';
+            albumLabel.visible = false;
+        }
+        if (playbackLabel)
+            playbackLabel.text = 'Connecting to player';
         bindPlayer(busName, {
-            onMeta: ({title, artist, artUrl, lengthUs}) => {
-                if (destroyed)
+            onMeta: ({title, artist, album, artUrl, lengthUs}) => {
+                if (destroyed || generation !== playerGeneration)
                     return;
                 durationUs = Math.max(0, Number(lengthUs) || 0);
                 updateDetailedProgress(currentPositionUs);
                 row.visible = true;
                 refreshQuickSettingsChrome();
                 titleLabel.text = title || 'Media';
-                artistLabel.text = artist || '';
+                artistLabel.text = artist || 'Unknown artist';
+                if (albumLabel) {
+                    albumLabel.text = album || '';
+                    albumLabel.visible = Boolean(album);
+                }
                 setArtFromUrl(artIcon, artUrl, detailed ? 88 : 40);
             },
             onPosition: updateDetailedProgress,
             onStatus: playing => {
-                if (destroyed)
+                if (destroyed || generation !== playerGeneration)
                     return;
                 row.visible = true;
+                visualizerPlaying = playing === true;
+                if (playbackLabel)
+                    playbackLabel.text = playing ? 'Playing' : 'Paused';
+                if (playing)
+                    startVisualizer();
+                else
+                    stopVisualizer();
                 try {
                     playBtn.child.icon_name = playing
                         ? 'media-playback-pause-symbolic'
@@ -527,7 +703,7 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
                 } catch (e) {}
             },
             onReady: c => {
-                if (destroyed) {
+                if (destroyed || generation !== playerGeneration) {
                     try { c?.destroy(); } catch (e) {}
                     return;
                 }
@@ -547,11 +723,13 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
                 }
             },
             onGone: () => {
-                if (destroyed)
+                if (destroyed || generation !== playerGeneration)
                     return;
                 if (attachedBusName === busName) {
                     clearCtl();
                     stopPositionPolling();
+                    visualizerPlaying = false;
+                    stopVisualizer();
                     row.visible = false;
                 }
             },
@@ -562,14 +740,18 @@ export function buildMediaPlayerRow({detailed = false} = {}) {
     playBtn.connect('clicked', () => ctl?.playPause());
     nextBtn.connect('clicked', () => ctl?.next());
 
-    const stopWatching = watchPreferredPlayer(name => {
+    const stopWatching = watchPreferredPlayer((name, players) => {
+        updatePlayerChoices(name, players);
         if (name !== attachedBusName)
             attach(name);
     });
+    selectPreferredPlayer = stopWatching.select;
     row.connect('destroy', () => {
         destroyed = true;
         stopWatching();
         stopPositionPolling();
+        stopVisualizer();
+        try { menuClose(playerMenu); playerMenu?.destroy(); } catch (e) {}
         clearCtl();
     });
     return row;
