@@ -75,3 +75,14 @@ test('per-zone density changes require rebuilding module geometry', () => {
     const next = {zoneScale: {left: 0.9, center: 1, right: 1.1}};
     assert.equal(classifyConfigChange(previous, next), 'full');
 });
+
+test('world clock and clock presentation changes use the clock watcher without rebuilding', () => {
+    assert.equal(classifyConfigChange(
+        {worldClocks: []},
+        {worldClocks: [{name: 'Dhaka', timeZone: 'Asia/Dhaka'}]},
+    ), 'clock');
+    assert.equal(classifyConfigChange(
+        {clockClickCyclesFormat: false},
+        {clockClickCyclesFormat: true},
+    ), 'clock');
+});
