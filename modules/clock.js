@@ -182,6 +182,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
     let clickCyclesFormat = false;
     let displayMode = 'date-time';
     let worldClocks = [];
+    let refreshWorldClockRows = () => {};
     let configLoadGeneration = 0;
     let destroyed = false;
 
@@ -233,6 +234,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
             const nextUse12h = cfg?.clockFormat === '12h';
             const nextClickCyclesFormat = cfg?.clockClickCyclesFormat === true;
             worldClocks = normalizeWorldClockEntries(cfg?.worldClocks);
+            refreshWorldClockRows();
             if (nextUse12h !== use12h || nextClickCyclesFormat !== clickCyclesFormat) {
                 use12h = nextUse12h;
                 clickCyclesFormat = nextClickCyclesFormat;
@@ -246,6 +248,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
             use12h = cfg?.clockFormat === '12h';
             clickCyclesFormat = cfg?.clockClickCyclesFormat === true;
             worldClocks = normalizeWorldClockEntries(cfg?.worldClocks);
+            refreshWorldClockRows();
             tick();
         }).catch(error => {
             if (!destroyed)
@@ -552,7 +555,7 @@ export function buildClock(_extensionPath, scale = 1.0) {
         ));
     };
 
-    const refreshWorldClockRows = () => {
+    refreshWorldClockRows = () => {
         worldClockRows.destroy_all_children();
         worldClockSection.visible = worldClocks.length > 0;
         for (const entry of worldClocks) {
