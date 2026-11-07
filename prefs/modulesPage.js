@@ -85,6 +85,63 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         createModuleToggle(module);
     }
     
+
+    // Status indicators are informational; their existing modules retain control ownership.
+    const statusPreferencesGroup = new Adw.PreferencesGroup({
+        title: 'System Status Indicators',
+        description: 'Choose which supported states appear in the optional aggregate panel module. Inactive states are hidden by default; these indicators never toggle system settings.',
+    });
+    modulesPage.add(statusPreferencesGroup);
+    if (!config.statusIndicatorPreferences || typeof config.statusIndicatorPreferences !== 'object')
+        config.statusIndicatorPreferences = {
+            dnd: {enabled: true, showInactive: false},
+            nightlight: {enabled: true, showInactive: false},
+        };
+    for (const [id, title] of [['dnd', 'Do Not Disturb'], ['nightlight', 'Night Light']]) {
+        if (!config.statusIndicatorPreferences[id])
+            config.statusIndicatorPreferences[id] = {enabled: true, showInactive: false};
+        const options = config.statusIndicatorPreferences[id];
+        const enabledRow = new Adw.ActionRow({
+            title,
+            subtitle: 'Include this state in System Status Indicators',
+        });
+        const enabledSwitch = new Gtk.Switch({
+            active: options.enabled !== false,
+            valign: Gtk.Align.CENTER,
+        });
+        enabledSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            options.enabled = enabledSwitch.active;
+            saveConfig();
+        });
+        enabledRow.add_suffix(enabledSwitch);
+        enabledRow.activatable_widget = enabledSwitch;
+        statusPreferencesGroup.add(enabledRow);
+
+        const inactiveRow = new Adw.ActionRow({
+            title: `Show ${title} while inactive`,
+            subtitle: 'Display a muted icon even when this state is off',
+        });
+        const inactiveSwitch = new Gtk.Switch({
+            active: options.showInactive === true,
+            valign: Gtk.Align.CENTER,
+            sensitive: options.enabled !== false,
+        });
+        enabledSwitch.connect('notify::active', () => {
+            inactiveSwitch.sensitive = enabledSwitch.active;
+        });
+        inactiveSwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            options.showInactive = inactiveSwitch.active;
+            saveConfig();
+        });
+        inactiveRow.add_suffix(inactiveSwitch);
+        inactiveRow.activatable_widget = inactiveSwitch;
+        statusPreferencesGroup.add(inactiveRow);
+    }
+
     // Focus Mode selection is independent from normal module visibility.
     const focusGroup = new Adw.PreferencesGroup({
         title: 'Focus Mode',

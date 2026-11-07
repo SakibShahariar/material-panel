@@ -68,3 +68,9 @@ test('Control Center Home card visibility defaults on and normalizes independent
     assert.match(source, /weather: homeCards\?\.weather !== false/);
     assert.match(source, /calendar: homeCards\?\.calendar !== false/);
 });
+
+test('status indicator preferences default to active-only and normalize independently', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /statusIndicatorPreferences:/);
+    assert.match(source, /normalizeStatusIndicatorPreferences\(merged\.statusIndicatorPreferences\)/);
+});

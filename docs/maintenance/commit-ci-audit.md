@@ -25,7 +25,7 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `71dfc1d16d7bb88f3c1e16c8ae8759e100003bfc`
+- Checkpoint SHA: `fb07322da00ce602ae086ad1b24c994815028086`
 - Checkpoint date: 2026-11-07
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
@@ -447,3 +447,12 @@ The Home sample-time refinement had one red CI result because a source test stil
 | `71dfc1d16d7bb88f3c1e16c8ae8759e100003bfc` | `test(control-center): cover fixed Home sample-time labels (Refs #121)` | green | 2026-11-07 | Workflow [42391943478](https://github.com/SakibShahariar/material-panel/actions/runs/42391943478) completed successfully after updating the assertion. |
 
 **Unresolved validation:** The Home sample-time labels and optional-card reflow still require live GNOME visual checks. #121 remains open.
+
+
+## Incremental review: 2026-11-07 (Home optional-card visibility)
+
+| Commit (full SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `fb07322da00ce602ae086ad1b24c994815028086` | `feat(control-center): add independent Home card visibility (Refs #121)` | green | 2026-11-07 | Workflow [42392223479](https://github.com/SakibShahariar/material-panel/actions/runs/42392223479) completed successfully. Weather/Calendar visibility preferences, destruction of hidden cards and dynamic Home-grid reflow are covered by regression tests. |
+
+**Unresolved validation:** Weather/Calendar optional-card behavior and responsive reflow still require live GNOME visual checks. #121 remains open.

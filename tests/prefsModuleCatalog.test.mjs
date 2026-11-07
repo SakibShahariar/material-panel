@@ -12,6 +12,13 @@ test('module catalog has unique identifiers and valid default zones', () => {
         assert.ok(ZONE_NAMES.includes(module.zone), `${module.id} has an invalid default zone`);
 });
 
+test('System Status Indicators is a built-in right-zone module', () => {
+    const module = ALL_MODULES.find(entry => entry.id === 'statusIndicators');
+    assert.ok(module);
+    assert.equal(module.zone, 'right');
+    assert.match(module.requirement, /Do Not Disturb and Night Light/);
+});
+
 test('extension role helpers preserve the extension prefix contract', () => {
     assert.equal(extId('example-status-icon'), 'extension:example-status-icon');
     assert.equal(roleFromExt('extension:example-status-icon'), 'example-status-icon');

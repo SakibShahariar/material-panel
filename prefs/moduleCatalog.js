@@ -55,5 +55,6 @@ export const ALL_MODULES = [
     {id: 'quicksettings', name: 'Quick Settings', zone: 'right', requirement: 'GNOME Shell controls and the selected Quick Settings layout'},
     {id: 'clipboardHistory', name: 'Clipboard History', zone: 'right', requirement: 'Explicit opt-in; stores copied plain text locally'},
     {id: 'control-center', name: 'Control Center', zone: 'right', requirement: 'Panel-opened Home, Media and System dashboard'},
+    {id: 'statusIndicators', name: 'System Status Indicators', zone: 'right', requirement: 'GNOME notification and color settings; currently Do Not Disturb and Night Light'},
 ];
 

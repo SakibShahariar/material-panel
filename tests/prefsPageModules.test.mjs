@@ -37,3 +37,18 @@ test('settings migration remains centralized in ConfigStore and normalization he
     assert.match(tests, /migrates legacy gap into top and bottom gaps/);
     assert.match(tests, /legacy Activity chip modes migrate/);
 });
+
+test('module preferences expose independent active-only controls for supported status indicators', async () => {
+    const [modules, catalog, ids, registry, store] = await Promise.all([
+        read('prefs/modulesPage.js'), read('prefs/moduleCatalog.js'),
+        read('lib/moduleIds.js'), read('lib/moduleRegistry.js'), read('lib/configStore.js'),
+    ]);
+    assert.match(modules, /title: 'System Status Indicators'/);
+    assert.match(modules, /Show \$\{title\} while inactive/);
+    assert.match(modules, /options\.enabled = enabledSwitch\.active/);
+    assert.match(modules, /options\.showInactive = inactiveSwitch\.active/);
+    assert.match(catalog, /id: 'statusIndicators'/);
+    assert.match(ids, /'statusIndicators'/);
+    assert.match(registry, /statusIndicators: buildStatusIndicators/);
+    assert.match(store, /statusIndicatorPreferences:/);
+});

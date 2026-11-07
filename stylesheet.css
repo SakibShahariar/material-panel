@@ -44,6 +44,10 @@
     box-shadow: inset 0 0 0 2px rgba(128, 128, 128, 0.85);
 }
 
+.material-panel-status-indicator-icon.inactive {
+    opacity: 0.48;
+}
+
 .material-panel-chip {
     border-radius: 999px;
     transition-duration: 160ms;
