@@ -208,6 +208,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         }
         const systemView = section.id === 'system' ? buildControlCenterSystem() : null;
         const homeCards = [];
+        let homeGrid = null;
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
@@ -349,12 +350,31 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             });
 
             homeCards.push(mediaCard, actionsCard, weatherCard, calendarCard);
+            homeGrid = new St.Widget({
+                style_class: 'material-panel-control-center-home-grid',
+                layout_manager: new Clutter.GridLayout(),
+                x_expand: true,
+            });
+            const homeLayout = homeGrid.layout_manager;
+            homeLayout.column_spacing = compact ? 0 : 10;
+            homeLayout.row_spacing = 10;
+            if (compact) {
+                homeCards.forEach((homeCard, index) =>
+                    homeLayout.attach(homeCard, 0, index, 1, 1));
+            } else {
+                // The media card is the visual anchor; compact secondary cards
+                // share the next row, and the calendar gets the full width.
+                homeLayout.attach(homeCards[0], 0, 0, 2, 1);
+                homeLayout.attach(homeCards[1], 0, 1, 1, 1);
+                homeLayout.attach(homeCards[2], 1, 1, 1, 1);
+                homeLayout.attach(homeCards[3], 0, 2, 2, 1);
+            }
         }
 
         page.add_child(heading);
         page.add_child(description);
         if (section.id === 'home') {
-            homeCards.forEach(homeCard => page.add_child(homeCard));
+            page.add_child(homeGrid);
         } else if (systemView) {
             page.add_child(systemView);
         } else {

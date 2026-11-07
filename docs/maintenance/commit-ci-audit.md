@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `75a8e01fba3ebb34a1ce7a19427d23762c092747`
+- Checkpoint SHA: `aebbb2617d38aeed5e407153066fa64738d2aeee`
 - Checkpoint date: 2026-11-07
-- Next session: start with the substantive System metric-helper/test commit immediately following this checkpoint, then review every subsequent commit.
+- Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
 ## Initial audit baseline
 
@@ -384,3 +384,18 @@ The following commits were reviewed individually against their associated GitHub
 | `f24a1aa8` | `test(media): align player watcher assertions (Refs #122)` | green | 2026-11-07 | Workflow [42389193405](https://github.com/SakibShahariar/material-panel/actions/runs/42389193405) passed, including syntax, JavaScript regressions and calendar regressions. |
 | `e545d0d0` | `feat(control-center): add System health overview (Refs #123)` | red | 2026-11-07 | Workflow [42389385033](https://github.com/SakibShahariar/material-panel/actions/runs/42389385033) failed one new source assertion: the test expected a const arrow function while the implementation used a function declaration. Corrected in `75a8e01f`; rerun passed. |
 | `75a8e01f` | `fix(control-center): harden System monitoring lifecycle (Refs #123)` | green | 2026-11-07 | Workflow [42389437714](https://github.com/SakibShahariar/material-panel/actions/runs/42389437714) passed, including syntax, JavaScript regressions and calendar regressions. |
+
+
+## Incremental review: 2026-11-07 (Control Center Home continuation)
+
+The following commits after the previous checkpoint were individually checked against their GitHub Actions runs. Every run completed successfully; no pending or red results remain in this reviewed range.
+
+| Commit (short SHA) | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `8fffbe3f` | `test(control-center): cover System metric formatting (Refs #123)` | green | 2026-11-07 | Workflow [42389528517](https://github.com/SakibShahariar/material-panel/actions/runs/42389528517) completed successfully. |
+| `6e574ab1` | `feat(control-center): add Home media progress summary (Refs #121)` | green | 2026-11-07 | Workflow [42389675096](https://github.com/SakibShahariar/material-panel/actions/runs/42389675096) completed successfully. |
+| `1c3c1811` | `fix(weather): restore shared forecast cache (Refs #228)` | green | 2026-11-07 | Workflow [42390613804](https://github.com/SakibShahariar/material-panel/actions/runs/42390613804) completed successfully. Restored the bounded cache module and its regression tests after a later commit had deleted them while retaining imports/call sites. |
+| `4ce603cf` | `feat(control-center): share live Weather summary on Home (Refs #121)` | green | 2026-11-07 | Workflow [42390746385](https://github.com/SakibShahariar/material-panel/actions/runs/42390746385) completed successfully. |
+| `aebbb261` | `feat(control-center): add shared calendar summary to Home (Refs #121)` | green | 2026-11-07 | Workflow [42390867762](https://github.com/SakibShahariar/material-panel/actions/runs/42390867762) completed successfully. |
+
+**Unresolved validation:** Home cards, weather refresh behavior, calendar event rendering and responsive layout still require live GNOME visual/interaction checks. #121 remains open.
