@@ -1031,3 +1031,12 @@ The intermediate red runs are retained as history; each failure was resolved by 
 
 **Checkpoint SHA:** `2a87677354e91d188b546710df051fd98d929e1d`  
 **Checkpoint date:** 2026-11-08
+
+
+## Audit ledger verification — 2026-11-08
+
+- Commit `d5cc82fedcde3b6226ecdcefa7f96caebf0cac10` corrected the stale pending entry for the #250 three-action cap and recorded its completed predecessor workflow.
+- Its own workflow [#42434222337](https://github.com/SakibShahariar/material-panel/actions/runs/42434222337) completed successfully. The job passed JavaScript syntax checks, all JavaScript regression tests, and calendar/Python regression tests.
+
+**Checkpoint SHA:** `d5cc82fedcde3b6226ecdcefa7f96caebf0cac10`  
+**Checkpoint date:** 2026-11-08
