@@ -107,5 +107,5 @@ test('NetworkManager adapter rejects malformed D-Bus object paths before dispatc
     }
     assert.equal(calls.length, 0);
     assert.equal(errors.length, 6);
-    assert.ok(errors.every(message => /object path is invalid/i.test(message)));
+    assert.ok(errors.every(message => /access point path is invalid or unavailable/i.test(message)));
 });

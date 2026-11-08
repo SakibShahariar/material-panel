@@ -1301,3 +1301,11 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `d729fceaecb7aac515b00f8e629ecf83734d446d`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** NetworkManager Wi-Fi access-point object-path validation (#28).
+
+## Red-cross investigation: NetworkManager AP object-path validation — 2026-11-08
+
+- `122c9cbfcf356b538f8c4b7946304b7be4a1b210` — **red**, [run #42458517105](https://github.com/SakibShahariar/material-panel/actions/runs/42458517105). JavaScript syntax passed; the new malformed-path test failed because its assertion expected the phrase “object path is invalid,” while the adapter deliberately reports “access point path is invalid or unavailable.” The implementation rejected every malformed path before dispatch as intended; the failure was only an overly narrow assertion.
+- The follow-up aligns the assertion with the adapter's user-facing error wording. No runtime code change is needed.
+- Python/calendar tests were skipped after the JavaScript regression step failed.
+
+**Fix commit:** pending CI.
