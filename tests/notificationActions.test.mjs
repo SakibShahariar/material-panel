@@ -100,3 +100,29 @@ test('bounds long action labels by Unicode code point without splitting surrogat
     assert.equal(label.endsWith('…'), true);
     assert.equal(label, '😀'.repeat(79) + '…');
 });
+
+test('bounds normalization work and storage for long native action labels', () => {
+    const action = {label: '  ' + '😀'.repeat(100_000) + '   '};
+    const label = getNotificationActions({actions: [action]})[0].label;
+    assert.equal(label, '😀'.repeat(79) + '…');
+    assert.equal(Array.from(label).length, 80);
+});
+
+test('skips actions with throwing activation getters and handles broken action iterators', () => {
+    const broken = Object.defineProperty({label: 'Broken'}, 'activate', {
+        get() { throw new Error('unavailable'); },
+    });
+    const valid = {label: 'Open', activate() {}};
+    assert.deepEqual(getNotificationActions({actions: [broken, valid]}), [
+        {action: valid, label: 'Open'},
+    ]);
+
+    const actions = new Proxy([], {
+        get(target, property, receiver) {
+            if (property === Symbol.iterator)
+                throw new Error('iterator unavailable');
+            return Reflect.get(target, property, receiver);
+        },
+    });
+    assert.deepEqual(getNotificationActions({actions}), []);
+});
