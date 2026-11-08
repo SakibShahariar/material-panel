@@ -22,6 +22,12 @@ test('popup focus navigation starts at the directional edge when focus is outsid
     assert.equal(getAdjacentFocusableIndex(3, 9, 1), 0);
 });
 
+test('popup focus navigation safely defaults malformed directions to forward', () => {
+    assert.equal(getAdjacentFocusableIndex(3, 1, Symbol('direction')), 2);
+    assert.equal(getAdjacentFocusableIndex(3, 1, NaN), 2);
+    assert.equal(getAdjacentFocusableIndex(3, 1, -1), 0);
+});
+
 test('popup focus navigation safely handles an empty or invalid list size', () => {
     assert.equal(getAdjacentFocusableIndex(0, 0, 1), -1);
     assert.equal(getAdjacentFocusableIndex(-1, 0, 1), -1);

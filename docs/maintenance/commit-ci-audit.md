@@ -974,3 +974,25 @@ The four red results are retained as history; the failures were test/refactor sy
 **Checkpoint SHA:** `faf76533db169390420d5c446c4dcac0e13736be`  
 **Checkpoint date:** 2026-11-08  
 **Next session:** review commits after this checkpoint.
+
+
+## Incremental CI review — 2026-11-08
+
+Commits after the previous checkpoint `faf76533db169390420d5c446c4dcac0e13736be`:
+
+| Commit | Subject | CI | Result |
+|---|---|---|---|
+| `18f8cc83ea0d53fb583ba252d97cb577e17b52a3` | Extract theme dimensions renderer (#221) | [#42426903994](https://github.com/SakibShahariar/material-panel/actions/runs/42426903994) | Red: 634/638 JS tests; stale source assertions still targeted old module ownership. |
+| `cb30c26b78303de412687792ad2daa5cf4b336df` | Update renderer tests (#221) | [#42426964814](https://github.com/SakibShahariar/material-panel/actions/runs/42426964814) | Red: 635/638 JS tests; remaining assertions had not all followed the extraction. |
+| `7f0920172884ec9b34063259f0ab303b613aa637` | Update typography source assertion (#221) | [#42427000970](https://github.com/SakibShahariar/material-panel/actions/runs/42427000970) | Red: 635/638 JS tests; exposed missing generated body/title token use. |
+| `18cea01c503f107b2d1b9aec571fb5b3dff43ac8` | Share typography tokens (#221) | [#42427036671](https://github.com/SakibShahariar/material-panel/actions/runs/42427036671) | Red: 637/638 JS tests; a remaining source assertion expected a specific implementation expression. |
+| `d28a101b7750c6c6498d8855a4c21c15dd4ef31b` | Check shared typography tokens (#221) | [#42427091287](https://github.com/SakibShahariar/material-panel/actions/runs/42427091287) | Green: syntax, 638/638 JS, 22/22 Python. |
+| `cf9e2a8c9280d0f04b5b48d83969ae839f0b713b` | Generated typography behavior test (#221) | [#42427336415](https://github.com/SakibShahariar/material-panel/actions/runs/42427336415) | Red: 638/639 JS; over-escaped test regex. |
+| `c20ee794d9677a0c1906f172a62f5db5a403e405` | Correct generated CSS assertions (#221) | [#42427422761](https://github.com/SakibShahariar/material-panel/actions/runs/42427422761) | Green: syntax, 639/639 JS, 22/22 Python. |
+| `f877e7e0454cf192d47ddc53cc2f280c6bd8165f` | Guard dimension renderer inputs (#111) | [#42427503425](https://github.com/SakibShahariar/material-panel/actions/runs/42427503425) | Red: 638/639 JS; test expected 40px instead of normalized 49px. |
+| `faf76533db169390420d5c446c4dcac0e13736be` | Correct normalized bar-height expectation (#111) | [#42427557344](https://github.com/SakibShahariar/material-panel/actions/runs/42427557344) | Green: syntax, 640/640 JS, 22/22 Python. |
+| `dfb9642e89da9a02c57e3441bfbc1ca53d987770` | Whitelist dimension renderer styles (#132) | [#42427629641](https://github.com/SakibShahariar/material-panel/actions/runs/42427629641) | Green: syntax, 641/641 JS, 22/22 Python. |
+
+The intermediate red runs are retained as history; each failure was resolved by a later commit, and the final implementation/test runs are green. The adaptive polling change `3929ab3bb151c64dc36f1f7614a05b3166bc81bf` also passed [#42426529583](https://github.com/SakibShahariar/material-panel/actions/runs/42426529583), syntax, 637/637 JS and 22/22 Python.
+
+**Next change:** harden the pure popup-focus index helper against malformed direction values; CI pending.
