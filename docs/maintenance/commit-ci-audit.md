@@ -1072,3 +1072,13 @@ The current Network module still contained an obsolete file-header comment claim
 **Checkpoint SHA:** `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** this consistency fix and its associated CI run.
+
+
+### Wi-Fi documentation consistency test correction (#28)
+
+- `3648fd554f8b7ac9207dc69d44146b2d2a4d76bf` — corrected the stale Network module header comment, but CI [run #42451841760](https://github.com/SakibShahariar/material-panel/actions/runs/42451841760) was **red**: syntax passed; one new JavaScript regression assertion failed because its cross-line regex was double-escaped. This was a test-only assertion error; the production comment change is valid.
+- This follow-up corrects the regex to match intervening source text. Its CI result is pending.
+
+**Checkpoint SHA:** `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3`  
+**Checkpoint date:** 2026-11-08  
+**Unreviewed commits:** `3648fd554f8b7ac9207dc69d44146b2d2a4d76bf` (red; test correction pending) and this follow-up.

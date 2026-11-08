@@ -7,7 +7,7 @@ const source = await readFile(new URL('../modules/network.js', import.meta.url),
 
 test('network module documentation describes both saved and unsaved Wi-Fi paths', () => {
     assert.match(source, /Saved profiles are reactivated directly/);
-    assert.match(source, /unsaved access points are[\\s\\S]*session secret-agent flow/);
+    assert.match(source, /unsaved access points are[\s\S]*session secret-agent flow/);
     assert.doesNotMatch(source, /not attempted here/);
 });
 
