@@ -1259,3 +1259,14 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `dd2f2fc8aad693387b51b86f412a348091ee5649`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** final-slot whitespace boundary guard for Weather and World Clock (#143, #248).
+
+## Incremental CI review: bounded Weather and World Clock names — 2026-11-08
+
+- `f4f0c93541fa7af2c8744f10f763d6c98368131e` — **green**, [run #42457819494](https://github.com/SakibShahariar/material-panel/actions/runs/42457819494): JavaScript syntax, **670/670 JavaScript tests**, and **22/22 Python tests** passed.
+- The follow-up prevents a collapsed space from being appended beyond the 64-code-point display boundary in either imported-name normalizer.
+- The previous implementation commit `dd2f2fc8aad693387b51b86f412a348091ee5649` was green in run #42457755165.
+
+**Reviewed through:** `f4f0c93541fa7af2c8744f10f763d6c98368131e`  
+**Checkpoint SHA:** `f4f0c93541fa7af2c8744f10f763d6c98368131e`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** remaining major popup header migrations (#208).

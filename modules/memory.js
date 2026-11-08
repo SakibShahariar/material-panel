@@ -9,6 +9,7 @@ import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
 import {giconForKey, wireChipPress} from '../lib/pressFx.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {readMemInfo} from '../lib/memInfo.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 
 function fmtKb(kb) {
@@ -58,11 +59,16 @@ export function buildMemory(_extensionPath, scale = 1.0) {
         style: 'spacing: 6px; padding: 4px; min-width: 200px;',
     });
     const title = new St.Label({text: 'Memory', style_class: 'material-panel-cpu-popup-title'});
+    const {actor: header} = createPopupHeader({
+        titleActor: title,
+        styleClass: 'material-panel-memory-header',
+        style: 'spacing: 8px; padding: 8px 4px;',
+    });
     const usedL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const availL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const cacheL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
     const swapL = new St.Label({style_class: 'material-panel-cpu-popup-value'});
-    body.add_child(title);
+    body.add_child(header);
     body.add_child(usedL);
     body.add_child(availL);
     body.add_child(cacheL);

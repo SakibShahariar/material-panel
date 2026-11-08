@@ -18,6 +18,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {createSlider, sliderStyleFor} from '../lib/simpleSlider.js';
 import {getMixerControl} from '../lib/audio.js';
@@ -120,15 +121,6 @@ function isFedoraHost() {
 }
 
 function buildHeader(menu) {
-    const row = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, x_expand: true});
-    style(row, 'spacing: 6px;');
-
-    const uptimePill = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    style(uptimePill, `background-color: ${surface()}; border-radius: 999px; padding: 4px 12px 4px 8px; spacing: 6px;`);
-
     // Only show Fedora branding on Fedora; use a neutral computer icon elsewhere.
     const logo = new St.Icon({
         icon_size: 16,
@@ -144,12 +136,11 @@ function buildHeader(menu) {
     } catch (e) {
         try { logo.icon_name = 'computer-symbolic'; } catch (e2) {}
     }
-    uptimePill.add_child(logo);
 
     const uptime = new St.Label({text: 'Up —', y_align: Clutter.ActorAlign.CENTER});
-    style(uptime, 'font-size: 12px; font-weight: 600;');
-    uptimePill.add_child(uptime);
-    row.add_child(uptimePill);
+    style(uptime, 'font-size: 11px;');
+    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
+    style(batt, 'background-color: ' + surface() + '; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;');
 
     const refreshUptime = () => {
         try {
@@ -161,17 +152,17 @@ function buildHeader(menu) {
                 return;
             const h = Math.floor(secs / 3600);
             const m = Math.floor((secs % 3600) / 60);
-            uptime.text = h > 0 ? `Up ${h}h ${m}m` : `Up ${m}m`;
+            uptime.text = h > 0 ? 'Up ' + h + 'h ' + m + 'm' : 'Up ' + m + 'm';
         } catch (e) {}
     };
     const refreshBattery = () => {
         for (const bat of ['BAT0', 'BAT1']) {
             try {
-                const [ok, out] = Gio.File.new_for_path(`/sys/class/power_supply/${bat}/capacity`).load_contents(null);
+                const [ok, out] = Gio.File.new_for_path('/sys/class/power_supply/' + bat + '/capacity').load_contents(null);
                 if (ok) {
                     const value = Number.parseInt(new TextDecoder().decode(out).trim(), 10);
                     if (Number.isFinite(value) && value >= 0 && value <= 100) {
-                        batt.text = `${value}%`;
+                        batt.text = value + '%';
                         return;
                     }
                 }
@@ -181,25 +172,22 @@ function buildHeader(menu) {
     };
     refreshUptime();
 
-    row.add_child(new St.Widget({x_expand: true}));
-
-            const mkBtn = (symbolic, fn, accessibleName) => {
+    const mkBtn = (symbolic, fn, accessibleName) => {
         const b = new St.Button({
             style_class: 'material-panel-e4qs-header-btn',
             reactive: true,
             track_hover: true,
             can_focus: true,
         });
-        // Prefer *-symbolic so St tints with CSS color (on_primary on press)
         let name = symbolic;
         if (name && !String(name).endsWith('-symbolic'))
-            name = `${name}-symbolic`;
+            name = name + '-symbolic';
         const ic = new St.Icon({
             icon_name: name,
             icon_size: 14,
             style_class: 'material-panel-e4qs-header-icon',
         });
-        try { ic.style = `-st-icon-style: symbolic; color: ${accent()};`; } catch (e) {}
+        try { ic.style = '-st-icon-style: symbolic; color: ' + accent() + ';'; } catch (e) {}
         const apply = state => {
             try {
                 b.remove_style_class_name('pressed');
@@ -215,11 +203,8 @@ function buildHeader(menu) {
                 bg = surfaceHover();
                 try { b.add_style_class_name('hover'); } catch (e) {}
             }
-            // Inline mirrors CSS so FileIcon/symbolic always gets on_primary, not default white
-            style(b, `width: 30px; height: 30px; border-radius: 999px; background-color: ${bg};`);
-            try {
-                ic.style = `-st-icon-style: symbolic; color: ${fg};`;
-            } catch (e) {}
+            style(b, 'width: 30px; height: 30px; border-radius: 999px; background-color: ' + bg + ';');
+            try { ic.style = '-st-icon-style: symbolic; color: ' + fg + ';'; } catch (e) {}
         };
         apply('normal');
         b.set_child(ic);
@@ -231,34 +216,44 @@ function buildHeader(menu) {
         b.connect('clicked', () => { try { fn(); } catch (e) {} });
         return b;
     };
-    row.add_child(mkBtn('document-edit-symbolic', openPrefs, 'Edit panel preferences'));
-    // Don't present a refresh control until it has a real refresh operation.
-    row.add_child(mkBtn('emblem-system-symbolic', openPrefs, 'Open panel preferences'));
-    row.add_child(mkBtn('system-shutdown-symbolic', () => {
+
+    const editButton = mkBtn('document-edit-symbolic', openPrefs, 'Edit panel preferences');
+    const settingsButton = mkBtn('emblem-system-symbolic', openPrefs, 'Open panel preferences');
+    const powerButton = mkBtn('system-shutdown-symbolic', () => {
         try { menuClose(menu); } catch (e) {}
         confirmAndRun('Power off', 'Power off this system?', 'Power off', 'systemctl poweroff');
-    }, 'Power off'));
+    }, 'Power off');
 
-    const batt = new St.Label({text: '—%', y_align: Clutter.ActorAlign.CENTER});
-    style(batt, `background-color: ${surface()}; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;`);
-    row.add_child(batt);
+    const title = new St.Label({
+        text: 'Quick Settings',
+        style_class: 'material-panel-popup-title',
+    });
+    const {actor: header} = createPopupHeader({
+        titleActor: title,
+        statusActor: uptime,
+        leadingActor: logo,
+        actions: [editButton, settingsButton, powerButton, batt],
+        styleClass: 'material-panel-e4qs-header',
+        style: 'spacing: 6px; padding: 8px 10px;',
+    });
+
     refreshBattery();
     let refreshId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
         try {
-            if (!row.get_stage())
+            if (!header.get_stage())
                 return GLib.SOURCE_CONTINUE;
             refreshUptime();
             refreshBattery();
         } catch (e) {}
         return GLib.SOURCE_CONTINUE;
     });
-    row.connect('destroy', () => {
+    header.connect('destroy', () => {
         if (refreshId) {
             try { GLib.source_remove(refreshId); } catch (e) {}
             refreshId = 0;
         }
     });
-    return row;
+    return header;
 }
 
 // ── Dual slider capsule (end-4 continuous bar) ──

@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {menuToggle} from '../lib/shellCompat.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {formatClipboardHistoryPreview} from '../lib/clipboardHistoryState.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 let historyController = null;
 let onPauseToggle = null;
@@ -53,10 +54,22 @@ export function buildClipboardHistory() {
 
     const rebuildMenu = () => {
         menu.removeAll();
-        const header = new PopupMenu.PopupMenuItem(
-            controller.paused ? 'Clipboard history · Paused' : 'Clipboard history · Recording');
-        header.setSensitive(false);
-        menu.addMenuItem(header);
+        const title = new St.Label({
+            text: 'Clipboard history',
+            style_class: 'material-panel-popup-title',
+        });
+        const status = new St.Label({
+            text: controller.paused ? 'Paused' : 'Recording',
+            style_class: 'material-panel-popup-status',
+        });
+        const {actor: header} = createPopupHeader({
+            titleActor: title,
+            statusActor: status,
+            styleClass: 'material-panel-clipboard-history-header',
+        });
+        const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        headerItem.add_child(header);
+        menu.addMenuItem(headerItem);
         const pause = new PopupMenu.PopupMenuItem(
             controller.paused ? 'Resume recording' : 'Pause recording');
         pause.connect('activate', () => {

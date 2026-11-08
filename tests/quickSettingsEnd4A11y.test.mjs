@@ -23,3 +23,11 @@ test('End-4 only opens settings backends for enabled toggle tiles', () => {
     assert.match(source, /if \(showDnd\) \{\s*try \{ dndSettings = new Gio\.Settings/);
     assert.match(source, /if \(showNightLight\) \{\s*try \{ nlSettings = new Gio\.Settings/);
 });
+
+test('End-4 Quick Settings uses the shared title, uptime status and action header', () => {
+    assert.match(source, /import \{createPopupHeader\} from '\.\.\/lib\/popupHeader\.js';/);
+    assert.match(source, /text: 'Quick Settings'/);
+    assert.match(source, /statusActor: uptime/);
+    assert.match(source, /actions: \[editButton, settingsButton, powerButton, batt\]/);
+    assert.match(source, /shell\.add_child\(buildHeader\(menu\)\)/);
+});

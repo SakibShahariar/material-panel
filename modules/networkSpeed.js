@@ -61,15 +61,21 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-net-speed-popup-body',
     });
-    body.add_child(new St.Label({
+    const title = new St.Label({
         text: 'Network speed',
         style_class: 'material-panel-net-speed-popup-title',
-    }));
+    });
     const ifaceL = new St.Label({text: '—', style_class: 'material-panel-net-speed-popup-iface'});
+    const {actor: header} = createPopupHeader({
+        titleActor: title,
+        statusActor: ifaceL,
+        styleClass: 'material-panel-net-speed-popup-header',
+        style: 'spacing: 8px; padding: 8px 4px;',
+    });
+    body.add_child(header);
     const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
     const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
     const sessL = new St.Label({text: '', style_class: 'material-panel-net-speed-popup-iface'});
-    body.add_child(ifaceL);
     body.add_child(downL);
     body.add_child(upL);
     body.add_child(sessL);
