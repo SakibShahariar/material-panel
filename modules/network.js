@@ -185,18 +185,85 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
         };
 
-        const activate = connection => {
-            if (!wifiDevice)
+        const activationSignals = new Set();
+        const watchActivation = (activeConnection, ssid) => {
+            if (!activeConnection || destroyed)
                 return;
-            client.activate_connection_async(connection, wifiDevice, null, null, (c, res) => {
-                try {
-                    client.activate_connection_finish(res);
-                    setScanStatus('');
-                } catch (e) {
-                    logError(e, 'material-panel: failed to activate network connection');
-                    setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
+            let signalId = 0;
+            const disconnect = () => {
+                if (!signalId)
+                    return;
+                try { activeConnection.disconnect(signalId); } catch (e) {}
+                activationSignals.delete(disconnect);
+                signalId = 0;
+            };
+            const updateActivation = () => {
+                let state;
+                try { state = activeConnection.get_state(); } catch (e) { return; }
+                if (state === NM.ActiveConnectionState.ACTIVATED) {
+                    setScanStatus(`Connected to ${ssid}`);
+                    disconnect();
+                } else if (state === NM.ActiveConnectionState.DEACTIVATED) {
+                    setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                    disconnect();
                 }
-            });
+            };
+            signalId = activeConnection.connect('notify::state', updateActivation);
+            activationSignals.add(disconnect);
+            updateActivation();
+        };
+
+        const activate = (connection, accessPoint = null, ssid = 'Wi-Fi network') => {
+            if (!wifiDevice || destroyed)
+                return;
+            if (connection) {
+                client.activate_connection_async(connection, wifiDevice, null, null, (c, res) => {
+                    try {
+                        c.activate_connection_finish(res);
+                        setScanStatus('');
+                    } catch (e) {
+                        logError(e, 'material-panel: failed to activate saved network connection');
+                        setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
+                    }
+                });
+                return;
+            }
+
+            // Let NetworkManager create a profile from the selected AP and use
+            // GNOME Shell's registered secret agent for any required password.
+            // The extension never reads or persists Wi-Fi credentials itself.
+            let accessPointPath;
+            try {
+                accessPointPath = accessPoint?.get_path?.();
+            } catch (e) {
+                accessPointPath = null;
+            }
+            if (!accessPointPath) {
+                setScanStatus(`Couldn't start a connection to ${ssid}. Try Wi-Fi settings.`);
+                return;
+            }
+            setScanStatus(`Connecting to ${ssid}…`);
+            try {
+                client.add_and_activate_connection_async(
+                    null, wifiDevice, accessPointPath, null,
+                    (c, res) => {
+                        let activeConnection;
+                        try {
+                            activeConnection = c.add_and_activate_connection_finish(res);
+                            if (!activeConnection)
+                                throw new Error('NetworkManager did not return an active connection');
+                            watchActivation(activeConnection, ssid);
+                        } catch (e) {
+                            logError(e, 'material-panel: failed to connect to new Wi-Fi network');
+                            if (!destroyed)
+                                setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                        }
+                    },
+                );
+            } catch (e) {
+                logError(e, 'material-panel: unable to start new Wi-Fi connection');
+                setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+            }
         };
 
         const rebuildNetworkList = () => {
@@ -240,14 +307,12 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     const security = info.secure ? '🔒' : 'Open';
                     const label = connection
                         ? `${connection.get_id()} · ${info.strength}% · ${security}`
-                        : `${info.ssid} · ${info.strength}% · ${security} · Not saved`;
-                    const item = new PopupMenu.PopupMenuItem(label, {
-                        reactive: Boolean(connection),
-                    });
+                        : `${info.ssid} · ${info.strength}% · ${security} · Connect`;
+                    const item = new PopupMenu.PopupMenuItem(label, {reactive: true});
                     if (connection) {
                         if (connection.get_uuid() === activeId)
                             item.setOrnament(PopupMenu.Ornament.DOT);
-                        item.connect('activate', () => activate(connection));
+                        item.connect('activate', () => activate(connection, entry.ap, info.ssid));
                     }
                     networksSection.addMenuItem(item);
                 }
@@ -352,6 +417,10 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
             wifiDeviceSignalIds = [];
             try { scanCancellable?.cancel(); } catch (e) {}
+            for (const disconnect of activationSignals) {
+                try { disconnect(); } catch (e) {}
+            }
+            activationSignals.clear();
         });
     });
 
