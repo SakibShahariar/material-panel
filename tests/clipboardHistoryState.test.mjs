@@ -133,3 +133,11 @@ test('clipboard history preview removes every supported bidi formatting control'
         .map(codePoint => String.fromCodePoint(codePoint)).join('');
     assert.equal(formatClipboardHistoryPreview(`বাংলা${controls}العربية`), 'বাংলা العربية');
 });
+
+
+test('clipboard history preview bounds code-point iteration for very long text', () => {
+    const value = 'x'.repeat(100_000) + '😀tail';
+    const preview = formatClipboardHistoryPreview(value);
+    assert.equal(preview, 'x'.repeat(71) + '…');
+    assert.equal(Array.from(preview).length, 72);
+});
