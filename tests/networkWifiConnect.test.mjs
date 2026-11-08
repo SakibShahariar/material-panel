@@ -71,3 +71,18 @@ test('NetworkManager adapter reports finish errors and missing access-point path
     }), false);
     assert.match(errors[1], /access point path/i);
 });
+
+test('NetworkManager adapter reports synchronous dispatch failures', () => {
+    const client = {
+        add_and_activate_connection_async() {
+            throw new Error('D-Bus unavailable');
+        },
+    };
+    let failure = null;
+    assert.equal(addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/9',
+    }, {
+        onError: error => { failure = error; },
+    }), false);
+    assert.equal(failure?.message, 'D-Bus unavailable');
+});

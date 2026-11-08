@@ -1040,3 +1040,23 @@ The intermediate red runs are retained as history; each failure was resolved by 
 
 **Checkpoint SHA:** `d5cc82fedcde3b6226ecdcefa7f96caebf0cac10`  
 **Checkpoint date:** 2026-11-08
+
+
+## Incremental review: 2026-11-08 — Direct Wi-Fi connection (#28)
+
+Reviewed every commit after checkpoint `d5cc82fedcde3b6226ecdcefa7f96caebf0cac10`. The CI workflows for the audit update and all three Wi-Fi implementation/test commits completed successfully.
+
+| Commit (full SHA) | Subject | CI result | Evidence |
+|---|---|---|---|
+| `a175ce61dd7e3e008c07974a4c1af0e3ea6123a6` | `docs(maintenance): record final audit workflow (Refs #250)` | green | [Run #42434268294](https://github.com/SakibShahariar/material-panel/actions/runs/42434268294) passed syntax, JavaScript regression tests, and calendar/Python tests. |
+| `b5c6a9ea2846ae1790cccd5ee234ad080a78cf16` | `feat(network): connect to unsaved Wi-Fi access points (Refs #28)` | green | [Run #42447326976](https://github.com/SakibShahariar/material-panel/actions/runs/42447326976) passed syntax, JavaScript regression tests, and calendar/Python tests. |
+| `26e8f16b75df5592d60f2b654bdd2bbf585cbdc5` | `fix(network): activate newly discovered Wi-Fi entries (Refs #28)` | green | [Run #42447373026](https://github.com/SakibShahariar/material-panel/actions/runs/42447373026) passed syntax, JavaScript regression tests, and calendar/Python tests. |
+| `2efe2786d3653442797ead4e9c2faf4a9be76683` | `test(network): isolate new Wi-Fi activation flow (Refs #28)` | green | [Run #42447564879](https://github.com/SakibShahariar/material-panel/actions/runs/42447564879) passed syntax, JavaScript regression tests, and calendar/Python tests. |
+
+The #28 change makes scanned unsaved access points selectable and delegates connection creation and any required credential request to NetworkManager/GNOME Shell's session secret agent. The extension supplies no partial profile and never handles the password. The follow-up adapter validates the AP path and covers asynchronous finish errors; the click handler now applies to both saved and unsaved scan entries.
+
+**Remaining:** live open/secured Wi-Fi authentication, wrong-password recovery, cancellation, reconnect and GNOME 49–51 behavior. Issue #28 remains open (Category B).
+
+**Checkpoint SHA:** `2efe2786d3653442797ead4e9c2faf4a9be76683`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** the test and ledger commit that follows this checkpoint.
