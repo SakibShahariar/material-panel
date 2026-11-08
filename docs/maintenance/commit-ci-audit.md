@@ -1193,3 +1193,16 @@ Review also found that `DndFocusSession.start()` converted the supplied duration
 **Checkpoint SHA:** `7f53d2483985cb9204f3f6f753f880723987382b`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** malformed DND focus-session duration conversion guard (#112).
+
+## Incremental CI review: malformed DND timer-adapter behavior — 2026-11-08
+
+- `bbf1408d50f7e88119f463084a11b896d8bd7d7c` — **green**, [run #42456094596](https://github.com/SakibShahariar/material-panel/actions/runs/42456094596): JavaScript syntax, complete JavaScript regression suite, and calendar/Python regression tests passed. The run's only job completed successfully.
+- This commit guards `Number(durationMs)` so Symbol values and objects with throwing conversion hooks are rejected without escaping an exception. Its focused regression cases pass in the complete suite.
+- The preceding reviewed commit `7f53d2483985cb9204f3f6f753f880723987382b` was **green** in [run #42456038259](https://github.com/SakibShahariar/material-panel/actions/runs/42456038259), as recorded above.
+
+A follow-up test-only hardening change covers a throwing timer adapter, a valid zero-valued timer handle, and rejection of an invalid duration while an existing session is active. These tests exercise adapter failure and sentinel handling without changing runtime behavior.
+
+**Reviewed commit:** `bbf1408d50f7e88119f463084a11b896d8bd7d7c` — green, run #42456094596.  
+**Checkpoint SHA:** `bbf1408d50f7e88119f463084a11b896d8bd7d7c`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** DND timer-adapter edge-case regression coverage (#112).

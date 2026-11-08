@@ -212,3 +212,55 @@ test('an early timer callback reschedules only the remaining focus-session durat
     assert.equal(session.isActive(), false);
     session.destroy();
 });
+
+test('a throwing timer adapter restores the prior notification preference', () => {
+    const settings = new FakeSettings(true);
+    const session = new DndFocusSession(settings, {
+        now: () => 1_000,
+        schedule: () => { throw new Error('timer service unavailable'); },
+        cancelSchedule: () => {},
+    });
+
+    assert.equal(session.start(60_000), false);
+    assert.equal(settings.value, true);
+    assert.equal(session.isActive(), false);
+    session.destroy();
+});
+
+test('a zero-valued timer handle remains valid and is cancelled at expiry', () => {
+    const settings = new FakeSettings(true);
+    let now = 1_000;
+    let callback;
+    const cancelled = [];
+    const session = new DndFocusSession(settings, {
+        now: () => now,
+        schedule: (next, delay) => {
+            assert.equal(delay, 5_000);
+            callback = next;
+            return 0;
+        },
+        cancelSchedule: id => cancelled.push(id),
+    });
+
+    assert.equal(session.start(5_000), true);
+    assert.equal(session.isActive(), true);
+    now += 5_000;
+    callback();
+    assert.equal(settings.value, true);
+    assert.equal(session.isActive(), false);
+    assert.deepEqual(cancelled, []);
+    session.destroy();
+});
+
+test('rejecting a malformed extension does not disturb an active focus session', () => {
+    const {settings, session, timers} = createHarness(true);
+    assert.equal(session.start(10_000), true);
+    const timerBefore = [...timers.entries()];
+    assert.equal(session.start(Symbol('invalid extension')), false);
+    assert.equal(settings.value, false);
+    assert.equal(session.isActive(), true);
+    assert.deepEqual([...timers.entries()], timerBefore);
+    session.cancel();
+    assert.equal(settings.value, true);
+    session.destroy();
+});
