@@ -1082,3 +1082,16 @@ The current Network module still contained an obsolete file-header comment claim
 **Checkpoint SHA:** `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3`  
 **Checkpoint date:** 2026-11-08  
 **Unreviewed commits:** `3648fd554f8b7ac9207dc69d44146b2d2a4d76bf` (red; test correction pending) and this follow-up.
+
+
+## Incremental CI review: Wi-Fi consistency follow-up — 2026-11-08
+
+- `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3` — green, [run #42447656409](https://github.com/SakibShahariar/material-panel/actions/runs/42447656409): syntax, JavaScript regression tests and calendar/Python tests passed.
+- `3648fd554f8b7ac9207dc69d44146b2d2a4d76bf` — red, [run #42451841760](https://github.com/SakibShahariar/material-panel/actions/runs/42451841760): syntax passed; one new JavaScript assertion failed because its cross-line regex was double-escaped. This was a test-only failure.
+- `136d1cea8eb6404553a3def163f0b0822a4f25be` — green, [run #42451887991](https://github.com/SakibShahariar/material-panel/actions/runs/42451887991): corrected the regex; syntax, JavaScript regression tests and calendar/Python tests passed.
+
+The stale Wi-Fi support comment is corrected. The red result is retained with its cause and green fix; no runtime Wi-Fi behavior changed.
+
+**Checkpoint SHA:** `136d1cea8eb6404553a3def163f0b0822a4f25be`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** adaptive polling jitter-source regression coverage (#223).

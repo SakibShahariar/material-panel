@@ -127,3 +127,17 @@ test('malformed non-numeric option values cannot throw during schedule creation'
     assert.equal(schedule.nextDelay(), 1000);
     assert.equal(schedule.getIntervalMs(), 1000);
 });
+
+
+test('malformed or throwing jitter sources fall back to the unjittered interval', () => {
+    for (const random of [() => Symbol('random'), () => { throw new Error('rng unavailable'); }]) {
+        const schedule = createAdaptivePollSchedule({
+            baseIntervalMs: 2000,
+            maxIntervalMs: 8000,
+            jitterRatio: 0.2,
+            random,
+        });
+        assert.equal(schedule.nextDelay(), 2000);
+        assert.equal(schedule.getIntervalMs(), 2000);
+    }
+});
