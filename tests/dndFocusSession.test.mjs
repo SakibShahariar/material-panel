@@ -167,3 +167,47 @@ test('DND module exposes focus-session durations, status, cancellation, and keyb
     assert.ok(renderer.includes('.material-panel-dnd-btn.focus-session-active'));
     assert.ok(stylesheet.includes('.material-panel-dnd-btn.focus-session-active'));
 });
+
+
+test('focus session restores the prior notification preference when the timer adapter cannot schedule', () => {
+    const settings = new FakeSettings(true);
+    const session = new DndFocusSession(settings, {
+        now: () => 1_000,
+        schedule: () => null,
+        cancelSchedule: () => {},
+    });
+
+    assert.equal(session.start(60_000), false);
+    assert.equal(settings.value, true);
+    assert.equal(session.isActive(), false);
+    session.destroy();
+});
+
+test('an early timer callback reschedules only the remaining focus-session duration', () => {
+    const settings = new FakeSettings(true);
+    let now = 1_000;
+    const scheduled = [];
+    const session = new DndFocusSession(settings, {
+        now: () => now,
+        schedule: (callback, delay) => {
+            scheduled.push({callback, delay});
+            return scheduled.length;
+        },
+        cancelSchedule: () => {},
+    });
+
+    assert.equal(session.start(10_000), true);
+    assert.equal(scheduled[0].delay, 10_000);
+
+    now += 4_000;
+    scheduled[0].callback();
+    assert.equal(settings.value, false);
+    assert.equal(session.isActive(), true);
+    assert.equal(scheduled[1].delay, 6_000);
+
+    now += 6_000;
+    scheduled[1].callback();
+    assert.equal(settings.value, true);
+    assert.equal(session.isActive(), false);
+    session.destroy();
+});
