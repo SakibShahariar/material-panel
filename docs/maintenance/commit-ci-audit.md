@@ -1017,6 +1017,17 @@ The intermediate red runs are retained as history; each failure was resolved by 
 - CI [run #42431390430](https://github.com/SakibShahariar/material-panel/actions/runs/42431390430) passed syntax, **643/643 JavaScript tests**, and **22/22 Python tests**.
 
 
-### Notification action-count cap — pending
+### Notification action-count cap (#250)
 
-The next change enforces the issue's three-inline-action limit even if a caller supplies a larger explicit limit, rather than relying only on the default argument. CI is pending.
+- `f4a04f24a078abf32196a52b2e212a7c5e92d7fd` — enforces the hard maximum of three inline notification actions even when a caller passes a larger explicit limit; the regression test verifies that a requested limit of 100 still returns three actions.
+- CI [run #42431481902](https://github.com/SakibShahariar/material-panel/actions/runs/42431481902) completed successfully: JavaScript syntax, all JavaScript regression tests, and calendar/Python regression tests passed.
+
+
+## Final verified checkpoint — 2026-11-08
+
+- Reviewed the notification action-count commit above and verified its completed workflow job and all steps.
+- The documentation checkpoint currently at `2a87677354e91d188b546710df051fd98d929e1d` passed [CI run #42431567187](https://github.com/SakibShahariar/material-panel/actions/runs/42431567187): JavaScript syntax, JavaScript regression tests, and calendar/Python regression tests all succeeded.
+- The stale “CI pending” note is removed. Historical red runs remain recorded with their causes and corrective green runs; they are not relabeled as successful.
+
+**Checkpoint SHA:** `2a87677354e91d188b546710df051fd98d929e1d`  
+**Checkpoint date:** 2026-11-08
