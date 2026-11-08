@@ -1280,3 +1280,14 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 - Python/calendar tests were skipped after the JavaScript suite failed.
 
 **Fix commit:** pending CI.
+
+## Incremental CI review: remaining shared popup header migrations — 2026-11-08
+
+- `7b68e7689890220fd39c0bf6d83820cc966ab8ff` — **red**, [run #42458121393](https://github.com/SakibShahariar/material-panel/actions/runs/42458121393). Syntax passed; the JavaScript suite found the missing Network Speed helper import and a stale End-4 accessible-name source assertion.
+- `daff1b3d86bda0b8d974e8cb045be19b20db89d6` — **green**, [run #42458193382](https://github.com/SakibShahariar/material-panel/actions/runs/42458193382): syntax, **674/674 JavaScript tests**, and **22/22 Python tests** passed. The missing import and stale assertion were corrected.
+- The red result was caused by this migration and is resolved by the green follow-up. Issue #208 records the migrated surfaces and still requires live GNOME visual/accessibility validation.
+
+**Reviewed through:** `daff1b3d86bda0b8d974e8cb045be19b20db89d6`  
+**Checkpoint SHA:** `daff1b3d86bda0b8d974e8cb045be19b20db89d6`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** shared popup header inventory regression test (#208).
