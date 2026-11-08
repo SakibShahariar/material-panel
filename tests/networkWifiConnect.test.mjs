@@ -9,7 +9,11 @@ test('unsaved Wi-Fi access points can be activated through NetworkManager', () =
     assert.match(source, /null, wifiDevice, accessPointPath, null/);
     assert.match(source, /accessPoint\?\.get_path\?\.\(\)/);
     assert.match(source, /new PopupMenu\.PopupMenuItem\(label, \{reactive: true\}\)/);
-    assert.match(source, /item\.connect\('activate', \(\) => activate\(connection, entry\.ap, info\.ssid\)\)/);
+    const entryStart = source.indexOf('const label = connection');
+    const entryEnd = source.indexOf('networksSection.addMenuItem(item)', entryStart);
+    const entry = source.slice(entryStart, entryEnd);
+    assert.match(entry, /item\.connect\('activate', \(\) => activate\(connection, entry\.ap, info\.ssid\)\)/);
+    assert.ok(entry.indexOf('item.connect') > entry.indexOf('if (connection && connection.get_uuid() === activeId)'));
 });
 
 test('new Wi-Fi connection state and authentication failures are reported', () => {

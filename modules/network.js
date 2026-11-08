@@ -309,11 +309,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                         ? `${connection.get_id()} · ${info.strength}% · ${security}`
                         : `${info.ssid} · ${info.strength}% · ${security} · Connect`;
                     const item = new PopupMenu.PopupMenuItem(label, {reactive: true});
-                    if (connection) {
-                        if (connection.get_uuid() === activeId)
-                            item.setOrnament(PopupMenu.Ornament.DOT);
-                        item.connect('activate', () => activate(connection, entry.ap, info.ssid));
-                    }
+                    if (connection && connection.get_uuid() === activeId)
+                        item.setOrnament(PopupMenu.Ornament.DOT);
+                    item.connect('activate', () => activate(connection, entry.ap, info.ssid));
                     networksSection.addMenuItem(item);
                 }
 
