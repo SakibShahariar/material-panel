@@ -14,6 +14,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
+import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
 
 // Only reconnects to networks NetworkManager already has a saved profile
 // for. Connecting to a brand-new network (entering a password) needs NM's
@@ -232,38 +233,15 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             // Let NetworkManager create a profile from the selected AP and use
             // GNOME Shell's registered secret agent for any required password.
             // The extension never reads or persists Wi-Fi credentials itself.
-            let accessPointPath;
-            try {
-                accessPointPath = accessPoint?.get_path?.();
-            } catch (e) {
-                accessPointPath = null;
-            }
-            if (!accessPointPath) {
-                setScanStatus(`Couldn't start a connection to ${ssid}. Try Wi-Fi settings.`);
-                return;
-            }
             setScanStatus(`Connecting to ${ssid}…`);
-            try {
-                client.add_and_activate_connection_async(
-                    null, wifiDevice, accessPointPath, null,
-                    (c, res) => {
-                        let activeConnection;
-                        try {
-                            activeConnection = c.add_and_activate_connection_finish(res);
-                            if (!activeConnection)
-                                throw new Error('NetworkManager did not return an active connection');
-                            watchActivation(activeConnection, ssid);
-                        } catch (e) {
-                            logError(e, 'material-panel: failed to connect to new Wi-Fi network');
-                            if (!destroyed)
-                                setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
-                        }
-                    },
-                );
-            } catch (e) {
-                logError(e, 'material-panel: unable to start new Wi-Fi connection');
-                setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
-            }
+            addAndActivateWifiConnection(client, wifiDevice, accessPoint, {
+                onStarted: activeConnection => watchActivation(activeConnection, ssid),
+                onError: error => {
+                    logError(error, 'material-panel: failed to connect to new Wi-Fi network');
+                    if (!destroyed)
+                        setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                },
+            });
         };
 
         const rebuildNetworkList = () => {
