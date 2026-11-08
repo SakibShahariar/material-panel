@@ -711,6 +711,10 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             return Clutter.EVENT_PROPAGATE;
         });
         card.connect('key-press-event', (_actor, event) => {
+            // Child action/dismiss buttons own their keyboard activation.
+            // Do not also activate the notification when their key event bubbles.
+            if (!card.has_key_focus())
+                return Clutter.EVENT_PROPAGATE;
             const key = event.get_key_symbol();
             if (key === Clutter.KEY_Return || key === Clutter.KEY_KP_Enter || key === Clutter.KEY_space) {
                 try {

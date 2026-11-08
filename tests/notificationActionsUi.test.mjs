@@ -39,3 +39,9 @@ test('notification center uses the shared popup title and action header layout',
     assert.match(source, /actions: \[clearBtn\]/);
     assert.match(source, /styleClass: 'material-panel-nc-header'/);
 });
+
+
+test('focused notification action buttons do not bubble into card default activation', () => {
+    assert.match(source, /card\.connect\('key-press-event',[\s\S]*?if \(!card\.has_key_focus\(\)\)[\s\S]*?return Clutter\.EVENT_PROPAGATE;[\s\S]*?item\.notification\?\.activate\?\.\(\)/);
+    assert.match(source, /actionButton\.connect\('clicked',[\s\S]*?activateNotificationAction\(/);
+});

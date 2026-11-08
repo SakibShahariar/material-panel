@@ -996,3 +996,14 @@ Commits after the previous checkpoint `faf76533db169390420d5c446c4dcac0e13736be`
 The intermediate red runs are retained as history; each failure was resolved by a later commit, and the final implementation/test runs are green. The adaptive polling change `3929ab3bb151c64dc36f1f7614a05b3166bc81bf` also passed [#42426529583](https://github.com/SakibShahariar/material-panel/actions/runs/42426529583), syntax, 637/637 JS and 22/22 Python.
 
 **Next change:** harden the pure popup-focus index helper against malformed direction values; CI pending.
+
+
+### Popup-focus helper input guard
+
+- `60f6547c71d18158e57abd75b1d84ae4ea832477` — makes malformed non-numeric navigation directions default safely to forward rather than throwing during the direction comparison. Regression tests cover Symbol, NaN and normal reverse navigation.
+- CI [run #42431172930](https://github.com/SakibShahariar/material-panel/actions/runs/42431172930) passed syntax, **642/642 JavaScript tests**, and **22/22 Python tests**.
+
+
+### Notification action keyboard isolation — pending
+
+The next change guards the notification card's own Enter/Space handler so a focused child action or dismiss button does not also invoke the card's default notification activation. The child button remains responsible for its native action. A source-level regression assertion covers the bubbling guard; CI is pending.
