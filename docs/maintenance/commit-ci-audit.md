@@ -1291,3 +1291,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `daff1b3d86bda0b8d974e8cb045be19b20db89d6`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** shared popup header inventory regression test (#208).
+
+## Incremental CI review: shared popup header inventory — 2026-11-08
+
+- `d729fceaecb7aac515b00f8e629ecf83734d446d` — **green**, [run #42458385769](https://github.com/SakibShahariar/material-panel/actions/runs/42458385769): JavaScript syntax, **675/675 JavaScript tests**, and **22/22 Python tests** passed.
+- Added an aggregate inventory guard covering 19 major popup modules. Each must import and compose through the shared popup header helper.
+
+**Reviewed through:** `d729fceaecb7aac515b00f8e629ecf83734d446d`  
+**Checkpoint SHA:** `d729fceaecb7aac515b00f8e629ecf83734d446d`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** NetworkManager Wi-Fi access-point object-path validation (#28).

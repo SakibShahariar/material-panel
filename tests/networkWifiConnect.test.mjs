@@ -92,3 +92,20 @@ test('NetworkManager adapter reports synchronous dispatch failures', () => {
     }), false);
     assert.equal(failure?.message, 'D-Bus unavailable');
 });
+
+test('NetworkManager adapter rejects malformed D-Bus object paths before dispatch', () => {
+    const calls = [];
+    const client = {
+        add_and_activate_connection_async(...args) { calls.push(args); },
+    };
+    const errors = [];
+    for (const path of ['', '/', 'not/an/object/path', '/org//NetworkManager/AP/1',
+        '/org/freedesktop/NetworkManager/AP/invalid-name', '/org/freedesktop/NetworkManager/AP/']) {
+        assert.equal(addAndActivateWifiConnection(client, {}, {get_path: () => path}, {
+            onError: error => errors.push(error.message),
+        }), false);
+    }
+    assert.equal(calls.length, 0);
+    assert.equal(errors.length, 6);
+    assert.ok(errors.every(message => /object path is invalid/i.test(message)));
+});
