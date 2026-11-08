@@ -102,7 +102,7 @@ test('bounds long action labels by Unicode code point without splitting surrogat
 });
 
 test('bounds normalization work and storage for long native action labels', () => {
-    const action = {label: '  ' + '😀'.repeat(100_000) + '   '};
+    const action = {label: '  ' + '😀'.repeat(100_000) + '   ', activate() {}};
     const label = getNotificationActions({actions: [action]})[0].label;
     assert.equal(label, '😀'.repeat(79) + '…');
     assert.equal(Array.from(label).length, 80);

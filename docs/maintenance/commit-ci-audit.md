@@ -1224,3 +1224,5 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 - The failing run's Python/calendar step was skipped because the JavaScript test step failed.
 
 **Fix commit:** pending CI. Preserve the red entry and append the final rerun result when available.
+
+- `b9370f9c098bd86c49f2a2a863e529a9d590e101` — **red**, [run #42457512707](https://github.com/SakibShahariar/material-panel/actions/runs/42457512707). JavaScript syntax passed; 664/665 JavaScript tests passed. The remaining failure was a newly added test fixture that omitted the required native `activate()` callback, so the action was correctly filtered out before its label could be asserted. This is a test-fixture defect, not a runtime regression. The implementation's bounded sanitizer and malformed action guards passed their focused cases.
