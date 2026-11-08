@@ -13,6 +13,7 @@ import {startNetSpeedMonitor} from '../lib/netSpeedMonitor.js';
 import {isNetworkSpeedAutoHideEnabled} from '../lib/networkSpeedVisibilityState.js';
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 import {setNetworkMetrics, clearNetworkMetrics} from '../lib/systemMetricsState.js';
+import {createPopupHeader} from '../lib/popupHeader.js';
 
 function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     const value = Math.max(0, Number(bytesPerSec) || 0);

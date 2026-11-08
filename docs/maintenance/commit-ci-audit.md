@@ -1270,3 +1270,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `f4f0c93541fa7af2c8744f10f763d6c98368131e`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** remaining major popup header migrations (#208).
+
+## Red-cross investigation: remaining shared popup header migrations — 2026-11-08
+
+- `7b68e7689890220fd39c0bf6d83820cc966ab8ff` — **red**, [run #42458121393](https://github.com/SakibShahariar/material-panel/actions/runs/42458121393). JavaScript syntax passed; the regression suite found two source-wiring failures:
+  - The Network Speed import insertion did not match the actual combined `setNetworkMetrics, clearNetworkMetrics` import, leaving the new `createPopupHeader` reference unimported.
+  - The End-4 accessible-name assertion still expected the former inline callback shape after the Power off action was moved into a named local variable.
+- Both are regressions in the migration commit. The fix adds the missing import and updates the assertion to verify the preserved accessible label in the new call shape. No intended behavior change.
+- Python/calendar tests were skipped after the JavaScript suite failed.
+
+**Fix commit:** pending CI.
