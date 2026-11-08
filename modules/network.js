@@ -16,10 +16,8 @@ import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
 import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
 
-// Only reconnects to networks NetworkManager already has a saved profile
-// for. Connecting to a brand-new network (entering a password) needs NM's
-// "secret agent" D-Bus flow, which is a separate, more involved feature -
-// not attempted here.
+// Saved profiles are reactivated directly; unsaved access points are
+// activated through NetworkManager's session secret-agent flow below.
 export function buildNetwork(_extensionPath, scale = 1.0) {
     let destroyed = false;
     const button = new St.Button({

@@ -1060,3 +1060,15 @@ The #28 change makes scanned unsaved access points selectable and delegates conn
 **Checkpoint SHA:** `2efe2786d3653442797ead4e9c2faf4a9be76683`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** the test and ledger commit that follows this checkpoint.
+
+
+## Incremental review: 2026-11-08 — Wi-Fi implementation consistency (#28)
+
+Reviewed the final Wi-Fi activation test/ledger commit `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3` and its associated workflow. [Run #42447656409](https://github.com/SakibShahariar/material-panel/actions/runs/42447656409) completed successfully; JavaScript syntax, JavaScript regression tests, and calendar/Python regression tests all passed.
+
+The current Network module still contained an obsolete file-header comment claiming new Wi-Fi networks were not supported, contradicting the implemented NetworkManager secret-agent flow. This change corrects that comment and adds a regression assertion preventing the stale claim from returning. No runtime behavior or credential handling changes.
+
+**Reviewed commit:** `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3`  
+**Checkpoint SHA:** `b0ffa8ad52c1601c79c32bb98b1c67929a9a33c3`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** this consistency fix and its associated CI run.

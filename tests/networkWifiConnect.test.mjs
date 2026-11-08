@@ -5,6 +5,12 @@ import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
 
 const source = await readFile(new URL('../modules/network.js', import.meta.url), 'utf8');
 
+test('network module documentation describes both saved and unsaved Wi-Fi paths', () => {
+    assert.match(source, /Saved profiles are reactivated directly/);
+    assert.match(source, /unsaved access points are[\\s\\S]*session secret-agent flow/);
+    assert.doesNotMatch(source, /not attempted here/);
+});
+
 test('unsaved Wi-Fi access points are connected through the shared NetworkManager adapter', () => {
     assert.match(source, /import \{addAndActivateWifiConnection\} from '..\/lib\/wifiConnection\.js'/);
     assert.match(source, /addAndActivateWifiConnection\(client, wifiDevice, accessPoint/);
