@@ -1004,6 +1004,13 @@ The intermediate red runs are retained as history; each failure was resolved by 
 - CI [run #42431172930](https://github.com/SakibShahariar/material-panel/actions/runs/42431172930) passed syntax, **642/642 JavaScript tests**, and **22/22 Python tests**.
 
 
-### Notification action keyboard isolation — pending
+### Notification action keyboard isolation
 
-The next change guards the notification card's own Enter/Space handler so a focused child action or dismiss button does not also invoke the card's default notification activation. The child button remains responsible for its native action. A source-level regression assertion covers the bubbling guard; CI is pending.
+- `8a2662008c82f9240f11a3878084963c665a9cd3` — prevents Enter/Space events from focused child action/dismiss controls from also triggering the card's default notification activation.
+- CI [run #42431290300](https://github.com/SakibShahariar/material-panel/actions/runs/42431290300) passed syntax, **643/643 JavaScript tests**, and **22/22 Python tests**.
+- Issue #250 remains open for live GNOME invocation and stale/retained notification validation.
+
+
+### Notification label allocation bound — pending
+
+The next change caps temporary code-point storage at 81 entries when truncating a long app-provided action label. The 100,000-code-point regression fixture confirms truncation remains at 80 code points without materializing an array proportional to the full label. CI is pending.

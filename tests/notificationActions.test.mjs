@@ -93,7 +93,7 @@ test('normalizes invisible controls and preserves readable Unicode action labels
 });
 
 test('bounds long action labels by Unicode code point without splitting surrogate pairs', () => {
-    const action = {label: '😀'.repeat(90), activate() {}};
+    const action = {label: '😀'.repeat(100_000), activate() {}};
     const label = getNotificationActions({actions: [action]})[0].label;
     assert.equal(Array.from(label).length, 80);
     assert.equal(label.endsWith('…'), true);
