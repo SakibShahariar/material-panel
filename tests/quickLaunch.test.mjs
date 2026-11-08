@@ -94,3 +94,13 @@ test('removes invisible bidirectional formatting from labels without damaging em
     assert.doesNotMatch(entry.name, /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u206f]/);
 });
 
+
+
+test('bounds label truncation work for very long imported names', () => {
+    const longName = 'x'.repeat(100_000) + '😀tail';
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'long-label', type: 'command', target: 'echo safe', name: longName},
+    ]);
+    assert.equal(entry.name, 'x'.repeat(80));
+    assert.equal(Array.from(entry.name).length, 80);
+});

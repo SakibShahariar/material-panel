@@ -1095,3 +1095,12 @@ The stale Wi-Fi support comment is corrected. The red result is retained with it
 **Checkpoint SHA:** `136d1cea8eb6404553a3def163f0b0822a4f25be`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** adaptive polling jitter-source regression coverage (#223).
+
+
+## Incremental CI review: adaptive polling jitter-source coverage — 2026-11-08
+
+Reviewed commit `dff8e6ac42abedcc52054f0edb5c447df3278180` for #223. CI [run #42451946107](https://github.com/SakibShahariar/material-panel/actions/runs/42451946107) completed successfully: JavaScript syntax, JavaScript regression tests, and calendar/Python regression tests all passed. The new cases verify that injected jitter functions returning Symbols or throwing exceptions fall back to the unjittered base interval.
+
+**Checkpoint SHA:** `dff8e6ac42abedcc52054f0edb5c447df3278180`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded Quick Launch label truncation (#253).
