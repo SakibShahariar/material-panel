@@ -121,3 +121,16 @@ test('normalizes leading, repeated, and trailing whitespace while truncating lab
     ]);
     assert.equal(entry.name, 'alpha beta');
 });
+
+
+test('normalizes every supported invisible-control range and Unicode whitespace', () => {
+    const controls = '\u0000\u001f\u007f\u061c\u200e\u200f\u202a\u202e\u2066\u206f';
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'control-ranges', type: 'command', target: 'echo safe', name: 'left' + controls + 'right'},
+    ]);
+    assert.equal(entry.name, 'left right');
+    const [unicodeSpace] = normalizeQuickLaunchEntries([
+        {id: 'unicode-space', type: 'command', target: 'echo safe', name: 'alpha\u00a0\u2003beta'},
+    ]);
+    assert.equal(unicodeSpace.name, 'alpha beta');
+});

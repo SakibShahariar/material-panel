@@ -1127,3 +1127,17 @@ Reviewed commit `dff8e6ac42abedcc52054f0edb5c447df3278180` for #223. CI [run #42
 
 
 - `38bad4415f47a381c448ab781d34aa334c651a2e` — **red**, [run pending](https://github.com/SakibShahariar/material-panel/actions/runs/42452425767): follow-up replaced the invalid character-class regex with numeric code-point checks, but the whitespace predicate remained over-escaped. The syntax check passed; the next full test run will verify the corrected trim-based whitespace check. This is an additional regression in the follow-up, not a pre-existing failure.
+
+
+## Incremental CI review: Quick Launch bounded-label sanitizer — 2026-11-08
+
+- `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d` — **green**, [run #42452022450](https://github.com/SakibShahariar/material-panel/actions/runs/42452022450): syntax, full JavaScript regression suite, and calendar/Python regression tests passed.
+- `a15ff2f1318c19caf85c05515bf9761824b54324` — **red**, [run #42452425767](https://github.com/SakibShahariar/material-panel/actions/runs/42452425767): syntax failed because a control-character regex was over-escaped; tests were skipped. Regression introduced by this commit.
+- `38bad4415f47a381c448ab781d34aa334c651a2e` — **red**, [run #42452473196](https://github.com/SakibShahariar/material-panel/actions/runs/42452473196): syntax passed; JavaScript regression suite failed because the whitespace matcher was still over-escaped. The failure showed uncollapsed whitespace and incorrect leading/trailing spaces; Python tests were skipped.
+- `447098cb8e15a514d8aa93edc56f7841f31d684f` — **green**, [run #42452488918](https://github.com/SakibShahariar/material-panel/actions/runs/42452488918): syntax, complete JavaScript regression suite, and calendar/Python tests passed. Numeric code-point checks and trim-based whitespace detection now preserve the existing normalization behavior while stopping after the 80-code-point label limit.
+
+Additional boundary tests now cover the full supported invisible-control ranges and Unicode whitespace. This test-only follow-up's CI result is pending.
+
+**Checkpoint SHA:** `447098cb8e15a514d8aa93edc56f7841f31d684f`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** Quick Launch sanitizer boundary tests (#253).
