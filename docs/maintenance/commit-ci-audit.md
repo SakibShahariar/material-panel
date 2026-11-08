@@ -1114,3 +1114,13 @@ Reviewed commit `dff8e6ac42abedcc52054f0edb5c447df3278180` for #223. CI [run #42
 **Checkpoint SHA:** `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded Quick Launch label sanitization traversal (#253).
+
+
+## Incremental CI review: Quick Launch label sanitizer — 2026-11-08
+
+- `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d` — **green**, [run #42452022450](https://github.com/SakibShahariar/material-panel/actions/runs/42452022450): syntax, full JavaScript regression suite, and calendar/Python regression tests passed.
+- `a15ff2f1318c19caf85c05515bf9761824b54324` — **red**, [run #42452425767](https://github.com/SakibShahariar/material-panel/actions/runs/42452425767): JavaScript syntax failed before tests ran. The new control-character regular expression was over-escaped, producing an invalid character class under Node.js 24. This is a regression introduced by this commit; the bounded-sanitization change is being corrected with explicit code-point checks and a new CI run.
+
+**Checkpoint SHA:** `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d`  
+**Checkpoint date:** 2026-11-08  
+**Unreviewed commits:** `a15ff2f1318c19caf85c05515bf9761824b54324` (red; correction in progress) and this fix.
