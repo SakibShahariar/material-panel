@@ -1238,3 +1238,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `229c7c56510359ef0c2d68c22dd450758afbf17e`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded Clipboard History preview normalization (#254).
+
+## Incremental CI review: Clipboard History preview normalization — 2026-11-08
+
+- `d498fb7f38323c97c6bc7b8c50a83277f177e975` — **green**, [run #42457666957](https://github.com/SakibShahariar/material-panel/actions/runs/42457666957): JavaScript syntax, **666/666 JavaScript tests**, and **22/22 Python tests** passed.
+- Preview formatting now collapses whitespace and neutralizes bidi controls during bounded iteration, avoiding a full-size normalized copy of clipboard text.
+
+**Reviewed through:** `d498fb7f38323c97c6bc7b8c50a83277f177e975`  
+**Checkpoint SHA:** `d498fb7f38323c97c6bc7b8c50a83277f177e975`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded Weather and World Clock imported-name normalization (#143, #248).

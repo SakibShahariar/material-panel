@@ -117,3 +117,15 @@ test('bounds work for very long imported world-clock city labels', () => {
     assert.equal(entry.name, 'x'.repeat(64));
     assert.equal(Array.from(entry.name).length, 64);
 });
+
+test('bounds World Clock name normalization and checks delimiters within the displayed prefix', () => {
+    const [entry] = normalizeWorldClockEntries([{
+        name: 'x'.repeat(100_000) + '|ignored',
+        timeZone: 'Asia/Dhaka',
+    }]);
+    assert.equal(entry.name, 'x'.repeat(64));
+    assert.deepEqual(normalizeWorldClockEntries([{
+        name: 'x'.repeat(63) + '|ignored',
+        timeZone: 'Asia/Dhaka',
+    }]), []);
+});

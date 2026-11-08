@@ -100,3 +100,12 @@ test('bounds work for very long imported city labels', () => {
     assert.equal(location.name, 'x'.repeat(64));
     assert.equal(Array.from(location.name).length, 64);
 });
+
+test('bounds Weather label normalization before traversing a long imported suffix', () => {
+    const [location] = normalizeWeatherLocations([{
+        name: 'x'.repeat(100_000) + ';ignored',
+        latitude: 23.8,
+        longitude: 90.4,
+    }]);
+    assert.equal(location.name, 'x'.repeat(64));
+});
