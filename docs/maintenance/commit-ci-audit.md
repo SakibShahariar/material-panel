@@ -1124,3 +1124,6 @@ Reviewed commit `dff8e6ac42abedcc52054f0edb5c447df3278180` for #223. CI [run #42
 **Checkpoint SHA:** `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d`  
 **Checkpoint date:** 2026-11-08  
 **Unreviewed commits:** `a15ff2f1318c19caf85c05515bf9761824b54324` (red; correction in progress) and this fix.
+
+
+- `38bad4415f47a381c448ab781d34aa334c651a2e` — **red**, [run pending](https://github.com/SakibShahariar/material-panel/actions/runs/42452425767): follow-up replaced the invalid character-class regex with numeric code-point checks, but the whitespace predicate remained over-escaped. The syntax check passed; the next full test run will verify the corrected trim-based whitespace check. This is an additional regression in the follow-up, not a pre-existing failure.
