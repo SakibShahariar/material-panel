@@ -1320,3 +1320,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `5ebb95bc75721807f58642112b35208e8262d839`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** Wi-Fi adapter callback/accessor failure regression coverage (#28).
+
+## Incremental CI review: Wi-Fi adapter callback/accessor coverage — 2026-11-08
+
+- `e9ec90c0fa08e85912453f443ea092cebaea590b` — **green**, [run #42458663934](https://github.com/SakibShahariar/material-panel/actions/runs/42458663934): JavaScript syntax, **678/678 JavaScript tests**, and **22/22 Python tests** passed.
+- Added coverage for a throwing AP path accessor and a consumer start callback failure, confirming the adapter routes these conditions through its error path.
+
+**Reviewed through:** `e9ec90c0fa08e85912453f443ea092cebaea590b`  
+**Checkpoint SHA:** `e9ec90c0fa08e85912453f443ea092cebaea590b`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** non-finite popup focus direction fallback (#217).
