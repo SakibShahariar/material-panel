@@ -129,3 +129,12 @@ test('bounds World Clock name normalization and checks delimiters within the dis
         timeZone: 'Asia/Dhaka',
     }]), []);
 });
+
+test('does not exceed the World Clock name limit when whitespace reaches its final slot', () => {
+    const [entry] = normalizeWorldClockEntries([{
+        name: 'x'.repeat(63) + ' y',
+        timeZone: 'Asia/Dhaka',
+    }]);
+    assert.equal(entry.name, 'x'.repeat(63) + ' ');
+    assert.equal(Array.from(entry.name).length, 64);
+});

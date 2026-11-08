@@ -1248,3 +1248,14 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `d498fb7f38323c97c6bc7b8c50a83277f177e975`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded Weather and World Clock imported-name normalization (#143, #248).
+
+## Incremental CI review: bounded Weather and World Clock names — 2026-11-08
+
+- `dd2f2fc8aad693387b51b86f412a348091ee5649` — **green**, [run #42457755165](https://github.com/SakibShahariar/material-panel/actions/runs/42457755165): syntax, complete JavaScript regression suite, and calendar/Python regression tests passed.
+- Weather and World Clock imported labels now collapse whitespace and strip their existing control/delimiter sets during bounded iteration, avoiding a full normalized copy of long imported names.
+- Follow-up review identified a boundary case where a pending normalized space could occupy the 64th slot and the next character could temporarily extend the result to 65. The next commit adds an explicit boundary guard and regression coverage for both modules.
+
+**Reviewed commit:** `dd2f2fc8aad693387b51b86f412a348091ee5649` — green, run #42457755165.  
+**Checkpoint SHA:** `dd2f2fc8aad693387b51b86f412a348091ee5649`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** final-slot whitespace boundary guard for Weather and World Clock (#143, #248).

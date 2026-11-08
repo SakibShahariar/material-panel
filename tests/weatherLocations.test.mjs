@@ -109,3 +109,13 @@ test('bounds Weather label normalization before traversing a long imported suffi
     }]);
     assert.equal(location.name, 'x'.repeat(64));
 });
+
+test('does not exceed the Weather name limit when whitespace reaches its final slot', () => {
+    const [location] = normalizeWeatherLocations([{
+        name: 'x'.repeat(63) + ' y',
+        latitude: 23.8,
+        longitude: 90.4,
+    }]);
+    assert.equal(location.name, 'x'.repeat(63) + ' ');
+    assert.equal(Array.from(location.name).length, 64);
+});
