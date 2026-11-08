@@ -1011,6 +1011,12 @@ The intermediate red runs are retained as history; each failure was resolved by 
 - Issue #250 remains open for live GNOME invocation and stale/retained notification validation.
 
 
-### Notification label allocation bound — pending
+### Notification label allocation bound
 
-The next change caps temporary code-point storage at 81 entries when truncating a long app-provided action label. The 100,000-code-point regression fixture confirms truncation remains at 80 code points without materializing an array proportional to the full label. CI is pending.
+- `d0e1dc8d4a1a55bc6716200db97f1557125ae780` — bounds temporary code-point storage to 81 entries for very long app-provided action labels. A 100,000-code-point regression fixture confirms the display remains at 80 code points.
+- CI [run #42431390430](https://github.com/SakibShahariar/material-panel/actions/runs/42431390430) passed syntax, **643/643 JavaScript tests**, and **22/22 Python tests**.
+
+
+### Notification action-count cap — pending
+
+The next change enforces the issue's three-inline-action limit even if a caller supplies a larger explicit limit, rather than relying only on the default argument. CI is pending.

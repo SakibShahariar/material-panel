@@ -43,6 +43,7 @@ test('limits inline actions and rejects invalid limits', () => {
     assert.deepEqual(getNotificationActions({actions}, 3).map(x => x.label), [
         'Action 0', 'Action 1', 'Action 2',
     ]);
+    assert.equal(getNotificationActions({actions}, 100).length, 3);
     assert.deepEqual(getNotificationActions({actions}, 0), []);
     assert.deepEqual(getNotificationActions({actions}, 1.5), []);
 });
