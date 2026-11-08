@@ -1216,3 +1216,11 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `ef6f673adfa5e4f97c29654e20d2dc66f7023bc9`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded native notification action-label normalization and malformed action guards (#250).
+
+## Red-cross investigation: notification action label normalization — 2026-11-08
+
+- `31680d31a840bca02e5db62785c9e08edfe6a2ce` — **red**, [run #42457410992](https://github.com/SakibShahariar/material-panel/actions/runs/42457410992). JavaScript syntax passed; the JavaScript regression suite failed because the newly authored regular expressions contained an extra escaping layer, so whitespace and control-character checks matched literal backslash sequences. The same run exposed an unguarded throwing `activate` property getter in the new hostile-input test.
+- This was a regression in the new change, not a pre-existing failure. Corrected the regular-expression literals and guarded action property access and array iteration. Existing action behavior remains unchanged; malformed action data is skipped safely.
+- The failing run's Python/calendar step was skipped because the JavaScript test step failed.
+
+**Fix commit:** pending CI. Preserve the red entry and append the final rerun result when available.
