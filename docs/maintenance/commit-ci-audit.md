@@ -1309,3 +1309,14 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 - Python/calendar tests were skipped after the JavaScript regression step failed.
 
 **Fix commit:** pending CI.
+
+## Incremental CI review: NetworkManager access-point path validation — 2026-11-08
+
+- `122c9cbfcf356b538f8c4b7946304b7be4a1b210` — **red**, [run #42458517105](https://github.com/SakibShahariar/material-panel/actions/runs/42458517105). Syntax passed; the new test asserted a different error phrase than the adapter emits. The path rejection itself worked and no connection call was dispatched.
+- `5ebb95bc75721807f58642112b35208e8262d839` — **green**, [run #42458571588](https://github.com/SakibShahariar/material-panel/actions/runs/42458571588): syntax, **676/676 JavaScript tests**, and **22/22 Python tests** passed after aligning the assertion with the adapter's actual error wording.
+- The follow-up adds coverage for a throwing `get_path` accessor and a consumer `onStarted` callback that throws; both are handled through the adapter's error path.
+
+**Reviewed through:** `5ebb95bc75721807f58642112b35208e8262d839`  
+**Checkpoint SHA:** `5ebb95bc75721807f58642112b35208e8262d839`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** Wi-Fi adapter callback/accessor failure regression coverage (#28).

@@ -109,3 +109,35 @@ test('NetworkManager adapter rejects malformed D-Bus object paths before dispatc
     assert.equal(errors.length, 6);
     assert.ok(errors.every(message => /access point path is invalid or unavailable/i.test(message)));
 });
+
+test('NetworkManager adapter treats a throwing access-point path accessor as unavailable', () => {
+    const errors = [];
+    const accessPoint = Object.defineProperty({}, 'get_path', {
+        get() { throw new Error('proxy is unavailable'); },
+    });
+    const client = {add_and_activate_connection_async() {
+        assert.fail('invalid access point must not be dispatched');
+    }};
+    assert.equal(addAndActivateWifiConnection(client, {}, accessPoint, {
+        onError: error => errors.push(error.message),
+    }), false);
+    assert.match(errors[0], /access point path is invalid or unavailable/i);
+});
+
+test('NetworkManager adapter routes a consumer start-callback failure to its error handler', () => {
+    const active = {id: 'active'};
+    const client = {
+        add_and_activate_connection_async(_profile, _device, _path, _cancellable, callback) {
+            callback(this, {});
+        },
+        add_and_activate_connection_finish() { return active; },
+    };
+    let failure = null;
+    assert.equal(addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/11',
+    }, {
+        onStarted() { throw new Error('consumer callback failed'); },
+        onError(error) { failure = error; },
+    }), true);
+    assert.equal(failure?.message, 'consumer callback failed');
+});
