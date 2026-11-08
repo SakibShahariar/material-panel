@@ -120,7 +120,8 @@ test('destroying the service cancels its timer and restores the manual setting',
 
 test('invalid or excessively long focus durations are rejected without changing DND', () => {
     const {settings, session} = createHarness(true);
-    for (const duration of [0, -1, NaN, Infinity, 25 * 60 * 60 * 1000])
+    for (const duration of [0, -1, NaN, Infinity, Symbol('duration'),
+        {valueOf() { throw new Error('cannot convert'); }}, 25 * 60 * 60 * 1000])
         assert.equal(session.start(duration), false);
     assert.equal(settings.value, true);
     assert.equal(session.isActive(), false);

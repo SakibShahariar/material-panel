@@ -1180,3 +1180,16 @@ The DND focus-session state machine already restores the previous notification-b
 **Checkpoint SHA:** `f98b6baeba35c1dc54e128ef1a7e527a3f20b08a`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** DND focus-session timer failure and early-fire regression coverage (#112).
+
+
+## Incremental CI review: DND focus-session timer edge cases — 2026-11-08
+
+- `7f53d2483985cb9204f3f6f753f880723987382b` — **green**, [run #42456038259](https://github.com/SakibShahariar/material-panel/actions/runs/42456038259): JavaScript syntax, complete JavaScript regression suite, and calendar/Python regression tests passed. Added coverage for failed timer scheduling restoring the prior notification preference and early timer callbacks rescheduling only the remaining duration.
+- The prior checkpoint `f98b6baeba35c1dc54e128ef1a7e527a3f20b08a` was green in run #42455385989, as recorded above.
+
+Review also found that `DndFocusSession.start()` converted the supplied duration with `Number()` outside a guard. A Symbol or object with a throwing conversion hook could therefore throw out of the public state-machine method instead of rejecting malformed input. The follow-up guards conversion and adds both regression cases; valid duration behavior is unchanged.
+
+**Reviewed commit:** `7f53d2483985cb9204f3f6f753f880723987382b` — green, run #42456038259.  
+**Checkpoint SHA:** `7f53d2483985cb9204f3f6f753f880723987382b`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** malformed DND focus-session duration conversion guard (#112).
