@@ -1330,3 +1330,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `e9ec90c0fa08e85912453f443ea092cebaea590b`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** non-finite popup focus direction fallback (#217).
+
+## Incremental CI review: non-finite popup focus direction fallback — 2026-11-08
+
+- `e72cc3ecaad3164ae8e86d4adc802178e00ad132` — **green**, [run #42458749971](https://github.com/SakibShahariar/material-panel/actions/runs/42458749971): JavaScript syntax, **678/678 JavaScript tests**, and **22/22 Python tests** passed.
+- Popup focus navigation now defaults both positive and negative infinity to forward movement, consistent with its malformed-direction fallback for `NaN` and non-number values.
+
+**Reviewed through:** `e72cc3ecaad3164ae8e86d4adc802178e00ad132`  
+**Checkpoint SHA:** `e72cc3ecaad3164ae8e86d4adc802178e00ad132`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded popup shortcut accelerator normalization (#249).

@@ -48,3 +48,16 @@ test('popup shortcut normalization removes invisible controls from imported conf
         network: '<Super>\u200B<Alt>C',
     }).network, '<Super><Alt>C');
 });
+
+test('popup shortcut normalization bounds long imported whitespace and control sequences', () => {
+    const valid = 'x'.repeat(80);
+    assert.equal(normalizePopupShortcuts({
+        volume: valid + ' '.repeat(100_000),
+    }).volume, valid);
+    assert.equal(normalizePopupShortcuts({
+        volume: 'x'.repeat(79) + ' '.repeat(100_000) + 'y',
+    }).volume, '');
+    assert.equal(normalizePopupShortcuts({
+        volume: '\u202E'.repeat(100_000) + '<Super>V',
+    }).volume, '<Super>V');
+});
