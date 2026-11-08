@@ -1104,3 +1104,13 @@ Reviewed commit `dff8e6ac42abedcc52054f0edb5c447df3278180` for #223. CI [run #42
 **Checkpoint SHA:** `dff8e6ac42abedcc52054f0edb5c447df3278180`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded Quick Launch label truncation (#253).
+
+
+## Incremental CI review: Quick Launch bounded-label follow-up — 2026-11-08
+
+- `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d` — green, [run #42452022450](https://github.com/SakibShahariar/material-panel/actions/runs/42452022450): JavaScript syntax, complete JavaScript regression suite, and calendar/Python regression tests passed. The 100,000-code-point regression verifies the visible label cap.
+- The follow-up bounds the sanitizer's traversal as well as its output: previously, control-character removal and whitespace collapsing still copied/processed the entire imported label before truncation. The new iterator stops after enough normalized code points have been produced, while preserving whitespace and bidi-control sanitization. Regression cases cover a huge suffix and whitespace normalization. CI result for this commit is pending.
+
+**Checkpoint SHA:** `9d6c468efe0ea6b3158e306fefb7ef01b24a7a9d`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded Quick Launch label sanitization traversal (#253).

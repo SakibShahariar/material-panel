@@ -104,3 +104,20 @@ test('bounds label truncation work for very long imported names', () => {
     assert.equal(entry.name, 'x'.repeat(80));
     assert.equal(Array.from(entry.name).length, 80);
 });
+
+
+test('bounds label sanitization traversal before processing huge imported suffixes', () => {
+    const longLabel = '  ' + 'x'.repeat(80) + '\n' + 'unneeded '.repeat(20_000);
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'bounded-label', type: 'command', target: 'echo safe', name: longLabel},
+    ]);
+    assert.equal(entry.name, 'x'.repeat(80));
+    assert.equal(Array.from(entry.name).length, 80);
+});
+
+test('normalizes leading, repeated, and trailing whitespace while truncating labels', () => {
+    const [entry] = normalizeQuickLaunchEntries([
+        {id: 'spaces', type: 'command', target: 'echo safe', name: '  alpha  beta   '},
+    ]);
+    assert.equal(entry.name, 'alpha beta');
+});
