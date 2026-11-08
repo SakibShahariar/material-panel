@@ -1141,3 +1141,16 @@ Additional boundary tests now cover the full supported invisible-control ranges 
 **Checkpoint SHA:** `447098cb8e15a514d8aa93edc56f7841f31d684f`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** Quick Launch sanitizer boundary tests (#253).
+
+
+## Incremental CI review: Quick Launch sanitizer boundary tests — 2026-11-08
+
+- `1d189e26f1e55de4b6f13a8c1591abcf837e3e78` — **green**, [run #42452550729](https://github.com/SakibShahariar/material-panel/actions/runs/42452550729): syntax, complete JavaScript regression suite, and calendar/Python regression tests passed. The new test covers invisible-control ranges and Unicode whitespace after the preceding sanitizer fix.
+- Earlier red sanitizer commits and their green correction are retained above, including runs #42452425767, #42452473196 and #42452488918.
+
+The Weather and World Clock normalizers contained the same full-input array allocation previously found in Quick Launch. This follow-up applies bounded code-point iteration while preserving the existing 64-code-point output limit and adds 100,000-character fixtures.
+
+**Reviewed commit:** `1d189e26f1e55de4b6f13a8c1591abcf837e3e78` — green, run #42452550729.  
+**Checkpoint SHA:** `1d189e26f1e55de4b6f13a8c1591abcf837e3e78`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded Weather and World Clock city-name normalization (#143, #248).

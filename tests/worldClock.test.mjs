@@ -107,3 +107,13 @@ test('parses searchable city names from the system time-zone table', () => {
         {name: 'New York', timeZone: 'America/New_York'},
     ]);
 });
+
+
+test('bounds work for very long imported world-clock city labels', () => {
+    const name = 'x'.repeat(100_000) + '😀tail';
+    const [entry] = normalizeWorldClockEntries([{
+        name, timeZone: 'Asia/Dhaka',
+    }]);
+    assert.equal(entry.name, 'x'.repeat(64));
+    assert.equal(Array.from(entry.name).length, 64);
+});
