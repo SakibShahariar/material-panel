@@ -141,3 +141,9 @@ test('clipboard history preview bounds code-point iteration for very long text',
     assert.equal(preview, 'x'.repeat(71) + '…');
     assert.equal(Array.from(preview).length, 72);
 });
+
+test('clipboard preview handles very long whitespace runs without changing the truncation boundary', () => {
+    const value = 'x'.repeat(71) + ' '.repeat(100_000) + 'y';
+    assert.equal(formatClipboardHistoryPreview(value), 'x'.repeat(71) + '…');
+    assert.equal(formatClipboardHistoryPreview('  \u202E\nবাংলা  text  '), 'বাংলা text');
+});

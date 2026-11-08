@@ -1226,3 +1226,15 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Fix commit:** pending CI. Preserve the red entry and append the final rerun result when available.
 
 - `b9370f9c098bd86c49f2a2a863e529a9d590e101` — **red**, [run #42457512707](https://github.com/SakibShahariar/material-panel/actions/runs/42457512707). JavaScript syntax passed; 664/665 JavaScript tests passed. The remaining failure was a newly added test fixture that omitted the required native `activate()` callback, so the action was correctly filtered out before its label could be asserted. This is a test-fixture defect, not a runtime regression. The implementation's bounded sanitizer and malformed action guards passed their focused cases.
+
+## Incremental CI review: notification action label hardening — 2026-11-08
+
+- `31680d31a840bca02e5db62785c9e08edfe6a2ce` — **red**, [run #42457410992](https://github.com/SakibShahariar/material-panel/actions/runs/42457410992). Syntax passed; JavaScript tests failed because the initial sanitizer regex literals were over-escaped and malformed action getters were not guarded.
+- `b9370f9c098bd86c49f2a2a863e529a9d590e101` — **red**, [run #42457512707](https://github.com/SakibShahariar/material-panel/actions/runs/42457512707). Syntax passed; 664/665 JavaScript tests passed. The remaining failure was a new long-label fixture missing the required native `activate()` callback.
+- `229c7c56510359ef0c2d68c22dd450758afbf17e` — **green**, [run #42457569393](https://github.com/SakibShahariar/material-panel/actions/runs/42457569393): syntax, **665/665 JavaScript tests**, and **22/22 Python tests** passed. The fixture was corrected; the bounded sanitizer and malformed-action guards are verified.
+- Both red results were caused by this change and were corrected in the subsequent commits. The original failures remain documented above.
+
+**Reviewed through:** `229c7c56510359ef0c2d68c22dd450758afbf17e`  
+**Checkpoint SHA:** `229c7c56510359ef0c2d68c22dd450758afbf17e`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** bounded Clipboard History preview normalization (#254).
