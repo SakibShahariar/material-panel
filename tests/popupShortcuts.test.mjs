@@ -61,3 +61,10 @@ test('popup shortcut normalization bounds long imported whitespace and control s
         volume: '\u202E'.repeat(100_000) + '<Super>V',
     }).volume, '<Super>V');
 });
+
+test('shortcut conflicts are detected after invisible-control normalization', () => {
+    assert.deepEqual(findPopupShortcutConflicts({
+        volume: '<Super>\u202EV',
+        network: '<Super>V',
+    }), [{accelerator: '<Super>V', ids: ['volume', 'network']}]);
+});

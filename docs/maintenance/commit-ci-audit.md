@@ -1340,3 +1340,13 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `e72cc3ecaad3164ae8e86d4adc802178e00ad132`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** bounded popup shortcut accelerator normalization (#249).
+
+## Incremental CI review: bounded popup shortcut normalization — 2026-11-08
+
+- `a0e8efb00e98ad00865765822669fc87aeec996d` — **green**, [run #42458863524](https://github.com/SakibShahariar/material-panel/actions/runs/42458863524): JavaScript syntax, **679/679 JavaScript tests**, and **22/22 Python tests** passed.
+- Imported popup accelerators are now sanitized and length-checked incrementally, with bounded temporary storage even for very long whitespace/control sequences.
+
+**Reviewed through:** `a0e8efb00e98ad00865765822669fc87aeec996d`  
+**Checkpoint SHA:** `a0e8efb00e98ad00865765822669fc87aeec996d`  
+**Checkpoint date:** 2026-11-08  
+**Next unreviewed commit:** normalized popup shortcut conflict regression coverage (#249).
