@@ -657,7 +657,10 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
             isSyncingExternal: () => syncingExternal,
         });
 
-        buildWorldClockPage({Adw, Gtk, GLib, config, saveConfig, window, groupParent: generalPage});
+        buildWorldClockPage({
+            Adw, Gtk, GLib, config, saveConfig, window, groupParent: generalPage,
+            isSyncingExternal: () => syncingExternal,
+        });
 
         const {refresh: refreshPopupShortcutsPage} = buildPopupShortcutsPage({
             Adw, Gtk, config, saveConfig, window, groupParent: generalPage,

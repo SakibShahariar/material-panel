@@ -11,7 +11,8 @@ test('World Clock preferences are isolated in a focused page builder', () => {
     assert.match(page, /\/usr\/share\/zoneinfo\/zone\.tab/);
     assert.match(page, /normalizeWorldClockEntries/);
     assert.match(page, /parseWorldClockEntries/);
-    assert.match(page, /worldClockChoices\.length >= 12/);
+    assert.match(page, /current\.length >= 12/);
+    assert.match(page, /isSyncingExternal\(\)/);
     assert.match(page, /already saved/);
 });
 

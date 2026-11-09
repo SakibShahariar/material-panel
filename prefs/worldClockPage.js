@@ -5,7 +5,7 @@ import {
     parseWorldClockZoneTab,
 } from '../lib/worldClock.js';
 
-export function buildWorldClockPage({Adw, Gtk, GLib, config, saveConfig, window, groupParent}) {
+export function buildWorldClockPage({Adw, Gtk, GLib, config, saveConfig, window, groupParent, isSyncingExternal}) {
         const worldClockGroup = new Adw.PreferencesGroup({
             title: 'World Clock',
             description: 'Search the system time-zone database to add cities. Reorder or remove saved cities in the list below.'
@@ -44,7 +44,7 @@ export function buildWorldClockPage({Adw, Gtk, GLib, config, saveConfig, window,
             show_apply_button: true,
         });
         worldClockRow.connect('apply', () => {
-            if (syncingExternal)
+            if (isSyncingExternal())
                 return;
             const parsed = parseWorldClockEntries(worldClockRow.get_text());
             if (parsed === null) {
@@ -63,7 +63,7 @@ export function buildWorldClockPage({Adw, Gtk, GLib, config, saveConfig, window,
         });
         worldClockGroup.add(worldClockRow);
         worldClockAddButton.connect('clicked', () => {
-            if (syncingExternal)
+            if (isSyncingExternal())
                 return;
             const choice = worldClockChoices[worldClockChoiceDropDown.get_selected()];
             if (!choice)
