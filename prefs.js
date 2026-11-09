@@ -7,7 +7,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 import {ConfigStore} from './lib/configStore.js';
 import {formatWeatherLocations, parseWeatherLocations} from './lib/weatherLocations.js';
 import {formatWorldClockEntries, normalizeWorldClockEntries, parseWorldClockEntries, parseWorldClockZoneTab} from './lib/worldClock.js';
-import {DEFAULT_POPUP_SHORTCUTS, findPopupShortcutConflicts, normalizePopupShortcuts, POPUP_SHORTCUT_TARGETS} from './lib/popupShortcuts.js';
+
 import {normalizeZoneScale} from './lib/configNormalization.js';
 import {mergeConfigChanges, syncObjectInPlace} from './lib/configMerge.js';
 import {serializeLayoutPreset, parseLayoutPreset} from './lib/layoutPresetIo.js';
@@ -18,6 +18,7 @@ import {buildTrayPage} from './prefs/trayPage.js';
 import {buildAppearancePage} from './prefs/appearancePage.js';
 import {buildQuickLaunchPage} from './prefs/quickLaunchPage.js';
 import {buildClipboardHistoryPage} from './prefs/clipboardHistoryPage.js';
+import {buildPopupShortcutsPage} from './prefs/popupShortcutsPage.js';
 import {createSafeModeConfig, parsePanelConfig, serializePanelConfig} from './lib/configImportExport.js';
 
 export default class MaterialPanelPreferences extends ExtensionPreferences {
@@ -834,103 +835,14 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
         worldClockAddRow.add_suffix(worldClockAddButton);
         worldClockGroup.add(worldClockAddRow);
 
-        const popupShortcutGroup = new Adw.PreferencesGroup({
-            title: 'Popup keyboard shortcuts',
-            description: 'Optional global shortcuts. Enter a GTK accelerator such as <Super><Alt>V. Leave a field empty to clear it. Assignments must be unique within Material Panel; GNOME-reserved shortcuts are rejected rather than overridden.',
+        const {refresh: refreshPopupShortcutsPage} = buildPopupShortcutsPage({
+            Adw, Gtk, config, saveConfig, window, groupParent: generalPage,
+            defaultPopupShortcuts: DEFAULT_POPUP_SHORTCUTS,
+            normalizePopupShortcuts, findPopupShortcutConflicts,
+            popupShortcutTargets: POPUP_SHORTCUT_TARGETS,
+            isSyncingExternal: () => syncingExternal,
+            setSyncingExternal: value => { syncingExternal = value; },
         });
-        generalPage.add(popupShortcutGroup);
-        config.popupShortcuts = normalizePopupShortcuts(config.popupShortcuts);
-        const popupShortcutRows = new Map();
-        const savePopupShortcut = (target, row) => {
-            if (syncingExternal)
-                return;
-            const raw = row.get_text().trim();
-            let accelerator = '';
-            if (raw) {
-                let parsed = null;
-                try { parsed = Gtk.accelerator_parse(raw); } catch (e) {}
-                let valid = true;
-                let keyval = 0;
-                let modifiers = 0;
-                if (Array.isArray(parsed)) {
-                    if (typeof parsed[0] === 'boolean') {
-                        valid = parsed[0];
-                        keyval = parsed[1] ?? 0;
-                        modifiers = parsed[2] ?? 0;
-                    } else {
-                        keyval = parsed[0] ?? 0;
-                        modifiers = parsed[1] ?? 0;
-                    }
-                }
-                try {
-                    valid = valid && keyval !== 0 && modifiers !== 0 &&
-                        Gtk.accelerator_valid(keyval, modifiers);
-                } catch (e) {
-                    valid = false;
-                }
-                if (!valid) {
-                    window.add_toast(new Adw.Toast({
-                        title: 'Enter a valid shortcut with at least one modifier key',
-                    }));
-                    row.set_text(config.popupShortcuts[target.id] || '');
-                    return;
-                }
-                try { accelerator = Gtk.accelerator_name(keyval, modifiers); } catch (e) {}
-                if (!accelerator) {
-                    window.add_toast(new Adw.Toast({title: 'This shortcut could not be parsed'}));
-                    row.set_text(config.popupShortcuts[target.id] || '');
-                    return;
-                }
-            }
-            const next = normalizePopupShortcuts({
-                ...config.popupShortcuts,
-                [target.id]: accelerator,
-            });
-            const conflicts = findPopupShortcutConflicts(next);
-            if (conflicts.length) {
-                const labels = conflicts.flatMap(group => group.ids)
-                    .map(id => POPUP_SHORTCUT_TARGETS.find(item => item.id === id)?.label || id);
-                window.add_toast(new Adw.Toast({
-                    title: `Shortcut is already assigned: ${[...new Set(labels)].join(', ')}`,
-                }));
-                row.set_text(config.popupShortcuts[target.id] || '');
-                return;
-            }
-            config.popupShortcuts = next;
-            saveConfig();
-            row.set_text(accelerator);
-            window.add_toast(new Adw.Toast({
-                title: accelerator ? `${target.label} shortcut saved` : `${target.label} shortcut cleared`,
-            }));
-        };
-        for (const target of POPUP_SHORTCUT_TARGETS) {
-            const row = new Adw.EntryRow({
-                title: `${target.label} shortcut`,
-                text: config.popupShortcuts[target.id] || '',
-                show_apply_button: true,
-            });
-            row.connect('apply', () => savePopupShortcut(target, row));
-            popupShortcutGroup.add(row);
-            popupShortcutRows.set(target.id, row);
-        }
-        const resetShortcutsRow = new Adw.ActionRow({
-            title: 'Reset popup shortcuts',
-            subtitle: 'Clear every assignment and return to the default (no global shortcuts).',
-        });
-        const resetShortcutsButton = new Gtk.Button({
-            label: 'Reset',
-            valign: Gtk.Align.CENTER,
-        });
-        resetShortcutsButton.connect('clicked', () => {
-            config.popupShortcuts = {...DEFAULT_POPUP_SHORTCUTS};
-            for (const row of popupShortcutRows.values())
-                row.set_text('');
-            saveConfig();
-            window.add_toast(new Adw.Toast({title: 'Popup shortcuts reset'}));
-        });
-        resetShortcutsRow.add_suffix(resetShortcutsButton);
-        resetShortcutsRow.activatable_widget = resetShortcutsButton;
-        popupShortcutGroup.add(resetShortcutsRow);
 
         const networkGroup = new Adw.PreferencesGroup({
             title: 'Network speed',
@@ -1362,6 +1274,7 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
                 syncObjectInPlace(config, merged);
                 refreshQuickLaunchPage();
                 refreshClipboardHistoryPage();
+                refreshPopupShortcutsPage();
                 baseline = JSON.parse(JSON.stringify(newConfig));
                 // Keep the editable tile-order field in sync with external
                 // config edits without discarding any pending local changes.
