@@ -99,6 +99,9 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /client\.connect\('device-added', syncBattery\)/);
     assert.match(source, /client\.connect\('device-removed', syncBattery\)/);
     assert.match(source, /setBatteryContext\(\{onBattery, percentage\}\)/);
+    assert.match(source, /device\.connect\(signal, syncBattery\)/);
+    assert.match(source, /notify::state/);
+    assert.match(source, /notify::percentage/);
     assert.match(source, /_visibilityBatteryDevice\.disconnect/);
     assert.match(source, /setDoNotDisturbActive\(active\)/);
     assert.match(source, /_unwatchContextVisibility\(\)/);

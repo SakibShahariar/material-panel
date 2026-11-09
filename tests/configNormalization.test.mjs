@@ -122,10 +122,12 @@ test('context visibility rules default off and discard unknown or malformed modu
         clock: {hideWhenFullscreen: true},
         unknown: {hideInOverview: true},
         volume: null,
-    }), {clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false}});
+    }), {clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false,
+        showOnlyOnBattery: false, showOnlyBelowBatteryPercent: 0}});
     assert.deepEqual(normalizeModuleVisibilityRules({
         network: {hideWhenOffline: true},
-    }), {network: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: true}});
+    }), {network: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: true,
+        showOnlyOnBattery: false, showOnlyBelowBatteryPercent: 0}});
 });
 
 test('world clocks default empty and normalize on load and save', async () => {

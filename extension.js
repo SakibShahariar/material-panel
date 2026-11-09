@@ -233,7 +233,7 @@ export default class MaterialPanelExtension extends Extension {
 
         this._visibilityBatteryClient = null;
         this._visibilityBatteryDevice = null;
-        this._visibilityBatteryDeviceSignalId = 0;
+        this._visibilityBatteryDeviceSignalIds = [];
         try {
             const client = UPowerGlib.Client.new();
             this._visibilityBatteryClient = client;
@@ -247,15 +247,21 @@ export default class MaterialPanelExtension extends Extension {
                 } catch (error) {}
                 const device = selected?.device ?? null;
                 if (device !== this._visibilityBatteryDevice) {
-                    if (this._visibilityBatteryDevice && this._visibilityBatteryDeviceSignalId) {
-                        try { this._visibilityBatteryDevice.disconnect(this._visibilityBatteryDeviceSignalId); } catch (error) {}
+                    if (this._visibilityBatteryDevice) {
+                        for (const signalId of this._visibilityBatteryDeviceSignalIds) {
+                            try { this._visibilityBatteryDevice.disconnect(signalId); } catch (error) {}
+                        }
                     }
                     this._visibilityBatteryDevice = device;
-                    this._visibilityBatteryDeviceSignalId = 0;
+                    this._visibilityBatteryDeviceSignalIds = [];
                     if (device) {
-                        try {
-                            this._visibilityBatteryDeviceSignalId = device.connect('notify', syncBattery);
-                        } catch (error) {}
+                        for (const signal of ['notify::state', 'notify::percentage']) {
+                            try {
+                                const signalId = device.connect(signal, syncBattery);
+                                if (signalId)
+                                    this._visibilityBatteryDeviceSignalIds.push(signalId);
+                            } catch (error) {}
+                        }
                     }
                 }
                 let onBattery = null;
@@ -350,11 +356,13 @@ export default class MaterialPanelExtension extends Extension {
         this._visibilityFocusWindow = null;
         this._visibilityFocusSignalId = 0;
         this._visibilityDndSettings = null;
-        if (this._visibilityBatteryDevice && this._visibilityBatteryDeviceSignalId) {
-            try { this._visibilityBatteryDevice.disconnect(this._visibilityBatteryDeviceSignalId); } catch (e) {}
+        if (this._visibilityBatteryDevice) {
+            for (const signalId of this._visibilityBatteryDeviceSignalIds ?? []) {
+                try { this._visibilityBatteryDevice.disconnect(signalId); } catch (e) {}
+            }
         }
         this._visibilityBatteryDevice = null;
-        this._visibilityBatteryDeviceSignalId = 0;
+        this._visibilityBatteryDeviceSignalIds = [];
         this._visibilityBatteryClient = null;
         this._builder?.setDoNotDisturbActive(false);
         this._builder?.setNetworkOffline(false);
