@@ -837,9 +837,6 @@ export default class MaterialPanelPreferences extends ExtensionPreferences {
 
         const {refresh: refreshPopupShortcutsPage} = buildPopupShortcutsPage({
             Adw, Gtk, config, saveConfig, window, groupParent: generalPage,
-            defaultPopupShortcuts: DEFAULT_POPUP_SHORTCUTS,
-            normalizePopupShortcuts, findPopupShortcutConflicts,
-            popupShortcutTargets: POPUP_SHORTCUT_TARGETS,
             isSyncingExternal: () => syncingExternal,
             setSyncingExternal: value => { syncingExternal = value; },
         });

@@ -11,7 +11,8 @@ test('popup shortcut preferences are isolated in a focused page builder', () => 
     assert.match(page, /Gtk\.accelerator_valid/);
     assert.match(page, /findPopupShortcutConflicts\(next\)/);
     assert.match(page, /Reset popup shortcuts/);
-    assert.match(page, /defaultPopupShortcuts/);
+    assert.match(page, /DEFAULT_POPUP_SHORTCUTS/);
+    assert.match(page, /from '..\/lib\/popupShortcuts\.js'/);
 });
 
 test('external config edits refresh popup shortcut accelerator rows without saving them back', () => {

@@ -1,7 +1,13 @@
+import {
+    DEFAULT_POPUP_SHORTCUTS,
+    findPopupShortcutConflicts,
+    normalizePopupShortcuts,
+    POPUP_SHORTCUT_TARGETS,
+} from '../lib/popupShortcuts.js';
+
 export function buildPopupShortcutsPage({
     Adw, Gtk, config, saveConfig, window, groupParent,
-    defaultPopupShortcuts, normalizePopupShortcuts, findPopupShortcutConflicts,
-    popupShortcutTargets, isSyncingExternal, setSyncingExternal,
+    isSyncingExternal, setSyncingExternal,
 }) {
         const popupShortcutGroup = new Adw.PreferencesGroup({
             title: 'Popup keyboard shortcuts',
@@ -58,7 +64,7 @@ export function buildPopupShortcutsPage({
             const conflicts = findPopupShortcutConflicts(next);
             if (conflicts.length) {
                 const labels = conflicts.flatMap(group => group.ids)
-                    .map(id => popupShortcutTargets.find(item => item.id === id)?.label || id);
+                    .map(id => POPUP_SHORTCUT_TARGETS.find(item => item.id === id)?.label || id);
                 window.add_toast(new Adw.Toast({
                     title: `Shortcut is already assigned: ${[...new Set(labels)].join(', ')}`,
                 }));
@@ -72,7 +78,7 @@ export function buildPopupShortcutsPage({
                 title: accelerator ? `${target.label} shortcut saved` : `${target.label} shortcut cleared`,
             }));
         };
-        for (const target of popupShortcutTargets) {
+        for (const target of POPUP_SHORTCUT_TARGETS) {
             const row = new Adw.EntryRow({
                 title: `${target.label} shortcut`,
                 text: config.popupShortcuts[target.id] || '',
@@ -91,7 +97,7 @@ export function buildPopupShortcutsPage({
             valign: Gtk.Align.CENTER,
         });
         resetShortcutsButton.connect('clicked', () => {
-            config.popupShortcuts = {...defaultPopupShortcuts};
+            config.popupShortcuts = {...DEFAULT_POPUP_SHORTCUTS};
             for (const row of popupShortcutRows.values())
                 row.set_text('');
             saveConfig();
@@ -106,7 +112,7 @@ export function buildPopupShortcutsPage({
         const wasSyncing = isSyncingExternal();
         setSyncingExternal(true);
         config.popupShortcuts = normalizePopupShortcuts(config.popupShortcuts);
-        for (const target of popupShortcutTargets) {
+        for (const target of POPUP_SHORTCUT_TARGETS) {
             const row = popupShortcutRows.get(target.id);
             if (row)
                 row.set_text(config.popupShortcuts[target.id] || '');
