@@ -48,6 +48,10 @@ Add optional application or command shortcuts in **Preferences → Quick Launch*
 
 To make a command a toggle, provide a separate **Off command**. The on/off state and active icon update only after the selected command exits successfully; state is session-only and resets when the extension reloads. Both commands are parsed into executable arguments and launched directly without a shell; shell pipelines, redirection, and command substitution are not supported. Commands stop after 30 seconds. Only add commands you trust.
 
+## Context-aware visibility
+
+Per-module visibility rules can hide modules while a window is fullscreen, GNOME Overview is open, Do Not Disturb is active, or GNOME reports the network unavailable. You can also restrict a module to battery power or show it only at or below a chosen battery percentage. Unknown battery state/percentage leaves the module visible. These rules remain independent of manual visibility and Focus Mode.
+
 ## Install
 
 From the repository directory:

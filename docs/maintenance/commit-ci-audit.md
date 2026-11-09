@@ -1350,3 +1350,42 @@ A follow-up test-only hardening change covers a throwing timer adapter, a valid 
 **Checkpoint SHA:** `a0e8efb00e98ad00865765822669fc87aeec996d`  
 **Checkpoint date:** 2026-11-08  
 **Next unreviewed commit:** normalized popup shortcut conflict regression coverage (#249).
+
+
+## Incremental CI review: context visibility, Quick Launch toggles, and Preferences extraction — 2026-11-09
+
+The previous checkpoint was `a0e8efb00e98ad00865765822669fc87aeec996d`. The following newer commits were reviewed on the verified default branch `main`.
+
+### Popup shortcut conflict regression (prior checkpoint tail)
+
+- `46098fc0f156d5d4402c643fade24b601363f1c4` — **green**, [run #42458955220](https://github.com/SakibShahariar/material-panel/actions/runs/42458955220): syntax, **680/680 JavaScript tests**, and **22/22 Python tests** passed. Conflict detection is verified after invisible-character normalization.
+
+### Battery-aware module visibility (#112)
+
+- `cfa7071c008b0e04c7e886b8313eeed786407851` — **red**, [run #42564829744](https://github.com/SakibShahariar/material-panel/actions/runs/42564829744). Syntax passed; JavaScript tests failed because two existing ConfigStore normalization expectations did not include the new default-off battery rule fields. This was a stale test expectation introduced by the schema extension, not a production failure; the Python/calendar stage was skipped.
+- `bb68fd05e6eb9e27a36d97a4a749a9344ea79f53` — **green**, [run #42564932343](https://github.com/SakibShahariar/material-panel/actions/runs/42564932343): syntax, **682/682 JavaScript tests**, and **22/22 Python tests** passed. The follow-up updated the normalization fixtures and narrowed UPower subscriptions to `notify::state` and `notify::percentage` to avoid unrelated panel rebuilds.
+- The red result was caused by this change and resolved by the green follow-up.
+
+### Custom Quick Settings command toggles (#71)
+
+- `94a694d67a55841daefefe15497604a2ed9a3a88` — **red**, [run #42565084169](https://github.com/SakibShahariar/material-panel/actions/runs/42565084169). The newly added off-command sanitizer regex was over-escaped, so valid toggle pairs were discarded and the state tests failed. Python/calendar tests were skipped.
+- `93769baadc76113d3b6e0422b53c96bc2a42e226` — **green**, [run #42565163697](https://github.com/SakibShahariar/material-panel/actions/runs/42565163697): syntax, **687/687 JavaScript tests**, and **22/22 Python tests** passed after correcting the regex and newline fixture.
+- `02e92ab7fc0f719ee3250810b3512c14a00a4514` — **red**, [run #42565245693](https://github.com/SakibShahariar/material-panel/actions/runs/42565245693). The runtime toggle implementation passed syntax, but an existing icon source assertion still expected the old `if (entry.icon)` rendering shape. Python/calendar tests were skipped.
+- `33c5d396f251773e8a3f7c895867cd089719cf45` — **green**, [run #42565321315](https://github.com/SakibShahariar/material-panel/actions/runs/42565321315): syntax, **690/690 JavaScript tests**, and **22/22 Python tests** passed after the assertion was updated to cover toggle-aware icon rendering.
+- Both red runs were caused by new implementation/test shape changes and are resolved by their green follow-ups.
+
+### Preferences page extraction (#244, #249, #248, #143)
+
+- `db0cb4308e377427a3634691ff3deddf8fa53f64` — **green**, [run #42565729681](https://github.com/SakibShahariar/material-panel/actions/runs/42565729681): syntax, **692/692 JavaScript tests**, and **22/22 Python tests** passed. Extracted the Popup Shortcuts page. A post-CI code review found the moved page still relied on helper names whose imports had been removed from `prefs.js`; this source issue was corrected in the next commit even though the workflow was green.
+- `61bf95cac312f8182bd1877a57a72721da27dcc6` — **green**, [run #42565797866](https://github.com/SakibShahariar/material-panel/actions/runs/42565797866): syntax, **692/692 JavaScript tests**, and **22/22 Python tests** passed. Popup-shortcut helper imports now live with the extracted page.
+- `e1c3c4128204c392f4b6feb0a43cd71017d5afa8` — **red**, [run #42565831444](https://github.com/SakibShahariar/material-panel/actions/runs/42565831444). The World Clock extraction test asserted the wrong variable for the 12-city limit; code review also caught two moved callbacks still referring to the old `syncingExternal` closure. The latter was corrected in `2abaed2e`; the test was corrected in subsequent follow-ups. Python/calendar tests were skipped.
+- `f61d94be1b3e4b29c31d4cb5db48e0bffb4a3708` — **red**, [run #42565886738](https://github.com/SakibShahariar/material-panel/actions/runs/42565886738). The weather page extraction inherited the World Clock test still pointing at `prefs.js`; no additional Weather-specific failure was reported. Python/calendar tests were skipped.
+- `2abaed2ef36abc4a84f5514675f47233a56c7256` — **red**, [run #42565942042](https://github.com/SakibShahariar/material-panel/actions/runs/42565942042). The code-level World Clock sync guard was corrected, but the source test still expected a one-line builder call and the old fallback text location. Python/calendar tests were skipped.
+- `919235c64646c92833b1b7628d834350780808b6` — **red**, [run #42566040308](https://github.com/SakibShahariar/material-panel/actions/runs/42566040308). The remaining Preferences test still read the old `prefs.js` source instead of `prefs/worldClockPage.js`. Python/calendar tests were skipped.
+- `cb38fadcfa74e2ff78471e18f2eb8de64435731e` — **green**, [run #42566122159](https://github.com/SakibShahariar/material-panel/actions/runs/42566122159): syntax, **696/696 JavaScript tests**, and **22/22 Python tests** passed. The World Clock tests now inspect the extracted page, the moved sync guard is supplied explicitly, and the Weather/World Clock/Popup Shortcuts page composition tests pass.
+- The initial red runs were caused by stale source assertions plus one missing closure dependency in the extracted World Clock page; the final green commit contains the corrections. The green Popup Shortcuts CI run did not catch a missing helper import, which was identified in manual review and fixed in `61bf95ca`.
+
+**Reviewed through:** `cb38fadcfa74e2ff78471e18f2eb8de64435731e`  
+**Checkpoint SHA:** `cb38fadcfa74e2ff78471e18f2eb8de64435731e`  
+**Checkpoint date:** 2026-11-09  
+**Next unreviewed commit:** this README/ledger documentation commit; record its own CI result in the next incremental review.
