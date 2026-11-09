@@ -16,6 +16,7 @@ test('Quick Launch configuration is normalized and synchronized with extension l
     assert.match(config, /quickLaunch:\s*\[\]/);
     assert.match(config, /merged\.quickLaunch = normalizeQuickLaunchEntries\(merged\.quickLaunch\)/);
     assert.match(state, /export function setQuickLaunchEntries\(value\)/);
+    assert.match(state, /export function setQuickLaunchEntryState\(id, active\)/);
     assert.match(state, /export function clearQuickLaunchEntries\(\)/);
     assert.match(extension, /setQuickLaunchEntries\(this\._config\.quickLaunch\)/);
     assert.match(extension, /setQuickLaunchEntries\(newConfig\.quickLaunch\)/);
@@ -33,6 +34,9 @@ test('Preferences registers Quick Launch and refreshes it when configuration cha
     assert.match(prefs, /refreshQuickLaunchPage\(\)/);
     assert.match(page, /Installed application/);
     assert.match(page, /Command \(executable and arguments\)/);
+    assert.match(page, /Off command \(optional toggle\)/);
+    assert.match(page, /offTarget/);
+    assert.match(page, /resets when the extension reloads/);
     assert.match(page, /current\.name = value\.slice\(0, 80\)/);
     assert.match(page, /list\.splice\(index - 1, 0, item\)/);
     assert.match(page, /list\.splice\(index \+ 1, 0, item\)/);

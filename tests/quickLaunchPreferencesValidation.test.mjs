@@ -19,3 +19,10 @@ test('adding and editing commands share the same bounded parser validation', () 
     assert.match(source, /entry\.type === 'command' && !commandIsValid\(GLib, value\)/);
     assert.match(source, /!target \|\| !commandIsValid\(GLib, target\)/);
 });
+
+
+test('Quick Launch toggle off commands use the same bounded no-shell validator', () => {
+    assert.match(source, /offTarget && !commandIsValid\(GLib, offTarget\)/);
+    assert.match(source, /offTarget\.length|commandIsValid\(GLib, offTarget\)/);
+    assert.match(source, /Use a different command for the off action/);
+});

@@ -28,7 +28,7 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
 
     const description = new Adw.PreferencesGroup({
         title: 'Quick launch',
-        description: 'Add your own application shortcuts or commands to the Quick Settings popup. The section stays hidden when the list is empty.',
+        description: 'Add application shortcuts or commands to Quick Settings. Add an off command to make a command a toggle; its state changes only after successful execution and resets when the extension reloads.',
     });
     page.add(description);
 
@@ -74,6 +74,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
     commandRow.add_suffix(addCommandButton);
     description.add(commandRow);
 
+    const offCommandRow = new Adw.EntryRow({
+        title: 'Off command (optional toggle)',
+    });
+    description.add(offCommandRow);
+
     const iconRow = new Adw.EntryRow({
         title: 'Symbolic icon name (optional)',
     });
@@ -81,7 +86,7 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
 
     const commandHint = new Adw.ActionRow({
         title: 'Command safety',
-        subtitle: 'Commands run directly without a shell and are stopped after 30 seconds. Pipes, redirects, substitutions, and shell expansion are not supported.',
+        subtitle: 'Commands run directly without a shell and stop after 30 seconds. For toggles, the off command runs when active; state changes only after a successful exit. Pipes, redirects, substitutions, and shell expansion are not supported.',
     });
     description.add(commandHint);
 
@@ -106,6 +111,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             hexpand: true,
             activates_default: true,
         });
+        const offEditor = new Gtk.Entry({
+            text: entry.offTarget ?? '',
+            placeholder_text: 'Off command (optional toggle)',
+            hexpand: true,
+        });
         const iconEditor = new Gtk.Entry({
             text: entry.icon ?? '',
             placeholder_text: 'Symbolic icon name (optional)',
@@ -113,6 +123,8 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
         });
         const editorBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
         editorBox.append(editor);
+        if (entry.type === 'command')
+            editorBox.append(offEditor);
         editorBox.append(iconEditor);
         const dialog = new Adw.MessageDialog({
             transient_for: window,
@@ -130,11 +142,16 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
         dialog.connect('response', (_dialog, response) => {
             if (response === 'save') {
                 const value = editor.get_text().trim();
+                const offTarget = entry.type === 'command' ? offEditor.get_text().trim() : '';
                 const icon = iconEditor.get_text().trim();
                 if (!value) {
                     notify('A shortcut value is required');
                 } else if (entry.type === 'command' && !commandIsValid(GLib, value)) {
                     notify('Enter a valid executable and arguments (maximum 512 characters)');
+                } else if (offTarget && !commandIsValid(GLib, offTarget)) {
+                    notify('Enter a valid off command (maximum 512 characters)');
+                } else if (offTarget && offTarget === value) {
+                    notify('Use a different command for the off action');
                 } else if (entry.type === 'command' && config.quickLaunch.some(item =>
                     item.id !== entry.id && item.type === 'command' && item.target === value)) {
                     notify('That command is already in Quick Launch');
@@ -148,6 +165,10 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                         } else {
                             current.target = value.slice(0, 512);
                             current.name = value.slice(0, 80);
+                            if (offTarget)
+                                current.offTarget = offTarget.slice(0, 512);
+                            else
+                                delete current.offTarget;
                         }
                         if (icon)
                             current.icon = icon;
@@ -183,7 +204,9 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                 title: entry.name,
                 subtitle: entry.type === 'app'
                     ? `Application · ${entry.target}`
-                    : `Command · ${entry.target}`,
+                    : entry.offTarget
+                        ? `Toggle · on: ${entry.target} · off: ${entry.offTarget}`
+                        : `Command · ${entry.target}`,
             });
             const edit = new Gtk.Button({
                 icon_name: 'document-edit-symbolic',
@@ -272,8 +295,17 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             notify('Use a symbolic icon name, not a file path');
             return;
         }
+        const offTarget = offCommandRow.get_text().trim();
         if (!target || !commandIsValid(GLib, target)) {
             notify('Enter a valid executable and arguments');
+            return;
+        }
+        if (offTarget && !commandIsValid(GLib, offTarget)) {
+            notify('Enter a valid off command (maximum 512 characters)');
+            return;
+        }
+        if (offTarget && offTarget === target) {
+            notify('Use a different command for the off action');
             return;
         }
         if (config.quickLaunch.some(entry => entry.type === 'command' && entry.target === target)) {
@@ -289,9 +321,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             type: 'command',
             target,
             name: target.slice(0, 80),
+            ...(offTarget ? {offTarget} : {}),
             ...(icon ? {icon} : {}),
         });
         commandRow.set_text('');
+        offCommandRow.set_text('');
         iconRow.set_text('');
         persist();
     });
