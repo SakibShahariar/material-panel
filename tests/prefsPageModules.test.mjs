@@ -110,7 +110,7 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
 
 test('Preferences exposes an ordered, validated list of optional world clocks', async () => {
     const [entry, helpers] = await Promise.all([
-        read('prefs.js'), read('lib/worldClock.js'),
+        read('prefs/worldClockPage.js'), read('lib/worldClock.js'),
     ]);
     assert.match(entry, /title: 'World Clock'/);
     assert.match(entry, /parseWorldClockZoneTab\(new TextDecoder\(\)\.decode\(bytes\)\)/);
@@ -127,7 +127,7 @@ test('Preferences exposes an ordered, validated list of optional world clocks', 
 });
 
 test('World Clock city picker handles missing tzdata and prevents duplicate or excess entries', async () => {
-    const entry = await read('prefs.js');
+    const entry = await read('prefs/worldClockPage.js');
     assert.match(entry, /manual IANA time-zone editor below remains available without tzdata/);
     assert.match(entry, /current\.some\(entry => entry\.timeZone === choice\.timeZone\)/);
     assert.match(entry, /current\.length >= 12/);
