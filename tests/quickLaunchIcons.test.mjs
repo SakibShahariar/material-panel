@@ -15,9 +15,9 @@ test('Quick Launch Preferences can add and edit optional symbolic icon names', a
 
 test('Quick Launch buttons render configured icons alongside the shortcut label', async () => {
     const source = await read('../modules/quickLaunch.js');
-    assert.ok(source.includes('if (entry.icon)'));
+    assert.ok(source.includes('const iconActor = entry.icon || isToggle ? new St.Icon({'));
     assert.ok(source.includes('new St.Icon({'));
-    assert.ok(source.includes('icon_name: entry.icon'));
+    assert.ok(source.includes('icon_name: entry.icon || (active ?'));
     assert.ok(source.includes('text: entry.name'));
     assert.ok(source.includes('setChipA11y(button'));
 });
