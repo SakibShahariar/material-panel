@@ -66,7 +66,9 @@ test('Quick Launch section stays absent when empty and makes unavailable entries
     assert.match(module, /reactive: available/);
     assert.match(module, /can_focus: true/);
     assert.match(module, /if \(!available\)\s*\{[\s\S]*?button\.opacity = 150;[\s\S]*?button\.set_tooltip_text\(unavailableReason\)/);
-    assert.match(module, /button\.connect\('clicked', \(\) => launchEntry\(entry\)\)/);
+    assert.match(module, /if \(!isToggle\)\s*\{\s*launchEntry\(entry\)/);
+    assert.match(module, /setQuickLaunchEntryState\(entry\.id, nextActive\)/);
+    assert.match(module, /commandTarget,\s*onComplete/);
 });
 
 
@@ -85,7 +87,7 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
     assert.match(module, /Main\.notify\('Quick launch completed'/);
     assert.match(module, /entry\.type === 'app' && launched/);
     assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
-    assert.match(runner, /const argv = parseCommand\(entry\.target\)/);
-    assert.match(runner, /spawnCommand\(argv\)/);
+    assert.match(runner, /const argv = parseCommand\(commandTarget\)/);
+    assert.match(runner, /spawnCommand\(argv, \(success, error = null\) => complete\(success, error\)\)/);
     assert.doesNotMatch(runner, /exec\(|eval\(|shell=True/);
 });

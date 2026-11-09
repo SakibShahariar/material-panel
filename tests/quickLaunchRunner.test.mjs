@@ -89,3 +89,39 @@ test('rejects unknown entry types safely', () => {
     assert.equal(result, false);
     assert.deepEqual(errors, ['Unsupported quick-launch entry type.']);
 });
+
+
+test('dispatches the selected off command and forwards asynchronous completion', () => {
+    const calls = [];
+    let finish = null;
+    const completed = [];
+    const offCommand = 'nmcli radio wifi off';
+    const result = launchQuickLaunchEntry({...command, offTarget: offCommand}, {
+        commandTarget: offCommand,
+        parseCommand: value => { calls.push(['parse', value]); return ['nmcli', 'radio', 'wifi', 'off']; },
+        spawnCommand: (argv, callback) => { calls.push(['spawn', argv]); finish = callback; },
+        onComplete: (success, error) => completed.push([success, error?.message ?? null]),
+    });
+    assert.equal(result, true);
+    assert.deepEqual(calls, [
+        ['parse', offCommand],
+        ['spawn', ['nmcli', 'radio', 'wifi', 'off']],
+    ]);
+    assert.deepEqual(completed, []);
+    finish(true);
+    assert.deepEqual(completed, [[true, null]]);
+});
+
+test('reports an unsuccessful asynchronous toggle command without changing success state', () => {
+    const errors = [];
+    let finish = null;
+    const result = launchQuickLaunchEntry({...command, offTarget: 'nmcli radio wifi off'}, {
+        commandTarget: 'nmcli radio wifi off',
+        parseCommand: () => ['nmcli', 'radio', 'wifi', 'off'],
+        spawnCommand: (_argv, callback) => { finish = callback; },
+        onComplete: (success, error) => errors.push([success, error.message]),
+    });
+    assert.equal(result, true);
+    finish(false, new Error('non-zero exit'));
+    assert.deepEqual(errors, [[false, 'non-zero exit']]);
+});

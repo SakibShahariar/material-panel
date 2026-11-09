@@ -44,9 +44,9 @@ Only update a version's runtime-tested status after this checklist has been exer
 
 ## Quick Launch shortcuts
 
-Add optional application or command shortcuts in **Preferences → Quick Launch**. Each shortcut can have a custom label and an optional symbolic icon name (for example, `utilities-terminal-symbolic`). Leave the icon field empty to keep a text-only shortcut. You can edit, reorder, or remove configured entries.
+Add optional application or command shortcuts in **Preferences → Quick Launch**. Each shortcut can have a custom label and an optional symbolic icon name (for example, `utilities-terminal-symbolic`). Leave the icon field empty to use the built-in action/state glyphs. You can edit, reorder, or remove configured entries.
 
-Commands are parsed into executable arguments and launched directly without a shell; shell pipelines, redirection, and command substitution are not supported. A command is stopped if it runs longer than 30 seconds. Only add commands you trust.
+To make a command a toggle, provide a separate **Off command**. The on/off state and active icon update only after the selected command exits successfully; state is session-only and resets when the extension reloads. Both commands are parsed into executable arguments and launched directly without a shell; shell pipelines, redirection, and command substitution are not supported. Commands stop after 30 seconds. Only add commands you trust.
 
 ## Install
 

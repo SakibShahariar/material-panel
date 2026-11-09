@@ -21,3 +21,17 @@ test('Quick Launch buttons render configured icons alongside the shortcut label'
     assert.ok(source.includes('text: entry.name'));
     assert.ok(source.includes('setChipA11y(button'));
 });
+
+
+test('Quick Launch toggles reflect only successful command completion and expose state accessibly', async () => {
+    const [module, state] = await Promise.all([
+        read('../modules/quickLaunch.js'), read('../lib/quickLaunchState.js'),
+    ]);
+    assert.match(module, /const isToggle = entry\.type === 'command' && Boolean\(entry\.offTarget\)/);
+    assert.match(module, /const nextActive = !active/);
+    assert.match(module, /if \(success && setQuickLaunchEntryState\(entry\.id, nextActive\)\)/);
+    assert.match(module, /emblem-ok-symbolic/);
+    assert.match(module, /system-run-symbolic/);
+    assert.match(module, /\$\{active \? 'on' : 'off'\}/);
+    assert.match(state, /activeStates/);
+});
