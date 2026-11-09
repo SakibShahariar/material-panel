@@ -140,7 +140,7 @@ test('preserves valid off commands as toggle actions and drops malformed pairs',
     assert.deepEqual(normalizeQuickLaunchEntries([
         {id: 'toggle', type: 'command', target: 'nmcli radio wifi on', offTarget: 'nmcli radio wifi off', name: 'Wi-Fi'},
         {id: 'same', type: 'command', target: 'echo state', offTarget: 'echo state'},
-        {id: 'control', type: 'command', target: 'echo safe', offTarget: 'echo bad\\ncommand'},
+        {id: 'control', type: 'command', target: 'echo safe', offTarget: 'echo bad\ncommand'},
         {id: 'oversized', type: 'command', target: 'echo safe', offTarget: 'x'.repeat(513)},
         {id: 'app', type: 'app', target: 'org.gnome.Terminal.desktop', offTarget: 'echo ignored'},
     ]), [
