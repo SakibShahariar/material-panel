@@ -100,6 +100,8 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             hideInOverview: false,
             hideWhenDnd: false,
             hideWhenOffline: false,
+            showOnlyOnBattery: false,
+            showOnlyBelowBatteryPercent: 0,
         };
         const fullscreenRow = new Adw.ActionRow({
             title: `${module.name} · Hide in fullscreen`,
@@ -113,7 +115,8 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenFullscreen = fullscreenSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -135,7 +138,8 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideInOverview = overviewSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -157,7 +161,8 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenDnd = dndSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -179,7 +184,8 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
             if (isSyncingExternal())
                 return;
             rule.hideWhenOffline = offlineSwitch.active;
-            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline)
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
                 delete config.moduleVisibilityRules[module.id];
             else
                 config.moduleVisibilityRules[module.id] = rule;
@@ -188,6 +194,56 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
         offlineRow.add_suffix(offlineSwitch);
         offlineRow.activatable_widget = offlineSwitch;
         contextVisibilityGroup.add(offlineRow);
+
+        const batteryOnlyRow = new Adw.ActionRow({
+            title: `${module.name} · Show only on battery`,
+            subtitle: 'Hide while charging or fully charged; unknown battery state leaves the module visible',
+        });
+        const batteryOnlySwitch = new Gtk.Switch({
+            active: rule.showOnlyOnBattery === true,
+            valign: Gtk.Align.CENTER,
+        });
+        batteryOnlySwitch.connect('notify::active', () => {
+            if (isSyncingExternal())
+                return;
+            rule.showOnlyOnBattery = batteryOnlySwitch.active;
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        batteryOnlyRow.add_suffix(batteryOnlySwitch);
+        batteryOnlyRow.activatable_widget = batteryOnlySwitch;
+        contextVisibilityGroup.add(batteryOnlyRow);
+
+        const batteryThresholdRow = new Adw.ActionRow({
+            title: `${module.name} · Show only below battery level`,
+            subtitle: 'Hide above this percentage. Set 0 to disable the rule.',
+        });
+        const batteryThresholdSpin = new Gtk.SpinButton({
+            adjustment: new Gtk.Adjustment({
+                lower: 0, upper: 100, step_increment: 1, page_increment: 10,
+                value: rule.showOnlyBelowBatteryPercent ?? 0,
+            }),
+            numeric: true,
+            digits: 0,
+            valign: Gtk.Align.CENTER,
+        });
+        batteryThresholdSpin.connect('value-changed', () => {
+            if (isSyncingExternal())
+                return;
+            rule.showOnlyBelowBatteryPercent = batteryThresholdSpin.get_value_as_int();
+            if (!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&
+                !rule.showOnlyOnBattery && !rule.showOnlyBelowBatteryPercent)
+                delete config.moduleVisibilityRules[module.id];
+            else
+                config.moduleVisibilityRules[module.id] = rule;
+            saveConfig();
+        });
+        batteryThresholdRow.add_suffix(batteryThresholdSpin);
+        contextVisibilityGroup.add(batteryThresholdRow);
     }
 
     // Status indicators are informational; their existing modules retain control ownership.

@@ -2,6 +2,7 @@ import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
+import UPowerGlib from 'gi://UPowerGlib';
 import St from 'gi://St';
 import {debugLog} from './lib/debug.js';
 import {closeMixerControl, setMixerControlReadyCallback} from './lib/audio.js';
@@ -31,6 +32,7 @@ import {clearControlCenterSummary} from './lib/controlCenterSummaryState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
 import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchState.js';
+import {selectBatteryDevice} from './lib/batteryDevice.js';
 import {ClipboardHistoryController} from './lib/clipboardHistoryController.js';
 import {ClipboardHistoryFileStore} from './lib/clipboardHistoryStore.js';
 import {setClipboardHistoryController} from './modules/clipboardHistory.js';
@@ -229,6 +231,62 @@ export default class MaterialPanelExtension extends Extension {
             logError(e, 'material-panel: could not watch network availability');
         }
 
+        this._visibilityBatteryClient = null;
+        this._visibilityBatteryDevice = null;
+        this._visibilityBatteryDeviceSignalId = 0;
+        try {
+            const client = UPowerGlib.Client.new();
+            this._visibilityBatteryClient = client;
+            const syncBattery = () => {
+                let selected = null;
+                try {
+                    selected = selectBatteryDevice(
+                        client.get_devices?.() || [],
+                        client.get_display_device?.(),
+                        UPowerGlib.DeviceKind.BATTERY);
+                } catch (error) {}
+                const device = selected?.device ?? null;
+                if (device !== this._visibilityBatteryDevice) {
+                    if (this._visibilityBatteryDevice && this._visibilityBatteryDeviceSignalId) {
+                        try { this._visibilityBatteryDevice.disconnect(this._visibilityBatteryDeviceSignalId); } catch (error) {}
+                    }
+                    this._visibilityBatteryDevice = device;
+                    this._visibilityBatteryDeviceSignalId = 0;
+                    if (device) {
+                        try {
+                            this._visibilityBatteryDeviceSignalId = device.connect('notify', syncBattery);
+                        } catch (error) {}
+                    }
+                }
+                let onBattery = null;
+                let percentage = null;
+                if (device) {
+                    try {
+                        const state = device.state;
+                        if ([UPowerGlib.DeviceState.DISCHARGING, UPowerGlib.DeviceState.PENDING_DISCHARGE,
+                            UPowerGlib.DeviceState.EMPTY].includes(state))
+                            onBattery = true;
+                        else if ([UPowerGlib.DeviceState.CHARGING, UPowerGlib.DeviceState.PENDING_CHARGE,
+                            UPowerGlib.DeviceState.FULLY_CHARGED].includes(state))
+                            onBattery = false;
+                    } catch (error) {}
+                    try {
+                        const value = Number(device.percentage);
+                        if (Number.isFinite(value) && value >= 0 && value <= 100)
+                            percentage = value;
+                    } catch (error) {}
+                }
+                this._builder?.setBatteryContext({onBattery, percentage});
+                refresh();
+            };
+            syncBattery();
+            const addedId = client.connect('device-added', syncBattery);
+            const removedId = client.connect('device-removed', syncBattery);
+            this._visibilitySignalConnections.push([client, addedId], [client, removedId]);
+        } catch (error) {
+            logError(error, 'material-panel: could not watch battery context');
+        }
+
         try {
             this._visibilityDndSettings = new Gio.Settings({
                 schema_id: 'org.gnome.desktop.notifications',
@@ -292,8 +350,15 @@ export default class MaterialPanelExtension extends Extension {
         this._visibilityFocusWindow = null;
         this._visibilityFocusSignalId = 0;
         this._visibilityDndSettings = null;
+        if (this._visibilityBatteryDevice && this._visibilityBatteryDeviceSignalId) {
+            try { this._visibilityBatteryDevice.disconnect(this._visibilityBatteryDeviceSignalId); } catch (e) {}
+        }
+        this._visibilityBatteryDevice = null;
+        this._visibilityBatteryDeviceSignalId = 0;
+        this._visibilityBatteryClient = null;
         this._builder?.setDoNotDisturbActive(false);
         this._builder?.setNetworkOffline(false);
+        this._builder?.setBatteryContext({onBattery: null, percentage: null});
     }
 
     _removePopupKeybindings(clearSettings = false) {

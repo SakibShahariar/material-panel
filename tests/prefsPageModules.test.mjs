@@ -66,7 +66,11 @@ test('Modules Preferences exposes opt-in fullscreen and Overview rules independe
     assert.match(source, /delete config\.moduleVisibilityRules\[module\.id\]/);
     assert.match(source, /Focus Mode selection is independent/);
     // Clearing one context rule must retain any other independently enabled rule.
-    assert.ok(source.includes('!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline'));
+    assert.ok(source.includes('!rule.hideWhenFullscreen && !rule.hideInOverview && !rule.hideWhenDnd && !rule.hideWhenOffline &&'));
+    assert.match(source, /showOnlyOnBattery/);
+    assert.match(source, /showOnlyBelowBatteryPercent/);
+    assert.match(source, /Show only on battery/);
+    assert.match(source, /Show only below battery level/);
 });
 
 test('PanelBuilder merges context rules with manual visibility and Focus Mode', async () => {
@@ -91,6 +95,11 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /monitor\.connect\('network-changed', syncNetwork\)/);
     assert.match(source, /setNetworkOffline\(!monitor\.network_available\)/);
     assert.match(source, /setNetworkOffline\(false\)/);
+    assert.match(source, /UPowerGlib\.Client\.new\(\)/);
+    assert.match(source, /client\.connect\('device-added', syncBattery\)/);
+    assert.match(source, /client\.connect\('device-removed', syncBattery\)/);
+    assert.match(source, /setBatteryContext\(\{onBattery, percentage\}\)/);
+    assert.match(source, /_visibilityBatteryDevice\.disconnect/);
     assert.match(source, /setDoNotDisturbActive\(active\)/);
     assert.match(source, /_unwatchContextVisibility\(\)/);
     assert.match(source, /disable\(\)\s*\{[\s\S]*?this\._unwatchContextVisibility\(\);/);

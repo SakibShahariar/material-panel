@@ -21,8 +21,8 @@ test('normalizes only explicit boolean rules for known modules', () => {
         volume: {hideWhenFullscreen: 'yes', hideInOverview: true},
         network: 'invalid',
     }), {
-        clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false},
-        volume: {hideWhenFullscreen: false, hideInOverview: true, hideWhenDnd: false, hideWhenOffline: false},
+        clock: {hideWhenFullscreen: true, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false, showOnlyOnBattery: false, showOnlyBelowBatteryPercent: 0},
+        volume: {hideWhenFullscreen: false, hideInOverview: true, hideWhenDnd: false, hideWhenOffline: false, showOnlyOnBattery: false, showOnlyBelowBatteryPercent: 0},
     });
 });
 
@@ -69,4 +69,28 @@ test('hides only modules opting into offline context', () => {
     assert.deepEqual([...getContextHiddenModules(rules, {offline: true})], ['clock', 'network']);
     assert.deepEqual([...getContextHiddenModules(rules, {offline: false})], []);
     assert.deepEqual([...getContextHiddenModules(rules, {offline: true, dnd: true})], ['clock', 'network']);
+});
+
+
+test('battery visibility rules combine only when battery context is known', () => {
+    const rules = {
+        clock: {showOnlyOnBattery: true},
+        volume: {showOnlyBelowBatteryPercent: 20},
+        network: {showOnlyOnBattery: true, showOnlyBelowBatteryPercent: 20},
+    };
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: false, batteryPercent: 55})],
+        ['clock', 'volume', 'network']);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20})], []);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: null, batteryPercent: null})], []);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 21})], ['volume', 'network']);
+});
+
+test('normalizes battery-only and percentage visibility options defensively', () => {
+    assert.deepEqual(normalizeModuleVisibilityRules({
+        clock: {showOnlyOnBattery: true, showOnlyBelowBatteryPercent: 25.9},
+        volume: {showOnlyBelowBatteryPercent: 101},
+    }), {
+        clock: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false,
+            showOnlyOnBattery: true, showOnlyBelowBatteryPercent: 25},
+    });
 });
