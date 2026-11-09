@@ -17,5 +17,5 @@ test('World Clock preferences are isolated in a focused page builder', () => {
 });
 
 test('World Clock page remains composed by the existing General preferences page', () => {
-    assert.match(prefs, /buildWorldClockPage\(\{Adw, Gtk, GLib, config, saveConfig, window, groupParent: generalPage\}\)/);
+    assert.match(prefs, /buildWorldClockPage\(\{\s*Adw, Gtk, GLib, config, saveConfig, window, groupParent: generalPage,/);
 });
