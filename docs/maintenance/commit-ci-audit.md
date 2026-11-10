@@ -1389,3 +1389,27 @@ The previous checkpoint was `a0e8efb00e98ad00865765822669fc87aeec996d`. The foll
 **Checkpoint SHA:** `cb38fadcfa74e2ff78471e18f2eb8de64435731e`  
 **Checkpoint date:** 2026-11-09  
 **Next unreviewed commit:** this README/ledger documentation commit; record its own CI result in the next incremental review.
+
+## Incremental CI review: popup keypad activation and Wi-Fi teardown — 2026-11-10
+
+The previous checkpoint was `cb38fadcfa74e2ff78471e18f2eb8de64435731e`. The README/ledger documentation commit and the subsequent focused fixes were checked on `main`.
+
+### Prior documentation commit
+
+- `1043e292ca7d2684530d870b14184056d8cba0ff` — **green**, [run #42566421498](https://github.com/SakibShahariar/material-panel/actions/runs/42566421498): syntax, **696/696 JavaScript tests**, and **22/22 Python tests** passed.
+
+### Popup keyboard activation (#217)
+
+- `6fa47f2b7a1040025670dc51679b95fa12672458` — **red**, [run #42756901344](https://github.com/SakibShahariar/material-panel/actions/runs/42756901344). Syntax passed; **695/696 JavaScript tests** passed. The existing activation-propagation assertion expected the old three-key guard and did not account for the added `Clutter.KEY_KP_Space` condition. Python/calendar tests were skipped.
+- `c7ce790988c1cbcbd9fd7a2806fc2118edd3501e` — **red**, [run #42756919434](https://github.com/SakibShahariar/material-panel/actions/runs/42756919434). Syntax passed; **684/685 JavaScript tests** passed. The newly written source assertion contained an over-escaped regular expression and failed to compile. Python/calendar tests were skipped.
+- `9069652a200d3e45c9f7c859d054dec28958a5b3` — **green**, [run #42756940733](https://github.com/SakibShahariar/material-panel/actions/runs/42756940733): syntax, **696/696 JavaScript tests**, and **22/22 Python tests** passed. Replaced the fragile regex with direct checks for Return, keypad Enter, Space, keypad Space and event propagation. Both red failures were test-assertion defects and are resolved.
+
+### New Wi-Fi activation teardown guard (#28)
+
+- `c85d8a1c82d3d9e07d257e9d35f3c84d55cee965` — **green**, [run #42756957573](https://github.com/SakibShahariar/material-panel/actions/runs/42756957573): syntax, **696/696 JavaScript tests**, and **22/22 Python tests** passed. The active-connection state watcher now disconnects and returns before touching popup state if the module has already been destroyed.
+- `339e366fc8032f9761638bf33dbc1f14e62a55e7` — **green**, [run #42756969558](https://github.com/SakibShahariar/material-panel/actions/runs/42756969558): syntax, **697/697 JavaScript tests**, and **22/22 Python tests** passed. Added regression coverage for the teardown guard and destroy-time signal cleanup.
+
+**Reviewed through:** `339e366fc8032f9761638bf33dbc1f14e62a55e7`  
+**Checkpoint SHA:** `339e366fc8032f9761638bf33dbc1f14e62a55e7`  
+**Checkpoint date:** 2026-11-10  
+**Next unreviewed commit:** this CI-ledger update.
