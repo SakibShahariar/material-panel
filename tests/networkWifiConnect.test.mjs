@@ -141,3 +141,14 @@ test('NetworkManager adapter routes a consumer start-callback failure to its err
     }), true);
     assert.equal(failure?.message, 'consumer callback failed');
 });
+
+test('Wi-Fi activation watcher disconnects before touching a destroyed popup', () => {
+    const start = source.indexOf('const updateActivation = () => {');
+    const end = source.indexOf('            };', start);
+    assert.ok(start >= 0 && end > start);
+    const callback = source.slice(start, end);
+    assert.ok(callback.includes('if (destroyed) {'));
+    assert.ok(callback.includes('disconnect();'));
+    assert.ok(callback.indexOf('disconnect();') < callback.indexOf('let state;'));
+    assert.ok(source.includes('for (const disconnect of activationSignals)'));
+});
