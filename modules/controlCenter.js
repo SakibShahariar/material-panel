@@ -24,12 +24,25 @@ import {
     setControlCenterHomeCard,
 } from '../lib/controlCenterHomeLayout.js';
 import {
+    CONTROL_CENTER_HOME_SHORTCUT_DEFINITIONS,
+    DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS,
+    moveControlCenterHomeShortcut,
+    normalizeControlCenterHomeShortcuts,
+    setControlCenterHomeShortcut,
+} from '../lib/controlCenterHomeShortcuts.js';
+import {
     loadCalendarDocumentAsync,
     watchCalendarDocument,
     nextEvent,
     formatCountdown,
     formatEventTimeRange,
 } from '../lib/calendarEvents.js';
+
+const HOME_SHORTCUT_BUILDERS = new Map([
+    ['dark-mode', darkModeTile],
+    ['night-light', nightLightTile],
+    ['dnd', dndTile],
+]);
 
 const SECTIONS = [
     {id: 'home', title: 'Home', description: 'Your panel controls and at-a-glance overview.'},
@@ -221,7 +234,11 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     let homeCardLayout = normalizeControlCenterHomeLayout(DEFAULT_CONTROL_CENTER_HOME_LAYOUT);
     let homeCardLayoutChanged = false;
     let applyingHomeCardLayout = false;
-    let homeCardSaveQueue = Promise.resolve();
+    let homeSettingsSaveQueue = Promise.resolve();
+    let homeShortcuts = normalizeControlCenterHomeShortcuts(DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS);
+    let homeShortcutsChanged = false;
+    let applyingHomeShortcutSettings = false;
+    const homeShortcutItems = new Map();
     let currentSectionId = 'home';
     let homeEditMode = false;
     let destroyed = false;
@@ -241,7 +258,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         homeCardLayout = normalizeControlCenterHomeLayout(transform(homeCardLayout));
         homeCardLayoutChanged = true;
         updateHomeCardMenuStates();
-        homeCardSaveQueue = homeCardSaveQueue.then(async () => {
+        homeSettingsSaveQueue = homeSettingsSaveQueue.then(async () => {
             if (destroyed)
                 return;
             const config = await homeCardStore.loadAsync();
@@ -268,6 +285,36 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         persistHomeCardLayout(layout => setControlCenterHomeCard(layout, id, {visible: enabled === true}));
     };
 
+    const updateHomeShortcutMenuStates = () => {
+        applyingHomeShortcutSettings = true;
+        for (const definition of CONTROL_CENTER_HOME_SHORTCUT_DEFINITIONS)
+            homeShortcutItems.get(definition.id)?.setToggleState(homeShortcuts.includes(definition.id));
+        applyingHomeShortcutSettings = false;
+    };
+
+    const persistHomeShortcuts = transform => {
+        if (applyingHomeShortcutSettings || destroyed)
+            return;
+        homeShortcuts = normalizeControlCenterHomeShortcuts(transform(homeShortcuts));
+        homeShortcutsChanged = true;
+        updateHomeShortcutMenuStates();
+        homeSettingsSaveQueue = homeSettingsSaveQueue.then(async () => {
+            if (destroyed)
+                return;
+            const config = await homeCardStore.loadAsync();
+            config.controlCenterHomeShortcuts = homeShortcuts;
+            await homeCardStore.saveAsync(config);
+        }).catch(error => {
+            logError(error, 'material-panel: failed to save Home shortcuts');
+            try {
+                Main.notifyError('Home shortcuts could not be saved',
+                    'Check Material Panel configuration permissions and try again.');
+            } catch (notifyError) {}
+        });
+        if (currentSectionId === 'home')
+            renderSection('home');
+    };
+
     for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
         const entry = homeCardLayout.cards.find(card => card.id === definition.id);
         const item = new PopupMenu.PopupSwitchMenuItem(definition.label, entry?.visible !== false);
@@ -292,6 +339,27 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     resetHomeLayoutItem.connect('activate', () =>
         persistHomeCardLayout(() => DEFAULT_CONTROL_CENTER_HOME_LAYOUT));
     homeLayoutEditMenu.menu.addMenuItem(resetHomeLayoutItem);
+    homeLayoutEditMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    const homeShortcutsMenu = new PopupMenu.PopupSubMenuMenuItem('Home shortcuts', false);
+    homeLayoutEditMenu.menu.addMenuItem(homeShortcutsMenu);
+    for (const definition of CONTROL_CENTER_HOME_SHORTCUT_DEFINITIONS) {
+        const shortcutMenu = new PopupMenu.PopupSubMenuMenuItem(definition.label, false);
+        const enabledItem = new PopupMenu.PopupSwitchMenuItem(
+            'Show on Home', homeShortcuts.includes(definition.id));
+        enabledItem.connect('toggled', (_item, enabled) =>
+            persistHomeShortcuts(shortcuts => setControlCenterHomeShortcut(shortcuts, definition.id, enabled)));
+        homeShortcutItems.set(definition.id, enabledItem);
+        shortcutMenu.menu.addMenuItem(enabledItem);
+        const moveUpItem = new PopupMenu.PopupMenuItem('Move up');
+        const moveDownItem = new PopupMenu.PopupMenuItem('Move down');
+        moveUpItem.connect('activate', () =>
+            persistHomeShortcuts(shortcuts => moveControlCenterHomeShortcut(shortcuts, definition.id, -1)));
+        moveDownItem.connect('activate', () =>
+            persistHomeShortcuts(shortcuts => moveControlCenterHomeShortcut(shortcuts, definition.id, 1)));
+        shortcutMenu.menu.addMenuItem(moveUpItem);
+        shortcutMenu.menu.addMenuItem(moveDownItem);
+        homeShortcutsMenu.menu.addMenuItem(shortcutMenu);
+    }
     homeLayoutEditMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
     const sizeLabels = {compact: 'Compact', half: 'Half width', full: 'Full width'};
     for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
@@ -391,11 +459,24 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 });
                 actionGrid.layout_manager.column_spacing = 8;
                 actionGrid.layout_manager.row_spacing = 8;
-                const actions = [darkModeTile(), nightLightTile(), dndTile()];
-                actions.forEach((action, index) => {
-                    action.x_expand = true;
-                    actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
-                });
+                const actions = homeShortcuts
+                    .map(id => HOME_SHORTCUT_BUILDERS.get(id))
+                    .filter(builder => typeof builder === 'function')
+                    .map(builder => builder());
+                if (actions.length) {
+                    actions.forEach((action, index) => {
+                        action.x_expand = true;
+                        actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
+                    });
+                } else {
+                    const emptyShortcuts = new St.Label({
+                        text: 'No Home shortcuts selected. Edit Home layout to add one.',
+                        style_class: 'material-panel-control-center-placeholder',
+                        x_expand: true,
+                    });
+                    emptyShortcuts.clutter_text.line_wrap = true;
+                    actionGrid.add_child(emptyShortcuts);
+                }
                 actionsCard.add_child(actionsTitle);
                 actionsCard.add_child(actionGrid);
                 homeCardActors.actions = actionsCard;
@@ -751,9 +832,15 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     homeCardStore.loadAsync().then(config => {
         if (homeCardLayoutChanged || destroyed)
             return;
-        homeCardLayout = normalizeControlCenterHomeLayout(
-            config.controlCenterHomeLayout, config.controlCenterHomeCards);
-        updateHomeCardMenuStates();
+        if (!homeCardLayoutChanged) {
+            homeCardLayout = normalizeControlCenterHomeLayout(
+                config.controlCenterHomeLayout, config.controlCenterHomeCards);
+            updateHomeCardMenuStates();
+        }
+        if (!homeShortcutsChanged) {
+            homeShortcuts = normalizeControlCenterHomeShortcuts(config.controlCenterHomeShortcuts);
+            updateHomeShortcutMenuStates();
+        }
         homeCardsMenu.sensitive = true;
         if (currentSectionId === 'home')
             renderSection('home');

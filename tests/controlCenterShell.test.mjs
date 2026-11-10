@@ -198,6 +198,24 @@ test('Control Center Home uses persisted card placements and reflows to one colu
     assert.match(module, /homeGrid\.add_child\(empty\)/);
 });
 
+test('Control Center Home shortcuts are independently configurable and ordered', async () => {
+    const [module, config, shortcuts] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../lib/configStore.js'),
+        source('../lib/controlCenterHomeShortcuts.js'),
+    ]);
+    assert.match(module, /const HOME_SHORTCUT_BUILDERS = new Map/);
+    assert.match(module, /homeShortcuts\.map\(id => HOME_SHORTCUT_BUILDERS\.get\(id\)\)/);
+    assert.match(module, /PopupSubMenuMenuItem\('Home shortcuts'/);
+    assert.match(module, /setControlCenterHomeShortcut\(shortcuts, definition\.id, enabled\)/);
+    assert.match(module, /moveControlCenterHomeShortcut\(shortcuts, definition\.id, -1\)/);
+    assert.match(module, /moveControlCenterHomeShortcut\(shortcuts, definition\.id, 1\)/);
+    assert.match(module, /config\.controlCenterHomeShortcuts = homeShortcuts/);
+    assert.match(config, /controlCenterHomeShortcuts: DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS/);
+    assert.match(config, /normalizeControlCenterHomeShortcuts/);
+    assert.match(shortcuts, /export function moveControlCenterHomeShortcut/);
+});
+
 test('Control Center Home edit mode exposes reset, reorder and supported size actions', async () => {
     const module = await source('../modules/controlCenter.js');
     const layout = await source('../lib/controlCenterHomeLayout.js');

@@ -38,7 +38,7 @@ Only update a version's runtime-tested status after this checklist has been exer
 - **Your layout:** arrange modules in left, center, and right zones.
 - **Personalized look:** tune panel sizing, slider and tile styles, and colors.
 - **Quick Settings:** choose the default, End-4, or Ryoku implementation.
-- **Control Center Home:** hide, reorder, and resize cards in a saved responsive layout.
+- **Control Center Home:** hide, reorder, and resize cards; choose and reorder its Quick Settings shortcuts in a saved layout.
 - **Everyday controls:** clock, weather, calendar, notifications, audio, Bluetooth, Wi-Fi, battery, system stats, media, and power actions.
 - **Tray integration:** host supported third-party status icons, with an optional drawer.
 - **Calendar sync:** optionally import events from an ICS feed.
