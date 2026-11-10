@@ -56,7 +56,10 @@ test('Control Center Home reuses the existing GNOME quick-toggle backends', asyn
         source('../modules/quicksettings.js'),
     ]);
     assert.match(controlCenter, /darkModeTile, nightLightTile, dndTile/);
-    assert.match(controlCenter, /const actions = \[darkModeTile\(\), nightLightTile\(\), dndTile\(\)\]/);
+    assert.match(controlCenter, /const HOME_SHORTCUT_BUILDERS = new Map/);
+    assert.match(controlCenter, /\['dark-mode', darkModeTile\]/);
+    assert.match(controlCenter, /\['night-light', nightLightTile\]/);
+    assert.match(controlCenter, /\['dnd', dndTile\]/);
     assert.match(quickSettings, /export function darkModeTile\(\)/);
     assert.match(quickSettings, /export function nightLightTile\(\)/);
     assert.match(quickSettings, /export function dndTile\(\)/);
@@ -205,7 +208,7 @@ test('Control Center Home shortcuts are independently configurable and ordered',
         source('../lib/controlCenterHomeShortcuts.js'),
     ]);
     assert.match(module, /const HOME_SHORTCUT_BUILDERS = new Map/);
-    assert.match(module, /homeShortcuts\.map\(id => HOME_SHORTCUT_BUILDERS\.get\(id\)\)/);
+    assert.match(module, /homeShortcuts\s*\.map\(id => HOME_SHORTCUT_BUILDERS\.get\(id\)\)\)/);
     assert.match(module, /PopupSubMenuMenuItem\('Home shortcuts'/);
     assert.match(module, /setControlCenterHomeShortcut\(shortcuts, definition\.id, enabled\)/);
     assert.match(module, /moveControlCenterHomeShortcut\(shortcuts, definition\.id, -1\)/);
