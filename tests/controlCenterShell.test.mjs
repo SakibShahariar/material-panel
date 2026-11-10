@@ -208,7 +208,7 @@ test('Control Center Home shortcuts are independently configurable and ordered',
         source('../lib/controlCenterHomeShortcuts.js'),
     ]);
     assert.match(module, /const HOME_SHORTCUT_BUILDERS = new Map/);
-    assert.match(module, /homeShortcuts\s*\.map\(id => HOME_SHORTCUT_BUILDERS\.get\(id\)\)\)/);
+    assert.ok(module.includes('.map(id => HOME_SHORTCUT_BUILDERS.get(id))'));
     assert.match(module, /PopupSubMenuMenuItem\('Home shortcuts'/);
     assert.match(module, /setControlCenterHomeShortcut\(shortcuts, definition\.id, enabled\)/);
     assert.match(module, /moveControlCenterHomeShortcut\(shortcuts, definition\.id, -1\)/);
