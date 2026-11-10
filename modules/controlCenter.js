@@ -16,6 +16,14 @@ import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
 import {watchControlCenterSummary} from '../lib/controlCenterSummaryState.js';
 import {createPopupHeader} from '../lib/popupHeader.js';
 import {
+    CONTROL_CENTER_HOME_CARD_DEFINITIONS,
+    DEFAULT_CONTROL_CENTER_HOME_LAYOUT,
+    getControlCenterHomeGridPlacements,
+    moveControlCenterHomeCard,
+    normalizeControlCenterHomeLayout,
+    setControlCenterHomeCard,
+} from '../lib/controlCenterHomeLayout.js';
+import {
     loadCalendarDocumentAsync,
     watchCalendarDocument,
     nextEvent,
@@ -81,6 +89,14 @@ function clearActors(box) {
             child.destroy();
         } catch (e) {}
     }
+}
+
+function applyHomeCardSize(actor, size) {
+    try {
+        actor.add_style_class_name(`material-panel-control-center-card-size-${size}`);
+        if (size === 'compact')
+            actor.style = `${actor.style ?? ''} padding: 10px; spacing: 5px;`;
+    } catch (error) {}
 }
 
 function addFocusModeControl(menu) {
@@ -201,40 +217,104 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     const homeCardStore = new ConfigStore();
     const homeCardsMenu = new PopupMenu.PopupSubMenuMenuItem('Home cards', false);
     homeCardsMenu.sensitive = false;
-    const weatherVisibilityItem = new PopupMenu.PopupSwitchMenuItem('Weather', true);
-    const calendarVisibilityItem = new PopupMenu.PopupSwitchMenuItem('Calendar', true);
-    homeCardsMenu.menu.addMenuItem(weatherVisibilityItem);
-    homeCardsMenu.menu.addMenuItem(calendarVisibilityItem);
-    menu.addMenuItem(homeCardsMenu);
-    let homeCardVisibility = {weather: true, calendar: true};
-    let homeCardVisibilityChanged = false;
-    let applyingHomeCardVisibility = false;
+    const homeCardItems = new Map();
+    let homeCardLayout = normalizeControlCenterHomeLayout(DEFAULT_CONTROL_CENTER_HOME_LAYOUT);
+    let homeCardLayoutChanged = false;
+    let applyingHomeCardLayout = false;
     let homeCardSaveQueue = Promise.resolve();
     let currentSectionId = 'home';
-    const persistHomeCardVisibility = (key, enabled) => {
-        if (applyingHomeCardVisibility)
+    let homeEditMode = false;
+    let destroyed = false;
+
+    const updateHomeCardMenuStates = () => {
+        applyingHomeCardLayout = true;
+        for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
+            const entry = homeCardLayout.cards.find(card => card.id === definition.id);
+            homeCardItems.get(definition.id)?.setToggleState(entry?.visible !== false);
+        }
+        applyingHomeCardLayout = false;
+    };
+
+    const persistHomeCardLayout = transform => {
+        if (applyingHomeCardLayout || destroyed)
             return;
-        homeCardVisibilityChanged = true;
-        homeCardVisibility[key] = enabled === true;
+        homeCardLayout = normalizeControlCenterHomeLayout(transform(homeCardLayout));
+        homeCardLayoutChanged = true;
+        updateHomeCardMenuStates();
         homeCardSaveQueue = homeCardSaveQueue.then(async () => {
+            if (destroyed)
+                return;
             const config = await homeCardStore.loadAsync();
-            const saved = config.controlCenterHomeCards || {};
-            config.controlCenterHomeCards = {...saved, [key]: enabled === true};
+            config.controlCenterHomeLayout = homeCardLayout;
+            const byId = new Map(homeCardLayout.cards.map(card => [card.id, card]));
+            config.controlCenterHomeCards = {
+                ...(config.controlCenterHomeCards || {}),
+                weather: byId.get('weather')?.visible !== false,
+                calendar: byId.get('calendar')?.visible !== false,
+            };
             await homeCardStore.saveAsync(config);
         }).catch(error => {
-            logError(error, 'material-panel: failed to save Home card visibility');
+            logError(error, 'material-panel: failed to save Home card layout');
             try {
-                Main.notifyError('Home card visibility could not be saved',
+                Main.notifyError('Home layout could not be saved',
                     'Check Material Panel configuration permissions and try again.');
             } catch (notifyError) {}
         });
         if (currentSectionId === 'home')
             renderSection('home');
     };
-    weatherVisibilityItem.connect('toggled', (_item, enabled) =>
-        persistHomeCardVisibility('weather', enabled));
-    calendarVisibilityItem.connect('toggled', (_item, enabled) =>
-        persistHomeCardVisibility('calendar', enabled));
+
+    const persistHomeCardVisibility = (id, enabled) => {
+        persistHomeCardLayout(layout => setControlCenterHomeCard(layout, id, {visible: enabled === true}));
+    };
+
+    for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
+        const entry = homeCardLayout.cards.find(card => card.id === definition.id);
+        const item = new PopupMenu.PopupSwitchMenuItem(definition.label, entry?.visible !== false);
+        homeCardItems.set(definition.id, item);
+        homeCardsMenu.menu.addMenuItem(item);
+        item.connect('toggled', (_item, enabled) => persistHomeCardVisibility(definition.id, enabled));
+    }
+    menu.addMenuItem(homeCardsMenu);
+
+    const homeEditModeItem = new PopupMenu.PopupSwitchMenuItem('Edit Home layout', false);
+    menu.addMenuItem(homeEditModeItem);
+    const homeLayoutEditMenu = new PopupMenu.PopupSubMenuMenuItem('Arrange Home cards', false);
+    homeLayoutEditMenu.visible = false;
+    menu.addMenuItem(homeLayoutEditMenu);
+    homeEditModeItem.connect('toggled', (_item, enabled) => {
+        homeEditMode = enabled === true;
+        homeLayoutEditMenu.visible = homeEditMode && currentSectionId === 'home';
+    });
+
+    const resetHomeLayoutItem = new PopupMenu.PopupMenuItem('Reset to default layout');
+    resetHomeLayoutItem.connect('activate', () =>
+        persistHomeCardLayout(() => DEFAULT_CONTROL_CENTER_HOME_LAYOUT));
+    homeLayoutEditMenu.menu.addMenuItem(resetHomeLayoutItem);
+    homeLayoutEditMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    const sizeLabels = {compact: 'Compact', half: 'Half width', full: 'Full width'};
+    for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
+        const cardMenu = new PopupMenu.PopupSubMenuMenuItem(definition.label, false);
+        const moveUpItem = new PopupMenu.PopupMenuItem('Move up');
+        const moveDownItem = new PopupMenu.PopupMenuItem('Move down');
+        moveUpItem.connect('activate', () =>
+            persistHomeCardLayout(layout => moveControlCenterHomeCard(layout, definition.id, -1)));
+        moveDownItem.connect('activate', () =>
+            persistHomeCardLayout(layout => moveControlCenterHomeCard(layout, definition.id, 1)));
+        cardMenu.menu.addMenuItem(moveUpItem);
+        cardMenu.menu.addMenuItem(moveDownItem);
+        cardMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        const sizeMenu = new PopupMenu.PopupSubMenuMenuItem('Size', false);
+        for (const size of definition.sizes) {
+            const sizeItem = new PopupMenu.PopupMenuItem(sizeLabels[size]);
+            sizeItem.connect('activate', () =>
+                persistHomeCardLayout(layout => setControlCenterHomeCard(layout, definition.id, {size})));
+            sizeMenu.menu.addMenuItem(sizeItem);
+        }
+        cardMenu.menu.addMenuItem(sizeMenu);
+        homeLayoutEditMenu.menu.addMenuItem(cardMenu);
+    }
+
     const navButtons = new Map();
 
     const renderSection = sectionId => {
@@ -289,7 +369,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             card.add_child(mediaRow);
         }
         const systemView = section.id === 'system' ? buildControlCenterSystem() : null;
-        const homeCards = [];
+        const homeCardActors = {};
         let homeGrid = null;
         if (section.id === 'home') {
             const actionsCard = new St.BoxLayout({
@@ -331,9 +411,11 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             mediaCard.add_child(mediaTitle);
             mediaCard.add_child(noMedia);
             mediaCard.add_child(mediaRow);
+            homeCardActors.media = mediaCard;
 
             actionsCard.add_child(actionsTitle);
             actionsCard.add_child(actionGrid);
+            homeCardActors.actions = actionsCard;
 
             const weatherCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
@@ -380,6 +462,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             };
             const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
             weatherCard.connect('destroy', stopWeatherWatch);
+            homeCardActors.weather = weatherCard;
 
             const calendarCard = new St.BoxLayout({
                 style_class: 'material-panel-control-center-card',
@@ -430,6 +513,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 calendarCardDestroyed = true;
                 stopCalendarWatch();
             });
+            homeCardActors.calendar = calendarCard;
 
             const systemSummaryContent = new St.BoxLayout({
                 orientation: Clutter.Orientation.VERTICAL,
@@ -530,6 +614,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             };
             const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
             systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
+            homeCardActors.system = systemSummaryCard;
             const wallpaperApp = findWallmatApp();
             const wallpaperCard = new St.Button({
                 style_class: 'material-panel-control-center-card',
@@ -569,40 +654,45 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 ? 'Browse and apply wallpapers with Wallmat'
                 : 'Open GNOME Background settings');
             wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
+            homeCardActors.wallpaper = wallpaperCard;
 
-            homeCards.push(mediaCard, actionsCard, wallpaperCard);
-            if (homeCardVisibility.weather)
-                homeCards.push(weatherCard);
-            else
-                weatherCard.destroy();
-            homeCards.push(systemSummaryCard);
-            if (homeCardVisibility.calendar)
-                homeCards.push(calendarCard);
-            else
-                calendarCard.destroy();
+            const placements = getControlCenterHomeGridPlacements(
+                homeCardLayout, Object.keys(homeCardActors), compact);
+            const visibleCardIds = new Set(placements.map(placement => placement.id));
+            for (const [id, actor] of Object.entries(homeCardActors)) {
+                if (!visibleCardIds.has(id)) {
+                    actor.destroy();
+                    continue;
+                }
+                const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === id);
+                applyHomeCardSize(actor, entry?.size ?? 'half');
+            }
+
             homeGrid = new St.Widget({
                 style_class: 'material-panel-control-center-home-grid',
                 layout_manager: new Clutter.GridLayout(),
                 x_expand: true,
             });
-            const homeLayout = homeGrid.layout_manager;
-            homeLayout.column_spacing = compact ? 0 : 10;
-            homeLayout.row_spacing = 10;
-            if (compact) {
-                homeCards.forEach((homeCard, index) =>
-                    homeLayout.attach(homeCard, 0, index, 1, 1));
-            } else {
-                // The media card anchors the first row. Remaining cards flow
-                // in pairs, with an odd final card spanning the available width.
-                homeLayout.attach(homeCards[0], 0, 0, 2, 1);
-                const secondaryCards = homeCards.slice(1);
-                secondaryCards.forEach((homeCard, index) => {
-                    const row = 1 + Math.floor(index / 2);
-                    const column = index % 2;
-                    const span = index === secondaryCards.length - 1 && secondaryCards.length % 2 === 1
-                        ? 2 : 1;
-                    homeLayout.attach(homeCard, column, row, span, 1);
+            const gridLayout = homeGrid.layout_manager;
+            gridLayout.column_spacing = compact ? 0 : 10;
+            gridLayout.row_spacing = 10;
+            if (!placements.length) {
+                const empty = new St.Label({
+                    text: 'No Home cards are visible. Use Home cards to add one.',
+                    style_class: 'material-panel-control-center-placeholder',
+                    x_expand: true,
                 });
+                empty.clutter_text.line_wrap = true;
+                homeGrid.add_child(empty);
+            } else {
+                for (const placement of placements) {
+                    gridLayout.attach(
+                        homeCardActors[placement.id],
+                        placement.column,
+                        placement.row,
+                        placement.columnSpan,
+                        1);
+                }
             }
         }
 
@@ -623,6 +713,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
 
         focusModeItem.visible = section.id === 'home';
         homeCardsMenu.visible = section.id === 'home';
+        homeEditModeItem.visible = section.id === 'home';
+        homeLayoutEditMenu.visible = section.id === 'home' && homeEditMode;
         for (const [id, navButton] of navButtons) {
             const active = id === section.id;
             navButton.style = active
@@ -632,23 +724,17 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     };
 
     homeCardStore.loadAsync().then(config => {
-        if (homeCardVisibilityChanged)
+        if (homeCardLayoutChanged || destroyed)
             return;
-        const saved = config.controlCenterHomeCards || {};
-        homeCardVisibility = {
-            weather: saved.weather !== false,
-            calendar: saved.calendar !== false,
-        };
-        applyingHomeCardVisibility = true;
-        weatherVisibilityItem.setToggleState(homeCardVisibility.weather);
-        calendarVisibilityItem.setToggleState(homeCardVisibility.calendar);
-        applyingHomeCardVisibility = false;
+        homeCardLayout = normalizeControlCenterHomeLayout(
+            config.controlCenterHomeLayout, config.controlCenterHomeCards);
+        updateHomeCardMenuStates();
         homeCardsMenu.sensitive = true;
         if (currentSectionId === 'home')
             renderSection('home');
     }).catch(error => {
         homeCardsMenu.sensitive = true;
-        logError(error, 'material-panel: failed to load Home card visibility');
+        logError(error, 'material-panel: failed to load Home card layout');
     });
 
     for (const section of SECTIONS) {
@@ -683,7 +769,10 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         else
             menuOpen(menu);
     });
-    button.connect('destroy', () => menu.destroy());
+    button.connect('destroy', () => {
+        destroyed = true;
+        menu.destroy();
+    });
 
     return button;
 }

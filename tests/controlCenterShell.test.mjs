@@ -180,15 +180,25 @@ test('Control Center Home uses the shared asynchronous calendar cache and releas
     assert.doesNotMatch(controlCenter, /loadCalendarDocument\(\)/);
 });
 
-test('Control Center Home reflows from a two-column bento to one column in compact popups', async () => {
+test('Control Center Home uses persisted card placements and reflows to one column in compact popups', async () => {
     const module = await source('../modules/controlCenter.js');
-    assert.match(module, /homeGrid = new St\.Widget/);
-    assert.match(module, /homeLayout\.column_spacing = compact \? 0 : 10/);
-    assert.match(module, /if \(compact\) \{[\s\S]*?homeLayout\.attach\(homeCard, 0, index, 1, 1\)/);
-    assert.match(module, /homeLayout\.attach\(homeCards\[0\], 0, 0, 2, 1\)/);
-    assert.match(module, /const secondaryCards = homeCards\.slice\(1\)/);
-    assert.match(module, /secondaryCards\.forEach\(\(homeCard, index\) =>/);
-    assert.match(module, /const span = index === secondaryCards\.length - 1/);
+    assert.match(module, /getControlCenterHomeGridPlacements\(\s*homeCardLayout, Object\.keys\(homeCardActors\), compact\)/);
+    assert.match(module, /gridLayout\.attach\(\s*homeCardActors\[placement\.id\],\s*placement\.column,\s*placement\.row,\s*placement\.columnSpan,\s*1\)/);
+    assert.match(module, /applyHomeCardSize\(actor, entry\?\.size \?\? 'half'\)/);
+    assert.match(module, /homeGrid\.add_child\(empty\)/);
+});
+
+test('Control Center Home edit mode exposes reset, reorder and supported size actions', async () => {
+    const module = await source('../modules/controlCenter.js');
+    const layout = await source('../lib/controlCenterHomeLayout.js');
+    assert.match(module, /PopupSwitchMenuItem\('Edit Home layout', false\)/);
+    assert.match(module, /PopupMenuItem\('Reset to default layout'\)/);
+    assert.match(module, /PopupMenuItem\('Move up'\)/);
+    assert.match(module, /PopupMenuItem\('Move down'\)/);
+    assert.match(module, /setControlCenterHomeCard\(layout, definition\.id, \{size\}\)/);
+    assert.match(module, /persistHomeCardVisibility\(definition\.id, enabled\)/);
+    assert.match(layout, /export function moveControlCenterHomeCard/);
+    assert.match(layout, /export function getControlCenterHomeGridPlacements/);
 });
 
 test('Control Center Home reuses the System and Disk module samples for its overview', async () => {
@@ -228,21 +238,21 @@ test('Home System overview uses fixed sample-time labels so last-known values do
     assert.match(disk, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
 });
 
-test('Weather and Calendar Home cards default on and can be hidden independently from the Home cards menu', async () => {
-    const [controlCenter, config] = await Promise.all([
+test('Control Center Home card visibility is configurable for every registered built-in card', async () => {
+    const [controlCenter, config, layout] = await Promise.all([
         source('../modules/controlCenter.js'),
         source('../lib/configStore.js'),
+        source('../lib/controlCenterHomeLayout.js'),
     ]);
     assert.match(controlCenter, /PopupSubMenuMenuItem\('Home cards'/);
-    assert.match(controlCenter, /PopupSwitchMenuItem\('Weather', true\)/);
-    assert.match(controlCenter, /PopupSwitchMenuItem\('Calendar', true\)/);
-    assert.match(controlCenter, /persistHomeCardVisibility\('weather', enabled\)/);
-    assert.match(controlCenter, /persistHomeCardVisibility\('calendar', enabled\)/);
-    assert.match(controlCenter, /weatherCard\.destroy\(\)/);
-    assert.match(controlCenter, /calendarCard\.destroy\(\)/);
-    assert.match(config, /controlCenterHomeCards: \{weather: true, calendar: true\}/);
-    assert.match(config, /weather: homeCards\?\.weather !== false/);
-    assert.match(config, /calendar: homeCards\?\.calendar !== false/);
+    assert.match(controlCenter, /CONTROL_CENTER_HOME_CARD_DEFINITIONS/);
+    assert.match(controlCenter, /homeCardItems\.set\(definition\.id, item\)/);
+    assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
+    assert.match(controlCenter, /if \(!visibleCardIds\.has\(id\)\)\s+\{\s+actor\.destroy\(\)/);
+    assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
+    assert.match(config, /normalizeControlCenterHomeLayout/);
+    assert.match(layout, /id: 'weather'/);
+    assert.match(layout, /id: 'calendar'/);
 });
 
 
