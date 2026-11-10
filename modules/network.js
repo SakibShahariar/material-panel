@@ -197,6 +197,10 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 signalId = 0;
             };
             const updateActivation = () => {
+                if (destroyed) {
+                    disconnect();
+                    return;
+                }
                 let state;
                 try { state = activeConnection.get_state(); } catch (e) { return; }
                 if (state === NM.ActiveConnectionState.ACTIVATED) {
