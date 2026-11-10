@@ -80,9 +80,9 @@ test('focus traversal excludes unmapped and zero-allocation actors while preserv
     assert.match(source, /actors\.push\(actor\)[\s\S]*?actor\.get_children/);
 });
 
-test('Return and Space reach the focused control native activation handlers', () => {
-    assert.match(source, /key === Clutter\.KEY_Return \|\| key === Clutter\.KEY_KP_Enter \|\|\s*key === Clutter\.KEY_space\)\s*return Clutter\.EVENT_PROPAGATE/);
-});
+test('Return, keypad Enter, Space and keypad Space reach native activation handlers', () => {
+    assert.match(source, /key === Clutter\\.KEY_Return \\|\\| key === Clutter\\.KEY_KP_Enter \\|\\|\\s*key === Clutter\\.KEY_space \\|\\| key === Clutter\\.KEY_KP_Space\\)\\s*return Clutter\\.EVENT_PROPAGATE/);
+});;
 
 test('keyboard focus has a visible theme-aware indicator and is scoped to Material Panel popups', () => {
     assert.match(source, /add_style_class_name\('material-panel-keyboard-nav'\)/);
