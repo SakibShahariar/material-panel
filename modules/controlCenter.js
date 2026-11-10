@@ -400,7 +400,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeCardActors.actions = actionsCard;
             }
             if (isHomeCardVisible('media')) {
-            const mediaCard = new St.BoxLayout({
+                const mediaCard = new St.BoxLayout({
                     style_class: 'material-panel-control-center-card',
                     orientation: Clutter.Orientation.VERTICAL,
                     x_expand: true,
@@ -439,7 +439,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('weather')) {
-            const weatherCard = new St.BoxLayout({
+                const weatherCard = new St.BoxLayout({
                     style_class: 'material-panel-control-center-card',
                     orientation: Clutter.Orientation.VERTICAL,
                     x_expand: true,
@@ -458,7 +458,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 weatherCard.add_child(weatherTemp);
                 weatherCard.add_child(weatherCondition);
                 weatherCard.add_child(weatherPlace);
-    
+
                 const renderWeatherSummary = summary => {
                     if (!summary) {
                         weatherTemp.text = '—°';
@@ -488,7 +488,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('calendar')) {
-            const calendarCard = new St.BoxLayout({
+                const calendarCard = new St.BoxLayout({
                     style_class: 'material-panel-control-center-card',
                     orientation: Clutter.Orientation.VERTICAL,
                     x_expand: true,
@@ -505,7 +505,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 calendarCard.add_child(calendarTitle);
                 calendarCard.add_child(calendarEvent);
                 calendarCard.add_child(calendarMeta);
-    
+
                 let calendarCardDestroyed = false;
                 const renderCalendarSummary = document => {
                     if (calendarCardDestroyed)
@@ -541,7 +541,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('system')) {
-            const systemSummaryContent = new St.BoxLayout({
+                const systemSummaryContent = new St.BoxLayout({
                     orientation: Clutter.Orientation.VERTICAL,
                     x_expand: true,
                 });
@@ -643,7 +643,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeCardActors.system = systemSummaryCard;
             }
             if (isHomeCardVisible('wallpaper')) {
-            const wallpaperApp = findWallmatApp();
+                const wallpaperApp = findWallmatApp();
                 const wallpaperCard = new St.Button({
                     style_class: 'material-panel-control-center-card',
                     reactive: true,

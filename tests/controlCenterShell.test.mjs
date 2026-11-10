@@ -265,6 +265,11 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaCard[\s\S]*?buildMediaPlayerRow/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherCard[\s\S]*?watchWeatherSummary/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarCard[\s\S]*?watchCalendarDocument/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\) \{\s+const systemSummaryContent[\s\S]*?watchControlCenterSummary/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\) \{\s+const wallpaperApp/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
     assert.match(config, /normalizeControlCenterHomeLayout/);
