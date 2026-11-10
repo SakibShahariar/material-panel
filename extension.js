@@ -282,8 +282,8 @@ export default class MaterialPanelExtension extends Extension {
                             percentage = value;
                     } catch (error) {}
                 }
-                this._builder?.setBatteryContext({onBattery, percentage});
-                refresh();
+                if (this._builder?.setBatteryContext({onBattery, percentage}))
+                    refresh();
             };
             syncBattery();
             const addedId = client.connect('device-added', syncBattery);

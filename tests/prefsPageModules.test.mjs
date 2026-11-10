@@ -95,10 +95,11 @@ test('context visibility watches Overview, focus changes and fullscreen changes 
     assert.match(source, /monitor\.connect\('network-changed', syncNetwork\)/);
     assert.match(source, /setNetworkOffline\(!monitor\.network_available\)/);
     assert.match(source, /setNetworkOffline\(false\)/);
+    assert.match(source, /if \(this\._builder\?\.setBatteryContext\(\{onBattery, percentage\}\)\)/);
     assert.match(source, /UPowerGlib\.Client\.new\(\)/);
     assert.match(source, /client\.connect\('device-added', syncBattery\)/);
     assert.match(source, /client\.connect\('device-removed', syncBattery\)/);
-    assert.match(source, /setBatteryContext\(\{onBattery, percentage\}\)/);
+    assert.match(source, /setBatteryContext\(\{onBattery, percentage\}\)\)\s*refresh\(\)/);
     assert.match(source, /device\.connect\(signal, syncBattery\)/);
     assert.match(source, /notify::state/);
     assert.match(source, /notify::percentage/);

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     DEFAULT_MODULE_VISIBILITY_RULE,
     getContextHiddenModules,
+    hasBatteryVisibilityChanged,
     normalizeModuleVisibilityRules,
 } from '../lib/moduleVisibility.js';
 
@@ -83,6 +84,25 @@ test('battery visibility rules combine only when battery context is known', () =
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20})], []);
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: null, batteryPercent: null})], []);
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 21})], ['volume', 'network']);
+});
+
+test('battery percentage notifications rebuild only when a visibility threshold is crossed', () => {
+    const rules = {
+        clock: {showOnlyOnBattery: true},
+        volume: {showOnlyBelowBatteryPercent: 20},
+    };
+    assert.equal(hasBatteryVisibilityChanged(rules,
+        {onBattery: true, percentage: 40},
+        {onBattery: true, percentage: 39}), false);
+    assert.equal(hasBatteryVisibilityChanged(rules,
+        {onBattery: true, percentage: 21},
+        {onBattery: true, percentage: 20}), true);
+    assert.equal(hasBatteryVisibilityChanged(rules,
+        {onBattery: false, percentage: 20},
+        {onBattery: true, percentage: 20}), true);
+    assert.equal(hasBatteryVisibilityChanged(rules,
+        {onBattery: null, percentage: null},
+        {onBattery: null, percentage: null}), false);
 });
 
 test('normalizes battery-only and percentage visibility options defensively', () => {
