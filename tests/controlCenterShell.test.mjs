@@ -138,6 +138,16 @@ test('Control Center System metric helpers handle counter resets and unavailable
 });
 
 
+test('Control Center Home media card links to the detailed Media section without hijacking playback controls', async () => {
+    const module = await source('../modules/controlCenter.js');
+    assert.match(module, /mediaOpen\.accessible_name = 'Open detailed Media section'/);
+    assert.match(module, /mediaOpen\.connect\('clicked', \(\) => renderSection\('media'\)\)/);
+    assert.match(module, /mediaHeader\.add_child\(mediaTitle\)/);
+    assert.match(module, /mediaHeader\.add_child\(mediaOpen\)/);
+    assert.match(module, /mediaCard\.add_child\(mediaHeader\)/);
+    assert.match(module, /can_focus: true,[\s\S]*?child: new St\.Label\(\{text: 'Open Media'\}\)/);
+});
+
 test('Control Center Home media row exposes a slim progress bar without detailed Media-only controls', async () => {
     const [controlCenter, media] = await Promise.all([
         source('../modules/controlCenter.js'),
@@ -265,6 +275,6 @@ test('Control Center Home hands wallpaper browsing to Wallmat and falls back to 
     assert.match(module, /Gio\.Subprocess\.new\(\['gnome-control-center', 'background'\], Gio\.SubprocessFlags\.NONE\)/);
     assert.match(module, /text: wallpaperApp \? 'Open Wallmat' : 'Open Background Settings'/);
     assert.match(module, /wallpaperCard\.connect\('clicked', \(\) => openWallpaperDestination\(wallpaperApp\)\)/);
-    assert.match(module, /homeCards\.push\(mediaCard, actionsCard, wallpaperCard\)/);
+    assert.match(module, /homeCardActors\.wallpaper = wallpaperCard/);
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });

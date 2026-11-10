@@ -398,8 +398,24 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 x_expand: true,
             });
             mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
-            const mediaTitle = new St.Label({text: 'Now playing'});
+            const mediaHeader = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+            });
+            mediaHeader.style = 'spacing: 8px;';
+            const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
             mediaTitle.style = 'font-size: 14px; font-weight: 650;';
+            const mediaOpen = new St.Button({
+                style_class: 'material-panel-control-center-card-link',
+                reactive: true,
+                can_focus: true,
+                child: new St.Label({text: 'Open Media'}),
+            });
+            mediaOpen.accessible_name = 'Open detailed Media section';
+            mediaOpen.set_tooltip_text('Open detailed Media view');
+            mediaOpen.connect('clicked', () => renderSection('media'));
+            mediaHeader.add_child(mediaTitle);
+            mediaHeader.add_child(mediaOpen);
             const mediaRow = buildMediaPlayerRow({progress: true});
             const noMedia = new St.Label({
                 text: 'No media is playing',
@@ -408,7 +424,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             mediaRow.connect('notify::visible', () => {
                 noMedia.visible = !mediaRow.visible;
             });
-            mediaCard.add_child(mediaTitle);
+            mediaCard.add_child(mediaHeader);
             mediaCard.add_child(noMedia);
             mediaCard.add_child(mediaRow);
             homeCardActors.media = mediaCard;

@@ -33,7 +33,7 @@ test('normalization removes duplicate and malformed entries but preserves unknow
     ]});
     assert.deepEqual(layout.cards.slice(0, 2), [
         {id: 'future-card', visible: false, size: 'full'},
-        {id: 'weather', visible: false, size: 'compact'},
+        {id: 'weather', visible: false, size: 'half'},
     ]);
     assert.equal(layout.cards.some(card => card.id === 'Bad ID'), false);
 });
@@ -42,7 +42,7 @@ test('hidden and unavailable cards keep their saved order and return when availa
     const layout = normalizeControlCenterHomeLayout({cards: [
         {id: 'media', visible: true, size: 'full'},
         {id: 'future-card', visible: true, size: 'half'},
-        {id: 'weather', visible: false, size: 'compact'},
+        {id: 'weather', visible: false, size: 'half'},
     ]});
     const placements = getControlCenterHomeGridPlacements(layout, ['media', 'weather'], false);
     assert.deepEqual(placements.map(item => item.id), ['media']);
