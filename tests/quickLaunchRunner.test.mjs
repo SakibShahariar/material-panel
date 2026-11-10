@@ -112,6 +112,37 @@ test('dispatches the selected off command and forwards asynchronous completion',
     assert.deepEqual(completed, [[true, null]]);
 });
 
+test('forwards asynchronous completion only once when the spawn adapter repeats its callback', () => {
+    let finish = null;
+    const completed = [];
+    const result = launchQuickLaunchEntry(command, {
+        parseCommand: () => ['btop'],
+        spawnCommand: (_argv, callback) => { finish = callback; },
+        onComplete: (success, error) => completed.push([success, error?.message ?? null]),
+    });
+    assert.equal(result, true);
+    finish(true);
+    finish(false, new Error('duplicate completion'));
+    assert.deepEqual(completed, [[true, null]]);
+});
+
+test('does not report a contradictory spawn error after completion was already delivered', () => {
+    const completed = [];
+    const errors = [];
+    const result = launchQuickLaunchEntry(command, {
+        parseCommand: () => ['btop'],
+        spawnCommand: (_argv, callback) => {
+            callback(true);
+            throw new Error('late adapter error');
+        },
+        onComplete: (success, error) => completed.push([success, error?.message ?? null]),
+        onError: (_entry, error) => errors.push(error.message),
+    });
+    assert.equal(result, true);
+    assert.deepEqual(completed, [[true, null]]);
+    assert.deepEqual(errors, []);
+});
+
 test('reports an unsuccessful asynchronous toggle command without changing success state', () => {
     const errors = [];
     let finish = null;
