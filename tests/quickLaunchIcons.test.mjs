@@ -29,7 +29,8 @@ test('Quick Launch toggles reflect only successful command completion and expose
     ]);
     assert.match(module, /const isToggle = entry\.type === 'command' && Boolean\(entry\.offTarget\)/);
     assert.match(module, /const nextActive = !active/);
-    assert.match(module, /if \(success && setQuickLaunchEntryState\(entry\.id, nextActive\)\)/);
+    assert.match(module, /if \(success && setQuickLaunchEntryState\(entry\.id, nextActive, \{/);
+    assert.match(module, /target: entry\.target,[\s\S]*?offTarget: entry\.offTarget/);
     assert.match(module, /emblem-ok-symbolic/);
     assert.match(module, /system-run-symbolic/);
     assert.match(module, /\$\{active \? 'on' : 'off'\}/);

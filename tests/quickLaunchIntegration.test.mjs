@@ -16,7 +16,7 @@ test('Quick Launch configuration is normalized and synchronized with extension l
     assert.match(config, /quickLaunch:\s*\[\]/);
     assert.match(config, /merged\.quickLaunch = normalizeQuickLaunchEntries\(merged\.quickLaunch\)/);
     assert.match(state, /export function setQuickLaunchEntries\(value\)/);
-    assert.match(state, /export function setQuickLaunchEntryState\(id, active\)/);
+    assert.match(state, /export function setQuickLaunchEntryState\(id, active, expected = null\)/);
     assert.match(state, /export function clearQuickLaunchEntries\(\)/);
     assert.match(extension, /setQuickLaunchEntries\(this\._config\.quickLaunch\)/);
     assert.match(extension, /setQuickLaunchEntries\(newConfig\.quickLaunch\)/);
@@ -67,7 +67,7 @@ test('Quick Launch section stays absent when empty and makes unavailable entries
     assert.match(module, /can_focus: true/);
     assert.match(module, /if \(!available\)\s*\{[\s\S]*?button\.opacity = 150;[\s\S]*?button\.set_tooltip_text\(unavailableReason\)/);
     assert.match(module, /if \(!isToggle\)\s*\{\s*launchEntry\(entry\)/);
-    assert.match(module, /setQuickLaunchEntryState\(entry\.id, nextActive\)/);
+    assert.match(module, /setQuickLaunchEntryState\(entry\.id, nextActive, \{/);
     assert.match(module, /commandTarget,\s*onComplete/);
 });
 

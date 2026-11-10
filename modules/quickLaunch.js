@@ -231,7 +231,10 @@ export function buildQuickLaunchSection() {
                             button.reactive = true;
                             button.opacity = 255;
                         } catch (error) {}
-                        if (success && setQuickLaunchEntryState(entry.id, nextActive))
+                        if (success && setQuickLaunchEntryState(entry.id, nextActive, {
+                            target: entry.target,
+                            offTarget: entry.offTarget,
+                        }))
                             active = nextActive;
                         applyVisualState();
                     },

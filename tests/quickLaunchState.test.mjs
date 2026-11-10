@@ -31,6 +31,23 @@ test('changing or removing a toggle action resets its transient state', () => {
     assert.equal(getQuickLaunchEntries()[0].active, undefined);
 });
 
+test('changing the on command resets transient toggle state', () => {
+    clearQuickLaunchEntries();
+    setQuickLaunchEntries([toggle]);
+    setQuickLaunchEntryState('wifi', true);
+    setQuickLaunchEntries([{...toggle, target: 'nmcli radio wifi'}]);
+    assert.equal(getQuickLaunchEntries()[0].active, false);
+});
+
+test('stale async completion cannot update a replacement toggle with the same ID', () => {
+    clearQuickLaunchEntries();
+    setQuickLaunchEntries([toggle]);
+    const pendingEntry = {target: toggle.target, offTarget: toggle.offTarget};
+    setQuickLaunchEntries([{...toggle, target: 'nmcli radio wifi'}]);
+    assert.equal(setQuickLaunchEntryState('wifi', true, pendingEntry), false);
+    assert.equal(getQuickLaunchEntries()[0].active, false);
+});
+
 test('extension teardown clears transient toggle state', () => {
     clearQuickLaunchEntries();
     setQuickLaunchEntries([toggle]);
