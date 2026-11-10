@@ -372,314 +372,322 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         const homeCardActors = {};
         let homeGrid = null;
         if (section.id === 'home') {
-            const actionsCard = new St.BoxLayout({
-                style_class: 'material-panel-control-center-card',
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            actionsCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 10px;`;
-            const actionsTitle = new St.Label({text: 'Quick actions'});
-            actionsTitle.style = 'font-size: 14px; font-weight: 650;';
-            const actionGrid = new St.Widget({
-                style_class: 'material-panel-control-center-actions',
-                layout_manager: new Clutter.GridLayout(),
-                x_expand: true,
-            });
-            actionGrid.layout_manager.column_spacing = 8;
-            actionGrid.layout_manager.row_spacing = 8;
-            const actions = [darkModeTile(), nightLightTile(), dndTile()];
-            actions.forEach((action, index) => {
-                action.x_expand = true;
-                actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
-            });
+            const isHomeCardVisible = id =>
+                homeCardLayout.cards.find(cardEntry => cardEntry.id === id)?.visible !== false;
+            if (isHomeCardVisible('actions')) {
+                const actionsCard = new St.BoxLayout({
+                    style_class: 'material-panel-control-center-card',
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                actionsCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 10px;`;
+                const actionsTitle = new St.Label({text: 'Quick actions'});
+                actionsTitle.style = 'font-size: 14px; font-weight: 650;';
+                const actionGrid = new St.Widget({
+                    style_class: 'material-panel-control-center-actions',
+                    layout_manager: new Clutter.GridLayout(),
+                    x_expand: true,
+                });
+                actionGrid.layout_manager.column_spacing = 8;
+                actionGrid.layout_manager.row_spacing = 8;
+                const actions = [darkModeTile(), nightLightTile(), dndTile()];
+                actions.forEach((action, index) => {
+                    action.x_expand = true;
+                    actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
+                });
+                actionsCard.add_child(actionsTitle);
+                actionsCard.add_child(actionGrid);
+                homeCardActors.actions = actionsCard;
+            }
+            if (isHomeCardVisible('media')) {
             const mediaCard = new St.BoxLayout({
-                style_class: 'material-panel-control-center-card',
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
-            const mediaHeader = new St.BoxLayout({
-                orientation: Clutter.Orientation.HORIZONTAL,
-                x_expand: true,
-            });
-            mediaHeader.style = 'spacing: 8px;';
-            const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
-            mediaTitle.style = 'font-size: 14px; font-weight: 650;';
-            const mediaOpen = new St.Button({
-                style_class: 'material-panel-control-center-card-link',
-                reactive: true,
-                can_focus: true,
-                child: new St.Label({text: 'Open Media'}),
-            });
-            mediaOpen.accessible_name = 'Open detailed Media section';
-            mediaOpen.set_tooltip_text('Open detailed Media view');
-            mediaOpen.connect('clicked', () => renderSection('media'));
-            mediaHeader.add_child(mediaTitle);
-            mediaHeader.add_child(mediaOpen);
-            const mediaRow = buildMediaPlayerRow({progress: true});
-            const noMedia = new St.Label({
-                text: 'No media is playing',
-                style_class: 'material-panel-control-center-placeholder',
-            });
-            mediaRow.connect('notify::visible', () => {
-                noMedia.visible = !mediaRow.visible;
-            });
-            mediaCard.add_child(mediaHeader);
-            mediaCard.add_child(noMedia);
-            mediaCard.add_child(mediaRow);
-            homeCardActors.media = mediaCard;
+                    style_class: 'material-panel-control-center-card',
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
+                const mediaHeader = new St.BoxLayout({
+                    orientation: Clutter.Orientation.HORIZONTAL,
+                    x_expand: true,
+                });
+                mediaHeader.style = 'spacing: 8px;';
+                const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
+                mediaTitle.style = 'font-size: 14px; font-weight: 650;';
+                const mediaOpen = new St.Button({
+                    style_class: 'material-panel-control-center-card-link',
+                    reactive: true,
+                    can_focus: true,
+                    child: new St.Label({text: 'Open Media'}),
+                });
+                mediaOpen.accessible_name = 'Open detailed Media section';
+                mediaOpen.set_tooltip_text('Open detailed Media view');
+                mediaOpen.connect('clicked', () => renderSection('media'));
+                mediaHeader.add_child(mediaTitle);
+                mediaHeader.add_child(mediaOpen);
+                const mediaRow = buildMediaPlayerRow({progress: true});
+                const noMedia = new St.Label({
+                    text: 'No media is playing',
+                    style_class: 'material-panel-control-center-placeholder',
+                });
+                mediaRow.connect('notify::visible', () => {
+                    noMedia.visible = !mediaRow.visible;
+                });
+                mediaCard.add_child(mediaHeader);
+                mediaCard.add_child(noMedia);
+                mediaCard.add_child(mediaRow);
+                homeCardActors.media = mediaCard;
+            }
 
-            actionsCard.add_child(actionsTitle);
-            actionsCard.add_child(actionGrid);
-            homeCardActors.actions = actionsCard;
-
+            if (isHomeCardVisible('weather')) {
             const weatherCard = new St.BoxLayout({
-                style_class: 'material-panel-control-center-card',
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            weatherCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
-            const weatherTitle = new St.Label({text: 'Weather'});
-            weatherTitle.style = 'font-size: 14px; font-weight: 650;';
-            const weatherTemp = new St.Label({text: '—°'});
-            weatherTemp.style = 'font-size: 24px; font-weight: 700;';
-            const weatherCondition = new St.Label({text: 'No weather data yet'});
-            weatherCondition.style = 'font-size: 12px;';
-            const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
-            weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
-            weatherPlace.clutter_text.line_wrap = true;
-            weatherCard.add_child(weatherTitle);
-            weatherCard.add_child(weatherTemp);
-            weatherCard.add_child(weatherCondition);
-            weatherCard.add_child(weatherPlace);
-
-            const renderWeatherSummary = summary => {
-                if (!summary) {
-                    weatherTemp.text = '—°';
-                    weatherCondition.text = 'No weather data yet';
-                    weatherPlace.text = 'Enable Weather and configure a location';
-                    return;
-                }
-                if (summary.source === 'Error' || summary.temp == null) {
-                    weatherTemp.text = '—°';
-                    weatherCondition.text = summary.condition || 'Weather is unavailable';
-                    weatherPlace.text = 'Check the Weather module and its location settings';
-                    return;
-                }
-                weatherTemp.text = `${Math.round(summary.temp)}°`;
-                weatherCondition.text = summary.condition || 'Current conditions';
-                const ageMinutes = summary.savedAt > 0
-                    ? Math.max(0, Math.floor((GLib.get_monotonic_time() - summary.savedAt) / 60000000))
-                    : null;
-                const age = ageMinutes == null ? '' : ageMinutes < 1
-                    ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
-                const stale = summary.stale ? ' · refresh unavailable' : '';
-                weatherPlace.text = [summary.place, age].filter(Boolean).join(' · ') + stale;
-            };
-            const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
-            weatherCard.connect('destroy', stopWeatherWatch);
-            homeCardActors.weather = weatherCard;
-
-            const calendarCard = new St.BoxLayout({
-                style_class: 'material-panel-control-center-card',
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            calendarCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
-            const calendarTitle = new St.Label({text: 'Calendar'});
-            calendarTitle.style = 'font-size: 14px; font-weight: 650;';
-            const calendarEvent = new St.Label({text: 'Calendar not synced'});
-            calendarEvent.style = 'font-size: 13px; font-weight: 600;';
-            calendarEvent.clutter_text.line_wrap = true;
-            const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
-            calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
-            calendarMeta.clutter_text.line_wrap = true;
-            calendarCard.add_child(calendarTitle);
-            calendarCard.add_child(calendarEvent);
-            calendarCard.add_child(calendarMeta);
-
-            let calendarCardDestroyed = false;
-            const renderCalendarSummary = document => {
-                if (calendarCardDestroyed)
-                    return;
-                if (!document) {
-                    calendarEvent.text = 'Calendar not synced';
-                    calendarMeta.text = 'Sync a calendar to see upcoming events';
-                    return;
-                }
-                const events = Array.isArray(document.events) ? document.events : [];
-                const upcoming = nextEvent(events);
-                if (upcoming) {
-                    calendarEvent.text = String(upcoming.title || 'Upcoming event');
-                    calendarMeta.text = [formatEventTimeRange(upcoming), formatCountdown(upcoming)]
-                        .filter(Boolean).join(' · ');
-                } else if (events.length > 0) {
-                    calendarEvent.text = 'No upcoming timed events';
-                    calendarMeta.text = 'Your synced calendar has no future timed event';
-                } else {
-                    calendarEvent.text = 'No upcoming events';
-                    calendarMeta.text = 'Your synced calendar is currently empty';
-                }
-            };
-            const stopCalendarWatch = watchCalendarDocument(() => {
-                loadCalendarDocumentAsync(renderCalendarSummary);
-            });
-            loadCalendarDocumentAsync(renderCalendarSummary);
-            calendarCard.connect('destroy', () => {
-                calendarCardDestroyed = true;
-                stopCalendarWatch();
-            });
-            homeCardActors.calendar = calendarCard;
-
-            const systemSummaryContent = new St.BoxLayout({
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            systemSummaryContent.style = 'spacing: 8px; padding: 14px;';
-            const systemSummaryTitle = new St.Label({text: 'System overview'});
-            systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
-            const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
-            systemSummaryGrid.layout_manager.column_spacing = 8;
-            systemSummaryGrid.layout_manager.row_spacing = 6;
-            const makeSummaryMetric = (title, showUsageBar = false) => {
-                const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-                tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
-                const name = new St.Label({text: title});
-                name.style = 'font-size: 10px; opacity: 0.7;';
-                const value = new St.Label({text: '—'});
-                value.style = 'font-size: 14px; font-weight: 700;';
-                tile.add_child(name);
-                tile.add_child(value);
-                let fill = null;
-                let track = null;
-                if (showUsageBar) {
-                    track = new St.Widget({width: 100, height: 4});
-                    track.style = 'background-color: rgba(127, 127, 127, 0.24); border-radius: 4px;';
-                    fill = new St.Widget({width: 0, height: 4});
-                    fill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;';
-                    track.add_child(fill);
-                    track.accessible_name = title + ' usage';
-                    tile.add_child(track);
-                }
-                return {
-                    actor: tile,
-                    value,
-                    update(number) {
-                        if (!fill)
-                            return;
-                        const valid = Number.isFinite(number);
-                        fill.set_width(valid ? Math.round(Math.max(0, Math.min(100, number))) : 0);
-                        track.accessible_name = valid ? title + ' usage ' + Math.round(number) + ' percent' : title + ' usage unavailable';
-                    },
+                    style_class: 'material-panel-control-center-card',
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                weatherCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+                const weatherTitle = new St.Label({text: 'Weather'});
+                weatherTitle.style = 'font-size: 14px; font-weight: 650;';
+                const weatherTemp = new St.Label({text: '—°'});
+                weatherTemp.style = 'font-size: 24px; font-weight: 700;';
+                const weatherCondition = new St.Label({text: 'No weather data yet'});
+                weatherCondition.style = 'font-size: 12px;';
+                const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
+                weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
+                weatherPlace.clutter_text.line_wrap = true;
+                weatherCard.add_child(weatherTitle);
+                weatherCard.add_child(weatherTemp);
+                weatherCard.add_child(weatherCondition);
+                weatherCard.add_child(weatherPlace);
+    
+                const renderWeatherSummary = summary => {
+                    if (!summary) {
+                        weatherTemp.text = '—°';
+                        weatherCondition.text = 'No weather data yet';
+                        weatherPlace.text = 'Enable Weather and configure a location';
+                        return;
+                    }
+                    if (summary.source === 'Error' || summary.temp == null) {
+                        weatherTemp.text = '—°';
+                        weatherCondition.text = summary.condition || 'Weather is unavailable';
+                        weatherPlace.text = 'Check the Weather module and its location settings';
+                        return;
+                    }
+                    weatherTemp.text = `${Math.round(summary.temp)}°`;
+                    weatherCondition.text = summary.condition || 'Current conditions';
+                    const ageMinutes = summary.savedAt > 0
+                        ? Math.max(0, Math.floor((GLib.get_monotonic_time() - summary.savedAt) / 60000000))
+                        : null;
+                    const age = ageMinutes == null ? '' : ageMinutes < 1
+                        ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
+                    const stale = summary.stale ? ' · refresh unavailable' : '';
+                    weatherPlace.text = [summary.place, age].filter(Boolean).join(' · ') + stale;
                 };
-            };
-            const cpuMetric = makeSummaryMetric('CPU', true);
-            const memoryMetric = makeSummaryMetric('Memory', true);
-            const temperatureMetric = makeSummaryMetric('CPU temp');
-            const diskMetric = makeSummaryMetric('Disk', true);
-            systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
-            systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
-            systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
-            systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
-            const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
-            systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
-            systemSummaryMeta.clutter_text.line_wrap = true;
-            systemSummaryContent.add_child(systemSummaryTitle);
-            systemSummaryContent.add_child(systemSummaryGrid);
-            systemSummaryContent.add_child(systemSummaryMeta);
-            const systemSummaryCard = new St.Button({
-                style_class: 'material-panel-control-center-card',
-                reactive: true,
-                can_focus: true,
-                x_expand: true,
-                child: systemSummaryContent,
-            });
-            systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 0;`;
-            systemSummaryCard.accessible_name = 'System overview; open detailed System view';
-            systemSummaryCard.set_tooltip_text('Open detailed System view');
-            systemSummaryCard.connect('clicked', () => renderSection('system'));
-            const sampleAge = (sampledAt, sampledAtLabel) => {
-                if (sampledAtLabel)
-                    return `at ${sampledAtLabel}`;
-                if (!(sampledAt > 0))
-                    return 'sample time unavailable';
-                const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
-                return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
-            };
-            const renderSystemSummary = snapshot => {
-                const system = snapshot?.system;
-                const disk = snapshot?.disk;
-                cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
-                memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
-                temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
-                diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
-                cpuMetric.update(system?.cpu);
-                memoryMetric.update(system?.memory);
-                diskMetric.update(disk?.pct);
-                const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
-                const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
-                if (!system) {
+                const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
+                weatherCard.connect('destroy', stopWeatherWatch);
+                homeCardActors.weather = weatherCard;
+            }
+
+            if (isHomeCardVisible('calendar')) {
+            const calendarCard = new St.BoxLayout({
+                    style_class: 'material-panel-control-center-card',
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                calendarCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+                const calendarTitle = new St.Label({text: 'Calendar'});
+                calendarTitle.style = 'font-size: 14px; font-weight: 650;';
+                const calendarEvent = new St.Label({text: 'Calendar not synced'});
+                calendarEvent.style = 'font-size: 13px; font-weight: 600;';
+                calendarEvent.clutter_text.line_wrap = true;
+                const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
+                calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
+                calendarMeta.clutter_text.line_wrap = true;
+                calendarCard.add_child(calendarTitle);
+                calendarCard.add_child(calendarEvent);
+                calendarCard.add_child(calendarMeta);
+    
+                let calendarCardDestroyed = false;
+                const renderCalendarSummary = document => {
+                    if (calendarCardDestroyed)
+                        return;
+                    if (!document) {
+                        calendarEvent.text = 'Calendar not synced';
+                        calendarMeta.text = 'Sync a calendar to see upcoming events';
+                        return;
+                    }
+                    const events = Array.isArray(document.events) ? document.events : [];
+                    const upcoming = nextEvent(events);
+                    if (upcoming) {
+                        calendarEvent.text = String(upcoming.title || 'Upcoming event');
+                        calendarMeta.text = [formatEventTimeRange(upcoming), formatCountdown(upcoming)]
+                            .filter(Boolean).join(' · ');
+                    } else if (events.length > 0) {
+                        calendarEvent.text = 'No upcoming timed events';
+                        calendarMeta.text = 'Your synced calendar has no future timed event';
+                    } else {
+                        calendarEvent.text = 'No upcoming events';
+                        calendarMeta.text = 'Your synced calendar is currently empty';
+                    }
+                };
+                const stopCalendarWatch = watchCalendarDocument(() => {
+                    loadCalendarDocumentAsync(renderCalendarSummary);
+                });
+                loadCalendarDocumentAsync(renderCalendarSummary);
+                calendarCard.connect('destroy', () => {
+                    calendarCardDestroyed = true;
+                    stopCalendarWatch();
+                });
+                homeCardActors.calendar = calendarCard;
+            }
+
+            if (isHomeCardVisible('system')) {
+            const systemSummaryContent = new St.BoxLayout({
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                systemSummaryContent.style = 'spacing: 8px; padding: 14px;';
+                const systemSummaryTitle = new St.Label({text: 'System overview'});
+                systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
+                const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
+                systemSummaryGrid.layout_manager.column_spacing = 8;
+                systemSummaryGrid.layout_manager.row_spacing = 6;
+                const makeSummaryMetric = (title, showUsageBar = false) => {
+                    const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+                    tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
+                    const name = new St.Label({text: title});
+                    name.style = 'font-size: 10px; opacity: 0.7;';
+                    const value = new St.Label({text: '—'});
+                    value.style = 'font-size: 14px; font-weight: 700;';
+                    tile.add_child(name);
+                    tile.add_child(value);
+                    let fill = null;
+                    let track = null;
+                    if (showUsageBar) {
+                        track = new St.Widget({width: 100, height: 4});
+                        track.style = 'background-color: rgba(127, 127, 127, 0.24); border-radius: 4px;';
+                        fill = new St.Widget({width: 0, height: 4});
+                        fill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;';
+                        track.add_child(fill);
+                        track.accessible_name = title + ' usage';
+                        tile.add_child(track);
+                    }
+                    return {
+                        actor: tile,
+                        value,
+                        update(number) {
+                            if (!fill)
+                                return;
+                            const valid = Number.isFinite(number);
+                            fill.set_width(valid ? Math.round(Math.max(0, Math.min(100, number))) : 0);
+                            track.accessible_name = valid ? title + ' usage ' + Math.round(number) + ' percent' : title + ' usage unavailable';
+                        },
+                    };
+                };
+                const cpuMetric = makeSummaryMetric('CPU', true);
+                const memoryMetric = makeSummaryMetric('Memory', true);
+                const temperatureMetric = makeSummaryMetric('CPU temp');
+                const diskMetric = makeSummaryMetric('Disk', true);
+                systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
+                systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
+                systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
+                systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
+                const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
+                systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
+                systemSummaryMeta.clutter_text.line_wrap = true;
+                systemSummaryContent.add_child(systemSummaryTitle);
+                systemSummaryContent.add_child(systemSummaryGrid);
+                systemSummaryContent.add_child(systemSummaryMeta);
+                const systemSummaryCard = new St.Button({
+                    style_class: 'material-panel-control-center-card',
+                    reactive: true,
+                    can_focus: true,
+                    x_expand: true,
+                    child: systemSummaryContent,
+                });
+                systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 0;`;
+                systemSummaryCard.accessible_name = 'System overview; open detailed System view';
+                systemSummaryCard.set_tooltip_text('Open detailed System view');
+                systemSummaryCard.connect('clicked', () => renderSection('system'));
+                const sampleAge = (sampledAt, sampledAtLabel) => {
+                    if (sampledAtLabel)
+                        return `at ${sampledAtLabel}`;
+                    if (!(sampledAt > 0))
+                        return 'sample time unavailable';
+                    const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
+                    return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
+                };
+                const renderSystemSummary = snapshot => {
+                    const system = snapshot?.system;
+                    const disk = snapshot?.disk;
+                    cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
+                    memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
+                    temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
+                    diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
+                    cpuMetric.update(system?.cpu);
+                    memoryMetric.update(system?.memory);
+                    diskMetric.update(disk?.pct);
+                    const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
+                    const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
+                    if (!system) {
+                        systemSummaryMeta.text = disk
+                            ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
+                            : 'Open System to collect CPU, memory and temperature readings';
+                        return;
+                    }
                     systemSummaryMeta.text = disk
-                        ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
-                        : 'Open System to collect CPU, memory and temperature readings';
-                    return;
-                }
-                systemSummaryMeta.text = disk
-                    ? `System ${systemAge} · Disk ${diskAge}`
-                    : `System ${systemAge} · Enable the Disk module for storage usage`;
-            };
-            const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
-            systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
-            homeCardActors.system = systemSummaryCard;
+                        ? `System ${systemAge} · Disk ${diskAge}`
+                        : `System ${systemAge} · Enable the Disk module for storage usage`;
+                };
+                const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
+                systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
+                homeCardActors.system = systemSummaryCard;
+            }
+            if (isHomeCardVisible('wallpaper')) {
             const wallpaperApp = findWallmatApp();
-            const wallpaperCard = new St.Button({
-                style_class: 'material-panel-control-center-card',
-                reactive: true,
-                can_focus: true,
-                x_expand: true,
-            });
-            wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
-            const wallpaperContent = new St.BoxLayout({
-                orientation: Clutter.Orientation.VERTICAL,
-                x_expand: true,
-            });
-            wallpaperContent.style = 'spacing: 6px;';
-            const wallpaperTitle = new St.Label({text: 'Wallpaper'});
-            wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
-            const wallpaperDescription = new St.Label({
-                text: wallpaperApp
-                    ? 'Browse and apply wallpapers with Wallmat.'
-                    : "Wallmat isn't installed. Open GNOME Background settings instead.",
-                x_expand: true,
-            });
-            wallpaperDescription.clutter_text.line_wrap = true;
-            wallpaperDescription.style = 'font-size: 11px; opacity: 0.78;';
-            const wallpaperAction = new St.Label({
-                text: wallpaperApp ? 'Open Wallmat' : 'Open Background Settings',
-                x_expand: true,
-            });
-            wallpaperAction.style = 'font-size: 12px; font-weight: 650;';
-            wallpaperContent.add_child(wallpaperTitle);
-            wallpaperContent.add_child(wallpaperDescription);
-            wallpaperContent.add_child(wallpaperAction);
-            wallpaperCard.set_child(wallpaperContent);
-            wallpaperCard.accessible_name = wallpaperApp
-                ? 'Open Wallmat wallpaper chooser'
-                : 'Open GNOME Background settings';
-            wallpaperCard.set_tooltip_text(wallpaperApp
-                ? 'Browse and apply wallpapers with Wallmat'
-                : 'Open GNOME Background settings');
-            wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
-            homeCardActors.wallpaper = wallpaperCard;
+                const wallpaperCard = new St.Button({
+                    style_class: 'material-panel-control-center-card',
+                    reactive: true,
+                    can_focus: true,
+                    x_expand: true,
+                });
+                wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
+                const wallpaperContent = new St.BoxLayout({
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                wallpaperContent.style = 'spacing: 6px;';
+                const wallpaperTitle = new St.Label({text: 'Wallpaper'});
+                wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
+                const wallpaperDescription = new St.Label({
+                    text: wallpaperApp
+                        ? 'Browse and apply wallpapers with Wallmat.'
+                        : "Wallmat isn't installed. Open GNOME Background settings instead.",
+                    x_expand: true,
+                });
+                wallpaperDescription.clutter_text.line_wrap = true;
+                wallpaperDescription.style = 'font-size: 11px; opacity: 0.78;';
+                const wallpaperAction = new St.Label({
+                    text: wallpaperApp ? 'Open Wallmat' : 'Open Background Settings',
+                    x_expand: true,
+                });
+                wallpaperAction.style = 'font-size: 12px; font-weight: 650;';
+                wallpaperContent.add_child(wallpaperTitle);
+                wallpaperContent.add_child(wallpaperDescription);
+                wallpaperContent.add_child(wallpaperAction);
+                wallpaperCard.set_child(wallpaperContent);
+                wallpaperCard.accessible_name = wallpaperApp
+                    ? 'Open Wallmat wallpaper chooser'
+                    : 'Open GNOME Background settings';
+                wallpaperCard.set_tooltip_text(wallpaperApp
+                    ? 'Browse and apply wallpapers with Wallmat'
+                    : 'Open GNOME Background settings');
+                wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
+                homeCardActors.wallpaper = wallpaperCard;
+            }
 
             const placements = getControlCenterHomeGridPlacements(
                 homeCardLayout, Object.keys(homeCardActors), compact);
-            const visibleCardIds = new Set(placements.map(placement => placement.id));
             for (const [id, actor] of Object.entries(homeCardActors)) {
-                if (!visibleCardIds.has(id)) {
-                    actor.destroy();
-                    continue;
-                }
                 const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === id);
                 applyHomeCardSize(actor, entry?.size ?? 'half');
             }

@@ -258,7 +258,14 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /CONTROL_CENTER_HOME_CARD_DEFINITIONS/);
     assert.match(controlCenter, /homeCardItems\.set\(definition\.id, item\)/);
     assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
-    assert.match(controlCenter, /if \(!visibleCardIds\.has\(id\)\)\s+\{\s+actor\.destroy\(\)/);
+    assert.match(controlCenter, /const isHomeCardVisible = id =>/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('actions'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\)/);
+    assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
     assert.match(config, /normalizeControlCenterHomeLayout/);
     assert.match(layout, /id: 'weather'/);
