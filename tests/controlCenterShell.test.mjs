@@ -202,6 +202,8 @@ test('Control Center Home edit mode exposes reset, reorder and supported size ac
     const module = await source('../modules/controlCenter.js');
     const layout = await source('../lib/controlCenterHomeLayout.js');
     assert.match(module, /PopupSwitchMenuItem\('Edit Home layout', false\)/);
+    assert.match(module, /homeCardsMenu\.visible = homeEditMode && currentSectionId === 'home'/);
+    assert.match(module, /homeCardsMenu\.visible = section\.id === 'home' && homeEditMode/);
     assert.match(module, /PopupMenuItem\('Reset to default layout'\)/);
     assert.match(module, /PopupMenuItem\('Move up'\)/);
     assert.match(module, /PopupMenuItem\('Move down'\)/);
@@ -268,7 +270,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaCard[\s\S]*?buildMediaPlayerRow/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherCard[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarCard[\s\S]*?watchCalendarDocument/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\) \{\s+const systemSummaryContent[\s\S]*?watchControlCenterSummary/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\) \{\s+const systemSummaryContent[\s\S]*?watchControlCenterSummary/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\) \{\s+const wallpaperApp/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);

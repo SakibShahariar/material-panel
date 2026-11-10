@@ -284,6 +284,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     menu.addMenuItem(homeLayoutEditMenu);
     homeEditModeItem.connect('toggled', (_item, enabled) => {
         homeEditMode = enabled === true;
+        homeCardsMenu.visible = homeEditMode && currentSectionId === 'home';
         homeLayoutEditMenu.visible = homeEditMode && currentSectionId === 'home';
     });
 
@@ -736,7 +737,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         }
 
         focusModeItem.visible = section.id === 'home';
-        homeCardsMenu.visible = section.id === 'home';
+        homeCardsMenu.visible = section.id === 'home' && homeEditMode;
         homeEditModeItem.visible = section.id === 'home';
         homeLayoutEditMenu.visible = section.id === 'home' && homeEditMode;
         for (const [id, navButton] of navButtons) {
