@@ -1409,7 +1409,40 @@ The previous checkpoint was `cb38fadcfa74e2ff78471e18f2eb8de64435731e`. The READ
 - `c85d8a1c82d3d9e07d257e9d35f3c84d55cee965` — **green**, [run #42756957573](https://github.com/SakibShahariar/material-panel/actions/runs/42756957573): syntax, **696/696 JavaScript tests**, and **22/22 Python tests** passed. The active-connection state watcher now disconnects and returns before touching popup state if the module has already been destroyed.
 - `339e366fc8032f9761638bf33dbc1f14e62a55e7` — **green**, [run #42756969558](https://github.com/SakibShahariar/material-panel/actions/runs/42756969558): syntax, **697/697 JavaScript tests**, and **22/22 Python tests** passed. Added regression coverage for the teardown guard and destroy-time signal cleanup.
 
-**Reviewed through:** `339e366fc8032f9761638bf33dbc1f14e62a55e7`  
-**Checkpoint SHA:** `339e366fc8032f9761638bf33dbc1f14e62a55e7`  
+
+
+## Incremental CI review: Quick Launch, battery visibility, and editable Home — 2026-11-10
+
+The previous checkpoint was `339e366fc8032f9761638bf33dbc1f14e62a55e7`. The following commits on `main` were reviewed against their actual workflow runs.
+
+### Prior documentation commit
+
+- `6a59846a2db0c12918944213c9cbe1c07982e651` — **green**, [run #42757127059](https://github.com/SakibShahariar/material-panel/actions/runs/42757127059).
+
+### Quick Launch state and completion safety (#71, #253)
+
+- `9cbc7207c8169fb1853c4d66be85dd7f7ab1a9bd` — **green**, [run #42757704195](https://github.com/SakibShahariar/material-panel/actions/runs/42757704195): syntax, **699/699 JavaScript tests**, and **22/22 Python tests** passed. The state reset now compares entry type and both command targets; stale asynchronous completions cannot update a replacement entry with the same ID.
+- `7ac88c908842bef6181e50ade1c4076885050504` — **green**, [run #42758990557](https://github.com/SakibShahariar/material-panel/actions/runs/42758990557): syntax, **710/710 JavaScript tests**, and **22/22 Python tests** passed. The runner now delivers completion once, ignoring duplicate callbacks and late adapter exceptions.
+
+### Battery visibility rebuild optimization (#112)
+
+- `3e5c3826f7a68c3ccee6dc4b71e134553d89d050` — **green**, [run #42757813548](https://github.com/SakibShahariar/material-panel/actions/runs/42757813548): syntax, **700/700 JavaScript tests**, and **22/22 Python tests** passed. UPower percentage changes trigger a panel rebuild only when the battery-derived hidden-module set changes.
+
+### Editable Control Center Home (#125)
+
+- `a40f24c6048242675e68f2a2ace89943f1a531b9` — **red**, [run #42758336429](https://github.com/SakibShahariar/material-panel/actions/runs/42758336429): syntax passed; **705/707 JavaScript tests** passed; Python/calendar tests were skipped. Two source assertions still expected the old fixed Home-card construction and an unsupported Weather size. These were test expectation defects, not runtime failures; corrected by `fb0b7dba`.
+- `fb0b7dba739924a6a3c33c70053f8a3370a5ee3c` — **green**, [run #42758436528](https://github.com/SakibShahariar/material-panel/actions/runs/42758436528): syntax, **708/708 JavaScript tests**, and **22/22 Python tests** passed. Added the Media detail destination and corrected the stale Home-card assertions.
+- `5bbdc6221ef4f2ba262048bc25681b4ee9652d28` — **green**, [run #42758569741](https://github.com/SakibShahariar/material-panel/actions/runs/42758569741): syntax, **708/708 JavaScript tests**, and **22/22 Python tests** passed. Hidden cards are no longer constructed, so their watchers and actor work are not started.
+- `3e60e7052245efd8933ef274a9dda25915b0574f` — **red**, [run #42758654980](https://github.com/SakibShahariar/material-panel/actions/runs/42758654980): syntax passed; **707/708 JavaScript tests** passed; Python/calendar tests were skipped. One source assertion omitted the closing parenthesis in the System-card visibility guard. Corrected in `7dd54c81`.
+- `7dd54c812f40f403e4b30b7a2223875da604b87b` — **red**, [run #42758772218](https://github.com/SakibShahariar/material-panel/actions/runs/42758772218): syntax passed; **707/708 JavaScript tests** passed; Python/calendar tests were skipped. A second source assertion had the same missing-parenthesis issue for the Wallpaper guard. Corrected in `cc288729`.
+- `cc288729c951298f5156de8d3d6c2b46ffe8dba9` — **green**, [run #42758851300](https://github.com/SakibShahariar/material-panel/actions/runs/42758851300): syntax, **708/708 JavaScript tests**, and **22/22 Python tests** passed.
+- `54ae9b07d8bc73a534b6456e8de789cac4837742` — **red**, [run #42759128485](https://github.com/SakibShahariar/material-panel/actions/runs/42759128485): syntax passed; **713/715 JavaScript tests** passed; Python/calendar tests were skipped. One assertion still expected the fixed action array, and a new source regex was over-escaped. The first was corrected in `8fcff25d`; its remaining regex failure was corrected in `f9e92e06`.
+- `8fcff25d80190df8b185a66cf82dee1e1d81949a` — **red**, [run #42759196631](https://github.com/SakibShahariar/material-panel/actions/runs/42759196631): syntax passed; **714/715 JavaScript tests** passed; Python/calendar tests were skipped. The shortcut-map assertion still contained one excess closing group; replaced with a direct string assertion in `f9e92e06`.
+- `f9e92e067e3bee6021bce03a04ffc35c157c73b5` — **green**, [run #42759325843](https://github.com/SakibShahariar/material-panel/actions/runs/42759325843): syntax, **715/715 JavaScript tests**, and **22/22 Python tests** passed. Home card layout, Home shortcut ordering and visibility, ConfigStore normalization, and the updated source-wiring assertions all pass.
+
+All red results in this range were caused by stale or over-escaped test assertions; each was investigated and followed by a green run. No unresolved CI failures remain in this range.
+
+**Reviewed through:** `f9e92e067e3bee6021bce03a04ffc35c157c73b5`  
+**Checkpoint SHA:** `f9e92e067e3bee6021bce03a04ffc35c157c73b5`  
 **Checkpoint date:** 2026-11-10  
-**Next unreviewed commit:** this CI-ledger update.
+**Next unreviewed commit:** this Home/maintenance documentation commit; record its own CI result in the next incremental review.

@@ -51,6 +51,8 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 ## Git and Commit Practices
 
 - Commit directly to the repository's existing default branch; do not force-push, rewrite history, reset away others' work, or amend published commits.
+- Immediately before each file edit, fetch that file's current contents and blob SHA from the verified default branch. Base the edit on that exact version; if its SHA changed since inspection, re-read and reconcile rather than applying a stale patch.
+- Immediately before every commit, fetch the default-branch ref/HEAD again and use that SHA as the commit parent. Update the branch only with an expected-HEAD guard; if the guard rejects the update, inspect the new commits and rebuild the change on the new HEAD. Never force the update.
 - Fetch/review the latest branch state before committing. Keep changes focused and avoid including unrelated modifications.
 - Use the repository's documented commit convention. If none exists, use clear Conventional Commit messages such as `fix(scope): ...`, `feat(scope): ...`, `docs: ...`, or `test: ...`.
 - Include issue references for issue-related commits. Do not create empty or misleading commits.
