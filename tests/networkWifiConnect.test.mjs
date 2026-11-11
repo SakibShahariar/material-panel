@@ -152,3 +152,23 @@ test('Wi-Fi activation watcher disconnects before touching a destroyed popup', (
     assert.ok(callback.indexOf('disconnect();') < callback.indexOf('let state;'));
     assert.ok(source.includes('for (const disconnect of activationSignals)'));
 });
+
+test('NetworkManager adapter isolates exceptions thrown by consumer error callbacks', () => {
+    const invalidResult = () => addAndActivateWifiConnection({}, {}, {}, {
+        onError() { throw new Error('UI callback failed'); },
+    });
+    assert.doesNotThrow(() => assert.equal(invalidResult(), false));
+
+    const client = {
+        add_and_activate_connection_async(_profile, _device, _path, _cancellable, callback) {
+            callback(this, {});
+        },
+        add_and_activate_connection_finish() { return {id: 'active'}; },
+    };
+    assert.doesNotThrow(() => addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/12',
+    }, {
+        onStarted() { throw new Error('consumer start callback failed'); },
+        onError() { throw new Error('consumer error callback failed'); },
+    }));
+});
