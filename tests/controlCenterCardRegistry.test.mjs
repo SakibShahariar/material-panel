@@ -287,11 +287,24 @@ test('proxy introspection failures are isolated and invoke available factory cle
     });
     registry.register(definition('broken', () => handle));
 
-    assert.doesNotThrow(() => registry.create('broken'));
-    assert.equal(registry.create('broken'), null);
-    assert.equal(destroyed, 2);
-    assert.deepEqual(errors, [
-        ['broken', 'actor descriptor unavailable'],
-        ['broken', 'actor descriptor unavailable'],
-    ]);
+    let instance = null;
+    assert.doesNotThrow(() => { instance = registry.create('broken'); });
+    assert.equal(instance, null);
+    assert.equal(destroyed, 1);
+    assert.deepEqual(errors, [['broken', 'actor descriptor unavailable']]);
+});
+
+
+test('rejects asynchronous card factories instead of returning Promises as actors', () => {
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    registry.register(definition('async', () => Promise.resolve({actor: {}})));
+
+    assert.equal(registry.create('async'), null);
+    assert.deepEqual(errors, [[
+        'async',
+        'Card factories must return actors synchronously.',
+    ]]);
 });
