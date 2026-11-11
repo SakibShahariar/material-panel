@@ -268,3 +268,30 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
     assert.match(source, /const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
 });
+
+
+test('proxy introspection failures are isolated and invoke available factory cleanup', () => {
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    let destroyed = 0;
+    const handle = new Proxy({
+        destroy() { destroyed++; },
+    }, {
+        getOwnPropertyDescriptor(target, property) {
+            if (property === 'actor')
+                throw new Error('actor descriptor unavailable');
+            return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+    });
+    registry.register(definition('broken', () => handle));
+
+    assert.doesNotThrow(() => registry.create('broken'));
+    assert.equal(registry.create('broken'), null);
+    assert.equal(destroyed, 2);
+    assert.deepEqual(errors, [
+        ['broken', 'actor descriptor unavailable'],
+        ['broken', 'actor descriptor unavailable'],
+    ]);
+});
