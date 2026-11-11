@@ -91,3 +91,13 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
     assert.match(runner, /spawnCommand\(argv, \(success, error = null\) => complete\(success, error\)\)/);
     assert.doesNotMatch(runner, /exec\(|eval\(|shell=True/);
 });
+
+
+test('Quick Launch announces the pending toggle direction and restores the final state', async () => {
+    const module = await source('../modules/quickLaunch.js');
+    assert.match(module, /const transition = nextActive \? 'on' : 'off'/);
+    assert.match(module, /setChipA11y\(button, `\$\{entry\.name\}, turning \$\{transition\}`\)/);
+    assert.match(module, /button\.set_tooltip_text\(`\$\{entry\.name\}: turning \$\{transition\}…`\)/);
+    assert.match(module, /if \(success && setQuickLaunchEntryState/);
+    assert.match(module, /applyVisualState\(\);/);
+});

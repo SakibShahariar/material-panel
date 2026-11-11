@@ -221,9 +221,12 @@ export function buildQuickLaunchSection() {
                     return;
                 const nextActive = !active;
                 const commandTarget = nextActive ? entry.target : entry.offTarget;
+                const transition = nextActive ? 'on' : 'off';
                 busy = true;
                 button.reactive = false;
                 button.opacity = 170;
+                setChipA11y(button, `${entry.name}, turning ${transition}`);
+                button.set_tooltip_text(`${entry.name}: turning ${transition}…`);
                 launchEntry(entry, {
                     commandTarget,
                     onComplete: success => {
