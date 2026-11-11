@@ -298,8 +298,12 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaCard[\s\S]*?buildMediaPlayerRow/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherCard[\s\S]*?watchWeatherSummary/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarCard[\s\S]*?watchCalendarDocument/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherInstance = homeCardRegistry\.create\('weather'\)/);
+    assert.match(controlCenter, /function buildHomeWeatherCard\(\)[\s\S]*?watchWeatherSummary/);
+    assert.match(controlCenter, /cardDestroyed = true;\s+stopWeatherWatch\(\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarInstance = homeCardRegistry\.create\('calendar'\)/);
+    assert.match(controlCenter, /function buildHomeCalendarCard\(\)[\s\S]*?watchCalendarDocument/);
+    assert.match(controlCenter, /calendarCardDestroyed = true;\s+stopCalendarWatch\(\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\) \{\s+const systemInstance = homeCardRegistry\.create\('system'\)/);
     assert.match(controlCenter, /function buildSystemSummaryCard\(onOpen\)/);
     assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);

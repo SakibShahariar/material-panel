@@ -254,4 +254,10 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /const mediaDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
     assert.match(source, /homeCardRegistry\.create\('media'\)/);
     assert.match(source, /homeCardInstances\.set\('media', mediaInstance\)/);
+    assert.match(source, /const weatherDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /homeCardRegistry\.create\('weather'\)/);
+    assert.match(source, /homeCardInstances\.set\('weather', weatherInstance\)/);
+    assert.match(source, /const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /homeCardRegistry\.create\('calendar'\)/);
+    assert.match(source, /homeCardInstances\.set\('calendar', calendarInstance\)/);
 });

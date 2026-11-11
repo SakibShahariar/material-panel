@@ -267,6 +267,106 @@ function buildHomeMediaCard(onOpen) {
 
 }
 
+function buildHomeWeatherCard() {
+    const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
+    const weatherTitle = new St.Label({text: 'Weather'});
+    weatherTitle.style = 'font-size: 14px; font-weight: 650;';
+    const weatherTemp = new St.Label({text: '—°'});
+    weatherTemp.style = 'font-size: 24px; font-weight: 700;';
+    const weatherCondition = new St.Label({text: 'No weather data yet'});
+    weatherCondition.style = 'font-size: 12px;';
+    const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
+    weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
+    weatherPlace.clutter_text.line_wrap = true;
+    weatherCard.add_child(weatherTitle);
+    weatherCard.add_child(weatherTemp);
+    weatherCard.add_child(weatherCondition);
+    weatherCard.add_child(weatherPlace);
+
+    let cardDestroyed = false;
+    const renderWeatherSummary = summary => {
+        if (cardDestroyed)
+            return;
+        if (!summary) {
+            weatherTemp.text = '—°';
+            weatherCondition.text = 'No weather data yet';
+            weatherPlace.text = 'Enable Weather and configure a location';
+            return;
+        }
+        if (summary.source === 'Error' || summary.temp == null) {
+            weatherTemp.text = '—°';
+            weatherCondition.text = summary.condition || 'Weather is unavailable';
+            weatherPlace.text = 'Check the Weather module and its location settings';
+            return;
+        }
+        weatherTemp.text = `${Math.round(summary.temp)}°`;
+        weatherCondition.text = summary.condition || 'Current conditions';
+        const ageMinutes = summary.savedAt > 0
+            ? Math.max(0, Math.floor((GLib.get_monotonic_time() - summary.savedAt) / 60000000))
+            : null;
+        const age = ageMinutes == null ? '' : ageMinutes < 1
+            ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
+        const stale = summary.stale ? ' · refresh unavailable' : '';
+        weatherPlace.text = [summary.place, age].filter(Boolean).join(' · ') + stale;
+    };
+    const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
+    weatherCard.connect('destroy', () => {
+        cardDestroyed = true;
+        stopWeatherWatch();
+    });
+    return weatherCard;
+
+}
+
+function buildHomeCalendarCard() {
+    const calendarCard = createControlCenterCardShell({padding: 14, spacing: 5});
+    const calendarTitle = new St.Label({text: 'Calendar'});
+    calendarTitle.style = 'font-size: 14px; font-weight: 650;';
+    const calendarEvent = new St.Label({text: 'Calendar not synced'});
+    calendarEvent.style = 'font-size: 13px; font-weight: 600;';
+    calendarEvent.clutter_text.line_wrap = true;
+    const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
+    calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
+    calendarMeta.clutter_text.line_wrap = true;
+    calendarCard.add_child(calendarTitle);
+    calendarCard.add_child(calendarEvent);
+    calendarCard.add_child(calendarMeta);
+
+    let calendarCardDestroyed = false;
+    const renderCalendarSummary = document => {
+        if (calendarCardDestroyed)
+            return;
+        if (!document) {
+            calendarEvent.text = 'Calendar not synced';
+            calendarMeta.text = 'Sync a calendar to see upcoming events';
+            return;
+        }
+        const events = Array.isArray(document.events) ? document.events : [];
+        const upcoming = nextEvent(events);
+        if (upcoming) {
+            calendarEvent.text = String(upcoming.title || 'Upcoming event');
+            calendarMeta.text = [formatEventTimeRange(upcoming), formatCountdown(upcoming)]
+                .filter(Boolean).join(' · ');
+        } else if (events.length > 0) {
+            calendarEvent.text = 'No upcoming timed events';
+            calendarMeta.text = 'Your synced calendar has no future timed event';
+        } else {
+            calendarEvent.text = 'No upcoming events';
+            calendarMeta.text = 'Your synced calendar is currently empty';
+        }
+    };
+    const stopCalendarWatch = watchCalendarDocument(() => {
+        loadCalendarDocumentAsync(renderCalendarSummary);
+    });
+    loadCalendarDocumentAsync(renderCalendarSummary);
+    calendarCard.connect('destroy', () => {
+        calendarCardDestroyed = true;
+        stopCalendarWatch();
+    });
+    return calendarCard;
+
+}
+
 function clearActors(box) {
     for (const child of [...box.get_children()]) {
         try {
@@ -479,6 +579,20 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             ...mediaDefinition,
             detailDestination: 'media',
             factory: () => buildHomeMediaCard(() => renderSection('media')),
+        });
+    }
+    const weatherDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'weather');
+    if (weatherDefinition) {
+        homeCardRegistry.register({
+            ...weatherDefinition,
+            factory: () => buildHomeWeatherCard(),
+        });
+    }
+    const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'calendar');
+    if (calendarDefinition) {
+        homeCardRegistry.register({
+            ...calendarDefinition,
+            factory: () => buildHomeCalendarCard(),
         });
     }
     const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'system');
@@ -712,97 +826,19 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 }
             }
             if (isHomeCardVisible('weather')) {
-                const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
-                const weatherTitle = new St.Label({text: 'Weather'});
-                weatherTitle.style = 'font-size: 14px; font-weight: 650;';
-                const weatherTemp = new St.Label({text: '—°'});
-                weatherTemp.style = 'font-size: 24px; font-weight: 700;';
-                const weatherCondition = new St.Label({text: 'No weather data yet'});
-                weatherCondition.style = 'font-size: 12px;';
-                const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
-                weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
-                weatherPlace.clutter_text.line_wrap = true;
-                weatherCard.add_child(weatherTitle);
-                weatherCard.add_child(weatherTemp);
-                weatherCard.add_child(weatherCondition);
-                weatherCard.add_child(weatherPlace);
-
-                const renderWeatherSummary = summary => {
-                    if (!summary) {
-                        weatherTemp.text = '—°';
-                        weatherCondition.text = 'No weather data yet';
-                        weatherPlace.text = 'Enable Weather and configure a location';
-                        return;
-                    }
-                    if (summary.source === 'Error' || summary.temp == null) {
-                        weatherTemp.text = '—°';
-                        weatherCondition.text = summary.condition || 'Weather is unavailable';
-                        weatherPlace.text = 'Check the Weather module and its location settings';
-                        return;
-                    }
-                    weatherTemp.text = `${Math.round(summary.temp)}°`;
-                    weatherCondition.text = summary.condition || 'Current conditions';
-                    const ageMinutes = summary.savedAt > 0
-                        ? Math.max(0, Math.floor((GLib.get_monotonic_time() - summary.savedAt) / 60000000))
-                        : null;
-                    const age = ageMinutes == null ? '' : ageMinutes < 1
-                        ? 'Updated just now' : `Updated ${ageMinutes} min ago`;
-                    const stale = summary.stale ? ' · refresh unavailable' : '';
-                    weatherPlace.text = [summary.place, age].filter(Boolean).join(' · ') + stale;
-                };
-                const stopWeatherWatch = watchWeatherSummary(renderWeatherSummary);
-                weatherCard.connect('destroy', stopWeatherWatch);
-                homeCardActors.weather = weatherCard;
+                const weatherInstance = homeCardRegistry.create('weather');
+                if (weatherInstance) {
+                    homeCardInstances.set('weather', weatherInstance);
+                    homeCardActors.weather = weatherInstance.actor;
+                }
             }
-
             if (isHomeCardVisible('calendar')) {
-                const calendarCard = createControlCenterCardShell({padding: 14, spacing: 5});
-                const calendarTitle = new St.Label({text: 'Calendar'});
-                calendarTitle.style = 'font-size: 14px; font-weight: 650;';
-                const calendarEvent = new St.Label({text: 'Calendar not synced'});
-                calendarEvent.style = 'font-size: 13px; font-weight: 600;';
-                calendarEvent.clutter_text.line_wrap = true;
-                const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
-                calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
-                calendarMeta.clutter_text.line_wrap = true;
-                calendarCard.add_child(calendarTitle);
-                calendarCard.add_child(calendarEvent);
-                calendarCard.add_child(calendarMeta);
-
-                let calendarCardDestroyed = false;
-                const renderCalendarSummary = document => {
-                    if (calendarCardDestroyed)
-                        return;
-                    if (!document) {
-                        calendarEvent.text = 'Calendar not synced';
-                        calendarMeta.text = 'Sync a calendar to see upcoming events';
-                        return;
-                    }
-                    const events = Array.isArray(document.events) ? document.events : [];
-                    const upcoming = nextEvent(events);
-                    if (upcoming) {
-                        calendarEvent.text = String(upcoming.title || 'Upcoming event');
-                        calendarMeta.text = [formatEventTimeRange(upcoming), formatCountdown(upcoming)]
-                            .filter(Boolean).join(' · ');
-                    } else if (events.length > 0) {
-                        calendarEvent.text = 'No upcoming timed events';
-                        calendarMeta.text = 'Your synced calendar has no future timed event';
-                    } else {
-                        calendarEvent.text = 'No upcoming events';
-                        calendarMeta.text = 'Your synced calendar is currently empty';
-                    }
-                };
-                const stopCalendarWatch = watchCalendarDocument(() => {
-                    loadCalendarDocumentAsync(renderCalendarSummary);
-                });
-                loadCalendarDocumentAsync(renderCalendarSummary);
-                calendarCard.connect('destroy', () => {
-                    calendarCardDestroyed = true;
-                    stopCalendarWatch();
-                });
-                homeCardActors.calendar = calendarCard;
+                const calendarInstance = homeCardRegistry.create('calendar');
+                if (calendarInstance) {
+                    homeCardInstances.set('calendar', calendarInstance);
+                    homeCardActors.calendar = calendarInstance.actor;
+                }
             }
-
             if (isHomeCardVisible('system')) {
                 const systemInstance = homeCardRegistry.create('system');
                 if (systemInstance) {
