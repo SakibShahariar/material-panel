@@ -28,6 +28,7 @@ import {
 import {
     CONTROL_CENTER_HOME_SHORTCUT_DEFINITIONS,
     DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS,
+    buildControlCenterHomeShortcutActors,
     moveControlCenterHomeShortcut,
     normalizeControlCenterHomeShortcuts,
     setControlCenterHomeShortcut,
@@ -214,10 +215,10 @@ function buildHomeActionsCard(homeShortcuts) {
     });
     actionGrid.layout_manager.column_spacing = 8;
     actionGrid.layout_manager.row_spacing = 8;
-    const actions = homeShortcuts
-        .map(id => HOME_SHORTCUT_BUILDERS.get(id))
-        .filter(builder => typeof builder === 'function')
-        .map(builder => builder());
+    const actions = buildControlCenterHomeShortcutActors(
+        homeShortcuts,
+        HOME_SHORTCUT_BUILDERS,
+        (id, error) => logError(error, `material-panel: Home shortcut ${id}`));
     if (actions.length) {
         actions.forEach((action, index) => {
             action.x_expand = true;
@@ -225,12 +226,23 @@ function buildHomeActionsCard(homeShortcuts) {
         });
     } else {
         const emptyShortcuts = new St.Label({
-            text: 'No Home shortcuts selected. Edit Home layout to add one.',
+            text: homeShortcuts.length
+                ? 'Selected shortcuts are unavailable. Edit Home layout to choose another action.'
+                : 'No Home shortcuts selected. Edit Home layout to add one.',
             style_class: 'material-panel-control-center-placeholder',
             x_expand: true,
         });
         emptyShortcuts.clutter_text.line_wrap = true;
         actionGrid.add_child(emptyShortcuts);
+    }
+    if (actions.length > 0 && actions.length < homeShortcuts.length) {
+        const unavailable = new St.Label({
+            text: 'Some selected shortcuts are unavailable. Edit Home layout to change them.',
+            style_class: 'material-panel-control-center-placeholder',
+            x_expand: true,
+        });
+        unavailable.clutter_text.line_wrap = true;
+        actionGrid.layout_manager.attach(unavailable, 0, Math.ceil(actions.length / 2), 2, 1);
     }
     actionsCard.add_child(actionsTitle);
     actionsCard.add_child(actionGrid);

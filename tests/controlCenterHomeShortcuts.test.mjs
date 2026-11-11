@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
     CONTROL_CENTER_HOME_SHORTCUT_DEFINITIONS,
     DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS,
+    buildControlCenterHomeShortcutActors,
     moveControlCenterHomeShortcut,
     normalizeControlCenterHomeShortcuts,
     setControlCenterHomeShortcut,
@@ -35,4 +36,37 @@ test('Home shortcut normalization is bounded to twelve unique safe IDs', () => {
     const normalized = normalizeControlCenterHomeShortcuts(input);
     assert.equal(normalized.length, 12);
     assert.equal(new Set(normalized).size, 12);
+});
+
+
+test('Home shortcut builders isolate unavailable and throwing actions', () => {
+    const healthy = {id: 'healthy'};
+    const errors = [];
+    const builders = new Map([
+        ['healthy', () => healthy],
+        ['missing', () => null],
+        ['broken', () => { throw new Error('backend unavailable'); }],
+        ['invalid', () => 'not-an-actor'],
+    ]);
+
+    const actors = buildControlCenterHomeShortcutActors(
+        ['healthy', 'missing', 'broken', 'invalid', 'unknown'],
+        builders,
+        (id, error) => errors.push([id, error.message]));
+
+    assert.deepEqual(actors, [healthy]);
+    assert.deepEqual(errors, [['broken', 'backend unavailable']]);
+});
+
+test('Home shortcut error reporting cannot break remaining actor creation', () => {
+    const healthy = {id: 'healthy'};
+    const actors = buildControlCenterHomeShortcutActors(
+        ['broken', 'healthy'],
+        new Map([
+            ['broken', () => { throw new Error('failed'); }],
+            ['healthy', () => healthy],
+        ]),
+        () => { throw new Error('logger failed'); });
+
+    assert.deepEqual(actors, [healthy]);
 });
