@@ -169,7 +169,10 @@ function buildSystemSummaryCard(onOpen) {
         const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
         return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
     };
+    let cardDestroyed = false;
     const renderSystemSummary = snapshot => {
+        if (cardDestroyed)
+            return;
         const system = snapshot?.system;
         const disk = snapshot?.disk;
         cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
@@ -192,7 +195,10 @@ function buildSystemSummaryCard(onOpen) {
             : `System ${systemAge} · Enable the Disk module for storage usage`;
     };
     const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
-    systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
+    systemSummaryCard.connect('destroy', () => {
+        cardDestroyed = true;
+        stopSystemSummaryWatch();
+    });
     return systemSummaryCard;
 
 }
