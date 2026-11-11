@@ -5,6 +5,7 @@ import Gio from 'gi://Gio';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
+import {createControlCenterCardShell} from '../lib/controlCenterCardShell.js';
 import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {buildControlCenterSystem} from './controlCenterSystem.js';
@@ -444,12 +445,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             const isHomeCardVisible = id =>
                 homeCardLayout.cards.find(cardEntry => cardEntry.id === id)?.visible !== false;
             if (isHomeCardVisible('actions')) {
-                const actionsCard = new St.BoxLayout({
-                    style_class: 'material-panel-control-center-card',
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                actionsCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 10px;`;
+                const actionsCard = createControlCenterCardShell({padding: 14, spacing: 10});
                 const actionsTitle = new St.Label({text: 'Quick actions'});
                 actionsTitle.style = 'font-size: 14px; font-weight: 650;';
                 const actionGrid = new St.Widget({
@@ -482,12 +478,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeCardActors.actions = actionsCard;
             }
             if (isHomeCardVisible('media')) {
-                const mediaCard = new St.BoxLayout({
-                    style_class: 'material-panel-control-center-card',
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                mediaCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 8px;`;
+                const mediaCard = createControlCenterCardShell({padding: 14, spacing: 8});
                 const mediaHeader = new St.BoxLayout({
                     orientation: Clutter.Orientation.HORIZONTAL,
                     x_expand: true,
@@ -521,12 +512,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('weather')) {
-                const weatherCard = new St.BoxLayout({
-                    style_class: 'material-panel-control-center-card',
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                weatherCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+                const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
                 const weatherTitle = new St.Label({text: 'Weather'});
                 weatherTitle.style = 'font-size: 14px; font-weight: 650;';
                 const weatherTemp = new St.Label({text: '—°'});
@@ -570,12 +556,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('calendar')) {
-                const calendarCard = new St.BoxLayout({
-                    style_class: 'material-panel-control-center-card',
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                calendarCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px; spacing: 5px;`;
+                const calendarCard = createControlCenterCardShell({padding: 14, spacing: 5});
                 const calendarTitle = new St.Label({text: 'Calendar'});
                 calendarTitle.style = 'font-size: 14px; font-weight: 650;';
                 const calendarEvent = new St.Label({text: 'Calendar not synced'});
