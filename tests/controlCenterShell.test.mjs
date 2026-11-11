@@ -305,6 +305,10 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);
     assert.match(controlCenter, /systemSummaryCard\.connect\('clicked', onOpen\)/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
+    assert.match(controlCenter, /config\.controlCenterHomeLayout = homeCardLayout/);
+    assert.match(controlCenter, /config\.controlCenterHomeCards = \{/);
+    assert.match(controlCenter, /normalizeControlCenterHomeLayout\(\s*config\.controlCenterHomeLayout, config\.controlCenterHomeCards\)/);
+    assert.match(controlCenter, /homeCardLayoutChanged \|\| destroyed/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
     assert.match(config, /normalizeControlCenterHomeLayout/);
     assert.match(layout, /id: 'weather'/);

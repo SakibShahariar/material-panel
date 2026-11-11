@@ -24,3 +24,12 @@ test('built-in Home action, media, weather and calendar cards use the shared she
     assert.doesNotMatch(source, /weatherCard\.style = `background-color:/);
     assert.doesNotMatch(source, /calendarCard\.style = `background-color:/);
 });
+
+
+test('System overview and Wallpaper cards use the shared theme-aware shell', async () => {
+    const source = await read('../modules/controlCenter.js');
+    assert.match(source, /const systemSummaryContent = createControlCenterCardShell\(/);
+    assert.match(source, /const wallpaperContent = createControlCenterCardShell\(/);
+    assert.match(source, /systemSummaryCard\.connect\('clicked', onOpen\)/);
+    assert.match(source, /wallpaperCard\.set_child\(wallpaperContent\)/);
+});
