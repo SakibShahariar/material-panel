@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     clearQuickLaunchEntries,
     getQuickLaunchEntries,
+    getQuickLaunchEntryRevision,
     setQuickLaunchEntries,
     setQuickLaunchEntryState,
 } from '../lib/quickLaunchState.js';
@@ -46,6 +47,42 @@ test('stale async completion cannot update a replacement toggle with the same ID
     setQuickLaunchEntries([{...toggle, target: 'nmcli radio wifi'}]);
     assert.equal(setQuickLaunchEntryState('wifi', true, pendingEntry), false);
     assert.equal(getQuickLaunchEntries()[0].active, false);
+});
+
+
+test('stale completion cannot cross an action replacement and same-ID reuse', () => {
+    clearQuickLaunchEntries();
+    setQuickLaunchEntries([toggle]);
+    const pending = {
+        target: toggle.target,
+        offTarget: toggle.offTarget,
+        revision: getQuickLaunchEntryRevision('wifi'),
+    };
+
+    setQuickLaunchEntries([{id: 'wifi', type: 'app', target: 'org.gnome.Settings.desktop', name: 'Settings'}]);
+    setQuickLaunchEntries([toggle]);
+
+    assert.equal(setQuickLaunchEntryState('wifi', true, pending), false);
+    assert.equal(getQuickLaunchEntries()[0].active, false);
+});
+
+test('action revisions survive presentation edits but change after removal', () => {
+    clearQuickLaunchEntries();
+    setQuickLaunchEntries([toggle]);
+    const initialRevision = getQuickLaunchEntryRevision('wifi');
+
+    setQuickLaunchEntries([{...toggle, name: 'Wireless', icon: 'network-wireless-symbolic'}]);
+    assert.equal(getQuickLaunchEntryRevision('wifi'), initialRevision);
+
+    const pending = {
+        target: toggle.target,
+        offTarget: toggle.offTarget,
+        revision: initialRevision,
+    };
+    setQuickLaunchEntries([]);
+    setQuickLaunchEntries([toggle]);
+    assert.notEqual(getQuickLaunchEntryRevision('wifi'), initialRevision);
+    assert.equal(setQuickLaunchEntryState('wifi', true, pending), false);
 });
 
 test('extension teardown clears transient toggle state', () => {

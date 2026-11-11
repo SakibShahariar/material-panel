@@ -6,7 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
-import {getQuickLaunchEntries, setQuickLaunchEntryState} from '../lib/quickLaunchState.js';
+import {getQuickLaunchEntries, getQuickLaunchEntryRevision, setQuickLaunchEntryState} from '../lib/quickLaunchState.js';
 import {QUICK_LAUNCH_TIMEOUT_SECONDS} from '../lib/quickLaunch.js';
 import {launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
 
@@ -153,6 +153,7 @@ export function buildQuickLaunchSection() {
         }
 
         const isToggle = entry.type === 'command' && Boolean(entry.offTarget);
+        const entryRevision = getQuickLaunchEntryRevision(entry.id);
         let active = isToggle && entry.active === true;
         let busy = false;
         const button = new St.Button({
@@ -234,6 +235,7 @@ export function buildQuickLaunchSection() {
                         if (success && setQuickLaunchEntryState(entry.id, nextActive, {
                             target: entry.target,
                             offTarget: entry.offTarget,
+                            revision: entryRevision,
                         }))
                             active = nextActive;
                         applyVisualState();
