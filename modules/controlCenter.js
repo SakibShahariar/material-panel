@@ -6,6 +6,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
 import {createControlCenterCardShell} from '../lib/controlCenterCardShell.js';
+import {createControlCenterCardRegistry} from '../lib/controlCenterCardRegistry.js';
 import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {buildControlCenterSystem} from './controlCenterSystem.js';
@@ -244,6 +245,64 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     let homeEditMode = false;
     let destroyed = false;
 
+    const homeCardRegistry = createControlCenterCardRegistry({
+        onError: (id, error) => logError(error, `material-panel: Control Center card ${id}`),
+    });
+    const wallpaperDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'wallpaper');
+    if (wallpaperDefinition) {
+        homeCardRegistry.register({
+            ...wallpaperDefinition,
+            factory: () => {
+                const wallpaperApp = findWallmatApp();
+                const wallpaperCard = new St.Button({
+                    style_class: 'material-panel-control-center-card',
+                    reactive: true,
+                    can_focus: true,
+                    x_expand: true,
+                });
+                wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
+                const wallpaperContent = new St.BoxLayout({
+                    orientation: Clutter.Orientation.VERTICAL,
+                    x_expand: true,
+                });
+                wallpaperContent.style = 'spacing: 6px;';
+                const wallpaperTitle = new St.Label({text: 'Wallpaper'});
+                wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
+                const wallpaperDescription = new St.Label({
+                    text: wallpaperApp
+                        ? 'Browse and apply wallpapers with Wallmat.'
+                        : "Wallmat isn't installed. Open GNOME Background settings instead.",
+                    x_expand: true,
+                });
+                wallpaperDescription.clutter_text.line_wrap = true;
+                wallpaperDescription.style = 'font-size: 11px; opacity: 0.78;';
+                const wallpaperAction = new St.Label({
+                    text: wallpaperApp ? 'Open Wallmat' : 'Open Background Settings',
+                    x_expand: true,
+                });
+                wallpaperAction.style = 'font-size: 12px; font-weight: 650;';
+                wallpaperContent.add_child(wallpaperTitle);
+                wallpaperContent.add_child(wallpaperDescription);
+                wallpaperContent.add_child(wallpaperAction);
+                wallpaperCard.set_child(wallpaperContent);
+                wallpaperCard.accessible_name = wallpaperApp
+                    ? 'Open Wallmat wallpaper chooser'
+                    : 'Open GNOME Background settings';
+                wallpaperCard.set_tooltip_text(wallpaperApp
+                    ? 'Browse and apply wallpapers with Wallmat'
+                    : 'Open GNOME Background settings');
+                wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
+                return wallpaperCard;
+            },
+        });
+    }
+    const homeCardInstances = new Map();
+    const destroyHomeCardInstances = () => {
+        for (const instance of homeCardInstances.values())
+            instance.destroy();
+        homeCardInstances.clear();
+    };
+
     const updateHomeCardMenuStates = () => {
         applyingHomeCardLayout = true;
         for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
@@ -390,6 +449,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     const renderSection = sectionId => {
         const section = SECTIONS.find(entry => entry.id === sectionId) ?? SECTIONS[0];
         currentSectionId = section.id;
+        destroyHomeCardInstances();
         clearActors(page);
 
         const heading = new St.Label({
@@ -706,53 +766,20 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 homeCardActors.system = systemSummaryCard;
             }
             if (isHomeCardVisible('wallpaper')) {
-                const wallpaperApp = findWallmatApp();
-                const wallpaperCard = new St.Button({
-                    style_class: 'material-panel-control-center-card',
-                    reactive: true,
-                    can_focus: true,
-                    x_expand: true,
-                });
-                wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
-                const wallpaperContent = new St.BoxLayout({
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                wallpaperContent.style = 'spacing: 6px;';
-                const wallpaperTitle = new St.Label({text: 'Wallpaper'});
-                wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
-                const wallpaperDescription = new St.Label({
-                    text: wallpaperApp
-                        ? 'Browse and apply wallpapers with Wallmat.'
-                        : "Wallmat isn't installed. Open GNOME Background settings instead.",
-                    x_expand: true,
-                });
-                wallpaperDescription.clutter_text.line_wrap = true;
-                wallpaperDescription.style = 'font-size: 11px; opacity: 0.78;';
-                const wallpaperAction = new St.Label({
-                    text: wallpaperApp ? 'Open Wallmat' : 'Open Background Settings',
-                    x_expand: true,
-                });
-                wallpaperAction.style = 'font-size: 12px; font-weight: 650;';
-                wallpaperContent.add_child(wallpaperTitle);
-                wallpaperContent.add_child(wallpaperDescription);
-                wallpaperContent.add_child(wallpaperAction);
-                wallpaperCard.set_child(wallpaperContent);
-                wallpaperCard.accessible_name = wallpaperApp
-                    ? 'Open Wallmat wallpaper chooser'
-                    : 'Open GNOME Background settings';
-                wallpaperCard.set_tooltip_text(wallpaperApp
-                    ? 'Browse and apply wallpapers with Wallmat'
-                    : 'Open GNOME Background settings');
-                wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
-                homeCardActors.wallpaper = wallpaperCard;
+                const wallpaperInstance = homeCardRegistry.create('wallpaper');
+                if (wallpaperInstance) {
+                    homeCardInstances.set('wallpaper', wallpaperInstance);
+                    homeCardActors.wallpaper = wallpaperInstance.actor;
+                }
             }
 
             const placements = getControlCenterHomeGridPlacements(
                 homeCardLayout, Object.keys(homeCardActors), compact);
             for (const [id, actor] of Object.entries(homeCardActors)) {
                 const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === id);
-                applyHomeCardSize(actor, entry?.size ?? 'half');
+                const requestedSize = entry?.size ?? 'half';
+                const resolvedSize = homeCardRegistry.resolveSize(id, requestedSize) ?? requestedSize;
+                applyHomeCardSize(actor, resolvedSize);
             }
 
             homeGrid = new St.Widget({
@@ -852,7 +879,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         if (open) {
             renderSection('home');
         } else {
-            clearActors(page);
+            destroyHomeCardInstances();
+        clearActors(page);
             focusModeItem.visible = false;
         }
     });
@@ -864,6 +892,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     });
     button.connect('destroy', () => {
         destroyed = true;
+        homeCardRegistry.clear();
+        homeCardInstances.clear();
         menu.destroy();
     });
 

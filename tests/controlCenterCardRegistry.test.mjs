@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
 
 import {createControlCenterCardRegistry} from '../lib/controlCenterCardRegistry.js';
 
@@ -166,4 +167,15 @@ test('clear unregisters all cards and destroys their active instances', () => {
     registry.clear();
     assert.equal(registry.list().length, 0);
     assert.equal(destroyed, 2);
+});
+
+test('Control Center creates the Wallpaper card through the registry and releases it on page changes', async () => {
+    const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
+    assert.match(source, /createControlCenterCardRegistry/);
+    assert.match(source, /const wallpaperDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /homeCardRegistry\.register\(\{[\s\S]*?\.\.\.wallpaperDefinition/);
+    assert.match(source, /if \(isHomeCardVisible\('wallpaper'\)\)\s*\{\s*const wallpaperInstance = homeCardRegistry\.create\('wallpaper'\)/);
+    assert.match(source, /homeCardRegistry\.resolveSize\(id, requestedSize\)/);
+    assert.match(source, /destroyHomeCardInstances\(\);\s*clearActors\(page\)/);
+    assert.match(source, /homeCardRegistry\.clear\(\)/);
 });

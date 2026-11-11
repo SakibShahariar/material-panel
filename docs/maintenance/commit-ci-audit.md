@@ -25,8 +25,8 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `8f9246041a64e8e4dd54c94dbd2bea7f5242bf04`
-- Checkpoint date: 2026-11-07
+- Checkpoint SHA: `744753d9128a546446de639cb8b6ecea31d56aac`
+- Checkpoint date: 2026-11-11
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
 ## Initial audit baseline
@@ -1446,3 +1446,41 @@ All red results in this range were caused by stale or over-escaped test assertio
 **Checkpoint SHA:** `f9e92e067e3bee6021bce03a04ffc35c157c73b5`  
 **Checkpoint date:** 2026-11-10  
 **Next unreviewed commit:** this Home/maintenance documentation commit; record its own CI result in the next incremental review.
+
+
+## Incremental CI review: Quick Launch revisions, battery-device presence, card registry and Wi-Fi callbacks — 2026-11-11
+
+The previous incremental checkpoint was `f9e92e067e3bee6021bce03a04ffc35c157c73b5`. The following commits and the intervening documentation commit were checked against their actual push workflow runs on `main`.
+
+### Prior maintenance documentation commit
+
+- `ba004d18834ec79c1f1710480598c0aa3514608c` — **green**, [run #42759637521](https://github.com/SakibShahariar/material-panel/actions/runs/42759637521): syntax, **715/715 JavaScript tests**, and **22/22 Python tests** passed.
+
+### Quick Launch ABA-safe completion (#71, #253)
+
+- `491b499b0ccde214844bce4b68ef4c165ab15633` — **green**, [run #42962276299](https://github.com/SakibShahariar/material-panel/actions/runs/42962276299): syntax, **717/717 JavaScript tests**, and **22/22 Python tests** passed. Per-entry action revisions prevent stale toggle completions from updating a same-ID replacement, including removal/re-addition of the original command pair. Presentation-only edits preserve the revision.
+
+### Battery-device presence updates (#112)
+
+- `98816bebc2828d12158c2e3b452d96becc134932` — **green**, [run #42962373303](https://github.com/SakibShahariar/material-panel/actions/runs/42962373303): syntax, **717/717 JavaScript tests**, and **22/22 Python tests** passed. The selected UPower device now triggers reselection when `is-present` changes, in addition to state and percentage notifications.
+
+### Control Center card registry (#129)
+
+- `682ca0bf9d6b6f161ec5a91d2ad7651375738d8c` — **green**, [run #42962557947](https://github.com/SakibShahariar/material-panel/actions/runs/42962557947): syntax, **728/728 JavaScript tests**, and **22/22 Python tests** passed. Added the isolated registry contract, lazy factories, supported-size negotiation, optional bar-chip/detail metadata, unregister/clear cleanup, duplicate rejection, and per-card error isolation.
+
+### Wi-Fi activation callback isolation (#28)
+
+- `4d96fb6f4465483d396c5bd394006bfda1821d34` — **red**, [run #42962769912](https://github.com/SakibShahariar/material-panel/actions/runs/42962769912): syntax passed; **724/729 JavaScript tests** passed and five existing Wi-Fi adapter tests failed. The new error wrapper accidentally called itself recursively instead of invoking the supplied `onError` callback. Python/calendar tests were skipped after the JavaScript stage failed.
+- `06bf735224544ca7019e93f540095d4c1f91862b` — **green**, [run #42962880872](https://github.com/SakibShahariar/material-panel/actions/runs/42962880872): syntax, **729/729 JavaScript tests**, and **22/22 Python tests** passed. Corrected callback dispatch and added coverage for consumer error handlers that throw.
+- The red result was introduced by the callback-isolation change and resolved by the immediate follow-up; no unresolved CI failure remains.
+
+### Shared Home card surfaces (#125, #129)
+
+- `744753d9128a546446de639cb8b6ecea31d56aac` — **green**, [run #42963100906](https://github.com/SakibShahariar/material-panel/actions/runs/42963100906): syntax, **731/731 JavaScript tests**, and **22/22 Python tests** passed. Added a theme-aware shared card shell with bounded geometry and migrated the Home Quick actions, Media, Weather and Calendar cards.
+
+All commits through the checkpoint were reviewed. The single red workflow was investigated and followed by a green corrective commit. No pending or unresolved CI failures remain in this range.
+
+**Reviewed through:** `744753d9128a546446de639cb8b6ecea31d56aac`  
+**Checkpoint SHA:** `744753d9128a546446de639cb8b6ecea31d56aac`  
+**Checkpoint date:** 2026-11-11  
+**Next unreviewed commit:** registry-backed Wallpaper card integration and this ledger update (#129, #125).
