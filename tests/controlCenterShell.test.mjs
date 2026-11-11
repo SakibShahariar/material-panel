@@ -72,7 +72,7 @@ test('Control Center tears down inactive section actors and exposes Focus Mode o
     assert.match(module, /focusModeItem\.visible = section\.id === 'home'/);
     assert.match(module, /new PopupMenu\.PopupSwitchMenuItem\('Focus Mode', false\)/);
     assert.match(module, /config\.focusModeEnabled = enabled === true/);
-    assert.match(module, /else \{\s+clearActors\(page\);\s+focusModeItem\.visible = false;/);
+    assert.match(module, /else \{\s+destroyHomeCardInstances\(\);\s+clearActors\(page\);\s+focusModeItem\.visible = false;/);
 });
 
 test('Control Center Media section uses a detailed MPRIS card with section-scoped progress polling', async () => {
@@ -197,7 +197,7 @@ test('Control Center Home uses persisted card placements and reflows to one colu
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /getControlCenterHomeGridPlacements\(\s*homeCardLayout, Object\.keys\(homeCardActors\), compact\)/);
     assert.match(module, /gridLayout\.attach\(\s*homeCardActors\[placement\.id\],\s*placement\.column,\s*placement\.row,\s*placement\.columnSpan,\s*1\)/);
-    assert.match(module, /applyHomeCardSize\(actor, entry\?\.size \?\? 'half'\)/);
+    assert.match(module, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?homeCardRegistry\.resolveSize\(id, requestedSize\)[\s\S]*?applyHomeCardSize\(actor, resolvedSize\)/);
     assert.match(module, /homeGrid\.add_child\(empty\)/);
 });
 
@@ -292,7 +292,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherCard[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarCard[\s\S]*?watchCalendarDocument/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\) \{\s+const systemSummaryContent[\s\S]*?watchControlCenterSummary/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\) \{\s+const wallpaperApp/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\) \{\s+const wallpaperInstance = homeCardRegistry\.create\('wallpaper'\)/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
     assert.match(config, /normalizeControlCenterHomeLayout/);
@@ -310,6 +310,6 @@ test('Control Center Home hands wallpaper browsing to Wallmat and falls back to 
     assert.match(module, /Gio\.Subprocess\.new\(\['gnome-control-center', 'background'\], Gio\.SubprocessFlags\.NONE\)/);
     assert.match(module, /text: wallpaperApp \? 'Open Wallmat' : 'Open Background Settings'/);
     assert.match(module, /wallpaperCard\.connect\('clicked', \(\) => openWallpaperDestination\(wallpaperApp\)\)/);
-    assert.match(module, /homeCardActors\.wallpaper = wallpaperCard/);
+    assert.match(module, /homeCardActors\.wallpaper = wallpaperInstance\.actor/);
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
