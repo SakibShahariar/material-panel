@@ -255,7 +255,7 @@ export default class MaterialPanelExtension extends Extension {
                     this._visibilityBatteryDevice = device;
                     this._visibilityBatteryDeviceSignalIds = [];
                     if (device) {
-                        for (const signal of ['notify::state', 'notify::percentage']) {
+                        for (const signal of ['notify::state', 'notify::percentage', 'notify::is-present']) {
                             try {
                                 const signalId = device.connect(signal, syncBattery);
                                 if (signalId)
