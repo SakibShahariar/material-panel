@@ -373,6 +373,22 @@ function buildHomeCalendarCard() {
 
 }
 
+function createUnavailableHomeCard(label) {
+    const card = createControlCenterCardShell({padding: 14, spacing: 6});
+    const title = new St.Label({text: label});
+    title.style = 'font-size: 14px; font-weight: 650;';
+    const message = new St.Label({
+        text: 'This card could not be loaded. Other Home cards are still available.',
+        style_class: 'material-panel-control-center-placeholder',
+        x_expand: true,
+    });
+    message.clutter_text.line_wrap = true;
+    card.add_child(title);
+    card.add_child(message);
+    card.accessible_name = `${label} card unavailable`;
+    return card;
+}
+
 function clearActors(box) {
     for (const child of [...box.get_children()]) {
         try {
@@ -610,6 +626,16 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         });
     }
     const homeCardInstances = new Map();
+    const createHomeCardActor = id => {
+        const instance = homeCardRegistry.create(id);
+        if (!instance) {
+            const definition = homeCardRegistry.get(id);
+            return createUnavailableHomeCard(definition?.label ?? id);
+        }
+        homeCardInstances.set(id, instance);
+        return instance.actor;
+    };
+
     const destroyHomeCardInstances = () => {
         for (const instance of homeCardInstances.values())
             instance.destroy();
@@ -817,47 +843,9 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         if (section.id === 'home') {
             const isHomeCardVisible = id =>
                 homeCardLayout.cards.find(cardEntry => cardEntry.id === id)?.visible !== false;
-            if (isHomeCardVisible('actions')) {
-                const actionsInstance = homeCardRegistry.create('actions');
-                if (actionsInstance) {
-                    homeCardInstances.set('actions', actionsInstance);
-                    homeCardActors.actions = actionsInstance.actor;
-                }
-            }
-            if (isHomeCardVisible('media')) {
-                const mediaInstance = homeCardRegistry.create('media');
-                if (mediaInstance) {
-                    homeCardInstances.set('media', mediaInstance);
-                    homeCardActors.media = mediaInstance.actor;
-                }
-            }
-            if (isHomeCardVisible('weather')) {
-                const weatherInstance = homeCardRegistry.create('weather');
-                if (weatherInstance) {
-                    homeCardInstances.set('weather', weatherInstance);
-                    homeCardActors.weather = weatherInstance.actor;
-                }
-            }
-            if (isHomeCardVisible('calendar')) {
-                const calendarInstance = homeCardRegistry.create('calendar');
-                if (calendarInstance) {
-                    homeCardInstances.set('calendar', calendarInstance);
-                    homeCardActors.calendar = calendarInstance.actor;
-                }
-            }
-            if (isHomeCardVisible('system')) {
-                const systemInstance = homeCardRegistry.create('system');
-                if (systemInstance) {
-                    homeCardInstances.set('system', systemInstance);
-                    homeCardActors.system = systemInstance.actor;
-                }
-            }
-            if (isHomeCardVisible('wallpaper')) {
-                const wallpaperInstance = homeCardRegistry.create('wallpaper');
-                if (wallpaperInstance) {
-                    homeCardInstances.set('wallpaper', wallpaperInstance);
-                    homeCardActors.wallpaper = wallpaperInstance.actor;
-                }
+            for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
+                if (isHomeCardVisible(definition.id))
+                    homeCardActors[definition.id] = createHomeCardActor(definition.id);
             }
 
             const placements = getControlCenterHomeGridPlacements(

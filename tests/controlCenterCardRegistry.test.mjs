@@ -235,6 +235,15 @@ test('clear unregisters all cards and destroys their active instances', () => {
     assert.equal(destroyed, 2);
 });
 
+test('Control Center keeps a visible fallback slot when an optional card factory fails', async () => {
+    const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
+    assert.match(source, /function createUnavailableHomeCard\(label\)/);
+    assert.match(source, /This card could not be loaded\. Other Home cards are still available\./);
+    assert.match(source, /const createHomeCardActor = id => \{\s+const instance = homeCardRegistry\.create\(id\)/);
+    assert.match(source, /return createUnavailableHomeCard\(definition\?\.label \?\? id\)/);
+    assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
+});
+
 test('Control Center creates the Wallpaper card through the registry and releases it on page changes', async () => {
     const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
     assert.match(source, /createControlCenterCardRegistry/);
