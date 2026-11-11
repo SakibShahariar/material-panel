@@ -156,6 +156,72 @@ test('an old registration disposer cannot remove a newer registration with the s
     assert.equal(registry.create('media').actor, replacement);
 });
 
+test('invalid factory handles are cleaned up instead of leaking resources', () => {
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    let destroyed = 0;
+    registry.register(definition('broken', () => ({
+        actor: null,
+        destroy() { destroyed++; },
+    })));
+
+    assert.equal(registry.create('broken'), null);
+    assert.equal(destroyed, 1);
+    assert.deepEqual(errors, [['broken', 'Card factory must return an actor or an actor handle.']]);
+});
+
+test('throwing actor accessors are isolated and their factory handles are cleaned up', () => {
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    let destroyed = 0;
+    const handle = {destroy() { destroyed++; }};
+    Object.defineProperty(handle, 'actor', {
+        get() { throw new Error('actor unavailable'); },
+    });
+    registry.register(definition('broken', () => handle));
+
+    assert.doesNotThrow(() => registry.create('broken'));
+    assert.equal(destroyed, 1);
+    assert.deepEqual(errors, [['broken', 'actor unavailable']]);
+});
+
+test('actor cleanup remains available when an optional handle cleanup accessor fails', () => {
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    let destroyed = 0;
+    const actor = {destroy() { destroyed++; }};
+    const handle = {actor};
+    Object.defineProperty(handle, 'destroy', {
+        get() { throw new Error('cleanup accessor unavailable'); },
+    });
+    registry.register(definition('card', () => handle));
+
+    const instance = registry.create('card');
+    assert.ok(instance);
+    assert.deepEqual(errors, [['card', 'cleanup accessor unavailable']]);
+    instance.destroy();
+    assert.equal(destroyed, 1);
+});
+
+test('factory results are destroyed when their registration is removed during creation', () => {
+    const registry = createControlCenterCardRegistry();
+    let destroyed = 0;
+    registry.register(definition('media', () => {
+        registry.unregister('media');
+        return {destroy() { destroyed++; }};
+    }));
+
+    assert.equal(registry.create('media'), null);
+    assert.equal(registry.has('media'), false);
+    assert.equal(destroyed, 1);
+});
+
 test('clear unregisters all cards and destroys their active instances', () => {
     const registry = createControlCenterCardRegistry();
     let destroyed = 0;
