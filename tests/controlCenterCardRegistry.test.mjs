@@ -244,4 +244,8 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /homeCardRegistry\.resolveSize\(id, requestedSize\)/);
     assert.match(source, /destroyHomeCardInstances\(\);\s*clearActors\(page\)/);
     assert.match(source, /homeCardRegistry\.clear\(\)/);
+    assert.match(source, /const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /detailDestination: 'system'/);
+    assert.match(source, /homeCardRegistry\.create\('system'\)/);
+    assert.match(source, /homeCardInstances\.set\('system', systemInstance\)/);
 });

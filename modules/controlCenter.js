@@ -97,6 +97,106 @@ function openWallpaperDestination(appInfo) {
     }
 }
 
+function buildSystemSummaryCard(onOpen) {
+    const systemSummaryContent = createControlCenterCardShell({padding: 14, spacing: 8});
+    const systemSummaryTitle = new St.Label({text: 'System overview'});
+    systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
+    const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
+    systemSummaryGrid.layout_manager.column_spacing = 8;
+    systemSummaryGrid.layout_manager.row_spacing = 6;
+    const makeSummaryMetric = (title, showUsageBar = false) => {
+        const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+        tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
+        const name = new St.Label({text: title});
+        name.style = 'font-size: 10px; opacity: 0.7;';
+        const value = new St.Label({text: '—'});
+        value.style = 'font-size: 14px; font-weight: 700;';
+        tile.add_child(name);
+        tile.add_child(value);
+        let fill = null;
+        let track = null;
+        if (showUsageBar) {
+            track = new St.Widget({width: 100, height: 4});
+            track.style = 'background-color: rgba(127, 127, 127, 0.24); border-radius: 4px;';
+            fill = new St.Widget({width: 0, height: 4});
+            fill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;';
+            track.add_child(fill);
+            track.accessible_name = title + ' usage';
+            tile.add_child(track);
+        }
+        return {
+            actor: tile,
+            value,
+            update(number) {
+                if (!fill)
+                    return;
+                const valid = Number.isFinite(number);
+                fill.set_width(valid ? Math.round(Math.max(0, Math.min(100, number))) : 0);
+                track.accessible_name = valid ? title + ' usage ' + Math.round(number) + ' percent' : title + ' usage unavailable';
+            },
+        };
+    };
+    const cpuMetric = makeSummaryMetric('CPU', true);
+    const memoryMetric = makeSummaryMetric('Memory', true);
+    const temperatureMetric = makeSummaryMetric('CPU temp');
+    const diskMetric = makeSummaryMetric('Disk', true);
+    systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
+    systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
+    systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
+    systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
+    const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
+    systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
+    systemSummaryMeta.clutter_text.line_wrap = true;
+    systemSummaryContent.add_child(systemSummaryTitle);
+    systemSummaryContent.add_child(systemSummaryGrid);
+    systemSummaryContent.add_child(systemSummaryMeta);
+    const systemSummaryCard = new St.Button({
+        style_class: 'material-panel-control-center-card-link',
+        reactive: true,
+        can_focus: true,
+        x_expand: true,
+        child: systemSummaryContent,
+    });
+    systemSummaryCard.style = 'background-color: transparent; border: none; padding: 0;';
+    systemSummaryCard.accessible_name = 'System overview; open detailed System view';
+    systemSummaryCard.set_tooltip_text('Open detailed System view');
+    systemSummaryCard.connect('clicked', onOpen);
+    const sampleAge = (sampledAt, sampledAtLabel) => {
+        if (sampledAtLabel)
+            return `at ${sampledAtLabel}`;
+        if (!(sampledAt > 0))
+            return 'sample time unavailable';
+        const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
+        return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
+    };
+    const renderSystemSummary = snapshot => {
+        const system = snapshot?.system;
+        const disk = snapshot?.disk;
+        cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
+        memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
+        temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
+        diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
+        cpuMetric.update(system?.cpu);
+        memoryMetric.update(system?.memory);
+        diskMetric.update(disk?.pct);
+        const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
+        const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
+        if (!system) {
+            systemSummaryMeta.text = disk
+                ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
+                : 'Open System to collect CPU, memory and temperature readings';
+            return;
+        }
+        systemSummaryMeta.text = disk
+            ? `System ${systemAge} · Disk ${diskAge}`
+            : `System ${systemAge} · Enable the Disk module for storage usage`;
+    };
+    const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
+    systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
+    return systemSummaryCard;
+
+}
+
 function clearActors(box) {
     for (const child of [...box.get_children()]) {
         try {
@@ -108,9 +208,13 @@ function clearActors(box) {
 
 function applyHomeCardSize(actor, size) {
     try {
+        const content = typeof actor.get_child === 'function' ? actor.get_child() : null;
+        const sizeTarget = content ?? actor;
         actor.add_style_class_name(`material-panel-control-center-card-size-${size}`);
+        if (sizeTarget !== actor)
+            sizeTarget.add_style_class_name(`material-panel-control-center-card-size-${size}`);
         if (size === 'compact')
-            actor.style = `${actor.style ?? ''} padding: 10px; spacing: 5px;`;
+            sizeTarget.style = `${sizeTarget.style ?? ''} padding: 10px; spacing: 5px;`;
     } catch (error) {}
 }
 
@@ -255,17 +359,13 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             factory: () => {
                 const wallpaperApp = findWallmatApp();
                 const wallpaperCard = new St.Button({
-                    style_class: 'material-panel-control-center-card',
+                    style_class: 'material-panel-control-center-card-link',
                     reactive: true,
                     can_focus: true,
                     x_expand: true,
                 });
-                wallpaperCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 14px;`;
-                const wallpaperContent = new St.BoxLayout({
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                wallpaperContent.style = 'spacing: 6px;';
+                wallpaperCard.style = 'background-color: transparent; border: none; padding: 0;';
+                const wallpaperContent = createControlCenterCardShell({padding: 14, spacing: 6});
                 const wallpaperTitle = new St.Label({text: 'Wallpaper'});
                 wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
                 const wallpaperDescription = new St.Label({
@@ -294,6 +394,14 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
                 return wallpaperCard;
             },
+        });
+    }
+    const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'system');
+    if (systemDefinition) {
+        homeCardRegistry.register({
+            ...systemDefinition,
+            detailDestination: 'system',
+            factory: () => buildSystemSummaryCard(() => renderSection('system')),
         });
     }
     const homeCardInstances = new Map();
@@ -664,106 +772,11 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             if (isHomeCardVisible('system')) {
-                const systemSummaryContent = new St.BoxLayout({
-                    orientation: Clutter.Orientation.VERTICAL,
-                    x_expand: true,
-                });
-                systemSummaryContent.style = 'spacing: 8px; padding: 14px;';
-                const systemSummaryTitle = new St.Label({text: 'System overview'});
-                systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
-                const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
-                systemSummaryGrid.layout_manager.column_spacing = 8;
-                systemSummaryGrid.layout_manager.row_spacing = 6;
-                const makeSummaryMetric = (title, showUsageBar = false) => {
-                    const tile = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-                    tile.style = 'spacing: 2px; padding: 6px 8px; border-radius: 10px;';
-                    const name = new St.Label({text: title});
-                    name.style = 'font-size: 10px; opacity: 0.7;';
-                    const value = new St.Label({text: '—'});
-                    value.style = 'font-size: 14px; font-weight: 700;';
-                    tile.add_child(name);
-                    tile.add_child(value);
-                    let fill = null;
-                    let track = null;
-                    if (showUsageBar) {
-                        track = new St.Widget({width: 100, height: 4});
-                        track.style = 'background-color: rgba(127, 127, 127, 0.24); border-radius: 4px;';
-                        fill = new St.Widget({width: 0, height: 4});
-                        fill.style = 'background-color: ' + getThemeColor('primary', '#89b4fa') + '; border-radius: 4px;';
-                        track.add_child(fill);
-                        track.accessible_name = title + ' usage';
-                        tile.add_child(track);
-                    }
-                    return {
-                        actor: tile,
-                        value,
-                        update(number) {
-                            if (!fill)
-                                return;
-                            const valid = Number.isFinite(number);
-                            fill.set_width(valid ? Math.round(Math.max(0, Math.min(100, number))) : 0);
-                            track.accessible_name = valid ? title + ' usage ' + Math.round(number) + ' percent' : title + ' usage unavailable';
-                        },
-                    };
-                };
-                const cpuMetric = makeSummaryMetric('CPU', true);
-                const memoryMetric = makeSummaryMetric('Memory', true);
-                const temperatureMetric = makeSummaryMetric('CPU temp');
-                const diskMetric = makeSummaryMetric('Disk', true);
-                systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
-                systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
-                systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
-                systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
-                const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
-                systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
-                systemSummaryMeta.clutter_text.line_wrap = true;
-                systemSummaryContent.add_child(systemSummaryTitle);
-                systemSummaryContent.add_child(systemSummaryGrid);
-                systemSummaryContent.add_child(systemSummaryMeta);
-                const systemSummaryCard = new St.Button({
-                    style_class: 'material-panel-control-center-card',
-                    reactive: true,
-                    can_focus: true,
-                    x_expand: true,
-                    child: systemSummaryContent,
-                });
-                systemSummaryCard.style = `background-color: ${themedSurface()}; border-radius: 18px; padding: 0;`;
-                systemSummaryCard.accessible_name = 'System overview; open detailed System view';
-                systemSummaryCard.set_tooltip_text('Open detailed System view');
-                systemSummaryCard.connect('clicked', () => renderSection('system'));
-                const sampleAge = (sampledAt, sampledAtLabel) => {
-                    if (sampledAtLabel)
-                        return `at ${sampledAtLabel}`;
-                    if (!(sampledAt > 0))
-                        return 'sample time unavailable';
-                    const minutes = Math.max(0, Math.floor((GLib.get_monotonic_time() - sampledAt) / 60000000));
-                    return minutes < 1 ? 'sampled just now' : `sampled ${minutes} min ago`;
-                };
-                const renderSystemSummary = snapshot => {
-                    const system = snapshot?.system;
-                    const disk = snapshot?.disk;
-                    cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
-                    memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
-                    temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
-                    diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
-                    cpuMetric.update(system?.cpu);
-                    memoryMetric.update(system?.memory);
-                    diskMetric.update(disk?.pct);
-                    const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
-                    const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
-                    if (!system) {
-                        systemSummaryMeta.text = disk
-                            ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
-                            : 'Open System to collect CPU, memory and temperature readings';
-                        return;
-                    }
-                    systemSummaryMeta.text = disk
-                        ? `System ${systemAge} · Disk ${diskAge}`
-                        : `System ${systemAge} · Enable the Disk module for storage usage`;
-                };
-                const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
-                systemSummaryCard.connect('destroy', stopSystemSummaryWatch);
-                homeCardActors.system = systemSummaryCard;
+                const systemInstance = homeCardRegistry.create('system');
+                if (systemInstance) {
+                    homeCardInstances.set('system', systemInstance);
+                    homeCardActors.system = systemInstance.actor;
+                }
             }
             if (isHomeCardVisible('wallpaper')) {
                 const wallpaperInstance = homeCardRegistry.create('wallpaper');

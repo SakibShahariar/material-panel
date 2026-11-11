@@ -271,6 +271,13 @@ test('Home System overview uses fixed sample-time labels so last-known values do
     assert.match(disk, /sampledAtLabel: GLib\.DateTime\.new_now_local\(\)\.format\('%H:%M'\)/);
 });
 
+test('Control Center applies compact sizing to nested clickable card surfaces', async () => {
+    const module = await source('../modules/controlCenter.js');
+    assert.match(module, /const content = typeof actor\.get_child === 'function' \? actor\.get_child\(\) : null/);
+    assert.match(module, /const sizeTarget = content \?\? actor/);
+    assert.match(module, /sizeTarget\.style = `\$\{sizeTarget\.style \?\? ''\} padding: 10px; spacing: 5px;`/);
+});
+
 test('Control Center Home card visibility is configurable for every registered built-in card', async () => {
     const [controlCenter, config, layout] = await Promise.all([
         source('../modules/controlCenter.js'),
@@ -291,7 +298,10 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaCard[\s\S]*?buildMediaPlayerRow/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherCard[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarCard[\s\S]*?watchCalendarDocument/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\) \{\s+const systemSummaryContent[\s\S]*?watchControlCenterSummary/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\) \{\s+const systemInstance = homeCardRegistry\.create\('system'\)/);
+    assert.match(controlCenter, /function buildSystemSummaryCard\(onOpen\)/);
+    assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);
+    assert.match(controlCenter, /systemSummaryCard\.connect\('clicked', onOpen\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\) \{\s+const wallpaperInstance = homeCardRegistry\.create\('wallpaper'\)/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
     assert.match(config, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
