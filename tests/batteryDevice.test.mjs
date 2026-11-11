@@ -40,3 +40,30 @@ test('missing display aggregate falls back deterministically to a present batter
     assert.equal(selected.device, first);
     assert.equal(selected.batteryCount, 2);
 });
+
+
+test('an absent UPower display aggregate is not treated as a battery', () => {
+    const absentDisplay = makeDevice('DisplayDevice', 0, false);
+    const selected = selectBatteryDevice([], absentDisplay, batteryKind);
+    assert.equal(selected.device, null);
+    assert.equal(selected.batteryCount, 0);
+    assert.equal(selected.isAggregate, false);
+});
+
+test('multiple physical batteries fall back when the display aggregate is absent', () => {
+    const first = makeDevice('/sys/devices/BAT0');
+    const second = makeDevice('/sys/devices/BAT1');
+    const absentDisplay = makeDevice('DisplayDevice', 0, false);
+    const selected = selectBatteryDevice([first, second], absentDisplay, batteryKind);
+    assert.equal(selected.device, first);
+    assert.equal(selected.batteryCount, 2);
+    assert.equal(selected.isAggregate, false);
+});
+
+test('a throwing display presence accessor is treated as unavailable', () => {
+    const display = {};
+    Object.defineProperty(display, 'is_present', {
+        get() { throw new Error('UPower display state unavailable'); },
+    });
+    assert.equal(selectBatteryDevice([], display, batteryKind).device, null);
+});
