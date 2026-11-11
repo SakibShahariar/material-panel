@@ -4,6 +4,7 @@ import {
     CONTROL_CENTER_HOME_CARD_DEFINITIONS,
     DEFAULT_CONTROL_CENTER_HOME_LAYOUT,
     getControlCenterHomeGridPlacements,
+    getControlCenterHomeLayoutMode,
     moveControlCenterHomeCard,
     normalizeControlCenterHomeLayout,
     setControlCenterHomeCard,
@@ -81,4 +82,34 @@ test('grid placement packs half-width cards and gives full-width cards their own
         ['wallpaper', 0, 1, 1],
         ['media', 0, 2, 1],
     ]);
+});
+
+
+test('responsive Home layout accounts for navigation and frame chrome before choosing columns', () => {
+    const narrow = getControlCenterHomeLayoutMode(420);
+    assert.equal(narrow.compactNavigation, true);
+    assert.equal(narrow.singleColumn, true);
+    assert.ok(narrow.contentWidth < 340);
+
+    const compactRail = getControlCenterHomeLayoutMode(480);
+    assert.equal(compactRail.compactNavigation, true);
+    assert.equal(compactRail.singleColumn, false);
+    assert.ok(compactRail.contentWidth >= 340);
+
+    const regularRail = getControlCenterHomeLayoutMode(520);
+    assert.equal(regularRail.compactNavigation, false);
+    assert.equal(regularRail.singleColumn, false);
+    assert.ok(regularRail.contentWidth >= 340);
+});
+
+test('responsive Home layout safely handles invalid and very small popup widths', () => {
+    assert.deepEqual(getControlCenterHomeLayoutMode(Number.NaN), {
+        compactNavigation: false,
+        singleColumn: false,
+        contentWidth: 360,
+    });
+    const tiny = getControlCenterHomeLayoutMode(100);
+    assert.equal(tiny.compactNavigation, true);
+    assert.equal(tiny.singleColumn, true);
+    assert.ok(tiny.contentWidth >= 0);
 });

@@ -21,6 +21,7 @@ import {
     CONTROL_CENTER_HOME_CARD_DEFINITIONS,
     DEFAULT_CONTROL_CENTER_HOME_LAYOUT,
     getControlCenterHomeGridPlacements,
+    getControlCenterHomeLayoutMode,
     moveControlCenterHomeCard,
     normalizeControlCenterHomeLayout,
     setControlCenterHomeCard,
@@ -493,7 +494,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     const availableWidth = Math.max(240, (monitor?.width ?? 900) - 32);
     const width = Math.min(520, availableWidth);
     const maxHeight = Math.max(160, Math.floor((monitor?.height ?? 800) * 0.78));
-    const compact = width < 420;
+    const {compactNavigation, singleColumn} = getControlCenterHomeLayoutMode(width);
 
     const frame = new St.BoxLayout({
         style_class: 'material-panel-control-center-frame',
@@ -508,7 +509,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         orientation: Clutter.Orientation.VERTICAL,
         y_expand: true,
     });
-    navigation.style = `spacing: 6px; min-width: ${compact ? 76 : 112}px; padding: 4px;`;
+    navigation.style = `spacing: 6px; min-width: ${compactNavigation ? 76 : 112}px; padding: 4px;`;
 
     const scroll = new St.ScrollView({
         style_class: 'material-panel-control-center-scroll',
@@ -861,7 +862,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             }
 
             const placements = getControlCenterHomeGridPlacements(
-                homeCardLayout, Object.keys(homeCardActors), compact);
+                homeCardLayout, Object.keys(homeCardActors), singleColumn);
             for (const [id, actor] of Object.entries(homeCardActors)) {
                 const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === id);
                 const requestedSize = entry?.size ?? 'half';
@@ -875,7 +876,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 x_expand: true,
             });
             const gridLayout = homeGrid.layout_manager;
-            gridLayout.column_spacing = compact ? 0 : 10;
+            gridLayout.column_spacing = singleColumn ? 0 : 10;
             gridLayout.row_spacing = 10;
             if (!placements.length) {
                 const empty = new St.Label({
@@ -951,7 +952,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             can_focus: true,
             x_expand: true,
             child: new St.Label({
-                text: compact ? section.title.slice(0, 1) : section.title,
+                text: compactNavigation ? section.title.slice(0, 1) : section.title,
                 x_align: Clutter.ActorAlign.START,
             }),
         });

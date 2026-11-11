@@ -324,3 +324,16 @@ test('Control Center Home hands wallpaper browsing to Wallmat and falls back to 
     assert.match(module, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
+
+
+test('Control Center derives Home grid columns from usable content width', async () => {
+    const [module, layout] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../lib/controlCenterHomeLayout.js'),
+    ]);
+    assert.match(module, /getControlCenterHomeLayoutMode\(width\)/);
+    assert.match(module, /min-width: \$\{compactNavigation \? 76 : 112\}px/);
+    assert.match(module, /homeCardLayout, Object\.keys\(homeCardActors\), singleColumn\)/);
+    assert.match(module, /gridLayout\.column_spacing = singleColumn \? 0 : 10/);
+    assert.match(layout, /MIN_TWO_COLUMN_CONTENT_WIDTH = 340/);
+});
