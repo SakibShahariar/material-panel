@@ -196,7 +196,7 @@ test('Control Center Home uses the shared asynchronous calendar cache and releas
 
 test('Control Center Home uses persisted card placements and reflows to one column in compact popups', async () => {
     const module = await source('../modules/controlCenter.js');
-    assert.match(module, /getControlCenterHomeGridPlacements\(\s*homeCardLayout, Object\.keys\(homeCardActors\), compact\)/);
+    assert.match(module, /getControlCenterHomeGridPlacements\(\s*homeCardLayout, Object\.keys\(homeCardActors\), singleColumn\)/);
     assert.match(module, /gridLayout\.attach\(\s*homeCardActors\[placement\.id\],\s*placement\.column,\s*placement\.row,\s*placement\.columnSpan,\s*1\)/);
     assert.match(module, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?homeCardRegistry\.resolveSize\(id, requestedSize\)[\s\S]*?applyHomeCardSize\(actor, resolvedSize\)/);
     assert.match(module, /homeGrid\.add_child\(empty\)/);
