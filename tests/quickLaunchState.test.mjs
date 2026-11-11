@@ -85,11 +85,15 @@ test('action revisions survive presentation edits but change after removal', () 
     assert.equal(setQuickLaunchEntryState('wifi', true, pending), false);
 });
 
-test('extension teardown clears transient toggle state', () => {
+test('extension teardown clears transient toggle state and entry revisions', () => {
     clearQuickLaunchEntries();
     setQuickLaunchEntries([toggle]);
     setQuickLaunchEntryState('wifi', true);
+    const previousRevision = getQuickLaunchEntryRevision('wifi');
+
     clearQuickLaunchEntries();
+    assert.equal(getQuickLaunchEntryRevision('wifi'), null);
     setQuickLaunchEntries([toggle]);
     assert.equal(getQuickLaunchEntries()[0].active, false);
+    assert.notEqual(getQuickLaunchEntryRevision('wifi'), previousRevision);
 });
