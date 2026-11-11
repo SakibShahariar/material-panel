@@ -144,7 +144,8 @@ test('Control Center System metric helpers handle counter resets and unavailable
 test('Control Center Home media card links to the detailed Media section without hijacking playback controls', async () => {
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /mediaOpen\.accessible_name = 'Open detailed Media section'/);
-    assert.match(module, /mediaOpen\.connect\('clicked', \(\) => renderSection\('media'\)\)/);
+    assert.match(module, /mediaOpen\.connect\('clicked', onOpen\)/);
+    assert.match(module, /factory: \(\) => buildHomeMediaCard\(\(\) => renderSection\('media'\)\)/);
     assert.match(module, /mediaHeader\.add_child\(mediaTitle\)/);
     assert.match(module, /mediaHeader\.add_child\(mediaOpen\)/);
     assert.match(module, /mediaCard\.add_child\(mediaHeader\)/);
@@ -295,11 +296,11 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('actions'\)\) \{\s+const actionsInstance = homeCardRegistry\.create\('actions'\)/);
     assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\)/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherInstance = homeCardRegistry\.create\('weather'\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\) \{\s+const calendarInstance = homeCardRegistry\.create\('calendar'\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('wallpaper'\)\)/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaCard[\s\S]*?buildMediaPlayerRow/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaInstance = homeCardRegistry\.create\('media'\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\) \{\s+const weatherInstance = homeCardRegistry\.create\('weather'\)/);
     assert.match(controlCenter, /function buildHomeWeatherCard\(\)[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /cardDestroyed = true;\s+stopWeatherWatch\(\)/);
