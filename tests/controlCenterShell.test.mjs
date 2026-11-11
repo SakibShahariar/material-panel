@@ -292,6 +292,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /homeCardItems\.set\(definition\.id, item\)/);
     assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
     assert.match(controlCenter, /const isHomeCardVisible = id =>/);
+    assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(isHomeCardVisible\(definition\.id\)\)\s+homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaInstance = homeCardRegistry\.create\('media'\)/);
     assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('actions'\)\) \{\s+const actionsInstance = homeCardRegistry\.create\('actions'\)/);
@@ -329,6 +330,6 @@ test('Control Center Home hands wallpaper browsing to Wallmat and falls back to 
     assert.match(module, /Gio\.Subprocess\.new\(\['gnome-control-center', 'background'\], Gio\.SubprocessFlags\.NONE\)/);
     assert.match(module, /text: wallpaperApp \? 'Open Wallmat' : 'Open Background Settings'/);
     assert.match(module, /wallpaperCard\.connect\('clicked', \(\) => openWallpaperDestination\(wallpaperApp\)\)/);
-    assert.match(module, /homeCardActors\.wallpaper = wallpaperInstance\.actor/);
+    assert.match(module, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
