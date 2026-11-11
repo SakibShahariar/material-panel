@@ -197,6 +197,76 @@ function buildSystemSummaryCard(onOpen) {
 
 }
 
+function buildHomeActionsCard(homeShortcuts) {
+    const actionsCard = createControlCenterCardShell({padding: 14, spacing: 10});
+    const actionsTitle = new St.Label({text: 'Quick actions'});
+    actionsTitle.style = 'font-size: 14px; font-weight: 650;';
+    const actionGrid = new St.Widget({
+        style_class: 'material-panel-control-center-actions',
+        layout_manager: new Clutter.GridLayout(),
+        x_expand: true,
+    });
+    actionGrid.layout_manager.column_spacing = 8;
+    actionGrid.layout_manager.row_spacing = 8;
+    const actions = homeShortcuts
+        .map(id => HOME_SHORTCUT_BUILDERS.get(id))
+        .filter(builder => typeof builder === 'function')
+        .map(builder => builder());
+    if (actions.length) {
+        actions.forEach((action, index) => {
+            action.x_expand = true;
+            actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
+        });
+    } else {
+        const emptyShortcuts = new St.Label({
+            text: 'No Home shortcuts selected. Edit Home layout to add one.',
+            style_class: 'material-panel-control-center-placeholder',
+            x_expand: true,
+        });
+        emptyShortcuts.clutter_text.line_wrap = true;
+        actionGrid.add_child(emptyShortcuts);
+    }
+    actionsCard.add_child(actionsTitle);
+    actionsCard.add_child(actionGrid);
+    return actionsCard;
+
+}
+
+function buildHomeMediaCard(onOpen) {
+    const mediaCard = createControlCenterCardShell({padding: 14, spacing: 8});
+    const mediaHeader = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        x_expand: true,
+    });
+    mediaHeader.style = 'spacing: 8px;';
+    const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
+    mediaTitle.style = 'font-size: 14px; font-weight: 650;';
+    const mediaOpen = new St.Button({
+        style_class: 'material-panel-control-center-card-link',
+        reactive: true,
+        can_focus: true,
+        child: new St.Label({text: 'Open Media'}),
+    });
+    mediaOpen.accessible_name = 'Open detailed Media section';
+    mediaOpen.set_tooltip_text('Open detailed Media view');
+    mediaOpen.connect('clicked', onOpen);
+    mediaHeader.add_child(mediaTitle);
+    mediaHeader.add_child(mediaOpen);
+    const mediaRow = buildMediaPlayerRow({progress: true});
+    const noMedia = new St.Label({
+        text: 'No media is playing',
+        style_class: 'material-panel-control-center-placeholder',
+    });
+    mediaRow.connect('notify::visible', () => {
+        noMedia.visible = !mediaRow.visible;
+    });
+    mediaCard.add_child(mediaHeader);
+    mediaCard.add_child(noMedia);
+    mediaCard.add_child(mediaRow);
+    return mediaCard;
+
+}
+
 function clearActors(box) {
     for (const child of [...box.get_children()]) {
         try {
@@ -394,6 +464,21 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));
                 return wallpaperCard;
             },
+        });
+    }
+    const actionsDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'actions');
+    if (actionsDefinition) {
+        homeCardRegistry.register({
+            ...actionsDefinition,
+            factory: () => buildHomeActionsCard(homeShortcuts),
+        });
+    }
+    const mediaDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'media');
+    if (mediaDefinition) {
+        homeCardRegistry.register({
+            ...mediaDefinition,
+            detailDestination: 'media',
+            factory: () => buildHomeMediaCard(() => renderSection('media')),
         });
     }
     const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'system');
@@ -613,72 +698,19 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
             const isHomeCardVisible = id =>
                 homeCardLayout.cards.find(cardEntry => cardEntry.id === id)?.visible !== false;
             if (isHomeCardVisible('actions')) {
-                const actionsCard = createControlCenterCardShell({padding: 14, spacing: 10});
-                const actionsTitle = new St.Label({text: 'Quick actions'});
-                actionsTitle.style = 'font-size: 14px; font-weight: 650;';
-                const actionGrid = new St.Widget({
-                    style_class: 'material-panel-control-center-actions',
-                    layout_manager: new Clutter.GridLayout(),
-                    x_expand: true,
-                });
-                actionGrid.layout_manager.column_spacing = 8;
-                actionGrid.layout_manager.row_spacing = 8;
-                const actions = homeShortcuts
-                    .map(id => HOME_SHORTCUT_BUILDERS.get(id))
-                    .filter(builder => typeof builder === 'function')
-                    .map(builder => builder());
-                if (actions.length) {
-                    actions.forEach((action, index) => {
-                        action.x_expand = true;
-                        actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
-                    });
-                } else {
-                    const emptyShortcuts = new St.Label({
-                        text: 'No Home shortcuts selected. Edit Home layout to add one.',
-                        style_class: 'material-panel-control-center-placeholder',
-                        x_expand: true,
-                    });
-                    emptyShortcuts.clutter_text.line_wrap = true;
-                    actionGrid.add_child(emptyShortcuts);
+                const actionsInstance = homeCardRegistry.create('actions');
+                if (actionsInstance) {
+                    homeCardInstances.set('actions', actionsInstance);
+                    homeCardActors.actions = actionsInstance.actor;
                 }
-                actionsCard.add_child(actionsTitle);
-                actionsCard.add_child(actionGrid);
-                homeCardActors.actions = actionsCard;
             }
             if (isHomeCardVisible('media')) {
-                const mediaCard = createControlCenterCardShell({padding: 14, spacing: 8});
-                const mediaHeader = new St.BoxLayout({
-                    orientation: Clutter.Orientation.HORIZONTAL,
-                    x_expand: true,
-                });
-                mediaHeader.style = 'spacing: 8px;';
-                const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
-                mediaTitle.style = 'font-size: 14px; font-weight: 650;';
-                const mediaOpen = new St.Button({
-                    style_class: 'material-panel-control-center-card-link',
-                    reactive: true,
-                    can_focus: true,
-                    child: new St.Label({text: 'Open Media'}),
-                });
-                mediaOpen.accessible_name = 'Open detailed Media section';
-                mediaOpen.set_tooltip_text('Open detailed Media view');
-                mediaOpen.connect('clicked', () => renderSection('media'));
-                mediaHeader.add_child(mediaTitle);
-                mediaHeader.add_child(mediaOpen);
-                const mediaRow = buildMediaPlayerRow({progress: true});
-                const noMedia = new St.Label({
-                    text: 'No media is playing',
-                    style_class: 'material-panel-control-center-placeholder',
-                });
-                mediaRow.connect('notify::visible', () => {
-                    noMedia.visible = !mediaRow.visible;
-                });
-                mediaCard.add_child(mediaHeader);
-                mediaCard.add_child(noMedia);
-                mediaCard.add_child(mediaRow);
-                homeCardActors.media = mediaCard;
+                const mediaInstance = homeCardRegistry.create('media');
+                if (mediaInstance) {
+                    homeCardInstances.set('media', mediaInstance);
+                    homeCardActors.media = mediaInstance.actor;
+                }
             }
-
             if (isHomeCardVisible('weather')) {
                 const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
                 const weatherTitle = new St.Label({text: 'Weather'});

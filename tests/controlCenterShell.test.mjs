@@ -289,8 +289,10 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /homeCardItems\.set\(definition\.id, item\)/);
     assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
     assert.match(controlCenter, /const isHomeCardVisible = id =>/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\)/);
-    assert.match(controlCenter, /if \(isHomeCardVisible\('actions'\)\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('media'\)\) \{\s+const mediaInstance = homeCardRegistry\.create\('media'\)/);
+    assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
+    assert.match(controlCenter, /if \(isHomeCardVisible\('actions'\)\) \{\s+const actionsInstance = homeCardRegistry\.create\('actions'\)/);
+    assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('weather'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('calendar'\)\)/);
     assert.match(controlCenter, /if \(isHomeCardVisible\('system'\)\)/);

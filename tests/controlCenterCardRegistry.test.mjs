@@ -248,4 +248,10 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /detailDestination: 'system'/);
     assert.match(source, /homeCardRegistry\.create\('system'\)/);
     assert.match(source, /homeCardInstances\.set\('system', systemInstance\)/);
+    assert.match(source, /const actionsDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /homeCardRegistry\.create\('actions'\)/);
+    assert.match(source, /homeCardInstances\.set\('actions', actionsInstance\)/);
+    assert.match(source, /const mediaDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
+    assert.match(source, /homeCardRegistry\.create\('media'\)/);
+    assert.match(source, /homeCardInstances\.set\('media', mediaInstance\)/);
 });
