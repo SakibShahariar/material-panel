@@ -209,7 +209,8 @@ test('Control Center Home shortcuts are independently configurable and ordered',
         source('../lib/controlCenterHomeShortcuts.js'),
     ]);
     assert.match(module, /const HOME_SHORTCUT_BUILDERS = new Map/);
-    assert.ok(module.includes('.map(id => HOME_SHORTCUT_BUILDERS.get(id))'));
+    assert.ok(module.includes('buildControlCenterHomeShortcutActors('));
+    assert.match(shortcuts, /export function buildControlCenterHomeShortcutActors/);
     assert.match(module, /PopupSubMenuMenuItem\('Home shortcuts'/);
     assert.match(module, /setControlCenterHomeShortcut\(shortcuts, definition\.id, enabled\)/);
     assert.match(module, /moveControlCenterHomeShortcut\(shortcuts, definition\.id, -1\)/);
@@ -292,7 +293,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /homeCardItems\.set\(definition\.id, item\)/);
     assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
     assert.match(controlCenter, /const isHomeCardVisible = id =>/);
-    assert.match(controlCenter, /for \\(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\\) \\{[\\s\\S]*?homeCardActors\\[definition\\.id\\] = createHomeCardActor\\(definition\\.id\\)/);
+
     assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(isHomeCardVisible\(definition\.id\)\)\s+homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
     assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
     assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
