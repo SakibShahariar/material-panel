@@ -249,7 +249,7 @@ function buildHomeActionsCard(homeShortcuts) {
 
 }
 
-function buildHomeMediaCard(onOpen) {
+function buildHomeMediaCard(onOpen, size = 'full') {
     const mediaCard = createControlCenterCardShell({padding: 14, spacing: 8});
     const mediaHeader = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
@@ -268,7 +268,7 @@ function buildHomeMediaCard(onOpen) {
     mediaOpen.connect('clicked', onOpen);
     mediaHeader.add_child(mediaTitle);
     mediaHeader.add_child(mediaOpen);
-    const mediaRow = buildMediaPlayerRow({progress: true});
+    const mediaRow = buildMediaPlayerRow({detailed: size === 'full', progress: size !== 'compact'});
     const noMedia = new St.Label({
         text: 'No media is playing',
         style_class: 'material-panel-control-center-placeholder',
@@ -606,7 +606,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         homeCardRegistry.register({
             ...mediaDefinition,
             detailDestination: 'media',
-            factory: () => buildHomeMediaCard(() => renderSection('media')),
+            factory: ({size} = {}) => buildHomeMediaCard(() => renderSection('media'), size),
         });
     }
     const weatherDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'weather');

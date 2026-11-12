@@ -39,7 +39,7 @@ test('Control Center Home media card owns and releases the existing compact play
         source('../modules/controlCenter.js'),
         source('../modules/mediaPlayer.js'),
     ]);
-    assert.match(controlCenter, /buildMediaPlayerRow\(\{progress: true\}\)/);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\{detailed: size === 'full', progress: size !== 'compact'\}\)/);
     assert.match(controlCenter, /No media is playing/);
     assert.match(controlCenter, /mediaRow\.connect\('notify::visible'/);
     const start = media.indexOf('export function buildMediaPlayerRow(');
@@ -145,7 +145,7 @@ test('Control Center Home media card links to the detailed Media section without
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /mediaOpen\.accessible_name = 'Open detailed Media section'/);
     assert.match(module, /mediaOpen\.connect\('clicked', onOpen\)/);
-    assert.match(module, /factory: \(\) => buildHomeMediaCard\(\(\) => renderSection\('media'\)\)/);
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeMediaCard\(\(\) => renderSection\('media'\), size\)/);
     assert.match(module, /mediaHeader\.add_child\(mediaTitle\)/);
     assert.match(module, /mediaHeader\.add_child\(mediaOpen\)/);
     assert.match(module, /mediaCard\.add_child\(mediaHeader\)/);
@@ -157,7 +157,7 @@ test('Control Center Home media row exposes a slim progress bar without detailed
         source('../modules/controlCenter.js'),
         source('../modules/mediaPlayer.js'),
     ]);
-    assert.match(controlCenter, /buildMediaPlayerRow\(\{progress: true\}\)/);
+    assert.match(controlCenter, /buildMediaPlayerRow\(\{detailed: size === 'full', progress: size !== 'compact'\}\)/);
     assert.match(media, /showProgress = detailed \|\| progress/);
     assert.match(media, /width: detailed \? 88 : 40/);
     assert.match(media, /detailed \? 260 : 220/);
@@ -295,7 +295,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /const isHomeCardVisible = id =>/);
 
     assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(!isHomeCardVisible\(definition\.id\)\)\s+continue;[\s\S]*?homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
-    assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
+    assert.match(controlCenter, /function buildHomeMediaCard\(onOpen, size = 'full'\)[\s\S]*?buildMediaPlayerRow\(\{detailed: size === 'full', progress: size !== 'compact'\}\)/);
     assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
     assert.match(controlCenter, /function buildHomeWeatherCard\(\)[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /cardDestroyed = true;\s+stopWeatherWatch\(\)/);
@@ -340,4 +340,11 @@ test('Control Center derives Home grid columns from usable content width', async
     assert.match(module, /homeCardLayout, Object\.keys\(homeCardActors\), singleColumn\)/);
     assert.match(module, /gridLayout\.column_spacing = singleColumn \? 0 : 10/);
     assert.match(layout, /MIN_TWO_COLUMN_CONTENT_WIDTH = 340/);
+});
+
+test('Home media card adapts artwork, player details and progress to its registered size', async () => {
+    const module = await source('../modules/controlCenter.js');
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeMediaCard\(\(\) => renderSection\('media'\), size\)/);
+    assert.match(module, /detailed: size === 'full', progress: size !== 'compact'/);
+    assert.match(module, /width: detailed \? 88 : 40/);
 });
