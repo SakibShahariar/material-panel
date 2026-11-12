@@ -56,3 +56,13 @@ test('clipboard preview formatting is display-only and copy preserves the origin
     assert.ok(panel.includes("new PopupMenu.PopupMenuItem(formatClipboardHistoryPreview(entry.text))"));
     assert.ok(panel.includes("item.connect('activate', () => controller.copyEntry(entry.id))"));
 });
+
+test('clipboard history repairs existing directory and file permissions before reading', () => {
+    const store = read('lib/clipboardHistoryStore.js');
+    const load = store.slice(store.indexOf('async load('), store.indexOf('async write('));
+    const directoryMode = load.indexOf("'unix::mode', 0o700");
+    const fileMode = load.indexOf("'unix::mode', 0o600");
+    const readContents = load.indexOf('load_contents_async');
+    assert.ok(directoryMode >= 0 && directoryMode < readContents);
+    assert.ok(fileMode >= 0 && fileMode < readContents);
+});
