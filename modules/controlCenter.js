@@ -632,8 +632,8 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         });
     }
     const homeCardInstances = new Map();
-    const createHomeCardActor = id => {
-        const instance = homeCardRegistry.create(id);
+    const createHomeCardActor = (id, size) => {
+        const instance = homeCardRegistry.create(id, {size, section: 'home'});
         if (!instance) {
             const definition = homeCardRegistry.get(id);
             return createUnavailableHomeCard(definition?.label ?? id);
@@ -849,19 +849,21 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         if (section.id === 'home') {
             const isHomeCardVisible = id =>
                 homeCardLayout.cards.find(cardEntry => cardEntry.id === id)?.visible !== false;
+            const homeCardSizes = {};
             for (const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS) {
-                if (isHomeCardVisible(definition.id))
-                    homeCardActors[definition.id] = createHomeCardActor(definition.id);
+                if (!isHomeCardVisible(definition.id))
+                    continue;
+                const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === definition.id);
+                const requestedSize = entry?.size ?? 'half';
+                const resolvedSize = homeCardRegistry.resolveSize(definition.id, requestedSize) ?? requestedSize;
+                homeCardSizes[definition.id] = resolvedSize;
+                homeCardActors[definition.id] = createHomeCardActor(definition.id, resolvedSize);
             }
 
             const placements = getControlCenterHomeGridPlacements(
                 homeCardLayout, Object.keys(homeCardActors), singleColumn);
-            for (const [id, actor] of Object.entries(homeCardActors)) {
-                const entry = homeCardLayout.cards.find(cardEntry => cardEntry.id === id);
-                const requestedSize = entry?.size ?? 'half';
-                const resolvedSize = homeCardRegistry.resolveSize(id, requestedSize) ?? requestedSize;
-                applyHomeCardSize(actor, resolvedSize);
-            }
+            for (const [id, actor] of Object.entries(homeCardActors))
+                applyHomeCardSize(actor, homeCardSizes[id] ?? 'half');
 
             homeGrid = new St.Widget({
                 style_class: 'material-panel-control-center-home-grid',

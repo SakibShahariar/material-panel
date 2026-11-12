@@ -308,3 +308,11 @@ test('rejects asynchronous card factories instead of returning Promises as actor
         'Card factories must return actors synchronously.',
     ]]);
 });
+
+
+test('Control Center passes the resolved Home card size and section to registry factories', async () => {
+    const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
+    assert.match(source, /const createHomeCardActor = \(id, size\) => \{\s+const instance = homeCardRegistry\.create\(id, \{size, section: 'home'\}\)/);
+    assert.match(source, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?const resolvedSize = homeCardRegistry\.resolveSize\(definition\.id, requestedSize\) \?\? requestedSize;[\s\S]*?homeCardSizes\[definition\.id\] = resolvedSize;[\s\S]*?createHomeCardActor\(definition\.id, resolvedSize\)/);
+    assert.match(source, /applyHomeCardSize\(actor, homeCardSizes\[id\] \?\? 'half'\)/);
+});
