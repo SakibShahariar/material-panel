@@ -343,8 +343,11 @@ test('Control Center derives Home grid columns from usable content width', async
 });
 
 test('Home media card adapts artwork, player details and progress to its registered size', async () => {
-    const module = await source('../modules/controlCenter.js');
+    const [module, media] = await Promise.all([
+        source('../modules/controlCenter.js'),
+        source('../modules/mediaPlayer.js'),
+    ]);
     assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeMediaCard\(\(\) => renderSection\('media'\), size\)/);
     assert.match(module, /detailed: size === 'full', progress: size !== 'compact'/);
-    assert.match(module, /width: detailed \? 88 : 40/);
+    assert.match(media, /width: detailed \? 88 : 40/);
 });
