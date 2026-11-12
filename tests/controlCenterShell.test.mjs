@@ -198,7 +198,7 @@ test('Control Center Home uses persisted card placements and reflows to one colu
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /getControlCenterHomeGridPlacements\(\s*homeCardLayout, Object\.keys\(homeCardActors\), singleColumn\)/);
     assert.match(module, /gridLayout\.attach\(\s*homeCardActors\[placement\.id\],\s*placement\.column,\s*placement\.row,\s*placement\.columnSpan,\s*1\)/);
-    assert.match(module, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?homeCardRegistry\.resolveSize\(id, requestedSize\)[\s\S]*?applyHomeCardSize\(actor, resolvedSize\)/);
+    assert.match(module, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?const resolvedSize = homeCardRegistry\.resolveSize\(definition\.id, requestedSize\) \?\? requestedSize;[\s\S]*?homeCardSizes\[definition\.id\] = resolvedSize;[\s\S]*?applyHomeCardSize\(actor, homeCardSizes\[id\] \?\? 'half'\)/);
     assert.match(module, /homeGrid\.add_child\(empty\)/);
 });
 
@@ -294,7 +294,7 @@ test('Control Center Home card visibility is configurable for every registered b
     assert.match(controlCenter, /persistHomeCardVisibility\(definition\.id, enabled\)/);
     assert.match(controlCenter, /const isHomeCardVisible = id =>/);
 
-    assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(isHomeCardVisible\(definition\.id\)\)\s+homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
+    assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(!isHomeCardVisible\(definition\.id\)\)\s+continue;[\s\S]*?homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
     assert.match(controlCenter, /function buildHomeMediaCard\(onOpen\)[\s\S]*?buildMediaPlayerRow\(\{progress: true\}\)/);
     assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
     assert.match(controlCenter, /function buildHomeWeatherCard\(\)[\s\S]*?watchWeatherSummary/);
@@ -325,7 +325,7 @@ test('Control Center Home hands wallpaper browsing to Wallmat and falls back to 
     assert.match(module, /Gio\.Subprocess\.new\(\['gnome-control-center', 'background'\], Gio\.SubprocessFlags\.NONE\)/);
     assert.match(module, /text: wallpaperApp \? 'Open Wallmat' : 'Open Background Settings'/);
     assert.match(module, /wallpaperCard\.connect\('clicked', \(\) => openWallpaperDestination\(wallpaperApp\)\)/);
-    assert.match(module, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
+    assert.match(module, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
     assert.doesNotMatch(module, /spawn_command_line_sync|spawn_sync/);
 });
 

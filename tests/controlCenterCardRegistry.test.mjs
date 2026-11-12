@@ -239,9 +239,9 @@ test('Control Center keeps a visible fallback slot when an optional card factory
     const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
     assert.match(source, /function createUnavailableHomeCard\(label\)/);
     assert.match(source, /This card could not be loaded\. Other Home cards are still available\./);
-    assert.match(source, /const createHomeCardActor = id => \{\s+const instance = homeCardRegistry\.create\(id\)/);
+    assert.match(source, /const createHomeCardActor = \(id, size\) => \{\s+const instance = homeCardRegistry\.create\(id, \{size, section: 'home'\}\)/);
     assert.match(source, /return createUnavailableHomeCard\(definition\?\.label \?\? id\)/);
-    assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
+    assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
 });
 
 test('Control Center creates the Wallpaper card through the registry and releases it on page changes', async () => {
@@ -252,7 +252,7 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /const createHomeCardActor = id => \{\s+const instance = homeCardRegistry\.create\(id\)/);
     assert.match(source, /homeCardInstances\.set\(id, instance\)/);
     assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
-    assert.match(source, /homeCardRegistry\.resolveSize\(id, requestedSize\)/);
+    assert.match(source, /homeCardRegistry\.resolveSize\(definition\.id, requestedSize\)/);
     assert.match(source, /destroyHomeCardInstances\(\);\s*clearActors\(page\)/);
     assert.match(source, /homeCardRegistry\.clear\(\)/);
     assert.match(source, /const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS\.find/);
