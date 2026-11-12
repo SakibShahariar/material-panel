@@ -12,6 +12,16 @@ test('PanelBuilder reports whether network and DND changes alter module visibili
     assert.match(builder, /setNetworkOffline\(offline\)[\s\S]*?const previous = this\._getContextVisibilityState\(\)[\s\S]*?return hasContextVisibilityChanged\([^;]*previous, this\._getContextVisibilityState\(\)\)/);
 });
 
+test('battery visibility uses the system UPower power-source property and watches its changes', async () => {
+    const [extension, battery] = await Promise.all([
+        source('../extension.js'),
+        source('../lib/batteryDevice.js'),
+    ]);
+    assert.match(extension, /getSystemOnBatteryState\(client, deviceState, UPowerGlib\.DeviceState\)/);
+    assert.match(extension, /'notify::on-battery'/);
+    assert.match(battery, /client\?\.get_on_battery/);
+});
+
 test('network and DND watchers schedule rebuilds only when visibility actually changes', async () => {
     const extension = await source('../extension.js');
     assert.match(extension, /const syncNetwork = \(\) => \{\s+if \(this\._builder\?\.setNetworkOffline\(!monitor\.network_available\)\)\s+refresh\(\);\s+\};/);

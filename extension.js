@@ -32,7 +32,7 @@ import {clearControlCenterSummary} from './lib/controlCenterSummaryState.js';
 import {setQuickSettingsSliderStyle, setQuickSettingsTileStyle, setQuickSettingsTiles, setQuickSettingsFavorites, clearQuickSettingsState} from './lib/quickSettingsState.js';
 import {setLayoutStyle, clearLayoutStyle} from './lib/layoutStyleState.js';
 import {setQuickLaunchEntries, clearQuickLaunchEntries} from './lib/quickLaunchState.js';
-import {selectBatteryDevice} from './lib/batteryDevice.js';
+import {getSystemOnBatteryState, selectBatteryDevice} from './lib/batteryDevice.js';
 import {ClipboardHistoryController} from './lib/clipboardHistoryController.js';
 import {ClipboardHistoryFileStore} from './lib/clipboardHistoryStore.js';
 import {setClipboardHistoryController} from './modules/clipboardHistory.js';
@@ -264,17 +264,11 @@ export default class MaterialPanelExtension extends Extension {
                         }
                     }
                 }
-                let onBattery = null;
+                let deviceState = null;
                 let percentage = null;
                 if (device) {
                     try {
-                        const state = device.state;
-                        if ([UPowerGlib.DeviceState.DISCHARGING, UPowerGlib.DeviceState.PENDING_DISCHARGE,
-                            UPowerGlib.DeviceState.EMPTY].includes(state))
-                            onBattery = true;
-                        else if ([UPowerGlib.DeviceState.CHARGING, UPowerGlib.DeviceState.PENDING_CHARGE,
-                            UPowerGlib.DeviceState.FULLY_CHARGED].includes(state))
-                            onBattery = false;
+                        deviceState = device.state;
                     } catch (error) {}
                     try {
                         const value = Number(device.percentage);
@@ -282,13 +276,18 @@ export default class MaterialPanelExtension extends Extension {
                             percentage = value;
                     } catch (error) {}
                 }
+                const onBattery = getSystemOnBatteryState(client, deviceState, UPowerGlib.DeviceState);
                 if (this._builder?.setBatteryContext({onBattery, percentage}))
                     refresh();
             };
             syncBattery();
-            const addedId = client.connect('device-added', syncBattery);
-            const removedId = client.connect('device-removed', syncBattery);
-            this._visibilitySignalConnections.push([client, addedId], [client, removedId]);
+            for (const signal of ['device-added', 'device-removed', 'notify::on-battery']) {
+                try {
+                    const signalId = client.connect(signal, syncBattery);
+                    if (signalId)
+                        this._visibilitySignalConnections.push([client, signalId]);
+                } catch (error) {}
+            }
         } catch (error) {
             logError(error, 'material-panel: could not watch battery context');
         }

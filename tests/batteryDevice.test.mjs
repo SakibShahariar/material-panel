@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {selectBatteryDevice} from '../lib/batteryDevice.js';
+import {getSystemOnBatteryState, selectBatteryDevice} from '../lib/batteryDevice.js';
 
 const batteryKind = 2;
 const makeDevice = (name, kind = batteryKind, is_present = true) => ({
@@ -66,4 +66,50 @@ test('a throwing display presence accessor is treated as unavailable', () => {
         get() { throw new Error('UPower display state unavailable'); },
     });
     assert.equal(selectBatteryDevice([], display, batteryKind).device, null);
+});
+
+
+test('system on-battery state prefers UPower Client over an individual battery state', () => {
+    const client = {get_on_battery: () => true};
+    assert.equal(getSystemOnBatteryState(client, 1, {
+        CHARGING: 1,
+        DISCHARGING: 2,
+    }), true);
+    assert.equal(getSystemOnBatteryState({get_on_battery: () => false}, 2, {
+        CHARGING: 1,
+        DISCHARGING: 2,
+    }), false);
+});
+
+test('system on-battery state supports the readable client property', () => {
+    assert.equal(getSystemOnBatteryState({on_battery: true}, null), true);
+    assert.equal(getSystemOnBatteryState({on_battery: false}, null), false);
+});
+
+test('system on-battery state falls back to device state when the client API is unavailable', () => {
+    const states = {
+        DISCHARGING: 2,
+        PENDING_DISCHARGE: 6,
+        EMPTY: 3,
+        CHARGING: 1,
+        PENDING_CHARGE: 5,
+        FULLY_CHARGED: 4,
+    };
+    assert.equal(getSystemOnBatteryState({}, 2, states), true);
+    assert.equal(getSystemOnBatteryState({}, 1, states), false);
+    assert.equal(getSystemOnBatteryState({}, 0, states), null);
+});
+
+test('system on-battery state falls back safely when the UPower getter throws', () => {
+    const client = {
+        get_on_battery() { throw new Error('UPower unavailable'); },
+    };
+    assert.equal(getSystemOnBatteryState(client, 2, {
+        DISCHARGING: 2,
+    }), true);
+    assert.equal(getSystemOnBatteryState(client, 0, {}), null);
+});
+
+test('device-state fallback ignores undefined enum members', () => {
+    assert.equal(getSystemOnBatteryState({}, undefined, {}), null);
 });
