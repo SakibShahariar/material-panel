@@ -257,7 +257,7 @@ test('Home system summary uses bounded usage bars and opens the detailed System 
     const module = await source('../modules/controlCenter.js');
     assert.match(module, /new St\.Button\([\s\S]*?accessible_name = 'System overview; open detailed System view'/);
     assert.match(module, /systemSummaryCard\.connect\('clicked', onOpen\)/);
-    assert.match(module, /factory: \(\) => buildSystemSummaryCard\(\(\) => renderSection\('system'\)\)/);
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildSystemSummaryCard\(\(\) => renderSection\('system'\), size\)/);
     assert.match(module, /if \(cardDestroyed\)\s+return;[\s\S]*?const system = snapshot\?\.system/);
     assert.match(module, /fill\.set_width\(valid \? Math\.round\(Math\.max\(0, Math\.min\(100, number\)\)\) : 0\)/);
     assert.match(module, /const diskAge = disk \? sampleAge\(disk\.sampledAt, disk\.sampledAtLabel\)/);
