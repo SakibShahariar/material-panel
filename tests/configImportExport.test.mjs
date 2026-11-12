@@ -44,11 +44,15 @@ test('safe mode retains theme settings but exposes only clock and power modules'
 
 test('Preferences exposes validated full-config import/export and safe-mode recovery actions', async () => {
     const {readFile} = await import('node:fs/promises');
-    const prefs = await readFile(new URL('../prefs.js', import.meta.url), 'utf8');
+    const [prefs, backup] = await Promise.all([
+        readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../prefs/configBackupGroup.js', import.meta.url), 'utf8'),
+    ]);
     const helper = await readFile(new URL('../lib/configImportExport.js', import.meta.url), 'utf8');
-    assert.ok(prefs.includes('serializePanelConfig(await store.loadAsync())'));
-    assert.ok(prefs.includes('parsePanelConfig(new TextDecoder'));
-    assert.ok(prefs.includes('store._normalizeParsedConfig(parsed, {persistCleanup: false})'));
+    assert.ok(backup.includes('serializePanelConfig(await store.loadAsync())'));
+    assert.ok(backup.includes('parsePanelConfig(new TextDecoder'));
+    assert.ok(backup.includes('store._normalizeParsedConfig(parsed, {persistCleanup: false})'));
+    assert.ok(prefs.includes('buildConfigurationBackupGroup({'));
     assert.ok(prefs.includes('createSafeModeConfig(current)'));
     assert.ok(helper.includes("center: ['clock']"));
     assert.ok(helper.includes("right: ['powermenu']"));
