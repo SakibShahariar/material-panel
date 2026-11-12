@@ -80,7 +80,9 @@ test('clipboard history refuses symlinked parent, directory, and file paths befo
     assert.ok(load.indexOf('assertExpectedFileType(this._directory') < load.indexOf('load_contents_async'));
     assert.ok(load.indexOf('assertExpectedFileType(\n            this._file') < load.indexOf('load_contents_async'));
 
-    const clear = store.slice(store.indexOf('async clear('), store.indexOf('_ensureDirectory('));
+    const clearStart = store.indexOf('async clear()');
+    const clearEnd = store.indexOf('\n    _ensureDirectory()', clearStart);
+    const clear = store.slice(clearStart, clearEnd);
     assert.ok(clear.indexOf('assertExpectedFileType(this._parentDirectory') < clear.indexOf('this._file.delete'));
     assert.ok(clear.indexOf('assertExpectedFileType(this._directory') < clear.indexOf('this._file.delete'));
     assert.ok(clear.indexOf('assertExpectedFileType(this._file') < clear.indexOf('this._file.delete'));
