@@ -221,8 +221,8 @@ export default class MaterialPanelExtension extends Extension {
         try {
             const monitor = Gio.NetworkMonitor.get_default();
             const syncNetwork = () => {
-                this._builder?.setNetworkOffline(!monitor.network_available);
-                refresh();
+                if (this._builder?.setNetworkOffline(!monitor.network_available))
+                    refresh();
             };
             syncNetwork();
             const id = monitor.connect('network-changed', syncNetwork);
@@ -299,8 +299,8 @@ export default class MaterialPanelExtension extends Extension {
             });
             const syncDnd = () => {
                 const active = !this._visibilityDndSettings.get_boolean('show-banners');
-                this._builder?.setDoNotDisturbActive(active);
-                refresh();
+                if (this._builder?.setDoNotDisturbActive(active))
+                    refresh();
             };
             syncDnd();
             const id = this._visibilityDndSettings.connect('changed::show-banners', syncDnd);

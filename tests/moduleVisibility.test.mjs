@@ -5,6 +5,7 @@ import {
     DEFAULT_MODULE_VISIBILITY_RULE,
     getContextHiddenModules,
     hasBatteryVisibilityChanged,
+    hasContextVisibilityChanged,
     normalizeModuleVisibilityRules,
 } from '../lib/moduleVisibility.js';
 
@@ -113,4 +114,24 @@ test('normalizes battery-only and percentage visibility options defensively', ()
         clock: {hideWhenFullscreen: false, hideInOverview: false, hideWhenDnd: false, hideWhenOffline: false,
             showOnlyOnBattery: true, showOnlyBelowBatteryPercent: 25},
     });
+});
+
+
+test('network and DND notifications rebuild only when the hidden-module set changes', () => {
+    const rules = {
+        clock: {hideWhenOffline: true},
+        calendar: {hideWhenDnd: true},
+        network: {hideWhenOffline: true, hideWhenDnd: true},
+    };
+
+    assert.equal(hasContextVisibilityChanged(rules, {offline: false}, {offline: false}), false);
+    assert.equal(hasContextVisibilityChanged(rules, {offline: false}, {offline: true}), true);
+    assert.equal(hasContextVisibilityChanged(rules, {offline: true}, {offline: false}), true);
+    assert.equal(hasContextVisibilityChanged(rules, {dnd: false}, {dnd: true}), true);
+    assert.equal(hasContextVisibilityChanged(rules, {dnd: true}, {dnd: true}), false);
+
+    // A context change unrelated to any configured rule does not rebuild.
+    assert.equal(hasContextVisibilityChanged({clock: {hideWhenFullscreen: true}},
+        {offline: false}, {offline: true}), false);
+    assert.equal(hasContextVisibilityChanged({}, {dnd: false}, {dnd: true}), false);
 });
