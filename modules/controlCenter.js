@@ -5,7 +5,7 @@ import Gio from 'gi://Gio';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ConfigStore} from '../lib/configStore.js';
-import {createControlCenterCardShell} from '../lib/controlCenterCardShell.js';
+import {createControlCenterCardShell, createControlCenterCardTitle} from '../lib/controlCenterCardShell.js';
 import {createControlCenterCardRegistry} from '../lib/controlCenterCardRegistry.js';
 import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
@@ -101,8 +101,7 @@ function openWallpaperDestination(appInfo) {
 
 function buildSystemSummaryCard(onOpen) {
     const systemSummaryContent = createControlCenterCardShell({padding: 14, spacing: 8});
-    const systemSummaryTitle = new St.Label({text: 'System overview'});
-    systemSummaryTitle.style = 'font-size: 14px; font-weight: 650;';
+    const systemSummaryTitle = createControlCenterCardTitle('System overview');
     const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
     systemSummaryGrid.layout_manager.column_spacing = 8;
     systemSummaryGrid.layout_manager.row_spacing = 6;
@@ -207,8 +206,7 @@ function buildSystemSummaryCard(onOpen) {
 
 function buildHomeActionsCard(homeShortcuts) {
     const actionsCard = createControlCenterCardShell({padding: 14, spacing: 10});
-    const actionsTitle = new St.Label({text: 'Quick actions'});
-    actionsTitle.style = 'font-size: 14px; font-weight: 650;';
+    const actionsTitle = createControlCenterCardTitle('Quick actions');
     const actionGrid = new St.Widget({
         style_class: 'material-panel-control-center-actions',
         layout_manager: new Clutter.GridLayout(),
@@ -258,8 +256,7 @@ function buildHomeMediaCard(onOpen) {
         x_expand: true,
     });
     mediaHeader.style = 'spacing: 8px;';
-    const mediaTitle = new St.Label({text: 'Now playing', x_expand: true});
-    mediaTitle.style = 'font-size: 14px; font-weight: 650;';
+    const mediaTitle = createControlCenterCardTitle('Now playing', {expand: true});
     const mediaOpen = new St.Button({
         style_class: 'material-panel-control-center-card-link',
         reactive: true,
@@ -288,8 +285,7 @@ function buildHomeMediaCard(onOpen) {
 
 function buildHomeWeatherCard() {
     const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
-    const weatherTitle = new St.Label({text: 'Weather'});
-    weatherTitle.style = 'font-size: 14px; font-weight: 650;';
+    const weatherTitle = createControlCenterCardTitle('Weather');
     const weatherTemp = new St.Label({text: '—°'});
     weatherTemp.style = 'font-size: 24px; font-weight: 700;';
     const weatherCondition = new St.Label({text: 'No weather data yet'});
@@ -339,8 +335,7 @@ function buildHomeWeatherCard() {
 
 function buildHomeCalendarCard() {
     const calendarCard = createControlCenterCardShell({padding: 14, spacing: 5});
-    const calendarTitle = new St.Label({text: 'Calendar'});
-    calendarTitle.style = 'font-size: 14px; font-weight: 650;';
+    const calendarTitle = createControlCenterCardTitle('Calendar');
     const calendarEvent = new St.Label({text: 'Calendar not synced'});
     calendarEvent.style = 'font-size: 13px; font-weight: 600;';
     calendarEvent.clutter_text.line_wrap = true;
@@ -388,8 +383,7 @@ function buildHomeCalendarCard() {
 
 function createUnavailableHomeCard(label) {
     const card = createControlCenterCardShell({padding: 14, spacing: 6});
-    const title = new St.Label({text: label});
-    title.style = 'font-size: 14px; font-weight: 650;';
+    const title = createControlCenterCardTitle(label);
     const message = new St.Label({
         text: 'This card could not be loaded. Other Home cards are still available.',
         style_class: 'material-panel-control-center-placeholder',
@@ -571,8 +565,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 });
                 wallpaperCard.style = 'background-color: transparent; border: none; padding: 0;';
                 const wallpaperContent = createControlCenterCardShell({padding: 14, spacing: 6});
-                const wallpaperTitle = new St.Label({text: 'Wallpaper'});
-                wallpaperTitle.style = 'font-size: 14px; font-weight: 650;';
+                const wallpaperTitle = createControlCenterCardTitle('Wallpaper');
                 const wallpaperDescription = new St.Label({
                     text: wallpaperApp
                         ? 'Browse and apply wallpapers with Wallmat.'

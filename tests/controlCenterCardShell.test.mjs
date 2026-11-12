@@ -33,3 +33,18 @@ test('System overview and Wallpaper cards use the shared theme-aware shell', asy
     assert.match(source, /systemSummaryCard\.connect\('clicked', onOpen\)/);
     assert.match(source, /wallpaperCard\.set_child\(wallpaperContent\)/);
 });
+
+
+test('shared card title helper centralizes typography and accessible names', async () => {
+    const shell = await read('../lib/controlCenterCardShell.js');
+    const source = await read('../modules/controlCenter.js');
+    assert.match(shell, /export function createControlCenterCardTitle\(text, \{expand = false\} = \{\}\)/);
+    assert.match(shell, /material-panel-control-center-card-title/);
+    assert.match(shell, /title\.accessible_name = label/);
+    assert.match(shell, /font-size: 14px; font-weight: 650/);
+    for (const label of ['System overview', 'Quick actions', 'Now playing', 'Weather', 'Calendar', 'Wallpaper'])
+        assert.ok(source.includes(`createControlCenterCardTitle('${label}'`) ||
+            (label === 'Now playing' && source.includes("createControlCenterCardTitle('Now playing', {expand: true}")),
+        `missing shared title helper for ${label}`);
+    assert.doesNotMatch(source, /(?:systemSummaryTitle|actionsTitle|mediaTitle|weatherTitle|calendarTitle|wallpaperTitle)\.style = 'font-size: 14px; font-weight: 650;'/);
+});
