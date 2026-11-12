@@ -8,8 +8,8 @@ async function source(path) {
 
 test('PanelBuilder reports whether network and DND changes alter module visibility', async () => {
     const builder = await source('../lib/panelBuilder.js');
-    assert.match(builder, /setDoNotDisturbActive\(active\)[\s\S]*?return hasContextVisibilityChanged\([^;]*\{dnd: previous\}, \{dnd: this\._dndActive\}\)/);
-    assert.match(builder, /setNetworkOffline\(offline\)[\s\S]*?return hasContextVisibilityChanged\([^;]*\{offline: previous\}, \{offline: this\._offline\}\)/);
+    assert.match(builder, /setDoNotDisturbActive\\(active\\)[\\s\\S]*?const previous = this\\._getContextVisibilityState\\(\\)[\\s\\S]*?return hasContextVisibilityChanged\\([^;]*previous, this\\._getContextVisibilityState\\(\\)\\)/);
+    assert.match(builder, /setNetworkOffline\\(offline\\)[\\s\\S]*?const previous = this\\._getContextVisibilityState\\(\\)[\\s\\S]*?return hasContextVisibilityChanged\\([^;]*previous, this\\._getContextVisibilityState\\(\\)\\)/);
 });
 
 test('network and DND watchers schedule rebuilds only when visibility actually changes', async () => {
@@ -22,8 +22,15 @@ test('network and DND watchers schedule rebuilds only when visibility actually c
 test('PanelBuilder compares complete desktop context before scheduling a visibility rebuild', async () => {
     const builder = await source('../lib/panelBuilder.js');
     assert.match(builder, /_getContextVisibilityState\(\)/);
-    for (const field of ['fullscreen', 'overview', 'dnd', 'offline', 'onBattery', 'batteryPercent'])
-        assert.ok(builder.includes(`${field},`), `missing ${field} in the combined visibility snapshot`);
+    for (const pattern of [
+        /fullscreen,/
+        /overview,/
+        /dnd: this\\._dndActive,/
+        /offline: this\\._offline,/
+        /onBattery: this\\._batteryContext\\.onBattery,/
+        /batteryPercent: this\\._batteryContext\\.percentage,/
+    ])
+        assert.match(builder, pattern);
     assert.match(builder, /setBatteryContext\(context\)[\s\S]*?return hasContextVisibilityChanged\(/);
     assert.match(builder, /setDoNotDisturbActive\(active\)[\s\S]*?previous, this\._getContextVisibilityState\(\)/);
     assert.match(builder, /setNetworkOffline\(offline\)[\s\S]*?previous, this\._getContextVisibilityState\(\)/);

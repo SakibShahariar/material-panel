@@ -146,7 +146,10 @@ test('combined context changes do not rebuild while another active rule keeps th
         {offline: true, dnd: true}), false);
     assert.equal(hasContextVisibilityChanged(rules,
         {offline: true, dnd: true},
-        {offline: true, dnd: false}), true);
+        {offline: true, dnd: false}), false);
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: false, dnd: true},
+        {offline: false, dnd: false}), true);
     assert.equal(hasContextVisibilityChanged(rules,
         {offline: false, dnd: false},
         {offline: true, dnd: false}), true);
