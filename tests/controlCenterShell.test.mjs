@@ -296,12 +296,12 @@ test('Control Center Home card visibility is configurable for every registered b
 
     assert.match(controlCenter, /for \(const definition of CONTROL_CENTER_HOME_CARD_DEFINITIONS\) \{\s+if \(!isHomeCardVisible\(definition\.id\)\)\s+continue;[\s\S]*?homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
     assert.match(controlCenter, /function buildHomeMediaCard\(onOpen, size = 'full'\)[\s\S]*?buildMediaPlayerRow\(\{detailed: size === 'full', progress: size !== 'compact'\}\)/);
-    assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts\)/);
-    assert.match(controlCenter, /function buildHomeWeatherCard\(\)[\s\S]*?watchWeatherSummary/);
+    assert.match(controlCenter, /function buildHomeActionsCard\(homeShortcuts, size = 'half'\)/);
+    assert.match(controlCenter, /function buildHomeWeatherCard\(size = 'half'\)[\s\S]*?watchWeatherSummary/);
     assert.match(controlCenter, /cardDestroyed = true;\s+stopWeatherWatch\(\)/);
-    assert.match(controlCenter, /function buildHomeCalendarCard\(\)[\s\S]*?watchCalendarDocument/);
+    assert.match(controlCenter, /function buildHomeCalendarCard\(size = 'full'\)[\s\S]*?watchCalendarDocument/);
     assert.match(controlCenter, /calendarCardDestroyed = true;\s+stopCalendarWatch\(\)/);
-    assert.match(controlCenter, /function buildSystemSummaryCard\(onOpen\)/);
+    assert.match(controlCenter, /function buildSystemSummaryCard\(onOpen, size = 'half'\)/);
     assert.match(controlCenter, /watchControlCenterSummary\(renderSystemSummary\)/);
     assert.match(controlCenter, /systemSummaryCard\.connect\('clicked', onOpen\)/);
     assert.doesNotMatch(controlCenter, /actor\.destroy\(\);\s+continue;/);
