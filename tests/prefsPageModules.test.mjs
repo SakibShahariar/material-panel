@@ -135,3 +135,15 @@ test('World Clock city picker handles missing tzdata and prevents duplicate or e
     assert.match(entry, /current\.length >= 12/);
     assert.match(entry, /World Clock supports up to 12 cities/);
 });
+
+test('configuration backup UI is isolated and delegates replacement through the save lifecycle', async () => {
+    const [entry, backup] = await Promise.all([
+        read('prefs.js'), read('prefs/configBackupGroup.js'),
+    ]);
+    assert.match(entry, /buildConfigurationBackupGroup\(\{/);
+    assert.match(entry, /onImport: imported => \{\s+cleanup\(\);\s+return saveQueue\.then\(async \(\) => \{\s+await store\.saveAsync\(imported\)/);
+    assert.match(backup, /serializePanelConfig\(await store\.loadAsync\(\)\)/);
+    assert.match(backup, /parsePanelConfig\(new TextDecoder\('utf-8'\)\.decode\(bytes\)\)/);
+    assert.match(backup, /onImport\(imported\)/);
+    assert.doesNotMatch(entry, /serializePanelConfig|parsePanelConfig/);
+});

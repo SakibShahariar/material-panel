@@ -92,6 +92,7 @@ class PackageExtensionTests(unittest.TestCase):
             "lib/clipboardHistoryStore.js",
             "modules/clipboardHistory.js",
             "prefs/clipboardHistoryPage.js",
+            "prefs/configBackupGroup.js",
         }.issubset(names))
 
 
