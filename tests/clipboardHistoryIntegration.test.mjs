@@ -66,3 +66,22 @@ test('clipboard history repairs existing directory and file permissions before r
     assert.ok(directoryMode >= 0 && directoryMode < readContents);
     assert.ok(fileMode >= 0 && fileMode < readContents);
 });
+
+test('clipboard history refuses symlinked parent, directory, and file paths before touching data', () => {
+    const store = read('lib/clipboardHistoryStore.js');
+    assert.match(store, /function assertExpectedFileType\(file, expectedType, description\)/);
+    assert.match(store, /Gio\.FileQueryInfoFlags\.NOFOLLOW_SYMLINKS/);
+    assert.match(store, /info\.get_is_symlink\(\) \|\| info\.get_file_type\(\) !== expectedType/);
+    assert.match(store, /Gio\.FileType\.DIRECTORY/);
+    assert.match(store, /Gio\.FileType\.REGULAR/);
+
+    const load = store.slice(store.indexOf('async load('), store.indexOf('async write('));
+    assert.ok(load.indexOf('assertExpectedFileType(this._parentDirectory') < load.indexOf('load_contents_async'));
+    assert.ok(load.indexOf('assertExpectedFileType(this._directory') < load.indexOf('load_contents_async'));
+    assert.ok(load.indexOf('assertExpectedFileType(\n            this._file') < load.indexOf('load_contents_async'));
+
+    const clear = store.slice(store.indexOf('async clear('), store.indexOf('_ensureDirectory('));
+    assert.ok(clear.indexOf('assertExpectedFileType(this._parentDirectory') < clear.indexOf('this._file.delete'));
+    assert.ok(clear.indexOf('assertExpectedFileType(this._directory') < clear.indexOf('this._file.delete'));
+    assert.ok(clear.indexOf('assertExpectedFileType(this._file') < clear.indexOf('this._file.delete'));
+});
