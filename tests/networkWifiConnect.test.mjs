@@ -172,3 +172,53 @@ test('NetworkManager adapter isolates exceptions thrown by consumer error callba
         onError() { throw new Error('consumer error callback failed'); },
     }));
 });
+
+test('NetworkManager adapter delivers activation completion only once', () => {
+    const active = {id: 'active'};
+    let finishCalls = 0;
+    let startedCalls = 0;
+    const errors = [];
+    const client = {
+        add_and_activate_connection_async(_profile, _device, _path, _cancellable, callback) {
+            callback(this, {attempt: 1});
+            callback(this, {attempt: 2});
+        },
+        add_and_activate_connection_finish() {
+            finishCalls++;
+            return active;
+        },
+    };
+
+    assert.equal(addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/21',
+    }, {
+        onStarted(value) {
+            assert.equal(value, active);
+            startedCalls++;
+        },
+        onError(error) { errors.push(error.message); },
+    }), true);
+    assert.equal(finishCalls, 1);
+    assert.equal(startedCalls, 1);
+    assert.deepEqual(errors, []);
+});
+
+test('NetworkManager adapter ignores a late dispatch exception after successful completion', () => {
+    const active = {id: 'active'};
+    const errors = [];
+    const client = {
+        add_and_activate_connection_async(_profile, _device, _path, _cancellable, callback) {
+            callback(this, {});
+            throw new Error('late dispatch exception');
+        },
+        add_and_activate_connection_finish() { return active; },
+    };
+
+    assert.equal(addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/22',
+    }, {
+        onStarted(value) { assert.equal(value, active); },
+        onError(error) { errors.push(error.message); },
+    }), true);
+    assert.deepEqual(errors, []);
+});
