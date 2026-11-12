@@ -15,7 +15,7 @@ test('Control Center card shell centralizes theme-aware surface and bounded geom
 
 test('built-in Home action, media, weather and calendar cards use the shared shell', async () => {
     const source = await read('../modules/controlCenter.js');
-    assert.match(source, /import \{createControlCenterCardShell\} from '..\/lib\/controlCenterCardShell\.js'/);
+    assert.match(source, /import \{createControlCenterCardShell, createControlCenterCardTitle\} from '..\/lib\/controlCenterCardShell\.js'/);
     for (const card of ['actions', 'media', 'weather', 'calendar'])
         assert.ok(source.includes(`createControlCenterCardShell({padding: 14, spacing:`),
             `missing shared card shell use for ${card}`);
