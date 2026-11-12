@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
 
 const command = {id: 'cmd-1', type: 'command', target: 'btop --utf-force', name: 'btop'};
 const appEntry = {id: 'app-1', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'Terminal'};
@@ -155,4 +155,21 @@ test('reports an unsuccessful asynchronous toggle command without changing succe
     assert.equal(result, true);
     finish(false, new Error('non-zero exit'));
     assert.deepEqual(errors, [[false, 'non-zero exit']]);
+});
+
+
+test('describes a non-zero command exit status without exposing command contents', () => {
+    assert.equal(describeQuickLaunchProcessFailure({didExit: true, exitStatus: 127}),
+        'Command exited with status 127.');
+});
+
+test('describes signal-terminated commands', () => {
+    assert.equal(describeQuickLaunchProcessFailure({didSignal: true, termSignal: 15}),
+        'Command was terminated by signal 15.');
+});
+
+test('uses a safe generic message when process status details are unavailable', () => {
+    assert.equal(describeQuickLaunchProcessFailure(), 'Command exited unsuccessfully.');
+    assert.equal(describeQuickLaunchProcessFailure({didExit: true, exitStatus: '1'}),
+        'Command exited unsuccessfully.');
 });

@@ -87,6 +87,10 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
     assert.match(module, /Main\.notify\('Quick launch completed'/);
     assert.match(module, /entry\.type === 'app' && launched/);
     assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
+    assert.match(module, /subprocess\.get_if_exited\(\)/);
+    assert.match(module, /subprocess\.get_exit_status\(\)/);
+    assert.match(module, /subprocess\.get_if_signaled\(\)/);
+    assert.match(module, /subprocess\.get_term_sig\(\)/);
     assert.match(runner, /const argv = parseCommand\(commandTarget\)/);
     assert.match(runner, /spawnCommand\(argv, \(success, error = null\) => complete\(success, error\)\)/);
     assert.doesNotMatch(runner, /exec\(|eval\(|shell=True/);

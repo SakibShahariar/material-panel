@@ -8,7 +8,7 @@ import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getQuickLaunchEntries, getQuickLaunchEntryRevision, setQuickLaunchEntryState} from '../lib/quickLaunchState.js';
 import {QUICK_LAUNCH_TIMEOUT_SECONDS} from '../lib/quickLaunch.js';
-import {launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
 
 function commandArgv(command) {
     const [ok, argv] = GLib.shell_parse_argv(command);
@@ -76,7 +76,14 @@ function launchEntry(entry, {commandTarget = entry.target, onComplete = null} = 
                             Main.notify('Quick launch completed', entry.name);
                             finish(true);
                         } else {
-                            const error = new Error('Command exited unsuccessfully.');
+                            const didExit = subprocess.get_if_exited();
+                            const didSignal = !didExit && subprocess.get_if_signaled();
+                            const error = new Error(describeQuickLaunchProcessFailure({
+                                didExit,
+                                exitStatus: didExit ? subprocess.get_exit_status() : null,
+                                didSignal,
+                                termSignal: didSignal ? subprocess.get_term_sig() : null,
+                            }));
                             notifyLaunchFailure(entry, error);
                             finish(false, error);
                         }
