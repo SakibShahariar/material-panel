@@ -251,7 +251,7 @@ test('Control Center creates the Wallpaper card through the registry and release
     assert.match(source, /homeCardRegistry\.register\(\{[\s\S]*?\.\.\.wallpaperDefinition/);
     assert.match(source, /const createHomeCardActor = \(id, size\) => \{\s+const instance = homeCardRegistry\.create\(id, \{size, section: 'home'\}\)/);
     assert.match(source, /homeCardInstances\.set\(id, instance\)/);
-    assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id\)/);
+    assert.match(source, /homeCardActors\[definition\.id\] = createHomeCardActor\(definition\.id, resolvedSize\)/);
     assert.match(source, /homeCardRegistry\.resolveSize\(definition\.id, requestedSize\)/);
     assert.match(source, /destroyHomeCardInstances\(\);\s*clearActors\(page\)/);
     assert.match(source, /homeCardRegistry\.clear\(\)/);
