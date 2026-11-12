@@ -316,3 +316,26 @@ test('Control Center passes the resolved Home card size and section to registry 
     assert.match(source, /const requestedSize = entry\?\.size \?\? 'half';[\s\S]*?const resolvedSize = homeCardRegistry\.resolveSize\(definition\.id, requestedSize\) \?\? requestedSize;[\s\S]*?homeCardSizes\[definition\.id\] = resolvedSize;[\s\S]*?createHomeCardActor\(definition\.id, resolvedSize\)/);
     assert.match(source, /applyHomeCardSize\(actor, homeCardSizes\[id\] \?\? 'half'\)/);
 });
+
+
+test('asynchronous factories clean up late actor results instead of leaking them', async () => {
+    let resolveFactory;
+    let actorDestroyed = 0;
+    const errors = [];
+    const registry = createControlCenterCardRegistry({
+        onError: (_id, error) => errors.push(error),
+    });
+    registry.register({
+        id: 'async-late',
+        label: 'Async late',
+        sizes: ['half'],
+        factory: () => new Promise(resolve => { resolveFactory = resolve; }),
+    });
+
+    assert.equal(registry.create('async-late'), null);
+    resolveFactory({destroy() { actorDestroyed++; }});
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(actorDestroyed, 1);
+    assert.equal(errors.filter(error => /synchronously/.test(error.message)).length, 1);
+});
