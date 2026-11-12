@@ -135,3 +135,19 @@ test('network and DND notifications rebuild only when the hidden-module set chan
         {offline: false}, {offline: true}), false);
     assert.equal(hasContextVisibilityChanged({}, {dnd: false}, {dnd: true}), false);
 });
+
+test('combined context changes do not rebuild while another active rule keeps the same modules hidden', () => {
+    const rules = {
+        clock: {hideWhenOffline: true, hideWhenDnd: true},
+        calendar: {hideWhenOffline: true},
+    };
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: false, dnd: true},
+        {offline: true, dnd: true}), false);
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: true, dnd: true},
+        {offline: true, dnd: false}), true);
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: false, dnd: false},
+        {offline: true, dnd: false}), true);
+});
