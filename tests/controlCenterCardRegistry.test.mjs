@@ -339,3 +339,13 @@ test('asynchronous factories clean up late actor results instead of leaking them
     assert.equal(actorDestroyed, 1);
     assert.equal(errors.filter(error => /synchronously/.test(error.message)).length, 1);
 });
+
+test('Control Center isolates built-in card registration failures', async () => {
+    const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
+    assert.ok(source.includes('const registerHomeCard = (definition, registration) => {'));
+    assert.ok(source.includes('registration();'));
+    assert.ok(source.includes('logError(error, `material-panel: Control Center card ${definition.id} registration`);'));
+    for (const id of ['wallpaper', 'actions', 'media', 'weather', 'calendar', 'system'])
+        assert.ok(source.includes(`registerHomeCard(${id}Definition, () => {`), `missing isolated registration for ${id}`);
+    assert.match(source, /return createUnavailableHomeCard\(definition\?\.label \?\? id\)/);
+});

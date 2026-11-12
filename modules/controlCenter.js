@@ -551,8 +551,19 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     const homeCardRegistry = createControlCenterCardRegistry({
         onError: (id, error) => logError(error, `material-panel: Control Center card ${id}`),
     });
+    const registerHomeCard = (definition, registration) => {
+        if (!definition)
+            return false;
+        try {
+            registration();
+            return true;
+        } catch (error) {
+            logError(error, `material-panel: Control Center card ${definition.id} registration`);
+            return false;
+        }
+    };
     const wallpaperDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'wallpaper');
-    if (wallpaperDefinition) {
+    registerHomeCard(wallpaperDefinition, () => {
         homeCardRegistry.register({
             ...wallpaperDefinition,
             factory: () => {
@@ -593,44 +604,44 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 return wallpaperCard;
             },
         });
-    }
+    });
     const actionsDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'actions');
-    if (actionsDefinition) {
+    registerHomeCard(actionsDefinition, () => {
         homeCardRegistry.register({
             ...actionsDefinition,
             factory: () => buildHomeActionsCard(homeShortcuts),
         });
-    }
+    });
     const mediaDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'media');
-    if (mediaDefinition) {
+    registerHomeCard(mediaDefinition, () => {
         homeCardRegistry.register({
             ...mediaDefinition,
             detailDestination: 'media',
             factory: ({size} = {}) => buildHomeMediaCard(() => renderSection('media'), size),
         });
-    }
+    });
     const weatherDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'weather');
-    if (weatherDefinition) {
+    registerHomeCard(weatherDefinition, () => {
         homeCardRegistry.register({
             ...weatherDefinition,
             factory: () => buildHomeWeatherCard(),
         });
-    }
+    });
     const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'calendar');
-    if (calendarDefinition) {
+    registerHomeCard(calendarDefinition, () => {
         homeCardRegistry.register({
             ...calendarDefinition,
             factory: () => buildHomeCalendarCard(),
         });
-    }
+    });
     const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'system');
-    if (systemDefinition) {
+    registerHomeCard(systemDefinition, () => {
         homeCardRegistry.register({
             ...systemDefinition,
             detailDestination: 'system',
             factory: () => buildSystemSummaryCard(() => renderSection('system')),
         });
-    }
+    });
     const homeCardInstances = new Map();
     const createHomeCardActor = (id, size) => {
         const instance = homeCardRegistry.create(id, {size, section: 'home'});
