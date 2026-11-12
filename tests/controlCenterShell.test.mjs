@@ -351,3 +351,20 @@ test('Home media card adapts artwork, player details and progress to its registe
     assert.match(module, /detailed: size === 'full', progress: size !== 'compact'/);
     assert.match(media, /width: detailed \? 88 : 40/);
 });
+
+test('Home cards adapt content density to the size negotiated by the registry', async () => {
+    const module = await source('../modules/controlCenter.js');
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeActionsCard\(homeShortcuts, size\)/);
+    assert.match(module, /function buildHomeActionsCard\(homeShortcuts, size = 'half'\)/);
+    assert.match(module, /const columns = compact \? 3 : 2/);
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeWeatherCard\(size\)/);
+    assert.match(module, /function buildHomeWeatherCard\(size = 'half'\)/);
+    assert.match(module, /weatherTemp\.style = compact \?/);
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildHomeCalendarCard\(size\)/);
+    assert.match(module, /function buildHomeCalendarCard\(size = 'full'\)/);
+    assert.match(module, /calendarEvent\.style = compact \?/);
+    assert.match(module, /factory: \(\{size\} = \{\}\) => buildSystemSummaryCard\(\(\) => renderSection\('system'\), size\)/);
+    assert.match(module, /const showExtendedMetrics = size === 'full'/);
+    assert.match(module, /temperatureMetric = showExtendedMetrics \?/);
+    assert.match(module, /diskMetric = showExtendedMetrics \?/);
+});

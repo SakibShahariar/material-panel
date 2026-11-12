@@ -99,7 +99,8 @@ function openWallpaperDestination(appInfo) {
     }
 }
 
-function buildSystemSummaryCard(onOpen) {
+function buildSystemSummaryCard(onOpen, size = 'half') {
+    const showExtendedMetrics = size === 'full';
     const systemSummaryContent = createControlCenterCardShell({padding: 14, spacing: 8});
     const systemSummaryTitle = createControlCenterCardTitle('System overview');
     const systemSummaryGrid = new St.Widget({layout_manager: new Clutter.GridLayout(), x_expand: true});
@@ -139,13 +140,17 @@ function buildSystemSummaryCard(onOpen) {
     };
     const cpuMetric = makeSummaryMetric('CPU', true);
     const memoryMetric = makeSummaryMetric('Memory', true);
-    const temperatureMetric = makeSummaryMetric('CPU temp');
-    const diskMetric = makeSummaryMetric('Disk', true);
+    const temperatureMetric = showExtendedMetrics ? makeSummaryMetric('CPU temp') : null;
+    const diskMetric = showExtendedMetrics ? makeSummaryMetric('Disk', true) : null;
     systemSummaryGrid.layout_manager.attach(cpuMetric.actor, 0, 0, 1, 1);
     systemSummaryGrid.layout_manager.attach(memoryMetric.actor, 1, 0, 1, 1);
-    systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
-    systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
-    const systemSummaryMeta = new St.Label({text: 'Open System for the first CPU, memory and temperature sample'});
+    if (temperatureMetric)
+        systemSummaryGrid.layout_manager.attach(temperatureMetric.actor, 0, 1, 1, 1);
+    if (diskMetric)
+        systemSummaryGrid.layout_manager.attach(diskMetric.actor, 1, 1, 1, 1);
+    const systemSummaryMeta = new St.Label({text: showExtendedMetrics
+        ? 'Open System for the first CPU, memory and temperature sample'
+        : 'Open System for temperature and storage details'});
     systemSummaryMeta.style = 'font-size: 10px; opacity: 0.72;';
     systemSummaryMeta.clutter_text.line_wrap = true;
     systemSummaryContent.add_child(systemSummaryTitle);
@@ -178,22 +183,28 @@ function buildSystemSummaryCard(onOpen) {
         const disk = snapshot?.disk;
         cpuMetric.value.text = system?.cpu == null ? '—' : `${Math.round(system.cpu)}%`;
         memoryMetric.value.text = system?.memory == null ? '—' : `${Math.round(system.memory)}%`;
-        temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
-        diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
+        if (temperatureMetric)
+            temperatureMetric.value.text = system?.temperature == null ? 'Unavailable' : `${Math.round(system.temperature)}°C`;
+        if (diskMetric)
+            diskMetric.value.text = disk?.pct == null ? 'Unavailable' : `${Math.round(disk.pct)}%`;
         cpuMetric.update(system?.cpu);
         memoryMetric.update(system?.memory);
-        diskMetric.update(disk?.pct);
+        diskMetric?.update(disk?.pct);
         const systemAge = system ? sampleAge(system.sampledAt, system.sampledAtLabel) : null;
         const diskAge = disk ? sampleAge(disk.sampledAt, disk.sampledAtLabel) : null;
         if (!system) {
-            systemSummaryMeta.text = disk
-                ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
-                : 'Open System to collect CPU, memory and temperature readings';
+            systemSummaryMeta.text = showExtendedMetrics
+                ? (disk
+                    ? `Open System for CPU, memory and temperature · Disk ${diskAge}`
+                    : 'Open System to collect CPU, memory and temperature readings')
+                : 'Open System for temperature and storage details';
             return;
         }
-        systemSummaryMeta.text = disk
-            ? `System ${systemAge} · Disk ${diskAge}`
-            : `System ${systemAge} · Enable the Disk module for storage usage`;
+        systemSummaryMeta.text = showExtendedMetrics
+            ? (disk
+                ? `System ${systemAge} · Disk ${diskAge}`
+                : `System ${systemAge} · Enable the Disk module for storage usage`)
+            : `System ${systemAge} · Open System for temperature and storage details`;
     };
     const stopSystemSummaryWatch = watchControlCenterSummary(renderSystemSummary);
     systemSummaryCard.connect('destroy', () => {
@@ -204,16 +215,18 @@ function buildSystemSummaryCard(onOpen) {
 
 }
 
-function buildHomeActionsCard(homeShortcuts) {
-    const actionsCard = createControlCenterCardShell({padding: 14, spacing: 10});
+function buildHomeActionsCard(homeShortcuts, size = 'half') {
+    const compact = size === 'compact';
+    const columns = compact ? 3 : 2;
+    const actionsCard = createControlCenterCardShell({padding: compact ? 10 : 14, spacing: compact ? 6 : 10});
     const actionsTitle = createControlCenterCardTitle('Quick actions');
     const actionGrid = new St.Widget({
         style_class: 'material-panel-control-center-actions',
         layout_manager: new Clutter.GridLayout(),
         x_expand: true,
     });
-    actionGrid.layout_manager.column_spacing = 8;
-    actionGrid.layout_manager.row_spacing = 8;
+    actionGrid.layout_manager.column_spacing = compact ? 5 : 8;
+    actionGrid.layout_manager.row_spacing = compact ? 5 : 8;
     const actions = buildControlCenterHomeShortcutActors(
         homeShortcuts,
         HOME_SHORTCUT_BUILDERS,
@@ -221,7 +234,7 @@ function buildHomeActionsCard(homeShortcuts) {
     if (actions.length) {
         actions.forEach((action, index) => {
             action.x_expand = true;
-            actionGrid.layout_manager.attach(action, index % 2, Math.floor(index / 2), 1, 1);
+            actionGrid.layout_manager.attach(action, index % columns, Math.floor(index / columns), 1, 1);
         });
     } else {
         const emptyShortcuts = new St.Label({
@@ -241,7 +254,7 @@ function buildHomeActionsCard(homeShortcuts) {
             x_expand: true,
         });
         unavailable.clutter_text.line_wrap = true;
-        actionGrid.layout_manager.attach(unavailable, 0, Math.ceil(actions.length / 2), 2, 1);
+        actionGrid.layout_manager.attach(unavailable, 0, Math.ceil(actions.length / columns), columns, 1);
     }
     actionsCard.add_child(actionsTitle);
     actionsCard.add_child(actionGrid);
@@ -283,15 +296,18 @@ function buildHomeMediaCard(onOpen, size = 'full') {
 
 }
 
-function buildHomeWeatherCard() {
-    const weatherCard = createControlCenterCardShell({padding: 14, spacing: 5});
+function buildHomeWeatherCard(size = 'half') {
+    const compact = size === 'compact';
+    const weatherCard = createControlCenterCardShell({padding: compact ? 10 : 14, spacing: compact ? 4 : 5});
     const weatherTitle = createControlCenterCardTitle('Weather');
+    if (compact)
+        weatherTitle.style = 'font-size: 12px; font-weight: 650;';
     const weatherTemp = new St.Label({text: '—°'});
-    weatherTemp.style = 'font-size: 24px; font-weight: 700;';
+    weatherTemp.style = compact ? 'font-size: 20px; font-weight: 700;' : 'font-size: 24px; font-weight: 700;';
     const weatherCondition = new St.Label({text: 'No weather data yet'});
-    weatherCondition.style = 'font-size: 12px;';
+    weatherCondition.style = compact ? 'font-size: 11px;' : 'font-size: 12px;';
     const weatherPlace = new St.Label({text: 'Enable Weather and configure a location'});
-    weatherPlace.style = 'font-size: 10px; opacity: 0.72;';
+    weatherPlace.style = compact ? 'font-size: 9px; opacity: 0.72;' : 'font-size: 10px; opacity: 0.72;';
     weatherPlace.clutter_text.line_wrap = true;
     weatherCard.add_child(weatherTitle);
     weatherCard.add_child(weatherTemp);
@@ -333,14 +349,17 @@ function buildHomeWeatherCard() {
 
 }
 
-function buildHomeCalendarCard() {
-    const calendarCard = createControlCenterCardShell({padding: 14, spacing: 5});
+function buildHomeCalendarCard(size = 'full') {
+    const compact = size === 'compact';
+    const calendarCard = createControlCenterCardShell({padding: compact ? 10 : 14, spacing: compact ? 4 : 5});
     const calendarTitle = createControlCenterCardTitle('Calendar');
+    if (compact)
+        calendarTitle.style = 'font-size: 12px; font-weight: 650;';
     const calendarEvent = new St.Label({text: 'Calendar not synced'});
-    calendarEvent.style = 'font-size: 13px; font-weight: 600;';
+    calendarEvent.style = compact ? 'font-size: 11px; font-weight: 600;' : 'font-size: 13px; font-weight: 600;';
     calendarEvent.clutter_text.line_wrap = true;
     const calendarMeta = new St.Label({text: 'Sync a calendar to see upcoming events'});
-    calendarMeta.style = 'font-size: 10px; opacity: 0.72;';
+    calendarMeta.style = compact ? 'font-size: 9px; opacity: 0.72;' : 'font-size: 10px; opacity: 0.72;';
     calendarMeta.clutter_text.line_wrap = true;
     calendarCard.add_child(calendarTitle);
     calendarCard.add_child(calendarEvent);
@@ -609,7 +628,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     registerHomeCard(actionsDefinition, () => {
         homeCardRegistry.register({
             ...actionsDefinition,
-            factory: () => buildHomeActionsCard(homeShortcuts),
+            factory: ({size} = {}) => buildHomeActionsCard(homeShortcuts, size),
         });
     });
     const mediaDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'media');
@@ -624,14 +643,14 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     registerHomeCard(weatherDefinition, () => {
         homeCardRegistry.register({
             ...weatherDefinition,
-            factory: () => buildHomeWeatherCard(),
+            factory: ({size} = {}) => buildHomeWeatherCard(size),
         });
     });
     const calendarDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'calendar');
     registerHomeCard(calendarDefinition, () => {
         homeCardRegistry.register({
             ...calendarDefinition,
-            factory: () => buildHomeCalendarCard(),
+            factory: ({size} = {}) => buildHomeCalendarCard(size),
         });
     });
     const systemDefinition = CONTROL_CENTER_HOME_CARD_DEFINITIONS.find(entry => entry.id === 'system');
@@ -639,7 +658,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
         homeCardRegistry.register({
             ...systemDefinition,
             detailDestination: 'system',
-            factory: () => buildSystemSummaryCard(() => renderSection('system')),
+            factory: ({size} = {}) => buildSystemSummaryCard(() => renderSection('system'), size),
         });
     });
     const homeCardInstances = new Map();
