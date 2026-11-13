@@ -361,3 +361,17 @@ test('Control Center detaches registry-owned card actors before destroying their
     assert.match(cleanup, /parent\.remove_child\(actor\)/);
     assert.ok(cleanup.indexOf('parent.remove_child(actor)') < cleanup.indexOf('instance.destroy()'));
 });
+
+
+test('bounds raw card metadata and size lists before normalization', () => {
+    const registry = createControlCenterCardRegistry();
+    assert.throws(() => registry.register(definition('media', () => ({}), {
+        label: ' '.repeat(100_000),
+    })), /1–80 characters/);
+    assert.throws(() => registry.register(definition('media', () => ({}), {
+        sizes: Array(100_000).fill('compact'),
+    })), /supported sizes/);
+    assert.throws(() => registry.register(definition('media', () => ({}), {
+        barChip: {label: 'Media', icon: 'audio-x-generic-symbolic', tooltip: 'x'.repeat(161)},
+    })), /1–160 characters/);
+});
