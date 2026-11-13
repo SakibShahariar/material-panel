@@ -14,7 +14,7 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
-import {addAndActivateWifiConnection, createWifiActivationGate} from '../lib/wifiConnection.js';
+import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus} from '../lib/wifiConnection.js';
 
 // Saved profiles are reactivated directly; unsaved access points are
 // activated through NetworkManager's session secret-agent flow below.
@@ -166,6 +166,14 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 rebuildNetworkList();
         };
 
+        const updateActivationStatus = message => reportWifiActivationStatus(
+            setScanStatus,
+            message,
+            error => {
+                try { logError(error, 'material-panel: could not update Wi-Fi activation status'); } catch (ignored) {}
+            },
+        );
+
         const bindWifiDevice = () => {
             for (const id of wifiDeviceSignalIds) {
                 try { wifiDevice?.disconnect(id); } catch (e) {}
@@ -221,19 +229,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 let state;
                 try { state = activeConnection.get_state(); } catch (e) { return; }
                 if (state === NM.ActiveConnectionState.ACTIVATED) {
-                    try { setScanStatus(`Connected to ${ssid}`); } catch (error) {
-                        logError(error, 'material-panel: could not update Wi-Fi connection status');
-                    } finally {
-                        finish();
-                    }
+                    updateActivationStatus(`Connected to ${ssid}`);
+                    finish();
                 } else if (state === NM.ActiveConnectionState.DEACTIVATED) {
-                    try {
-                        setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
-                    } catch (error) {
-                        logError(error, 'material-panel: could not update Wi-Fi connection failure');
-                    } finally {
-                        finish();
-                    }
+                    updateActivationStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                    finish();
                 }
             };
             try {
@@ -245,8 +245,8 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             } catch (error) {
                 finish();
                 if (!destroyed) {
-                    logError(error, 'material-panel: could not watch Wi-Fi activation state');
-                    setScanStatus(`Could not monitor the connection to ${ssid}. Check Network settings.`);
+                    try { logError(error, 'material-panel: could not watch Wi-Fi activation state'); } catch (ignored) {}
+                    updateActivationStatus(`Could not monitor the connection to ${ssid}. Check Network settings.`);
                 }
             }
         };
@@ -275,7 +275,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 return;
             const finishActivation = () => activationGate.finish(activationKey);
             if (connection) {
-                setScanStatus(`Connecting to ${ssid}…`);
+                updateActivationStatus(`Connecting to ${ssid}…`);
                 const cancellable = new Gio.Cancellable();
                 activationCancellables.add(cancellable);
                 let completed = false;
@@ -298,7 +298,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                         } catch (error) {
                             finishActivation();
                             logError(error, 'material-panel: failed to activate saved network connection');
-                            setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
+                            updateActivationStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
                         }
                     });
                 } catch (error) {
@@ -309,7 +309,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     finishActivation();
                     if (!destroyed) {
                         logError(error, 'material-panel: failed to start saved network activation');
-                        setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
+                        updateActivationStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
                     }
                 }
                 return;
@@ -318,7 +318,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             // Let NetworkManager create a profile from the selected AP and use
             // GNOME Shell's registered secret agent for any required password.
             // The extension never reads or persists Wi-Fi credentials itself.
-            setScanStatus(`Connecting to ${ssid}…`);
+            updateActivationStatus(`Connecting to ${ssid}…`);
             const cancellable = new Gio.Cancellable();
             activationCancellables.add(cancellable);
             addAndActivateWifiConnection(client, wifiDevice, accessPoint, {
@@ -333,7 +333,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     if (destroyed)
                         return;
                     logError(error, 'material-panel: failed to connect to new Wi-Fi network');
-                    setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                    updateActivationStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
                 },
             });
         };

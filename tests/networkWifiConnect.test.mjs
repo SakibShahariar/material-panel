@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
-import {addAndActivateWifiConnection, createWifiActivationGate} from '../lib/wifiConnection.js';
+import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus} from '../lib/wifiConnection.js';
 
 const source = await readFile(new URL('../modules/network.js', import.meta.url), 'utf8');
 
@@ -276,4 +276,29 @@ test('network popup gates duplicate saved and unsaved activations and releases p
     assert.match(source, /watchActivation\(activeConnection, ssid, finishActivation\)/);
     assert.match(source, /finishActivation\(\);/);
     assert.match(source, /activationGate\.clear\(\)/);
+});
+
+
+test('Wi-Fi activation status failures cannot interrupt the connection lifecycle', () => {
+    const errors = [];
+    let completed = false;
+    assert.equal(reportWifiActivationStatus(
+        () => { throw new Error('popup was destroyed'); },
+        'Connecting to network',
+        error => errors.push(error.message),
+    ), false);
+    completed = true;
+    assert.equal(completed, true);
+    assert.deepEqual(errors, ['popup was destroyed']);
+});
+
+test('Wi-Fi activation status error reporting is itself isolated', () => {
+    let updated = null;
+    assert.equal(reportWifiActivationStatus(value => { updated = value; }, 'Connected'), true);
+    assert.equal(updated, 'Connected');
+    assert.doesNotThrow(() => reportWifiActivationStatus(
+        () => { throw new Error('popup unavailable'); },
+        'Failed',
+        () => { throw new Error('logging unavailable'); },
+    ));
 });
