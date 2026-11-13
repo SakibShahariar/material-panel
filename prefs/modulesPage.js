@@ -89,7 +89,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
     // Context-aware visibility remains opt-in and independent from manual visibility and Focus Mode.
     const contextVisibilityGroup = new Adw.PreferencesGroup({
         title: 'Context-aware Visibility',
-        description: 'Optionally hide selected modules while a window is fullscreen, the Overview is open, Do Not Disturb is active, or the system is offline. All rules are off by default.',
+        description: 'Optionally hide selected modules during fullscreen, Overview, Do Not Disturb, offline, or battery conditions. Battery rules stay visible when UPower cannot provide the required state or percentage. All rules are off by default.',
     });
     modulesPage.add(contextVisibilityGroup);
     if (!config.moduleVisibilityRules || typeof config.moduleVisibilityRules !== 'object')
@@ -220,7 +220,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
 
         const batteryThresholdRow = new Adw.ActionRow({
             title: `${module.name} · Show only below battery level`,
-            subtitle: 'Hide above this percentage. Set 0 to disable the rule.',
+            subtitle: 'Hide above this percentage when UPower reports a valid level. Set 0 to disable the rule.',
         });
         const batteryThresholdSpin = new Gtk.SpinButton({
             adjustment: new Gtk.Adjustment({
