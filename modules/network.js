@@ -14,13 +14,14 @@ import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
-import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
+import {addAndActivateWifiConnection, createWifiActivationGate} from '../lib/wifiConnection.js';
 
 // Saved profiles are reactivated directly; unsaved access points are
 // activated through NetworkManager's session secret-agent flow below.
 export function buildNetwork(_extensionPath, scale = 1.0) {
     let destroyed = false;
     const activationCancellables = new Set();
+    const activationGate = createWifiActivationGate();
     const button = new St.Button({
         style_class: 'material-panel-network material-panel-chip',
         reactive: true,
@@ -48,6 +49,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             try { cancellable.cancel(); } catch (error) {}
         }
         activationCancellables.clear();
+        activationGate.clear();
         menu.destroy();
     });
 
@@ -190,9 +192,8 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         };
 
         const activationSignals = new Set();
-        const watchActivation = (activeConnection, ssid) => {
-            if (!activeConnection || destroyed)
-                return;
+        const watchActivation = (activeConnection, ssid, onSettled = () => {}) => {
+            let settled = false;
             let signalId = 0;
             const disconnect = () => {
                 if (!signalId)
@@ -201,29 +202,78 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 activationSignals.delete(disconnect);
                 signalId = 0;
             };
+            const finish = () => {
+                if (settled)
+                    return;
+                settled = true;
+                disconnect();
+                try { onSettled(); } catch (error) {}
+            };
+            if (!activeConnection || destroyed) {
+                finish();
+                return;
+            }
             const updateActivation = () => {
                 if (destroyed) {
-                    disconnect();
+                    finish();
                     return;
                 }
                 let state;
                 try { state = activeConnection.get_state(); } catch (e) { return; }
                 if (state === NM.ActiveConnectionState.ACTIVATED) {
-                    setScanStatus(`Connected to ${ssid}`);
-                    disconnect();
+                    try { setScanStatus(`Connected to ${ssid}`); } catch (error) {
+                        logError(error, 'material-panel: could not update Wi-Fi connection status');
+                    } finally {
+                        finish();
+                    }
                 } else if (state === NM.ActiveConnectionState.DEACTIVATED) {
-                    setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
-                    disconnect();
+                    try {
+                        setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                    } catch (error) {
+                        logError(error, 'material-panel: could not update Wi-Fi connection failure');
+                    } finally {
+                        finish();
+                    }
                 }
             };
-            signalId = activeConnection.connect('notify::state', updateActivation);
-            activationSignals.add(disconnect);
-            updateActivation();
+            try {
+                signalId = activeConnection.connect('notify::state', updateActivation);
+                if (!signalId)
+                    throw new Error('NetworkManager did not provide an activation state signal');
+                activationSignals.add(disconnect);
+                updateActivation();
+            } catch (error) {
+                finish();
+                if (!destroyed) {
+                    logError(error, 'material-panel: could not watch Wi-Fi activation state');
+                    setScanStatus(`Could not monitor the connection to ${ssid}. Check Network settings.`);
+                }
+            }
+        };
+
+        const getActivationKey = (connection, accessPoint, ssid) => {
+            if (connection) {
+                try {
+                    const uuid = connection.get_uuid?.();
+                    if (typeof uuid === 'string' && uuid)
+                        return `connection:${uuid}`;
+                } catch (error) {}
+            }
+            try {
+                const path = accessPoint?.get_path?.();
+                if (typeof path === 'string' && path)
+                    return `access-point:${path}`;
+            } catch (error) {}
+            return `ssid:${String(ssid || '')}`;
         };
 
         const activate = (connection, accessPoint = null, ssid = 'Wi-Fi network') => {
             if (!wifiDevice || destroyed)
                 return;
+            const activationKey = getActivationKey(connection, accessPoint, ssid);
+            if (!activationGate.begin(activationKey))
+                return;
+            const finishActivation = () => activationGate.finish(activationKey);
             if (connection) {
                 setScanStatus(`Connecting to ${ssid}…`);
                 const cancellable = new Gio.Cancellable();
@@ -236,14 +286,17 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                             return;
                         completed = true;
                         release();
-                        if (destroyed)
+                        if (destroyed) {
+                            finishActivation();
                             return;
+                        }
                         try {
                             const activeConnection = c.activate_connection_finish(res);
                             if (!activeConnection)
                                 throw new Error('NetworkManager did not return an active connection');
-                            watchActivation(activeConnection, ssid);
+                            watchActivation(activeConnection, ssid, finishActivation);
                         } catch (error) {
+                            finishActivation();
                             logError(error, 'material-panel: failed to activate saved network connection');
                             setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
                         }
@@ -253,6 +306,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                         return;
                     completed = true;
                     release();
+                    finishActivation();
                     if (!destroyed) {
                         logError(error, 'material-panel: failed to start saved network activation');
                         setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
@@ -271,10 +325,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 cancellable,
                 onStarted: activeConnection => {
                     activationCancellables.delete(cancellable);
-                    watchActivation(activeConnection, ssid);
+                    watchActivation(activeConnection, ssid, finishActivation);
                 },
                 onError: error => {
                     activationCancellables.delete(cancellable);
+                    finishActivation();
                     if (destroyed)
                         return;
                     logError(error, 'material-panel: failed to connect to new Wi-Fi network');

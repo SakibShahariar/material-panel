@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
-import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
+import {addAndActivateWifiConnection, createWifiActivationGate} from '../lib/wifiConnection.js';
 
 const source = await readFile(new URL('../modules/network.js', import.meta.url), 'utf8');
 
@@ -252,4 +252,25 @@ test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardo
     assert.ok(destroy.includes('for (const cancellable of activationCancellables)'));
     assert.ok(destroy.includes('cancellable.cancel()'));
     assert.ok(destroy.includes('activationCancellables.clear()'));
+});
+
+
+test('Wi-Fi activation gate suppresses duplicate requests until completion or teardown', () => {
+    const gate = createWifiActivationGate();
+    assert.equal(gate.begin('access-point:/org/freedesktop/NetworkManager/AccessPoint/23'), true);
+    assert.equal(gate.begin('access-point:/org/freedesktop/NetworkManager/AccessPoint/23'), false);
+    assert.equal(gate.begin('connection:profile-1'), true);
+    assert.equal(gate.finish('access-point:/org/freedesktop/NetworkManager/AccessPoint/23'), true);
+    assert.equal(gate.begin('access-point:/org/freedesktop/NetworkManager/AccessPoint/23'), true);
+    assert.equal(gate.clear(), 2);
+    assert.equal(gate.finish('connection:profile-1'), false);
+});
+
+test('network popup gates duplicate saved and unsaved activations and releases pending keys on terminal states', () => {
+    assert.match(source, /const activationGate = createWifiActivationGate\(\)/);
+    assert.match(source, /const activationKey = getActivationKey\(connection, accessPoint, ssid\)/);
+    assert.match(source, /if \(!activationGate\.begin\(activationKey\)\)\s+return/);
+    assert.match(source, /watchActivation\(activeConnection, ssid, finishActivation\)/);
+    assert.match(source, /finishActivation\(\);/);
+    assert.match(source, /activationGate\.clear\(\)/);
 });
