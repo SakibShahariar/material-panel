@@ -180,3 +180,13 @@ test('invalid battery thresholds are ignored without invoking arbitrary coercion
     });
     assert.doesNotThrow(() => getContextHiddenModules(rules, {batteryPercent: 10}));
 });
+
+
+test('bounds parsing of oversized imported battery threshold strings', () => {
+    assert.deepEqual(normalizeModuleVisibilityRules({
+        battery: {showOnlyBelowBatteryPercent: '9'.repeat(100_000)},
+    }), {});
+    assert.deepEqual(normalizeModuleVisibilityRules({
+        battery: {showOnlyBelowBatteryPercent: '25.9'},
+    }).battery.showOnlyBelowBatteryPercent, 25);
+});
