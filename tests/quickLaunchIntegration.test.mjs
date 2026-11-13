@@ -86,7 +86,7 @@ test('Quick Launch command entries are tokenized to argv and never evaluated by 
     assert.match(module, /process\.wait_async/);
     assert.match(module, /notifyQuickLaunchSuccess\(\s*\(\) => Main\.notify\('Quick launch completed'/);
     assert.match(module, /notifyLaunchSuccess\(entry, \(\) => finish\(true\)\)/);
-    assert.match(module, /if (entry\.type === 'app' && launched\)\s+notifyLaunchSuccess\(entry\)/);
+    assert.ok(module.includes("if (entry.type === 'app' && launched)\n        notifyLaunchSuccess(entry);"));
     assert.match(module, /entry\.type === 'app' && launched/);
     assert.doesNotMatch(module, /spawn_command_line|spawn_sync|\/bin\/sh/);
     assert.match(module, /subprocess\.get_if_exited\(\)/);
