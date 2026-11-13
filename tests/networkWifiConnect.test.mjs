@@ -238,17 +238,17 @@ test('NetworkManager adapter forwards a cancellable for unsaved access-point act
 });
 
 test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardown', () => {
-    assert.match(source, /const activationCancellables = new Set\\(\\)/);
-    assert.match(source, /activate_connection_async\\(connection, wifiDevice, null, cancellable/);
-    assert.match(source, /const activeConnection = c\\.activate_connection_finish\\(res\\)/);
-    assert.match(source, /watchActivation\\(activeConnection, ssid\\)/);
-    assert.match(source, /addAndActivateWifiConnection\\(client, wifiDevice, accessPoint, \\{\\s+cancellable,/);
+    assert.ok(source.includes('const activationCancellables = new Set();'));
+    assert.ok(source.includes('activate_connection_async(connection, wifiDevice, null, cancellable'));
+    assert.ok(source.includes('const activeConnection = c.activate_connection_finish(res)'));
+    assert.ok(source.includes('watchActivation(activeConnection, ssid)'));
+    assert.ok(source.includes('addAndActivateWifiConnection(client, wifiDevice, accessPoint, {\n                cancellable,'));
 
     const destroyStart = source.indexOf("button.connect('destroy', () => {");
-    const destroyEnd = source.indexOf('\\n    });', destroyStart);
+    const destroyEnd = source.indexOf('\n    });', destroyStart);
     assert.ok(destroyStart >= 0 && destroyEnd > destroyStart);
     const destroy = source.slice(destroyStart, destroyEnd);
-    assert.match(destroy, /for \\(const cancellable of activationCancellables\\)/);
-    assert.match(destroy, /cancellable\\.cancel\\(\\)/);
-    assert.match(destroy, /activationCancellables\\.clear\\(\\)/);
+    assert.ok(destroy.includes('for (const cancellable of activationCancellables)'));
+    assert.ok(destroy.includes('cancellable.cancel()'));
+    assert.ok(destroy.includes('activationCancellables.clear()'));
 });
