@@ -1,12 +1,12 @@
-import {normalizeQuickLaunchEntries} from '../lib/quickLaunch.js';
+import {hasUnsafeQuickLaunchCommandCharacters, normalizeQuickLaunchEntries} from '../lib/quickLaunch.js';
 
 function iconIsValid(value) {
     return !value || /^[A-Za-z0-9][A-Za-z0-9-]{0,79}$/.test(value);
 }
 
-function commandIsValid(GLib, value) {
+export function isQuickLaunchCommandValid(GLib, value) {
     if (typeof value !== 'string' || !value.trim() || value.length > 512 ||
-        /[\\u0000-\\u001f\\u007f]/.test(value))
+        hasUnsafeQuickLaunchCommandCharacters(value))
         return false;
     try {
         const [ok, argv] = GLib.shell_parse_argv(value);
@@ -146,9 +146,9 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
                 const icon = iconEditor.get_text().trim();
                 if (!value) {
                     notify('A shortcut value is required');
-                } else if (entry.type === 'command' && !commandIsValid(GLib, value)) {
+                } else if (entry.type === 'command' && !isQuickLaunchCommandValid(GLib, value)) {
                     notify('Enter a valid executable and arguments (maximum 512 characters)');
-                } else if (offTarget && !commandIsValid(GLib, offTarget)) {
+                } else if (offTarget && !isQuickLaunchCommandValid(GLib, offTarget)) {
                     notify('Enter a valid off command (maximum 512 characters)');
                 } else if (offTarget && offTarget === value) {
                     notify('Use a different command for the off action');
@@ -296,11 +296,11 @@ export function buildQuickLaunchPage({Adw, Gtk, Gio, GLib, config, saveConfig, w
             return;
         }
         const offTarget = offCommandRow.get_text().trim();
-        if (!target || !commandIsValid(GLib, target)) {
+        if (!target || !isQuickLaunchCommandValid(GLib, target)) {
             notify('Enter a valid executable and arguments');
             return;
         }
-        if (offTarget && !commandIsValid(GLib, offTarget)) {
+        if (offTarget && !isQuickLaunchCommandValid(GLib, offTarget)) {
             notify('Enter a valid off command (maximum 512 characters)');
             return;
         }

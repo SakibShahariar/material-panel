@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {normalizeQuickLaunchEntries, QUICK_LAUNCH_LIMIT, QUICK_LAUNCH_SCAN_LIMIT} from '../lib/quickLaunch.js';
+import {hasUnsafeQuickLaunchCommandCharacters, normalizeQuickLaunchEntries, QUICK_LAUNCH_LIMIT, QUICK_LAUNCH_SCAN_LIMIT} from '../lib/quickLaunch.js';
 
 test('keeps valid application and command entries in display order', () => {
     const entries = normalizeQuickLaunchEntries([
@@ -180,4 +180,17 @@ test('bounds whitespace-only labels and rejects oversized raw configuration fiel
         offTarget: ' '.repeat(100_000) + 'echo off',
     }]);
     assert.equal(toggle.offTarget, undefined);
+});
+
+
+test('command targets reject invisible controls without rejecting ordinary command text', () => {
+    assert.equal(hasUnsafeQuickLaunchCommandCharacters('systemctl --user restart pipewire'), false);
+    for (const value of ['echo safe\u0001', 'echo safe\u0085', 'echo safe\u202e', 'echo safe\u2066'])
+        assert.equal(hasUnsafeQuickLaunchCommandCharacters(value), true);
+
+    assert.deepEqual(normalizeQuickLaunchEntries([
+        {id: 'c1', type: 'command', target: 'echo safe\u0085'},
+        {id: 'bidi', type: 'command', target: 'echo safe\u202e'},
+        {id: 'off-control', type: 'command', target: 'echo safe', offTarget: 'echo off\u0085'},
+    ]), [{id: 'off-control', type: 'command', target: 'echo safe', name: 'echo safe'}]);
 });
