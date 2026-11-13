@@ -225,6 +225,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             if (!wifiDevice || destroyed)
                 return;
             if (connection) {
+                setScanStatus(`Connecting to ${ssid}…`);
                 const cancellable = new Gio.Cancellable();
                 activationCancellables.add(cancellable);
                 let completed = false;

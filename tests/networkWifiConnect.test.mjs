@@ -240,6 +240,7 @@ test('NetworkManager adapter forwards a cancellable for unsaved access-point act
 test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardown', () => {
     assert.ok(source.includes('const activationCancellables = new Set();'));
     assert.ok(source.includes('activate_connection_async(connection, wifiDevice, null, cancellable'));
+    assert.match(source, /if \(connection\) \{\s+setScanStatus\(`Connecting to \$\{ssid\}…`\);/);
     assert.ok(source.includes('const activeConnection = c.activate_connection_finish(res)'));
     assert.ok(source.includes('watchActivation(activeConnection, ssid)'));
     assert.ok(source.includes('addAndActivateWifiConnection(client, wifiDevice, accessPoint, {\n                cancellable,'));
