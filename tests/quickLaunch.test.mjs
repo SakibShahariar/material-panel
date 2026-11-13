@@ -124,7 +124,7 @@ test('normalizes leading, repeated, and trailing whitespace while truncating lab
 
 
 test('normalizes every supported invisible-control range and Unicode whitespace', () => {
-    const controls = '\u0000\u001f\u007f\u061c\u200e\u200f\u202a\u202e\u2066\u206f';
+    const controls = '\u0000\u001f\u007f\u0085\u009f\u061c\u200e\u200f\u202a\u202e\u2066\u206f';
     const [entry] = normalizeQuickLaunchEntries([
         {id: 'control-ranges', type: 'command', target: 'echo safe', name: 'left' + controls + 'right'},
     ]);
