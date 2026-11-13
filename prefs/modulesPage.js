@@ -220,7 +220,7 @@ export function buildModulesPage({Adw, Gtk, GLib, config, saveConfig, window, ad
 
         const batteryThresholdRow = new Adw.ActionRow({
             title: `${module.name} · Show only below battery level`,
-            subtitle: 'Hide above this percentage when UPower reports a valid level. Set 0 to disable the rule.',
+            subtitle: 'Hide at or above this percentage when UPower reports a valid level. Set 0 to disable the rule.',
         });
         const batteryThresholdSpin = new Gtk.SpinButton({
             adjustment: new Gtk.Adjustment({

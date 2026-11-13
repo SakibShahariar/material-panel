@@ -82,7 +82,7 @@ test('battery visibility rules combine only when battery context is known', () =
     };
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: false, batteryPercent: 55})],
         ['clock', 'volume', 'network']);
-    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20})], []);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20})], ['volume', 'network']);
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: null, batteryPercent: null})], []);
     assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 21})], ['volume', 'network']);
 });
@@ -96,8 +96,11 @@ test('battery percentage notifications rebuild only when a visibility threshold 
         {onBattery: true, percentage: 40},
         {onBattery: true, percentage: 39}), false);
     assert.equal(hasBatteryVisibilityChanged(rules,
-        {onBattery: true, percentage: 21},
-        {onBattery: true, percentage: 20}), true);
+        {onBattery: true, percentage: 20},
+        {onBattery: true, percentage: 19}), true);
+    assert.equal(hasBatteryVisibilityChanged(rules,
+        {onBattery: true, percentage: 20},
+        {onBattery: true, percentage: 21}), false);
     assert.equal(hasBatteryVisibilityChanged(rules,
         {onBattery: false, percentage: 20},
         {onBattery: true, percentage: 20}), true);

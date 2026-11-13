@@ -72,7 +72,7 @@ test('Modules Preferences exposes opt-in fullscreen and Overview rules independe
     assert.match(source, /Show only on battery/);
     assert.match(source, /Show only below battery level/);
     assert.match(source, /Battery rules stay visible when UPower cannot provide the required state or percentage/);
-    assert.match(source, /Hide above this percentage when UPower reports a valid level/);
+    assert.match(source, /Hide at or above this percentage when UPower reports a valid level/);
 });
 
 test('PanelBuilder merges context rules with manual visibility and Focus Mode', async () => {
