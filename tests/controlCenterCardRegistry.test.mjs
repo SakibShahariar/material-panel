@@ -349,3 +349,15 @@ test('Control Center isolates built-in card registration failures', async () => 
         assert.ok(source.includes(`registerHomeCard(${id}Definition, () => {`), `missing isolated registration for ${id}`);
     assert.match(source, /return createUnavailableHomeCard\(definition\?\.label \?\? id\)/);
 });
+
+
+test('Control Center detaches registry-owned card actors before destroying their instances', async () => {
+    const source = await read('../modules/controlCenter.js');
+    const start = source.indexOf('const destroyHomeCardInstances = () => {');
+    const end = source.indexOf('const updateHomeCardMenuStates = () => {', start);
+    assert.ok(start >= 0 && end > start);
+    const cleanup = source.slice(start, end);
+    assert.match(cleanup, /const parent = actor\?\.get_parent\?\.\(\)/);
+    assert.match(cleanup, /parent\.remove_child\(actor\)/);
+    assert.ok(cleanup.indexOf('parent.remove_child(actor)') < cleanup.indexOf('instance.destroy()'));
+});

@@ -673,8 +673,19 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
     };
 
     const destroyHomeCardInstances = () => {
-        for (const instance of homeCardInstances.values())
+        for (const instance of homeCardInstances.values()) {
+            // The page container is cleared immediately after this hook. Detach
+            // registry-owned actors first so clearActors() does not destroy them twice.
+            const actor = instance.actor;
+            try {
+                const parent = actor?.get_parent?.();
+                if (parent && typeof parent.remove_child === 'function')
+                    parent.remove_child(actor);
+            } catch (error) {
+                logError(error, 'material-panel: failed to detach Control Center card actor');
+            }
             instance.destroy();
+        }
         homeCardInstances.clear();
     };
 
