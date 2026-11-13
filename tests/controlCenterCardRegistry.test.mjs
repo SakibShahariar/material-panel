@@ -410,3 +410,25 @@ test('uses the card destroy hook when a throwing then accessor belongs to an act
     assert.equal(registry.create('broken-handle'), null);
     assert.equal(destroyedActor, actor);
 });
+
+
+test('reads a stateful factory then accessor once and cleans up its resolved actor', async () => {
+    let thenReads = 0;
+    let actorDestroyed = 0;
+    const actor = {destroy() { actorDestroyed++; }};
+    const result = {
+        get then() {
+            thenReads++;
+            if (thenReads > 1)
+                throw new Error('then accessor must only be read once');
+            return resolve => resolve(actor);
+        },
+    };
+    const registry = createControlCenterCardRegistry();
+    registry.register(definition('stateful-then', () => result));
+
+    assert.equal(registry.create('stateful-then'), null);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(thenReads, 1);
+    assert.equal(actorDestroyed, 1);
+});
