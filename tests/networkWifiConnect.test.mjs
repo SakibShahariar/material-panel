@@ -12,9 +12,9 @@ test('network module documentation describes both saved and unsaved Wi-Fi paths'
 });
 
 test('unsaved Wi-Fi access points are connected through the shared NetworkManager adapter', () => {
-    assert.match(source, /import \{addAndActivateWifiConnection\} from '..\/lib\/wifiConnection\.js'/);
+    assert.match(source, /import \{addAndActivateWifiConnection, createWifiActivationGate\} from '..\/lib\/wifiConnection\.js'/);
     assert.match(source, /addAndActivateWifiConnection\(client, wifiDevice, accessPoint/);
-    assert.match(source, /onStarted: activeConnection => \{\s+activationCancellables\.delete\(cancellable\);\s+watchActivation\(activeConnection, ssid\);/);
+    assert.match(source, /onStarted: activeConnection => \{\s+activationCancellables\.delete\(cancellable\);\s+watchActivation\(activeConnection, ssid, finishActivation\);/);
     const entryStart = source.indexOf('const label = connection');
     const entryEnd = source.indexOf('networksSection.addMenuItem(item)', entryStart);
     const entry = source.slice(entryStart, entryEnd);
@@ -143,13 +143,16 @@ test('NetworkManager adapter routes a consumer start-callback failure to its err
 });
 
 test('Wi-Fi activation watcher disconnects before touching a destroyed popup', () => {
-    const start = source.indexOf('const updateActivation = () => {');
+    const watcherStart = source.indexOf('const watchActivation = (activeConnection, ssid, onSettled = () => {}) => {');
+    const start = source.indexOf('const updateActivation = () => {', watcherStart);
     const end = source.indexOf('            };', start);
-    assert.ok(start >= 0 && end > start);
+    assert.ok(watcherStart >= 0 && start > watcherStart && end > start);
+    const watcher = source.slice(watcherStart, start);
     const callback = source.slice(start, end);
+    assert.match(watcher, /const finish = \(\) => \{[\s\S]*?disconnect\(\);/);
     assert.ok(callback.includes('if (destroyed) {'));
-    assert.ok(callback.includes('disconnect();'));
-    assert.ok(callback.indexOf('disconnect();') < callback.indexOf('let state;'));
+    assert.ok(callback.includes('finish();'));
+    assert.ok(callback.indexOf('finish();') < callback.indexOf('let state;'));
     assert.ok(source.includes('for (const disconnect of activationSignals)'));
 });
 
@@ -242,7 +245,7 @@ test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardo
     assert.ok(source.includes('activate_connection_async(connection, wifiDevice, null, cancellable'));
     assert.match(source, /if \(connection\) \{\s+setScanStatus\(`Connecting to \$\{ssid\}…`\);/);
     assert.ok(source.includes('const activeConnection = c.activate_connection_finish(res)'));
-    assert.ok(source.includes('watchActivation(activeConnection, ssid)'));
+    assert.ok(source.includes('watchActivation(activeConnection, ssid, finishActivation)'));
     assert.ok(source.includes('addAndActivateWifiConnection(client, wifiDevice, accessPoint, {\n                cancellable,'));
 
     const destroyStart = source.indexOf("button.connect('destroy', () => {");
