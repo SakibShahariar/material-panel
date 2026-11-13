@@ -193,3 +193,22 @@ test('bounds parsing of oversized imported battery threshold strings', () => {
         battery: {showOnlyBelowBatteryPercent: '25.9'},
     }).battery.showOnlyBelowBatteryPercent, 25);
 });
+
+
+test('fractional battery readings honor the exact below-threshold boundary', () => {
+    const rules = {battery: {showOnlyBelowBatteryPercent: 20}};
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 19.99})], []);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20})], ['battery']);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: 20.01})], ['battery']);
+    assert.deepEqual([...getContextHiddenModules(rules, {onBattery: true, batteryPercent: Number.NaN})], []);
+});
+
+test('battery threshold changes do not rebuild when another active rule keeps the module hidden', () => {
+    const rules = {battery: {hideWhenOffline: true, showOnlyBelowBatteryPercent: 20}};
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: true, onBattery: true, batteryPercent: 19.99},
+        {offline: true, onBattery: true, batteryPercent: 20}), false);
+    assert.equal(hasContextVisibilityChanged(rules,
+        {offline: false, onBattery: true, batteryPercent: 19.99},
+        {offline: false, onBattery: true, batteryPercent: 20}), true);
+});
