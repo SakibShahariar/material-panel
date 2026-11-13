@@ -20,6 +20,7 @@ import {addAndActivateWifiConnection} from '../lib/wifiConnection.js';
 // activated through NetworkManager's session secret-agent flow below.
 export function buildNetwork(_extensionPath, scale = 1.0) {
     let destroyed = false;
+    const activationCancellables = new Set();
     const button = new St.Button({
         style_class: 'material-panel-network material-panel-chip',
         reactive: true,
@@ -43,6 +44,10 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
         destroyed = true;
+        for (const cancellable of activationCancellables) {
+            try { cancellable.cancel(); } catch (error) {}
+        }
+        activationCancellables.clear();
         menu.destroy();
     });
 
@@ -220,15 +225,38 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             if (!wifiDevice || destroyed)
                 return;
             if (connection) {
-                client.activate_connection_async(connection, wifiDevice, null, null, (c, res) => {
-                    try {
-                        c.activate_connection_finish(res);
-                        setScanStatus('');
-                    } catch (e) {
-                        logError(e, 'material-panel: failed to activate saved network connection');
+                const cancellable = new Gio.Cancellable();
+                activationCancellables.add(cancellable);
+                let completed = false;
+                const release = () => activationCancellables.delete(cancellable);
+                try {
+                    client.activate_connection_async(connection, wifiDevice, null, cancellable, (c, res) => {
+                        if (completed)
+                            return;
+                        completed = true;
+                        release();
+                        if (destroyed)
+                            return;
+                        try {
+                            const activeConnection = c.activate_connection_finish(res);
+                            if (!activeConnection)
+                                throw new Error('NetworkManager did not return an active connection');
+                            watchActivation(activeConnection, ssid);
+                        } catch (error) {
+                            logError(error, 'material-panel: failed to activate saved network connection');
+                            setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
+                        }
+                    });
+                } catch (error) {
+                    if (completed)
+                        return;
+                    completed = true;
+                    release();
+                    if (!destroyed) {
+                        logError(error, 'material-panel: failed to start saved network activation');
                         setScanStatus('Connection failed. Check the saved password or open Wi-Fi settings.');
                     }
-                });
+                }
                 return;
             }
 
@@ -236,12 +264,20 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             // GNOME Shell's registered secret agent for any required password.
             // The extension never reads or persists Wi-Fi credentials itself.
             setScanStatus(`Connecting to ${ssid}…`);
+            const cancellable = new Gio.Cancellable();
+            activationCancellables.add(cancellable);
             addAndActivateWifiConnection(client, wifiDevice, accessPoint, {
-                onStarted: activeConnection => watchActivation(activeConnection, ssid),
+                cancellable,
+                onStarted: activeConnection => {
+                    activationCancellables.delete(cancellable);
+                    watchActivation(activeConnection, ssid);
+                },
                 onError: error => {
+                    activationCancellables.delete(cancellable);
+                    if (destroyed)
+                        return;
                     logError(error, 'material-panel: failed to connect to new Wi-Fi network');
-                    if (!destroyed)
-                        setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
+                    setScanStatus(`Couldn't connect to ${ssid}. Check the password or network security.`);
                 },
             });
         };

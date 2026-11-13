@@ -222,3 +222,33 @@ test('NetworkManager adapter ignores a late dispatch exception after successful 
     }), true);
     assert.deepEqual(errors, []);
 });
+
+
+test('NetworkManager adapter forwards a cancellable for unsaved access-point activation', () => {
+    const calls = [];
+    const cancellable = {cancel() {}};
+    const client = {
+        add_and_activate_connection_async(...args) { calls.push(args); },
+    };
+    assert.equal(addAndActivateWifiConnection(client, {}, {
+        get_path: () => '/org/freedesktop/NetworkManager/AccessPoint/23',
+    }, {cancellable}), true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][3], cancellable);
+});
+
+test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardown', () => {
+    assert.match(source, /const activationCancellables = new Set\\(\\)/);
+    assert.match(source, /activate_connection_async\\(connection, wifiDevice, null, cancellable/);
+    assert.match(source, /const activeConnection = c\\.activate_connection_finish\\(res\\)/);
+    assert.match(source, /watchActivation\\(activeConnection, ssid\\)/);
+    assert.match(source, /addAndActivateWifiConnection\\(client, wifiDevice, accessPoint, \\{\\s+cancellable,/);
+
+    const destroyStart = source.indexOf("button.connect('destroy', () => {");
+    const destroyEnd = source.indexOf('\\n    });', destroyStart);
+    assert.ok(destroyStart >= 0 && destroyEnd > destroyStart);
+    const destroy = source.slice(destroyStart, destroyEnd);
+    assert.match(destroy, /for \\(const cancellable of activationCancellables\\)/);
+    assert.match(destroy, /cancellable\\.cancel\\(\\)/);
+    assert.match(destroy, /activationCancellables\\.clear\\(\\)/);
+});
