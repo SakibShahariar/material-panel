@@ -53,6 +53,7 @@ test('rejects malformed IDs, unsupported sizes, invalid destinations and factori
     const registry = createControlCenterCardRegistry();
     assert.throws(() => registry.register(definition('Media')), /stable lowercase identifier/);
     assert.throws(() => registry.register(definition('media', () => ({}), {sizes: ['huge']})), /supported sizes/);
+    assert.throws(() => registry.register(definition('sparse', () => ({}), {sizes: new Array(1)})), /supported sizes/);
     assert.throws(() => registry.register(definition('media', () => ({}), {defaultSize: 'huge'})), /defaultSize/);
     assert.throws(() => registry.register(definition('media', null)), /factory/);
     assert.throws(() => registry.register(definition('media', () => ({}), {
