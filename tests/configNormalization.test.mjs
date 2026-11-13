@@ -136,3 +136,33 @@ test('world clocks default empty and normalize on load and save', async () => {
     assert.match(source, /normalizeWorldClockEntries\(merged\.worldClocks\)/);
     assert.match(source, /out\.worldClocks = normalizeWorldClockEntries\(out\.worldClocks\)/);
 });
+
+
+test('Control Center Home layout and shortcuts normalize across config load, save and export', async () => {
+    const source = await readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8');
+    assert.match(source, /controlCenterHomeLayout: DEFAULT_CONTROL_CENTER_HOME_LAYOUT/);
+    assert.match(source, /controlCenterHomeShortcuts: DEFAULT_CONTROL_CENTER_HOME_SHORTCUTS/);
+    assert.match(source, /merged\.controlCenterHomeLayout = normalizeControlCenterHomeLayout\(/);
+    assert.match(source, /merged\.controlCenterHomeShortcuts = normalizeControlCenterHomeShortcuts\(/);
+    assert.equal((source.match(/out\.controlCenterHomeLayout = normalizeControlCenterHomeLayout\(/g) || []).length, 2);
+    assert.equal((source.match(/out\.controlCenterHomeShortcuts = normalizeControlCenterHomeShortcuts\(/g) || []).length, 2);
+
+    const {normalizeControlCenterHomeLayout} = await import('../lib/controlCenterHomeLayout.js');
+    const {normalizeControlCenterHomeShortcuts} = await import('../lib/controlCenterHomeShortcuts.js');
+    const legacy = normalizeControlCenterHomeLayout(null, {weather: false, calendar: true});
+    assert.equal(legacy.cards.find(card => card.id === 'weather').visible, false);
+    assert.equal(legacy.cards.find(card => card.id === 'calendar').visible, true);
+
+    const saved = normalizeControlCenterHomeLayout({cards: [
+        {id: 'future-card', visible: false, size: 'full'},
+        {id: 'weather', visible: false, size: 'compact'},
+    ]});
+    const reloaded = normalizeControlCenterHomeLayout(saved);
+    assert.deepEqual(reloaded, saved);
+    assert.deepEqual(reloaded.cards.slice(0, 2), [
+        {id: 'future-card', visible: false, size: 'full'},
+        {id: 'weather', visible: false, size: 'compact'},
+    ]);
+    assert.deepEqual(normalizeControlCenterHomeShortcuts(['night-light', 'future-action', 'night-light']),
+        ['night-light', 'future-action']);
+});
