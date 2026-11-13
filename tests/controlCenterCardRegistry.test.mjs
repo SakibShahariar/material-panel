@@ -352,7 +352,7 @@ test('Control Center isolates built-in card registration failures', async () => 
 
 
 test('Control Center detaches registry-owned card actors before destroying their instances', async () => {
-    const source = await read('../modules/controlCenter.js');
+    const source = await readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8');
     const start = source.indexOf('const destroyHomeCardInstances = () => {');
     const end = source.indexOf('const updateHomeCardMenuStates = () => {', start);
     assert.ok(start >= 0 && end > start);
