@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
 
 const command = {id: 'cmd-1', type: 'command', target: 'btop --utf-force', name: 'btop'};
 const appEntry = {id: 'app-1', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'Terminal'};
@@ -172,4 +172,29 @@ test('uses a safe generic message when process status details are unavailable', 
     assert.equal(describeQuickLaunchProcessFailure(), 'Command exited unsuccessfully.');
     assert.equal(describeQuickLaunchProcessFailure({didExit: true, exitStatus: '1'}),
         'Command exited unsuccessfully.');
+});
+
+
+test('notification failures cannot turn a successful action into a failed completion', () => {
+    const completed = [];
+    const errors = [];
+    const result = notifyQuickLaunchSuccess(
+        () => { throw new Error('notification service unavailable'); },
+        () => completed.push('success'),
+        error => errors.push(error.message),
+    );
+
+    assert.equal(result, true);
+    assert.deepEqual(completed, ['success']);
+    assert.deepEqual(errors, ['notification service unavailable']);
+});
+
+test('notification error handlers cannot interrupt successful action completion', () => {
+    let completed = false;
+    assert.doesNotThrow(() => notifyQuickLaunchSuccess(
+        () => { throw new Error('notification failed'); },
+        () => { completed = true; },
+        () => { throw new Error('logging failed'); },
+    ));
+    assert.equal(completed, true);
 });

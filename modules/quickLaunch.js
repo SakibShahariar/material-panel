@@ -8,7 +8,7 @@ import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getQuickLaunchEntries, getQuickLaunchEntryRevision, setQuickLaunchEntryState} from '../lib/quickLaunchState.js';
 import {QUICK_LAUNCH_TIMEOUT_SECONDS} from '../lib/quickLaunch.js';
-import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
 
 function commandArgv(command) {
     const [ok, argv] = GLib.shell_parse_argv(command);
@@ -24,6 +24,14 @@ function notifyLaunchFailure(entry, error) {
     } catch (notifyError) {
         logError(error, `material-panel: quick launch ${entry.id}`);
     }
+}
+
+function notifyLaunchSuccess(entry, onSuccess = null) {
+    notifyQuickLaunchSuccess(
+        () => Main.notify('Quick launch completed', entry.name),
+        onSuccess,
+        error => logError(error, `material-panel: quick launch success notification ${entry.id}`),
+    );
 }
 
 function launchEntry(entry, {commandTarget = entry.target, onComplete = null} = {}) {
@@ -73,8 +81,7 @@ function launchEntry(entry, {commandTarget = entry.target, onComplete = null} = 
                             notifyLaunchFailure(entry, error);
                             finish(false, error);
                         } else if (subprocess.get_successful()) {
-                            Main.notify('Quick launch completed', entry.name);
-                            finish(true);
+                            notifyLaunchSuccess(entry, () => finish(true));
                         } else {
                             const didExit = subprocess.get_if_exited();
                             const didSignal = !didExit && subprocess.get_if_signaled();
@@ -106,7 +113,7 @@ function launchEntry(entry, {commandTarget = entry.target, onComplete = null} = 
         onComplete,
     });
     if (entry.type === 'app' && launched)
-        Main.notify('Quick launch completed', entry.name);
+        notifyLaunchSuccess(entry);
     return launched;
 }
 
