@@ -154,3 +154,29 @@ test('combined context changes do not rebuild while another active rule keeps th
         {offline: false, dnd: false},
         {offline: true, dnd: false}), true);
 });
+
+
+test('invalid battery thresholds are ignored without invoking arbitrary coercion', () => {
+    const throwingValue = {
+        [Symbol.toPrimitive]() {
+            throw new Error('must not coerce imported objects');
+        },
+    };
+    const rules = {
+        clock: {showOnlyBelowBatteryPercent: Symbol('invalid')},
+        volume: {showOnlyBelowBatteryPercent: throwingValue},
+        network: {showOnlyBelowBatteryPercent: true},
+        calendar: {showOnlyBelowBatteryPercent: '25.9'},
+    };
+    assert.deepEqual(normalizeModuleVisibilityRules(rules), {
+        calendar: {
+            hideWhenFullscreen: false,
+            hideInOverview: false,
+            hideWhenDnd: false,
+            hideWhenOffline: false,
+            showOnlyOnBattery: false,
+            showOnlyBelowBatteryPercent: 25,
+        },
+    });
+    assert.doesNotThrow(() => getContextHiddenModules(rules, {batteryPercent: 10}));
+});

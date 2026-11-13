@@ -113,3 +113,12 @@ test('system on-battery state falls back safely when the UPower getter throws', 
 test('device-state fallback ignores undefined enum members', () => {
     assert.equal(getSystemOnBatteryState({}, undefined, {}), null);
 });
+
+
+test('system on-battery property remains authoritative when its getter throws', () => {
+    const client = {
+        get_on_battery() { throw new Error('method unavailable'); },
+        on_battery: false,
+    };
+    assert.equal(getSystemOnBatteryState(client, 2, {DISCHARGING: 2}), false);
+});
