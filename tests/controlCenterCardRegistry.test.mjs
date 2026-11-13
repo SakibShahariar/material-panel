@@ -376,3 +376,37 @@ test('bounds raw card metadata and size lists before normalization', () => {
         barChip: {label: 'Media', icon: 'audio-x-generic-symbolic', tooltip: 'x'.repeat(161)},
     })), /1–160 characters/);
 });
+
+
+test('cleans up a factory result when its then accessor throws', () => {
+    const errors = [];
+    let destroyed = 0;
+    const actor = {destroy() { destroyed++; }};
+    Object.defineProperty(actor, 'then', {
+        get() { throw new Error('then accessor unavailable'); },
+    });
+    const registry = createControlCenterCardRegistry({
+        onError: (id, error) => errors.push([id, error.message]),
+    });
+    registry.register(definition('broken-then', () => actor));
+
+    assert.equal(registry.create('broken-then'), null);
+    assert.equal(destroyed, 1);
+    assert.deepEqual(errors, [['broken-then', 'then accessor unavailable']]);
+});
+
+test('uses the card destroy hook when a throwing then accessor belongs to an actor handle', () => {
+    const actor = {};
+    const handle = {actor};
+    Object.defineProperty(handle, 'then', {
+        get() { throw new Error('then accessor unavailable'); },
+    });
+    let destroyedActor = null;
+    const registry = createControlCenterCardRegistry();
+    registry.register(definition('broken-handle', () => handle, {
+        destroy: value => { destroyedActor = value; },
+    }));
+
+    assert.equal(registry.create('broken-handle'), null);
+    assert.equal(destroyedActor, actor);
+});
