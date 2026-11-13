@@ -166,10 +166,10 @@ test('invalid battery thresholds are ignored without invoking arbitrary coercion
         clock: {showOnlyBelowBatteryPercent: Symbol('invalid')},
         volume: {showOnlyBelowBatteryPercent: throwingValue},
         network: {showOnlyBelowBatteryPercent: true},
-        calendar: {showOnlyBelowBatteryPercent: '25.9'},
+        battery: {showOnlyBelowBatteryPercent: '25.9'},
     };
     assert.deepEqual(normalizeModuleVisibilityRules(rules), {
-        calendar: {
+        battery: {
             hideWhenFullscreen: false,
             hideInOverview: false,
             hideWhenDnd: false,
