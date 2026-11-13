@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {normalizeQuickLaunchEntries, QUICK_LAUNCH_LIMIT} from '../lib/quickLaunch.js';
+import {normalizeQuickLaunchEntries, QUICK_LAUNCH_LIMIT, QUICK_LAUNCH_SCAN_LIMIT} from '../lib/quickLaunch.js';
 
 test('keeps valid application and command entries in display order', () => {
     const entries = normalizeQuickLaunchEntries([
@@ -150,4 +150,34 @@ test('preserves valid off commands as toggle actions and drops malformed pairs',
         {id: 'oversized', type: 'command', target: 'echo safe', name: 'echo safe'},
         {id: 'app', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'org.gnome.Terminal.desktop'},
     ]);
+});
+
+
+test('bounds candidate scanning for oversized imported Quick Launch arrays', () => {
+    const entries = Array.from({length: QUICK_LAUNCH_SCAN_LIMIT}, () => null);
+    entries.push({id: 'late', type: 'command', target: 'echo safe'});
+    assert.deepEqual(normalizeQuickLaunchEntries(entries), []);
+});
+
+test('bounds whitespace-only labels and rejects oversized raw configuration fields', () => {
+    const [label] = normalizeQuickLaunchEntries([{
+        id: 'whitespace-label',
+        type: 'command',
+        target: 'echo safe',
+        name: ' '.repeat(100_000),
+    }]);
+    assert.equal(label.name, 'echo safe');
+
+    assert.deepEqual(normalizeQuickLaunchEntries([
+        {id: 'x'.repeat(65), type: 'command', target: 'echo ignored'},
+        {id: 'oversized-target', type: 'command', target: ' '.repeat(100_000)},
+    ]), []);
+
+    const [toggle] = normalizeQuickLaunchEntries([{
+        id: 'oversized-off',
+        type: 'command',
+        target: 'echo safe',
+        offTarget: ' '.repeat(100_000) + 'echo off',
+    }]);
+    assert.equal(toggle.offTarget, undefined);
 });
