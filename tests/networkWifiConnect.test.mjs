@@ -14,7 +14,7 @@ test('network module documentation describes both saved and unsaved Wi-Fi paths'
 test('unsaved Wi-Fi access points are connected through the shared NetworkManager adapter', () => {
     assert.match(source, /import \{addAndActivateWifiConnection\} from '..\/lib\/wifiConnection\.js'/);
     assert.match(source, /addAndActivateWifiConnection\(client, wifiDevice, accessPoint/);
-    assert.match(source, /onStarted: activeConnection => watchActivation\(activeConnection, ssid\)/);
+    assert.match(source, /onStarted: activeConnection => \{\s+activationCancellables\.delete\(cancellable\);\s+watchActivation\(activeConnection, ssid\);/);
     const entryStart = source.indexOf('const label = connection');
     const entryEnd = source.indexOf('networksSection.addMenuItem(item)', entryStart);
     const entry = source.slice(entryStart, entryEnd);
