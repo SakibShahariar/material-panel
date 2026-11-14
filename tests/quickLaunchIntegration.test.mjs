@@ -107,3 +107,14 @@ test('Quick Launch announces the pending toggle direction and restores the final
     assert.match(module, /if \(success && setQuickLaunchEntryState/);
     assert.match(module, /applyVisualState\(\);/);
 });
+
+test('Quick Launch failure reporting is isolated before toggle completion', async () => {
+    const module = await source('../modules/quickLaunch.js');
+    const runner = await source('../lib/quickLaunchRunner.js');
+    const start = module.indexOf('function notifyLaunchFailure(entry, error) {');
+    const end = module.indexOf('\n}', start);
+    assert.ok(start >= 0 && end > start);
+    assert.match(module.slice(start, end), /notifyQuickLaunchFailure/);
+    assert.match(runner, /export function notifyQuickLaunchFailure\(notify, onError = null\)/);
+    assert.match(module, /notifyLaunchFailure\(entry, error\);\s+finish\(false, error\);/);
+});
