@@ -113,3 +113,14 @@ test('responsive Home layout safely handles invalid and very small popup widths'
     assert.equal(tiny.singleColumn, true);
     assert.ok(tiny.contentWidth >= 0);
 });
+
+test('Home card normalization bounds raw IDs and size metadata', () => {
+    const normalized = normalizeControlCenterHomeLayout({cards: [
+        {id: 'x'.repeat(100_000), size: 'full'},
+        {id: '  future-card  ', size: 's'.repeat(100_000)},
+    ]});
+    const future = normalized.cards.find(card => card.id === 'future-card');
+    assert.deepEqual(future, {id: 'future-card', visible: true, size: 'half'});
+    assert.deepEqual(setControlCenterHomeCard(normalized, 'x'.repeat(100_000), {visible: false}), normalized);
+    assert.deepEqual(moveControlCenterHomeCard(normalized, 'x'.repeat(100_000), 1), normalized);
+});
