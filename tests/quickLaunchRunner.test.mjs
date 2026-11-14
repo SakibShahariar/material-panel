@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchFailure, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
 
 const command = {id: 'cmd-1', type: 'command', target: 'btop --utf-force', name: 'btop'};
 const appEntry = {id: 'app-1', type: 'app', target: 'org.gnome.Terminal.desktop', name: 'Terminal'};
@@ -197,4 +197,22 @@ test('notification error handlers cannot interrupt successful action completion'
         () => { throw new Error('logging failed'); },
     ));
     assert.equal(completed, true);
+});
+
+test('failure notification errors cannot interrupt Quick Launch completion', () => {
+    const errors = [];
+    const result = notifyQuickLaunchFailure(
+        () => { throw new Error('notification service unavailable'); },
+        error => errors.push(error.message),
+    );
+
+    assert.equal(result, false);
+    assert.deepEqual(errors, ['notification service unavailable']);
+});
+
+test('failure notification error handlers cannot escape', () => {
+    assert.doesNotThrow(() => notifyQuickLaunchFailure(
+        () => { throw new Error('notification service unavailable'); },
+        () => { throw new Error('logging unavailable'); },
+    ));
 });
