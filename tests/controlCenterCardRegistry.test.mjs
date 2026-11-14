@@ -432,3 +432,26 @@ test('reads a stateful factory then accessor once and cleans up its resolved act
     assert.equal(thenReads, 1);
     assert.equal(actorDestroyed, 1);
 });
+
+test('cleans up resolved async actors without assimilating their then accessors', () => {
+    let actorDestroyed = 0;
+    let actorThenReads = 0;
+    const actor = {destroy() { actorDestroyed++; }};
+    Object.defineProperty(actor, 'then', {
+        get() {
+            actorThenReads++;
+            throw new Error('actor then accessor must not be read');
+        },
+    });
+    const result = {
+        then(resolve) {
+            resolve(actor);
+        },
+    };
+    const registry = createControlCenterCardRegistry();
+    registry.register(definition('async-thenable-actor', () => result));
+
+    assert.equal(registry.create('async-thenable-actor'), null);
+    assert.equal(actorDestroyed, 1);
+    assert.equal(actorThenReads, 0);
+});
