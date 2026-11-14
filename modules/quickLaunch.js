@@ -8,7 +8,7 @@ import {getThemeColor} from '../lib/themeColorState.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {getQuickLaunchEntries, getQuickLaunchEntryRevision, setQuickLaunchEntryState} from '../lib/quickLaunchState.js';
 import {QUICK_LAUNCH_TIMEOUT_SECONDS} from '../lib/quickLaunch.js';
-import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
+import {describeQuickLaunchProcessFailure, launchQuickLaunchEntry, notifyQuickLaunchFailure, notifyQuickLaunchSuccess} from '../lib/quickLaunchRunner.js';
 
 function commandArgv(command) {
     const [ok, argv] = GLib.shell_parse_argv(command);
@@ -18,12 +18,18 @@ function commandArgv(command) {
 }
 
 function notifyLaunchFailure(entry, error) {
-    const detail = error?.message || String(error);
+    let detail = 'The action could not be started.';
     try {
-        Main.notifyError('Quick launch failed', `${entry.name}: ${detail}`);
-    } catch (notifyError) {
-        logError(error, `material-panel: quick launch ${entry.id}`);
-    }
+        const message = error?.message;
+        detail = typeof message === 'string' && message ? message : String(error);
+    } catch (ignored) {}
+
+    notifyQuickLaunchFailure(
+        () => Main.notifyError('Quick launch failed', `${entry.name}: ${detail}`),
+        () => {
+            try { logError(error, `material-panel: quick launch ${entry.id}`); } catch (ignored) {}
+        },
+    );
 }
 
 function notifyLaunchSuccess(entry, onSuccess = null) {
