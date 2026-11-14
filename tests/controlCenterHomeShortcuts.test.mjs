@@ -70,3 +70,13 @@ test('Home shortcut error reporting cannot break remaining actor creation', () =
 
     assert.deepEqual(actors, [healthy]);
 });
+
+test('Home shortcut normalization bounds raw IDs before trimming or matching', () => {
+    assert.deepEqual(normalizeControlCenterHomeShortcuts([
+        ' '.repeat(100_000),
+        'a'.repeat(100_000),
+        '  dnd  ',
+    ]), ['dnd']);
+    assert.deepEqual(setControlCenterHomeShortcut([], 'x'.repeat(100_000), true), []);
+    assert.deepEqual(moveControlCenterHomeShortcut(['dnd'], 'x'.repeat(100_000), -1), ['dnd']);
+});
