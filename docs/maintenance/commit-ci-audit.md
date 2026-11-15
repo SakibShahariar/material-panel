@@ -25,8 +25,8 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `744753d9128a546446de639cb8b6ecea31d56aac`
-- Checkpoint date: 2026-11-11
+- Checkpoint SHA: `9df7f79be92ebbf0b2f04c08b589513c3df156a9`
+- Checkpoint date: 2026-11-15
 - Next session: start with the next commit after this checkpoint, then review every subsequent commit.
 
 ## Initial audit baseline
@@ -1484,3 +1484,123 @@ All commits through the checkpoint were reviewed. The single red workflow was in
 **Checkpoint SHA:** `744753d9128a546446de639cb8b6ecea31d56aac`  
 **Checkpoint date:** 2026-11-11  
 **Next unreviewed commit:** registry-backed Wallpaper card integration and this ledger update (#129, #125).
+
+
+## Incremental CI review: card registry, Home layout, Quick Launch, visibility, Wi-Fi and clipboard follow-ups — 2026-11-15
+
+The previous checkpoint was `744753d9128a546446de639cb8b6ecea31d56aac`. I compared the full first-parent range on the verified default branch through `9df7f79be92ebbf0b2f04c08b589513c3df156a9` and matched every one of the **87 commits** to its push-triggered GitHub Actions run. All 87 had completed runs: **37 green and 50 red**. The red results below were investigated from the actual job logs; they are retained as history, not reclassified as green. The corrective commits later in the same range are separately recorded as green.
+
+| Commit SHA | Subject | CI result | Workflow |
+|---|---|---|---|
+| `1e5c13b69d47f08b7b96292d1d2a42b8f6a937ed` | feat(control-center): register Home Wallpaper card (Refs #129, #125) | **red** | [#964](https://github.com/SakibShahariar/material-panel/actions/runs/42963705025) |
+| `d51015b4c4f2b9b9cb84b41e8a6a26b6186c0c4e` | test(control-center): follow registry-backed Wallpaper card (Refs #129, #125) | **green** | [#965](https://github.com/SakibShahariar/material-panel/actions/runs/42963934067) |
+| `4ed0a52b725e005a34f3c4748cea3eb8398f3ca9` | fix(control-center): clean up rejected card factories (Refs #129) | **green** | [#966](https://github.com/SakibShahariar/material-panel/actions/runs/42964996527) |
+| `819f3760249cb80d52235aa0366a3c66a31afe7b` | fix(quick-launch): clear entry revisions on teardown (Refs #71, #253) | **green** | [#967](https://github.com/SakibShahariar/material-panel/actions/runs/42965070360) |
+| `268bf22e8bc992102b01c6efdc0734c30040b8e8` | refactor(control-center): register System summary card (Refs #129, #125) | **red** | [#968](https://github.com/SakibShahariar/material-panel/actions/runs/42965412488) |
+| `a5424b01b87e45373da1fd4d724c4a54971eed7a` | refactor(control-center): register Home actions and media cards (Refs #129, #125) | **red** | [#969](https://github.com/SakibShahariar/material-panel/actions/runs/42965591707) |
+| `c629e01bae40c586f287bc62a478183cc83b5943` | refactor(control-center): register Weather and Calendar cards (Refs #129, #125) | **red** | [#970](https://github.com/SakibShahariar/material-panel/actions/runs/42965728093) |
+| `d1fe0de5197c93f3a3b04c3bd60659b6cbdab4a7` | fix(control-center): guard summary updates after teardown (Refs #129, #125) | **red** | [#971](https://github.com/SakibShahariar/material-panel/actions/runs/42965789827) |
+| `6bd7a459970a8555545b5cecb16ae74888849b63` | test(control-center): follow registry-backed Home cards (Refs #129, #125) | **green** | [#972](https://github.com/SakibShahariar/material-panel/actions/runs/42965874689) |
+| `61abb1748eff7dc8a816b35cb2f3d5705dd95d25` | fix(control-center): retain failed Home card slots (Refs #129, #125) | **red** | [#973](https://github.com/SakibShahariar/material-panel/actions/runs/42966152938) |
+| `3c8764876cd64c19cba2527e3b6283aa9b167a73` | test(control-center): assert registry-driven card slots (Refs #129, #125) | **red** | [#974](https://github.com/SakibShahariar/material-panel/actions/runs/42966529018) |
+| `9850588054a9137f407f0470623402b4242a3732` | fix(control-center): isolate unavailable Home shortcuts (Refs #125) | **red** | [#975](https://github.com/SakibShahariar/material-panel/actions/runs/42966666272) |
+| `feb32587ec2512cc8c0728f2f1400399b9895466` | test(control-center): verify generic Home card registry loop (Refs #129, #125) | **red** | [#976](https://github.com/SakibShahariar/material-panel/actions/runs/42966728559) |
+| `a170494623c6e7fa25c6bba9f7980dbd78f42b94` | test(control-center): cover isolated Home shortcut builders (Refs #125) | **green** | [#977](https://github.com/SakibShahariar/material-panel/actions/runs/42966839610) |
+| `05d7aba75abc267771f79a11b12a1de0c059cd62` | fix(control-center): size Home grid from usable content width (Refs #125) | **red** | [#978](https://github.com/SakibShahariar/material-panel/actions/runs/42968620170) |
+| `882e04d248a1070abb5461917319fe61ca5faf8d` | fix(visibility): ignore absent UPower display devices (Refs #112) | **red** | [#979](https://github.com/SakibShahariar/material-panel/actions/runs/42968698720) |
+| `3bb32160af5e0a183d38d6779f0bd062a63c620f` | fix(control-center): isolate card factory introspection failures (Refs #129) | **red** | [#980](https://github.com/SakibShahariar/material-panel/actions/runs/42968826442) |
+| `3091af660f5d1fc4c25d40fda1906df31d0f4c4d` | test(control-center): follow responsive Home grid mode (Refs #125) | **green** | [#981](https://github.com/SakibShahariar/material-panel/actions/runs/42969008297) |
+| `6c74213055317b83e8092ec1e598dec53cd3b872` | fix(quick-launch): announce pending toggle state (Refs #71) | **green** | [#982](https://github.com/SakibShahariar/material-panel/actions/runs/42969528741) |
+| `9b0aa02b46f477fe881fe0f4125d912da538cf8e` | fix(control-center): reject asynchronous card factories (Refs #129) | **green** | [#983](https://github.com/SakibShahariar/material-panel/actions/runs/42969630485) |
+| `101d01a318251f7b0ab412c2e7834e2d69ab4487` | test(control-center): cover Home persistence and shared cards (Refs #125, #129) | **green** | [#984](https://github.com/SakibShahariar/material-panel/actions/runs/42969832984) |
+| `99b6a87403116318d00389118cf915e0376c6c74` | perf(visibility): skip redundant network and DND rebuilds (Refs #112) | **green** | [#985](https://github.com/SakibShahariar/material-panel/actions/runs/43155263091) |
+| `38d134c9571ea9b4fe5b22044c8772c7279cf924` | fix(quick-launch): explain command exit failures (Refs #71) | **green** | [#986](https://github.com/SakibShahariar/material-panel/actions/runs/43155346044) |
+| `53fbe58c0a4e74850e17f394db79e355066f684f` | refactor(control-center): centralize card title styling (Refs #129) | **red** | [#987](https://github.com/SakibShahariar/material-panel/actions/runs/43155456869) |
+| `36a3b850ea97205e776702fa457a2417b70271b8` | test(control-center): update shared card shell import assertion (Refs #129) | **green** | [#988](https://github.com/SakibShahariar/material-panel/actions/runs/43155593987) |
+| `1a532f75c9ffaeece9163928725007caa4415696` | fix(visibility): compare combined desktop context (Refs #112) | **red** | [#989](https://github.com/SakibShahariar/material-panel/actions/runs/43155747935) |
+| `2cafadb73cfbefa1eec42426f0fa4f8e246c51b4` | test(visibility): cover overlapping desktop context rules (Refs #112) | **red** | [#990](https://github.com/SakibShahariar/material-panel/actions/runs/43155978164) |
+| `5cd9f500f51ee20a424dd482d65a319efc3b9e1e` | test(visibility): correct combined-context source assertions (Refs #112) | **red** | [#991](https://github.com/SakibShahariar/material-panel/actions/runs/43156152216) |
+| `aeb622351200f0cd1867ffda620ae27f7d235a2c` | test(visibility): restore combined-context integration fixture (Refs #112) | **green** | [#992](https://github.com/SakibShahariar/material-panel/actions/runs/43156485355) |
+| `f54af9be717119056736e65fec3800909f623750` | feat(control-center): pass resolved size to card factories (Refs #129, #125) | **red** | [#993](https://github.com/SakibShahariar/material-panel/actions/runs/43156595947) |
+| `e6c4dd86543decfdde51306230568ad8ab6862f3` | fix(control-center): clean up late async card results (Refs #129) | **red** | [#994](https://github.com/SakibShahariar/material-panel/actions/runs/43156743489) |
+| `38d594367c2894cb86056a25729bb36103b337e0` | test(control-center): follow size-aware card factory context (Refs #129, #125) | **red** | [#995](https://github.com/SakibShahariar/material-panel/actions/runs/43156857540) |
+| `fd8237d90d7df66ec0a1d0bc442ab4ceb32b5a4e` | test(control-center): update wallpaper factory context assertion (Refs #129) | **red** | [#996](https://github.com/SakibShahariar/material-panel/actions/runs/43156983570) |
+| `eb8395e532d679cb3e689a92a98cb54241e1d399` | test(control-center): assert resolved wallpaper factory size (Refs #129, #125) | **green** | [#997](https://github.com/SakibShahariar/material-panel/actions/runs/43157679915) |
+| `7d5c5951e747abe3fec0a0e72c08e6490d68604e` | fix(visibility): use UPower system battery state (Refs #112) | **red** | [#998](https://github.com/SakibShahariar/material-panel/actions/runs/43157965084) |
+| `50012ee4650ff679ca141b3569fbe869ec304f1c` | test(visibility): cover UPower client power-state signal (Refs #112) | **green** | [#999](https://github.com/SakibShahariar/material-panel/actions/runs/43158210109) |
+| `69007558c5068eac9f79d08c794be83a007f5447` | feat(control-center): adapt Home media card to size (Refs #125, #129) | **red** | [#1000](https://github.com/SakibShahariar/material-panel/actions/runs/43158572183) |
+| `d2b43d155d2cc468fe0a8ed44b645e215a1b29c9` | test(control-center): verify media size artwork variant (Refs #125, #129) | **green** | [#1001](https://github.com/SakibShahariar/material-panel/actions/runs/43158790728) |
+| `cb6acabae4e6d5639582421746398f9c9d2cfb25` | fix(control-center): isolate card registration failures (Refs #129) | **green** | [#1002](https://github.com/SakibShahariar/material-panel/actions/runs/43159087946) |
+| `19974701010e93a16e0ca4b9a0fb741f7fb2cf3b` | fix(clipboard-history): secure existing store before reading (Refs #254) | **green** | [#1003](https://github.com/SakibShahariar/material-panel/actions/runs/43159679281) |
+| `ecc33d8a48f873859374caf28531845c14e29279` | refactor(prefs): extract configuration backup controls (Refs #244) | **red** | [#1004](https://github.com/SakibShahariar/material-panel/actions/runs/43159987479) |
+| `d825ab05d59a7ebdf6ad87848de06e3362cac1c4` | test(prefs): follow extracted config backup controls (Refs #244) | **green** | [#1005](https://github.com/SakibShahariar/material-panel/actions/runs/43161044658) |
+| `066913ec95fd447c8532b489c598f7239e1915bb` | feat(control-center): adapt Home cards to selected size (Refs #125, #129) | **red** | [#1006](https://github.com/SakibShahariar/material-panel/actions/runs/43162024189) |
+| `0b9d33203db610a03ab9a19c017042af1a92656f` | fix(clipboard-history): reject symlinked storage paths (Refs #254) | **red** | [#1007](https://github.com/SakibShahariar/material-panel/actions/runs/43162299338) |
+| `406bbc379bd924120bbe9960a233836d818130b3` | test(control-center): follow size-aware system card factory (Refs #125, #129) | **red** | [#1008](https://github.com/SakibShahariar/material-panel/actions/runs/43162413863) |
+| `000d1d48318224296feec6761d5d59d75dd60ccd` | test(clipboard-history): verify symlink checks during clear (Refs #254) | **red** | [#1009](https://github.com/SakibShahariar/material-panel/actions/runs/43162502808) |
+| `54c79d10c4abc03ce6b9e36743a739ddcc6e5fe5` | test(control-center): follow size-aware Home card builders (Refs #125) | **green** | [#1010](https://github.com/SakibShahariar/material-panel/actions/runs/43162603540) |
+| `eedbb3fca0b0bd3dd6b0cd01e13d36f8f6ad38f2` | fix(wifi): guard NetworkManager activation completion (Refs #28) | **green** | [#1011](https://github.com/SakibShahariar/material-panel/actions/runs/43163256992) |
+| `de63e911417a51a94aa28455dde3845996c9abc2` | fix(quick-launch): bound imported entry normalization (Refs #71, #253) | **green** | [#1012](https://github.com/SakibShahariar/material-panel/actions/runs/43367839177) |
+| `04deb4b75a49f2e2b77597c5e5ec92ed39df0013` | fix(visibility): reject unsafe battery threshold coercion (Refs #112) | **red** | [#1013](https://github.com/SakibShahariar/material-panel/actions/runs/43367886314) |
+| `a5f98e2a2139500c2a4fe255d87cc35422e7548c` | test(visibility): use a registered module in threshold coverage (Refs #112) | **green** | [#1014](https://github.com/SakibShahariar/material-panel/actions/runs/43368001387) |
+| `b10c0562956eb5fbe5aaa312d5bc064784307591` | fix(visibility): bound imported battery threshold parsing (Refs #112) | **green** | [#1015](https://github.com/SakibShahariar/material-panel/actions/runs/43368410980) |
+| `7b0e1b2530df251ef86d7044e1f287b109f8a9ec` | test(control-center): cover Home layout config normalization (Refs #125, #129) | **green** | [#1016](https://github.com/SakibShahariar/material-panel/actions/runs/43368460770) |
+| `1b53ad8fffa6a9d5f479a7abbaf82ec96c542312` | fix(control-center): detach card actors before teardown (Refs #129, #125) | **red** | [#1017](https://github.com/SakibShahariar/material-panel/actions/runs/43369479673) |
+| `c614aab0b51bb58abb252fb9bd9e0c172c5dc0da` | test(control-center): read card teardown source from test module (Refs #129) | **green** | [#1018](https://github.com/SakibShahariar/material-panel/actions/runs/43369687523) |
+| `0a069fd9381c9fe56a5a921fbf9cf2713ee9a70b` | fix(quick-launch): reject invisible command controls (Refs #71, #253) | **green** | [#1019](https://github.com/SakibShahariar/material-panel/actions/runs/43371345731) |
+| `0b4dfec80590856c5fe0a3710704ade8f7532453` | docs(visibility): explain battery rule fallback behavior (Refs #112) | **green** | [#1020](https://github.com/SakibShahariar/material-panel/actions/runs/43371456337) |
+| `c65cd5fc58ca48111fcb7c38100991c49b8ed076` | fix(network): cancel pending Wi-Fi activation on teardown (Refs #28) | **red** | [#1021](https://github.com/SakibShahariar/material-panel/actions/runs/43371626812) |
+| `b7439fdd61bfd4f205de7cc6f3e3ffdd3fd156da` | test(network): verify activation cancellation lifecycle (Refs #28) | **red** | [#1022](https://github.com/SakibShahariar/material-panel/actions/runs/43371815880) |
+| `57cf6b348b8b125612ccf3d64e1fc3db66ed580d` | test(network): follow cancellable Wi-Fi activation callback (Refs #28) | **green** | [#1023](https://github.com/SakibShahariar/material-panel/actions/runs/43371994165) |
+| `3458929ea6d120829383c50b94b2025e8de94e7b` | fix(network): show saved Wi-Fi connection progress (Refs #28) | **green** | [#1024](https://github.com/SakibShahariar/material-panel/actions/runs/43372196449) |
+| `82bfd5624978f3a2d29aaa4f7b0b98a6e6e816e7` | fix(visibility): enforce strict below-threshold semantics (Refs #112) | **green** | [#1025](https://github.com/SakibShahariar/material-panel/actions/runs/43372343295) |
+| `5e3e6e3e071900d8cf25e26f3bdf66532f45fcb1` | fix(quick-launch): sanitize C1 shortcut label controls (Refs #71, #253) | **green** | [#1026](https://github.com/SakibShahariar/material-panel/actions/runs/43372489835) |
+| `95883941db5d9e1109f7dc72c97ce94604623475` | fix(control-center): bound card registry metadata (Refs #129) | **green** | [#1027](https://github.com/SakibShahariar/material-panel/actions/runs/43372595713) |
+| `d545ef49cff2c8e9fac7c556e142f614d3ca0ebb` | fix(control-center): reject sparse card size lists (Refs #129) | **green** | [#1028](https://github.com/SakibShahariar/material-panel/actions/runs/43372664071) |
+| `989f5042cb3901064f2990be0c14c2f6b7bedd26` | fix(quick-launch): isolate notification errors from action results (Refs #71, #253) | **red** | [#1029](https://github.com/SakibShahariar/material-panel/actions/runs/43374370796) |
+| `f392bd29362fb11956ea87a9dc07d344ce8a4118` | test(visibility): cover fractional battery thresholds (Refs #112) | **red** | [#1030](https://github.com/SakibShahariar/material-panel/actions/runs/43374439174) |
+| `e8793da8272cbf59877d660f22eb84f1300fd4ff` | fix(control-center): clean up failed card result introspection (Refs #129) | **red** | [#1031](https://github.com/SakibShahariar/material-panel/actions/runs/43374541071) |
+| `331f99aadf52753008e19c260b822c5c00ad9b35` | fix(wifi): suppress duplicate pending network activations (Refs #28) | **red** | [#1032](https://github.com/SakibShahariar/material-panel/actions/runs/43374722778) |
+| `ce4a0e7838e0f6358aa05dcd87f0f968020fecf8` | fix(tests): correct Quick Launch assertions and registry cleanup (Refs #71, #129) | **red** | [#1033](https://github.com/SakibShahariar/material-panel/actions/runs/43374850339) |
+| `249f2a0de6feedc81b160fac0c13a994d292d742` | test(wifi): cover duplicate activation lifecycle (Refs #28) | **red** | [#1034](https://github.com/SakibShahariar/material-panel/actions/runs/43374967437) |
+| `d9da7a032d3d291b0e4b4c412236505789d10df5` | test(quick-launch): fix notification integration assertion syntax (Refs #71) | **red** | [#1035](https://github.com/SakibShahariar/material-panel/actions/runs/43375042390) |
+| `9829de0f4699b17b38728773af622601ef75ca57` | test(quick-launch): use literal app notification assertion (Refs #71) | **green** | [#1036](https://github.com/SakibShahariar/material-panel/actions/runs/43375186176) |
+| `abdd712eb82bb52d4514998410793f93fd099d86` | fix(control-center): read async factory thenables once (Refs #129) | **green** | [#1037](https://github.com/SakibShahariar/material-panel/actions/runs/43375375416) |
+| `a2204ad403160a7d6e6359194620e4ab02669ee6` | fix(wifi): isolate popup status failures from activation (Refs #28) | **red** | [#1038](https://github.com/SakibShahariar/material-panel/actions/runs/43376095038) |
+| `7b186ef2ff0d32b8edc7c853ffc6486d06be3a52` | fix(control-center): clean up raw async card results safely (Refs #129) | **red** | [#1039](https://github.com/SakibShahariar/material-panel/actions/runs/43558093052) |
+| `cd64c746e3ac4ced157f45dd7050e503c0f25232` | test(control-center): cover thenable actor cleanup (Refs #129) | **red** | [#1040](https://github.com/SakibShahariar/material-panel/actions/runs/43558102964) |
+| `13d1957ccdc5f8069b715641cadd3be43995c5f9` | fix(quick-launch): isolate failure notification errors (Refs #71, #253) | **red** | [#1041](https://github.com/SakibShahariar/material-panel/actions/runs/43558149238) |
+| `3500d0aee474c290d0715df90c2329cbcdde2318` | fix(quick-launch): keep failure reporting from stranding toggles (Refs #71, #253) | **red** | [#1042](https://github.com/SakibShahariar/material-panel/actions/runs/43558163976) |
+| `2ebd27327d10642f691ea8e3af640a2845d43413` | test(quick-launch): cover failure notification isolation (Refs #71, #253) | **red** | [#1043](https://github.com/SakibShahariar/material-panel/actions/runs/43558179269) |
+| `474f529905d2e0fbb482cd5bd4473af0d8e1dfff` | test(quick-launch): guard failure reporting completion path (Refs #71, #253) | **red** | [#1044](https://github.com/SakibShahariar/material-panel/actions/runs/43558195861) |
+| `ac2f399d4f4ecc38d6262e359bd525bfb56e1d37` | fix(control-center): bound imported Home shortcut IDs (Refs #125) | **red** | [#1045](https://github.com/SakibShahariar/material-panel/actions/runs/43558336493) |
+| `b19e2042f6075fa565bf0a817fb258b52bce746d` | test(control-center): cover oversized Home shortcut IDs (Refs #125) | **red** | [#1046](https://github.com/SakibShahariar/material-panel/actions/runs/43558345663) |
+| `1932e083feb7bc8440150a46e029be530d5b9420` | fix(control-center): bound imported Home card metadata (Refs #125, #129) | **red** | [#1047](https://github.com/SakibShahariar/material-panel/actions/runs/43558395981) |
+| `a946be1cb5e8c4abfaaade1a7fb66ce5cc3e7f74` | test(control-center): cover oversized Home card metadata (Refs #125, #129) | **red** | [#1048](https://github.com/SakibShahariar/material-panel/actions/runs/43558406289) |
+| `5afbc4d15e3a5420d43551b3bf3b77bbb8b49f8e` | test(wifi): update activation status assertions (Refs #28) | **red** | [#1049](https://github.com/SakibShahariar/material-panel/actions/runs/43675503640) |
+| `9df7f79be92ebbf0b2f04c08b589513c3df156a9` | test(wifi): correct activation status assertions (Refs #28) | **green** | [#1050](https://github.com/SakibShahariar/material-panel/actions/runs/43675525994) |
+
+### Red-run investigation and follow-ups
+
+- **Control Center Home/registry migration (runs #964–#981):** the failing JavaScript checks were source assertions still describing the pre-registry fixed-card builders, old click handlers, previous wallpaper/media factory signatures, or the old grid-placement call. The implementations were migrated to registry-backed card instances, resolved sizes, and the responsive grid. Follow-up test commits updated those assertions; the corresponding later runs in this range are green.
+- **Shared card shell (run #987):** one test still expected the old import form for `createControlCenterCardShell`; the following test update corrected the source assertion (run #988 green).
+- **Combined context visibility (runs #989–#991):** tests expected the former isolated DND snapshot rather than the combined context state, followed by malformed/over-escaped test regexes. The fixture and assertions were corrected; run #992 is green.
+- **Size-aware card factories (runs #993–#996):** tests still expected the pre-size-aware factory signature and wallpaper builder context. The follow-up updated the source expectations; run #997 is green.
+- **UPower system battery state (run #998):** a test expected `device-added` on the client even though the implementation watches the selected device and client state through the revised path. The signal assertion was corrected; run #999 is green.
+- **Media card sizing (run #1000):** the width assertion expected the old fixed size rather than the selected-size layout; the updated assertion passed in run #1001.
+- **Preferences extraction (run #1004):** a config import/export test still looked for the pre-extraction expression in `prefs.js`; the test was updated to follow the extracted helper (run #1005 green).
+- **Home card sizing and clipboard symlink guards (runs #1006–#1010):** Home card source assertions followed the previous builder names/signatures. The clipboard clear-path test also sliced the wrong part of the store implementation. The corrected Home assertions and clipboard test passed in run #1010.
+- **Battery threshold normalization (run #1013):** the test used a module ID outside the registered built-in set, so normalization correctly discarded it. The fixture was changed to a registered module; run #1014 and the subsequent implementation run #1015 are green.
+- **Registry-owned actor teardown (run #1017):** the source assertion did not match the extracted actor-detachment helper; the test was corrected in run #1018.
+- **Wi-Fi activation cancellation (runs #1021–#1022):** one regex was syntactically invalid and the next assertion expected the old direct `onStarted` callback shape rather than the completion/teardown wrapper. The test was updated; run #1023 and subsequent Wi-Fi progress run #1024 are green.
+- **Quick Launch, card-registry and Wi-Fi assertion transitions (runs #1029–#1035):** the logs show invalid test tokens/regexes and stale source assertions following the notification helper and card cleanup changes. The literal/source assertions were corrected in follow-ups; runs #1036 and #1037 are green.
+- **Wi-Fi status helper integration (runs #1038–#1048):** all ten commits in this group failed the same two assertions in `tests/networkWifiConnect.test.mjs`: the import assertion omitted `reportWifiActivationStatus`, and the saved-network progress assertion expected a direct `setScanStatus` call instead of the new guarded `updateActivationStatus` wrapper. Syntax checks passed; the JavaScript stage failed on those two stale assertions, so Python/calendar tests were skipped. The Wi-Fi implementation was not the failing code.
+- **First assertion correction attempt (run #1049):** my initial test edit emitted an invalid regular-expression literal (invalid flags). It was not treated as a fix.
+- **Final Wi-Fi assertion correction (run #1050):** commit `9df7f79be92ebbf0b2f04c08b589513c3df156a9` corrected both source assertions. Run [#43675525994](https://github.com/SakibShahariar/material-panel/actions/runs/43675525994) passed syntax, **804/804 JavaScript tests**, and **22/22 Python/calendar tests**.
+
+The workflow logs confirm that the observed failures in this range were test/source-assertion or test-syntax failures; they were not evidence of failing GNOME runtime tests. No live GNOME, hardware, clipboard, or secured-Wi-Fi validation is implied by these automated results.
+
+**Reviewed through:** `9df7f79be92ebbf0b2f04c08b589513c3df156a9`  
+**Checkpoint SHA:** `9df7f79be92ebbf0b2f04c08b589513c3df156a9`  
+**Checkpoint date:** 2026-11-15  
+**Next unreviewed commit:** this ledger update.
