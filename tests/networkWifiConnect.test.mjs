@@ -12,7 +12,7 @@ test('network module documentation describes both saved and unsaved Wi-Fi paths'
 });
 
 test('unsaved Wi-Fi access points are connected through the shared NetworkManager adapter', () => {
-    assert.match(source, /import \{addAndActivateWifiConnection, createWifiActivationGate\} from '..\/lib\/wifiConnection\.js'/);
+    assert.match(source, /import \\{addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus\\} from '..\\/lib\\/wifiConnection\\.js'/);
     assert.match(source, /addAndActivateWifiConnection\(client, wifiDevice, accessPoint/);
     assert.match(source, /onStarted: activeConnection => \{\s+activationCancellables\.delete\(cancellable\);\s+watchActivation\(activeConnection, ssid, finishActivation\);/);
     const entryStart = source.indexOf('const label = connection');
@@ -243,7 +243,7 @@ test('NetworkManager adapter forwards a cancellable for unsaved access-point act
 test('saved and unsaved Wi-Fi activation are cancellable and stop on chip teardown', () => {
     assert.ok(source.includes('const activationCancellables = new Set();'));
     assert.ok(source.includes('activate_connection_async(connection, wifiDevice, null, cancellable'));
-    assert.match(source, /if \(connection\) \{\s+setScanStatus\(`Connecting to \$\{ssid\}…`\);/);
+    assert.match(source, /if \\(connection\\) \\{\\s+updateActivationStatus\\(`Connecting to \\$\\{ssid\\}…`\\);/);
     assert.ok(source.includes('const activeConnection = c.activate_connection_finish(res)'));
     assert.ok(source.includes('watchActivation(activeConnection, ssid, finishActivation)'));
     assert.ok(source.includes('addAndActivateWifiConnection(client, wifiDevice, accessPoint, {\n                cancellable,'));
