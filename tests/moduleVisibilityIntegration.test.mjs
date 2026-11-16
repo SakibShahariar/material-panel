@@ -47,7 +47,7 @@ test('PanelBuilder compares complete desktop context before scheduling a visibil
 
 test('context comparison uses the same Meta.Window fullscreen method as initial rendering', async () => {
     const builder = await source('../lib/panelBuilder.js');
-    assert.match(builder, /fullscreen = global\\.display\\.focus_window\\?\\.is_fullscreen\\?\\.\\(\\) === true;/);
-    assert.match(builder, /focusedWindowFullscreen = global\\.display\\.focus_window\\?\\.is_fullscreen\\?\\.\\(\\) === true/);
-    assert.doesNotMatch(builder, /focus_window\\?\\.fullscreen/);
+    assert.ok(builder.includes('fullscreen = global.display.focus_window?.is_fullscreen?.() === true;'));
+    assert.ok(builder.includes('focusedWindowFullscreen = global.display.focus_window?.is_fullscreen?.() === true;'));
+    assert.ok(!builder.includes('focus_window?.fullscreen'));
 });
