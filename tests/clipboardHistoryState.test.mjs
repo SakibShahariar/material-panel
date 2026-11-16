@@ -147,3 +147,27 @@ test('clipboard preview handles very long whitespace runs without changing the t
     assert.equal(formatClipboardHistoryPreview(value), 'x'.repeat(71) + '…');
     assert.equal(formatClipboardHistoryPreview('  \u202E\nবাংলা  text  '), 'বাংলা text');
 });
+
+test('rejects oversized clipboard payloads before allocating UTF-8 copies', () => {
+    const originalEncode = TextEncoder.prototype.encode;
+    let encoded = false;
+    TextEncoder.prototype.encode = function (value) {
+        encoded = true;
+        return originalEncode.call(this, value);
+    };
+    try {
+        assert.equal(normalizeClipboardText('x'.repeat(CLIPBOARD_HISTORY_MAX_TEXT_BYTES + 1)), null);
+        assert.equal(encoded, false);
+        assert.throws(() => parseClipboardHistory(
+            'x'.repeat(14 * 1024 * 1024 + 1)), /allowed size/);
+        assert.equal(encoded, false);
+    } finally {
+        TextEncoder.prototype.encode = originalEncode;
+    }
+});
+
+test('UTF-8 byte limits still accept exact multibyte boundaries', () => {
+    const exact = 'é'.repeat(CLIPBOARD_HISTORY_MAX_TEXT_BYTES / 2);
+    assert.equal(normalizeClipboardText(exact), exact);
+    assert.equal(normalizeClipboardText(exact + 'é'), null);
+});
