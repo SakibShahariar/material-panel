@@ -44,3 +44,10 @@ test('PanelBuilder compares complete desktop context before scheduling a visibil
     assert.match(builder, /setDoNotDisturbActive\(active\)[\s\S]*?previous, this\._getContextVisibilityState\(\)/);
     assert.match(builder, /setNetworkOffline\(offline\)[\s\S]*?previous, this\._getContextVisibilityState\(\)/);
 });
+
+test('context comparison uses the same Meta.Window fullscreen method as initial rendering', async () => {
+    const builder = await source('../lib/panelBuilder.js');
+    assert.match(builder, /fullscreen = global\\.display\\.focus_window\\?\\.is_fullscreen\\?\\.\\(\\) === true;/);
+    assert.match(builder, /focusedWindowFullscreen = global\\.display\\.focus_window\\?\\.is_fullscreen\\?\\.\\(\\) === true/);
+    assert.doesNotMatch(builder, /focus_window\\?\\.fullscreen/);
+});
