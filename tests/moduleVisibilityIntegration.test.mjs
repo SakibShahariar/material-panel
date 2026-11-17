@@ -51,3 +51,17 @@ test('context comparison uses the same Meta.Window fullscreen method as initial 
     assert.ok(builder.includes('focusedWindowFullscreen = global.display.focus_window?.is_fullscreen?.() === true;'));
     assert.ok(!builder.includes('focus_window?.fullscreen'));
 });
+
+test('battery device signal handlers are disconnected on replacement and teardown', async () => {
+    const extension = await source('../extension.js');
+    const watcher = extension.match(/_watchContextVisibility\(\) \{([\s\S]*?)\n    \}\n\n    _unwatchContextVisibility/);
+    const teardown = extension.match(/_unwatchContextVisibility\(\) \{([\s\S]*?)\n    \}\n/);
+    assert.ok(watcher, 'context watcher should be present');
+    assert.ok(teardown, 'context watcher teardown should be present');
+    assert.match(watcher[1],
+        /if \(device !== this\._visibilityBatteryDevice\) \{[\s\S]*?for \(const signalId of this\._visibilityBatteryDeviceSignalIds\) \{[\s\S]*?this\._visibilityBatteryDevice\.disconnect\(signalId\)/);
+    assert.match(teardown[1],
+        /for \(const signalId of this\._visibilityBatteryDeviceSignalIds \?\? \[\]\) \{[\s\S]*?this\._visibilityBatteryDevice\.disconnect\(signalId\)/);
+    assert.ok(teardown[1].indexOf('disconnect(signalId)') <
+        teardown[1].indexOf('this._visibilityBatteryDevice = null'));
+});
