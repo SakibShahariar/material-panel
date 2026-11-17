@@ -40,6 +40,12 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - Avoid blocking the Shell main loop with synchronous I/O or expensive work. Preserve existing refresh throttling and avoid unnecessary polling or background activity.
 - Treat GNOME Shell version compatibility as a runtime claim: inspect supported APIs and compatibility helpers, but report runtime testing separately from syntax or unit-test results.
 
+## Private Storage and Lifecycle Ordering
+
+- Serialize asynchronous reads, writes, and deletion for private persistent data across controller/store instances, not only within one controller. A rapid disable/re-enable or extension reload must not let a new reader load data before a previously requested deletion finishes.
+- Enqueue destructive clears before yielding to pending asynchronous work. Ensure already-dispatched writes finish before the clear, while generation checks prevent not-yet-started stale writes from running afterward.
+- Add regression tests for overlapping disable/re-enable, clear/write, and extension-reload lifecycles. Keep private payloads out of logs, diagnostics, settings exports, and unrelated storage.
+
 ## Maintenance Session Continuity
 
 - At the start of each continuation, verify the current default branch, latest commit, relevant open issue, and any work left incomplete by the previous session.

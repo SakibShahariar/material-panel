@@ -1600,7 +1600,25 @@ The previous checkpoint was `744753d9128a546446de639cb8b6ecea31d56aac`. I compar
 
 The workflow logs confirm that the observed failures in this range were test/source-assertion or test-syntax failures; they were not evidence of failing GNOME runtime tests. No live GNOME, hardware, clipboard, or secured-Wi-Fi validation is implied by these automated results.
 
-**Reviewed through:** `9df7f79be92ebbf0b2f04c08b589513c3df156a9`  
-**Checkpoint SHA:** `9df7f79be92ebbf0b2f04c08b589513c3df156a9`  
-**Checkpoint date:** 2026-11-15  
-**Next unreviewed commit:** this ledger update.
+**Reviewed through:** `929cb5db8e31fd8eea31cb20cb2eb9ce7ede1f72`  
+**Checkpoint SHA:** `929cb5db8e31fd8eea31cb20cb2eb9ce7ede1f72`  
+**Checkpoint date:** 2026-11-17  
+**Next unreviewed commit:** this related AGENTS.md/CI-ledger documentation commit.
+
+## Incremental review — 2026-11-17
+
+| Commit | Subject | Result | Evidence |
+|---|---|---|---|
+| `80e07d0da482ad8d770c56931d07355762eb5797` | fix(visibility): align fullscreen context comparison (Refs #112) | **red** | [#1052](https://github.com/SakibShahariar/material-panel/actions/runs/43807089473) |
+| `d0a86715a7c3d66e843ffc503472e3c5a7afc8c8` | fix(clipboard): reject oversized payloads before encoding (Refs #254) | **red** | [#1053](https://github.com/SakibShahariar/material-panel/actions/runs/43807149017) |
+| `bdf6de0ee420cdae265c3b2ab1a50eb6cbaed60d` | test(visibility): match fullscreen method assertions (Refs #112) | **green** | [#1054](https://github.com/SakibShahariar/material-panel/actions/runs/43807220408) |
+| `929cb5db8e31fd8eea31cb20cb2eb9ce7ede1f72` | fix(clipboard): serialize history storage lifecycle (Refs #254) | **green** | [#1055](https://github.com/SakibShahariar/material-panel/actions/runs/44016893211) |
+
+### Red-run investigation and follow-ups — 2026-11-17
+
+- **Run #1052 (`80e07d0d`):** JavaScript source assertion in `tests/moduleVisibilityIntegration.test.mjs` used an over-escaped regular expression for the fullscreen API expression. The implementation change was not implicated. The run reached 805 JavaScript tests before the assertion failed; Python/calendar tests were skipped.
+- **Run #1053 (`d0a86715`):** inherited the same over-escaped fullscreen assertion and failed after 807 JavaScript tests; Python/calendar tests were skipped.
+- **Run #1054 (`bdf6de0e`):** replaced the fragile regex with literal source-string assertions. CI passed syntax, **807/807 JavaScript tests**, and **22/22 Python/calendar tests**.
+- **Run #1055 (`929cb5db`):** added cross-instance clipboard storage serialization and a disable/re-enable race regression. CI passed syntax, **809/809 JavaScript tests**, and **22/22 Python/calendar tests**.
+
+The red results are retained as historical failures; the follow-up commits are green. These automated checks do not validate live GNOME visibility transitions, clipboard capture, or storage behavior in a real Shell session.
