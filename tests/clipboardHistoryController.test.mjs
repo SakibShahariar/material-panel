@@ -131,6 +131,51 @@ test('disable stops capture and deletes stored history', async () => {
     assert.equal(clipboard.reads, 1);
 });
 
+test('disable queues deletion after an already-started storage write', async () => {
+    let entries = [];
+    let writes = 0;
+    let clears = 0;
+    let writeStartedResolve;
+    let releaseWrite;
+    const writeStarted = new Promise(resolve => { writeStartedResolve = resolve; });
+    const store = {
+        load() {
+            return enqueueClipboardHistoryStorageOperation(async () => entries);
+        },
+        write(nextEntries) {
+            return enqueueClipboardHistoryStorageOperation(async () => {
+                await new Promise(resolve => {
+                    releaseWrite = resolve;
+                    writeStartedResolve();
+                });
+                writes++;
+                entries = nextEntries;
+            });
+        },
+        clear() {
+            return enqueueClipboardHistoryStorageOperation(async () => {
+                clears++;
+                entries = [];
+            });
+        },
+    };
+
+    const {controller, selection, clipboard} = setup({store});
+    await controller.enable();
+    clipboard.text = 'synthetic pending write';
+    selection.emit();
+    await writeStarted;
+
+    const disabling = controller.disable();
+    assert.equal(clears, 0, 'deletion must wait for the dispatched write');
+    releaseWrite();
+    await disabling;
+
+    assert.equal(writes, 1);
+    assert.equal(clears, 1);
+    assert.deepEqual(entries, []);
+});
+
 test('a replacement controller reloads only after the previous controller deletes history', async () => {
     let entries = [];
     let loads = 0;
