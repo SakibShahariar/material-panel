@@ -87,3 +87,20 @@ test('clipboard history refuses symlinked parent, directory, and file paths befo
     assert.ok(clear.indexOf('assertExpectedFileType(this._directory') < clear.indexOf('this._file.delete'));
     assert.ok(clear.indexOf('assertExpectedFileType(this._file') < clear.indexOf('this._file.delete'));
 });
+
+
+test('clipboard file-store operations share a serialized queue across instances', () => {
+    const store = read('lib/clipboardHistoryStore.js');
+    const queue = read('lib/clipboardHistoryStorageQueue.js');
+    assert.match(queue, /let storageQueue = Promise\.resolve\(\)/);
+    assert.match(store, /enqueueClipboardHistoryStorageOperation/);
+    for (const method of ['load', 'write', 'clear']) {
+        const start = store.indexOf(`async ${method}(`);
+        const nextMethod = method === 'load' ? 'write' : method === 'write' ? 'clear' : null;
+        const end = nextMethod
+            ? store.indexOf(`async ${nextMethod}(`, start)
+            : store.indexOf('_ensureDirectory()', start);
+        assert.ok(start >= 0 && end > start, `missing serialized ${method} operation`);
+        assert.match(store.slice(start, end), /enqueueClipboardHistoryStorageOperation\(async \(\) => \{/);
+    }
+});

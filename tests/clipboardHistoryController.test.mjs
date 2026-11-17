@@ -4,6 +4,7 @@ import {
     ClipboardHistoryController,
     CLIPBOARD_TEXT_MIME_TYPES,
 } from '../lib/clipboardHistoryController.js';
+import {enqueueClipboardHistoryStorageOperation} from '../lib/clipboardHistoryStorageQueue.js';
 
 class FakeSelection {
     constructor() { this.listeners = new Map(); this.nextId = 1; }
@@ -49,14 +50,15 @@ function setup(overrides = {}) {
         async clear() { this.clears++; this.entries = []; },
     };
     let id = 0;
+    const activeStore = overrides.store ?? store;
     const controller = new ClipboardHistoryController({
-        selection, clipboard, store,
+        selection, clipboard, store: activeStore,
         clipboardType: 'CLIPBOARD', selectionType: 'clipboard',
         now: () => 1_800_000_000,
         idFactory: () => `id-${++id}`,
         ...overrides,
     });
-    return {controller, selection, clipboard, store};
+    return {controller, selection, clipboard, store: activeStore};
 }
 
 test('disabled startup performs no store access, signal connection, or clipboard read', async () => {
@@ -127,6 +129,56 @@ test('disable stops capture and deletes stored history', async () => {
     assert.equal(store.clears, 1);
     selection.emit();
     assert.equal(clipboard.reads, 1);
+});
+
+test('a replacement controller reloads only after the previous controller deletes history', async () => {
+    let entries = [];
+    let loads = 0;
+    let clears = 0;
+    let clearStartedResolve;
+    let releaseClear;
+    const clearStarted = new Promise(resolve => { clearStartedResolve = resolve; });
+    const store = {
+        load() {
+            return enqueueClipboardHistoryStorageOperation(async () => {
+                loads++;
+                return entries;
+            });
+        },
+        write(nextEntries) {
+            return enqueueClipboardHistoryStorageOperation(async () => {
+                entries = nextEntries;
+            });
+        },
+        clear() {
+            return enqueueClipboardHistoryStorageOperation(async () => {
+                await new Promise(resolve => {
+                    releaseClear = resolve;
+                    clearStartedResolve();
+                });
+                clears++;
+                entries = [];
+            });
+        },
+    };
+
+    const previous = setup({store});
+    await previous.controller.enable();
+    entries = [{id: 'saved', text: 'synthetic old entry', createdAt: 1_800_000_000}];
+
+    const disabling = previous.controller.disable();
+    const replacement = setup({store});
+    const enabling = replacement.controller.enable();
+
+    await clearStarted;
+    assert.equal(loads, 1, 'replacement load must wait behind the queued deletion');
+    releaseClear();
+    await Promise.all([disabling, enabling]);
+
+    assert.equal(clears, 1);
+    assert.equal(loads, 2);
+    assert.deepEqual(replacement.controller.entries, []);
+    assert.equal(replacement.selection.listeners.size, 1);
 });
 
 test('self-copy duplicate text is not persisted twice', async () => {
