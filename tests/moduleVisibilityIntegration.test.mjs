@@ -81,3 +81,14 @@ test('Overview and focused-window watchers rebuild only when effective visibilit
     assert.ok(!extension.includes('Main.overview.connect(signal, refresh)'));
     assert.ok(!extension.includes('connectFocusedWindow();\n                refresh();'));
 });
+
+
+test('visibility watcher teardown resets tracked fullscreen and Overview state', async () => {
+    const extension = await source('../extension.js');
+    const start = extension.indexOf('_unwatchContextVisibility() {');
+    const end = extension.indexOf('\\n    _removePopupKeybindings', start);
+    assert.ok(start >= 0 && end > start);
+    const teardown = extension.slice(start, end);
+    assert.ok(teardown.includes('setFullscreenActive(false)'));
+    assert.ok(teardown.includes('setOverviewVisible(false)'));
+});

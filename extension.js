@@ -378,6 +378,8 @@ export default class MaterialPanelExtension extends Extension {
         this._visibilityBatteryClient = null;
         this._builder?.setDoNotDisturbActive(false);
         this._builder?.setNetworkOffline(false);
+        this._builder?.setFullscreenActive(false);
+        this._builder?.setOverviewVisible(false);
         this._builder?.setBatteryContext({onBattery: null, percentage: null});
     }
 
