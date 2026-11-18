@@ -25,9 +25,9 @@ Persistent record of commit-level CI checks and red-cross investigations for Mat
 - Repository: `SakibShahariar/material-panel`
 - Default branch: `main`
 - Last fully reviewed commit range: the baseline and incremental commits listed below.
-- Checkpoint SHA: `9df7f79be92ebbf0b2f04c08b589513c3df156a9`
-- Checkpoint date: 2026-11-15
-- Next session: start with the next commit after this checkpoint, then review every subsequent commit.
+- Checkpoint SHA: `bff97d67e5f54f85d16d7262c1236951588c9bc7`
+- Checkpoint date: 2026-11-18
+- Next session: start with the first commit after `bff97d67e5f54f85d16d7262c1236951588c9bc7`; revisit any later red, pending, or unresolved entries.
 
 ## Initial audit baseline
 
@@ -1622,3 +1622,32 @@ The workflow logs confirm that the observed failures in this range were test/sou
 - **Run #1055 (`929cb5db`):** added cross-instance clipboard storage serialization and a disable/re-enable race regression. CI passed syntax, **809/809 JavaScript tests**, and **22/22 Python/calendar tests**.
 
 The red results are retained as historical failures; the follow-up commits are green. These automated checks do not validate live GNOME visibility transitions, clipboard capture, or storage behavior in a real Shell session.
+
+## Incremental audit — 2026-11-18
+
+Compared the checkpoint 9df7f79be92ebbf0b2f04c08b589513c3df156a9 with the verified main head bff97d67e5f54f85d16d7262c1236951588c9bc7. GitHub exposed one push workflow for each of the 15 intervening commits; each run and job conclusion was inspected.
+
+| Commit | Workflow | Result | Observed tests / diagnosis |
+|---|---:|---|---|
+| 06fd4464 | [#1051](https://github.com/SakibShahariar/material-panel/actions/runs/43675952975) | **green** | 804/804 JavaScript; 22/22 Python |
+| 80e07d0d | [#1052](https://github.com/SakibShahariar/material-panel/actions/runs/43807089473) | **red** | Over-escaped fullscreen source assertion; Python skipped |
+| d0a86715 | [#1053](https://github.com/SakibShahariar/material-panel/actions/runs/43807149017) | **red** | Inherited the same fullscreen assertion defect; Python skipped |
+| bdf6de0e | [#1054](https://github.com/SakibShahariar/material-panel/actions/runs/43807220408) | **green** | 807/807 JavaScript; 22/22 Python; literal assertion correction |
+| 929cb5db | [#1055](https://github.com/SakibShahariar/material-panel/actions/runs/44016893211) | **green** | 809/809 JavaScript; 22/22 Python |
+| 5ee80736 | [#1056](https://github.com/SakibShahariar/material-panel/actions/runs/44017117618) | **green** | 809/809 JavaScript; 22/22 Python |
+| da00fa14 | [#1057](https://github.com/SakibShahariar/material-panel/actions/runs/44017209576) | **green** | 810/810 JavaScript; 22/22 Python |
+| ba37c139 | [#1058](https://github.com/SakibShahariar/material-panel/actions/runs/44017344815) | **green** | 811/811 JavaScript; 22/22 Python |
+| 33bc3f32 | [#1059](https://github.com/SakibShahariar/material-panel/actions/runs/44240308679) | **green** | 812/812 JavaScript; 22/22 Python |
+| 1e2e7525 | [#1060](https://github.com/SakibShahariar/material-panel/actions/runs/44240344210) | **red** | Quick Launch completion-logger source assertion had an incorrect slice; Python skipped |
+| cc7234f0 | [#1061](https://github.com/SakibShahariar/material-panel/actions/runs/44240488930) | **red** | First assertion-scope correction still selected the wrong source range; Python skipped |
+| e3e00364 | [#1062](https://github.com/SakibShahariar/material-panel/actions/runs/44240686191) | **red** | Existing visibility integration tests still expected direct fullscreen/Overview reads and unconditional Overview refresh; Quick Launch assertion also remained stale |
+| e3120d63 | [#1063](https://github.com/SakibShahariar/material-panel/actions/runs/44240734695) | **red** | Inherited the stale visibility and Quick Launch source assertions |
+| 026571a7 | [#1064](https://github.com/SakibShahariar/material-panel/actions/runs/44240795721) | **red** | Inherited stale assertions; new teardown test also used an incorrect source-slice delimiter |
+| bff97d67 | [#1065](https://github.com/SakibShahariar/material-panel/actions/runs/44240954373) | **green** | 815/815 JavaScript; 22/22 Python; source assertions now follow tracked fullscreen/Overview snapshots, teardown reset and guarded Quick Launch diagnostics |
+
+### Red-run investigation and resolution
+
+The red runs #1052–#1053 and #1060–#1064 were caused by source-based test assertions that no longer matched the implementation or selected the wrong source slice. The failures were reproduced from workflow logs, the assertions were updated to the tracked-state/guarded-callback design, and the final integrated workflow #1065 passed all checks. The red historical results remain recorded above; they are not relabeled as green.
+
+The successful implementation checkpoint is bff97d67e5f54f85d16d7262c1236951588c9bc7. The final workflow ran JavaScript syntax checks, **815/815 JavaScript tests**, and **22/22 Python/calendar tests**. No live GNOME desktop validation is implied by these automated results.
+
