@@ -65,3 +65,19 @@ test('battery device signal handlers are disconnected on replacement and teardow
     assert.ok(teardown[1].indexOf('disconnect(signalId)') <
         teardown[1].indexOf('this._visibilityBatteryDevice = null'));
 });
+
+
+test('Overview and focused-window watchers rebuild only when effective visibility changes', async () => {
+    const [builder, extension] = await Promise.all([
+        source('../lib/panelBuilder.js'),
+        source('../extension.js'),
+    ]);
+    assert.ok(builder.includes('setFullscreenActive(active)'));
+    assert.ok(builder.includes('setOverviewVisible(visible)'));
+    assert.ok(builder.includes('hasContextVisibilityChanged(this._configRef?.moduleVisibilityRules'));
+    assert.ok(extension.includes("Main.overview.connect(signal, syncOverview)"));
+    assert.ok(extension.includes("window.connect('notify::fullscreen', syncFullscreen)"));
+    assert.ok(extension.includes("global.display.connect('notify::focus-window', connectFocusedWindow)"));
+    assert.ok(!extension.includes('Main.overview.connect(signal, refresh)'));
+    assert.ok(!extension.includes('connectFocusedWindow();\n                refresh();'));
+});

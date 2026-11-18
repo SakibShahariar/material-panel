@@ -308,15 +308,30 @@ export default class MaterialPanelExtension extends Extension {
             logError(e, 'material-panel: could not watch Do Not Disturb state');
         }
 
+        const syncOverview = () => {
+            let visible = false;
+            try { visible = Main.overview.visible === true; } catch (e) {}
+            if (this._builder?.setOverviewVisible(visible))
+                refresh();
+        };
         try {
             for (const signal of ['showing', 'hiding']) {
-                const id = Main.overview.connect(signal, refresh);
+                const id = Main.overview.connect(signal, syncOverview);
                 this._visibilitySignalConnections.push([Main.overview, id]);
             }
+            syncOverview();
         } catch (e) {
             logError(e, 'material-panel: could not watch Overview visibility');
         }
 
+        const syncFullscreen = () => {
+            let fullscreen = false;
+            try {
+                fullscreen = global.display.focus_window?.is_fullscreen?.() === true;
+            } catch (e) {}
+            if (this._builder?.setFullscreenActive(fullscreen))
+                refresh();
+        };
         const connectFocusedWindow = () => {
             if (this._visibilityFocusWindow && this._visibilityFocusSignalId) {
                 try { this._visibilityFocusWindow.disconnect(this._visibilityFocusSignalId); } catch (e) {}
@@ -325,18 +340,16 @@ export default class MaterialPanelExtension extends Extension {
             this._visibilityFocusSignalId = 0;
             try {
                 const window = global.display.focus_window;
-                if (!window)
-                    return;
-                this._visibilityFocusWindow = window;
-                this._visibilityFocusSignalId = window.connect('notify::fullscreen', refresh);
+                if (window) {
+                    this._visibilityFocusWindow = window;
+                    this._visibilityFocusSignalId = window.connect('notify::fullscreen', syncFullscreen);
+                }
             } catch (e) {}
+            syncFullscreen();
         };
 
         try {
-            const id = global.display.connect('notify::focus-window', () => {
-                connectFocusedWindow();
-                refresh();
-            });
+            const id = global.display.connect('notify::focus-window', connectFocusedWindow);
             this._visibilitySignalConnections.push([global.display, id]);
         } catch (e) {
             logError(e, 'material-panel: could not watch focused window changes');
