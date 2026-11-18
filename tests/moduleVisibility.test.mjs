@@ -212,3 +212,18 @@ test('battery threshold changes do not rebuild when another active rule keeps th
         {offline: false, onBattery: true, batteryPercent: 19.99},
         {offline: false, onBattery: true, batteryPercent: 20}), true);
 });
+
+
+test('context comparisons normalize imported rules only once per notification', () => {
+    let clockReads = 0;
+    const rules = new Proxy({clock: {hideWhenOffline: true}}, {
+        get(target, property, receiver) {
+            if (property === 'clock')
+                clockReads++;
+            return Reflect.get(target, property, receiver);
+        },
+    });
+
+    assert.equal(hasContextVisibilityChanged(rules, {offline: false}, {offline: true}), true);
+    assert.equal(clockReads, 1);
+});
