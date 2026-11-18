@@ -118,3 +118,14 @@ test('Quick Launch failure reporting is isolated before toggle completion', asyn
     assert.match(runner, /export function notifyQuickLaunchFailure\(notify, onError = null\)/);
     assert.match(module, /notifyLaunchFailure\(entry, error\);\s+finish\(false, error\);/);
 });
+
+
+test('Quick Launch completion callback diagnostics are isolated from async process dispatch', async () => {
+    const module = await source('../modules/quickLaunch.js');
+    const finish = module.slice(
+        module.indexOf('const finish = (success, error = null) => {'),
+        module.indexOf('try {', module.indexOf('const finish = (success, error = null) => {') + 1),
+    );
+    assert.ok(finish.includes('try {\n                        logError(callbackError'));
+    assert.ok(finish.includes('} catch (ignored) {}'));
+});

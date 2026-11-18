@@ -54,7 +54,11 @@ function launchEntry(entry, {commandTarget = entry.target, onComplete = null} = 
             let timeoutId = 0;
             const finish = (success, error = null) => {
                 try { complete?.(success, error); } catch (callbackError) {
-                    logError(callbackError, `material-panel: quick launch completion ${entry.id}`);
+                    // The process callback runs asynchronously; even diagnostics must
+                    // not throw back into the GLib/GIO completion dispatch.
+                    try {
+                        logError(callbackError, `material-panel: quick launch completion ${entry.id}`);
+                    } catch (ignored) {}
                 }
             };
             try {
