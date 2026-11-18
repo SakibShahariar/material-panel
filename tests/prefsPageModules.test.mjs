@@ -88,9 +88,9 @@ test('PanelBuilder merges context rules with manual visibility and Focus Mode', 
 
 test('context visibility watches Overview, focus changes and fullscreen changes with teardown', async () => {
     const source = await read('extension.js');
-    assert.match(source, /Main\.overview\.connect\(signal, refresh\)/);
-    assert.match(source, /global\.display\.connect\('notify::focus-window'/);
-    assert.match(source, /window\.connect\('notify::fullscreen', refresh\)/);
+    assert.match(source, /Main\.overview\.connect\(signal, syncOverview\)/);
+    assert.match(source, /global\.display\.connect\('notify::focus-window', connectFocusedWindow\)/);
+    assert.match(source, /window\.connect\('notify::fullscreen', syncFullscreen\)/);
     assert.match(source, /org\.gnome\.desktop\.notifications/);
     assert.match(source, /changed::show-banners/);
     assert.match(source, /Gio\.NetworkMonitor\.get_default\(\)/);

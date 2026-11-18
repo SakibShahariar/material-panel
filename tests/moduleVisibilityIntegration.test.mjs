@@ -32,8 +32,8 @@ test('PanelBuilder compares complete desktop context before scheduling a visibil
     const builder = await source('../lib/panelBuilder.js');
     assert.match(builder, /_getContextVisibilityState\(\)/);
     for (const pattern of [
-        /fullscreen,/,
-        /overview,/,
+        /fullscreen: this\._fullscreenActive,/,
+        /overview: this\._overviewVisible,/,
         /dnd: this\._dndActive,/,
         /offline: this\._offline,/,
         /onBattery: this\._batteryContext\.onBattery,/,
@@ -45,10 +45,14 @@ test('PanelBuilder compares complete desktop context before scheduling a visibil
     assert.match(builder, /setNetworkOffline\(offline\)[\s\S]*?previous, this\._getContextVisibilityState\(\)/);
 });
 
-test('context comparison uses the same Meta.Window fullscreen method as initial rendering', async () => {
-    const builder = await source('../lib/panelBuilder.js');
-    assert.ok(builder.includes('fullscreen = global.display.focus_window?.is_fullscreen?.() === true;'));
-    assert.ok(builder.includes('focusedWindowFullscreen = global.display.focus_window?.is_fullscreen?.() === true;'));
+test('fullscreen watcher reads Meta.Window state and rendering uses the tracked snapshot', async () => {
+    const [builder, extension] = await Promise.all([
+        source('../lib/panelBuilder.js'),
+        source('../extension.js'),
+    ]);
+    assert.ok(builder.includes('const focusedWindowFullscreen = this._fullscreenActive;'));
+    assert.ok(extension.includes('global.display.focus_window?.is_fullscreen?.() === true;'));
+    assert.ok(extension.includes("window.connect('notify::fullscreen', syncFullscreen)"));
     assert.ok(!builder.includes('focus_window?.fullscreen'));
 });
 
@@ -86,7 +90,7 @@ test('Overview and focused-window watchers rebuild only when effective visibilit
 test('visibility watcher teardown resets tracked fullscreen and Overview state', async () => {
     const extension = await source('../extension.js');
     const start = extension.indexOf('_unwatchContextVisibility() {');
-    const end = extension.indexOf('\\n    _removePopupKeybindings', start);
+    const end = extension.indexOf('    _removePopupKeybindings', start);
     assert.ok(start >= 0 && end > start);
     const teardown = extension.slice(start, end);
     assert.ok(teardown.includes('setFullscreenActive(false)'));
