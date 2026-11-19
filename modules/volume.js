@@ -7,7 +7,7 @@ import Gvc from 'gi://Gvc';
 import {wireFileIconPress, giconForKey} from '../lib/pressFx.js';
 import {createMaterialSymbol, setMaterialSymbolKey, setMaterialSymbolColor} from '../lib/materialSymbol.js';
 import {getMixerControl} from '../lib/audio.js';
-import {setChipA11y} from '../lib/a11y.js';
+import {setChipA11y, setAccessibleRole} from '../lib/a11y.js';
 
 // Shared control so the chip and QS slider share one sink object —
 // volume changes from the slider emit notify::volume on the same
@@ -25,8 +25,8 @@ export function buildVolume(_extensionPath, scale = 1.0) {
         reactive: true,
         track_hover: true,
         can_focus: true,
-        accessible_role: St.AccessibleRole.BUTTON,
     });
+    setAccessibleRole(box, 'BUTTON');
     const iconSize = Math.round(17 * scale);
     let symbol = createMaterialSymbol('volume-high', iconSize, getThemeColor('primary', '#89b4fa'), 1);
     let icon = null;

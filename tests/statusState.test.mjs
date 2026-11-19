@@ -15,7 +15,8 @@ test('shared status state builds an icon, wrapped message, and hide/show API', (
     assert.match(helper, /export function createStatusState\(/);
     assert.match(helper, /new St\.Icon\(/);
     assert.match(helper, /new St\.Label\(/);
-    assert.match(helper, /wrap: true/);
+    assert.doesNotMatch(helper, /wrap: true/);
+    assert.match(helper, /clutter_text\.line_wrap = true/);
     assert.match(helper, /actor\.visible = !!message/);
     assert.match(helper, /const setMessage = \(nextMessage, nextIconName = iconName\)/);
     assert.match(helper, /actor\.visible = !!nextMessage/);

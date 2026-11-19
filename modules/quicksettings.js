@@ -42,6 +42,32 @@ import {checkBluetoothSoftBlocked} from '../lib/bluetoothRfkill.js';
 
 const EXTENSION_UUID = 'material-panel@SakibShahariar';
 
+// Shared interactive wiring for Bluetooth/Wi-Fi tile buttons. This helper was
+// removed while its call sites remained, which made each tile throw a
+// ReferenceError during panel rendering. Defined here as a function so call
+// sites never hit a TDZ / missing-binding error on a partial module reload.
+function wireQsInteractive(actor) {
+    if (!actor)
+        return;
+    try {
+        actor.reactive = true;
+        actor.track_hover = true;
+        actor.can_focus = true;
+    } catch (e) {}
+    // false = clear pressed on release; sticky 'true' kept onAccent colors
+    // (and latched labels/icons) until cursor left the tile after a toggle.
+    wireChipPress(actor, {stickyUntilLeave: false});
+    // Extra enter/leave in case child actors steal hover
+    actor.connect('enter-event', () => {
+        try { actor.add_style_class_name('hover'); } catch (e) {}
+        return Clutter.EVENT_PROPAGATE;
+    });
+    actor.connect('leave-event', () => {
+        try { actor.remove_style_class_name('hover'); } catch (e) {}
+        return Clutter.EVENT_PROPAGATE;
+    });
+}
+
 let qsExpandController = null;
 
 function getQsExpandController() {

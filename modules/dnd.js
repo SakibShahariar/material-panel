@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {giconForKey, wireFileIconPress} from '../lib/pressFx.js';
-import {setChipA11y} from '../lib/a11y.js';
+import {setChipA11y, setAccessibleRole} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {getDndFocusSession} from '../lib/dndSession.js';
 import {createPopupHeader} from '../lib/popupHeader.js';
@@ -28,13 +28,13 @@ export function buildDnd() {
         style_class: 'material-panel-dnd-btn material-panel-chip',
         reactive: true,
         can_focus: true,
-        accessible_role: St.AccessibleRole.BUTTON,
         child: new St.Icon({
             style_class: 'material-panel-dnd-icon',
             icon_size: 20,
             y_align: Clutter.ActorAlign.CENTER,
         }),
     });
+    setAccessibleRole(button, 'BUTTON');
     const icon = button.get_child();
     let iconKey = 'dnd-inactive';
     const press = wireFileIconPress(button, () => [{key: iconKey, icon}]);
