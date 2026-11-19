@@ -11,7 +11,7 @@ import {darkModeTile, nightLightTile, dndTile} from './quicksettings.js';
 import {buildMediaPlayerRow} from './mediaPlayer.js';
 import {buildControlCenterSystem} from './controlCenterSystem.js';
 import {getThemeColor} from '../lib/themeColorState.js';
-import {setChipA11y} from '../lib/a11y.js';
+import {setChipA11y, setTooltip} from '../lib/a11y.js';
 import {attachPopupDismiss} from '../lib/popupDismiss.js';
 import {menuOpen, menuClose} from '../lib/shellCompat.js';
 import {watchWeatherSummary} from '../lib/weatherSummaryState.js';
@@ -165,7 +165,7 @@ function buildSystemSummaryCard(onOpen, size = 'half') {
     });
     systemSummaryCard.style = 'background-color: transparent; border: none; padding: 0;';
     systemSummaryCard.accessible_name = 'System overview; open detailed System view';
-    systemSummaryCard.set_tooltip_text('Open detailed System view');
+    setTooltip(systemSummaryCard, 'Open detailed System view');
     systemSummaryCard.connect('clicked', onOpen);
     const sampleAge = (sampledAt, sampledAtLabel) => {
         if (sampledAtLabel)
@@ -277,7 +277,7 @@ function buildHomeMediaCard(onOpen, size = 'full') {
         child: new St.Label({text: 'Open Media'}),
     });
     mediaOpen.accessible_name = 'Open detailed Media section';
-    mediaOpen.set_tooltip_text('Open detailed Media view');
+    setTooltip(mediaOpen, 'Open detailed Media view');
     mediaOpen.connect('clicked', onOpen);
     mediaHeader.add_child(mediaTitle);
     mediaHeader.add_child(mediaOpen);
@@ -616,7 +616,7 @@ export function buildControlCenter(_extensionPath, scale = 1.0) {
                 wallpaperCard.accessible_name = wallpaperApp
                     ? 'Open Wallmat wallpaper chooser'
                     : 'Open GNOME Background settings';
-                wallpaperCard.set_tooltip_text(wallpaperApp
+                setTooltip(wallpaperCard, wallpaperApp
                     ? 'Browse and apply wallpapers with Wallmat'
                     : 'Open GNOME Background settings');
                 wallpaperCard.connect('clicked', () => openWallpaperDestination(wallpaperApp));

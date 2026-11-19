@@ -10,6 +10,15 @@
    settings popup's contents (a separate surface, out of scope for panel
    scaling) and things like transition timing that don't need to scale. */
 
+/* Keep Material Panel text on a UI sans face even when the session font is
+   a monospace face; popups would otherwise inherit it and look unstyled. */
+.material-panel-popup,
+.material-panel-chip,
+.material-panel-popup StLabel,
+.material-panel-popup StEntry {
+    font-family: "Noto Sans", "Adwaita Sans", sans-serif;
+}
+
 .material-panel-zone {
     spacing: 8px;
 }

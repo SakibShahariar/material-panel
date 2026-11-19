@@ -13,8 +13,13 @@ const files = await Promise.all([
     readFile(new URL('../lib/themeStylesheet.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/configStore.js', import.meta.url), 'utf8'),
     readFile(new URL('../prefs.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/themeRenderer.js', import.meta.url), 'utf8'),
+    readFile(new URL('../stylesheet.css', import.meta.url), 'utf8'),
+    readFile(new URL('../modules/controlCenter.js', import.meta.url), 'utf8'),
 ]);
-const [quicksettings, a11y, volume, dnd, ...writers] = files;
+const [quicksettings, a11y, volume, dnd, ...rest] = files;
+const writers = rest.slice(0, 6);
+const [themeRenderer, stylesheet, controlCenter] = rest.slice(6);
 
 test('quick settings defines the shared interactive helper used by its tiles', () => {
     const definition = quicksettings.indexOf('function wireQsInteractive(actor)');
@@ -58,4 +63,24 @@ test('every async file write matches the Gio replace_contents_async argument ord
     }
     assert.match(writers[0], /replace_contents_async\(/);
     assert.match(writers[0], /REPLACE_DESTINATION,\s*null,\s*\(source, result\)/);
+});
+
+test('Material Panel text uses a UI sans face instead of the session font', () => {
+    for (const [name, source] of [['themeRenderer', themeRenderer], ['stylesheet', stylesheet]]) {
+        assert.match(source, /\.material-panel-popup[^{]*\{[\s\S]*?font-family: "Noto Sans", "Adwaita Sans", sans-serif/, name);
+    }
+});
+
+test('popup hero selector list is closed before the next rule', () => {
+    assert.doesNotMatch(themeRenderer,
+        /\.material-panel-cpu-popup-section-title,\s*\n\s*\/\* === Popup chrome/);
+    assert.match(themeRenderer, /\.material-panel-cpu-popup-section-title \{\ncolor: \$\{accentBg\};\n\}/);
+});
+
+test('Control Center cards use a guarded tooltip helper', () => {
+    assert.match(a11y, /export function setTooltip\(actor, text\)/);
+    assert.match(a11y, /typeof actor\.set_tooltip_text === 'function'/);
+    assert.doesNotMatch(controlCenter, /\.set_tooltip_text\(/);
+    assert.equal((controlCenter.match(/setTooltip\(/g) || []).length, 3,
+        'system, media and wallpaper cards should use setTooltip');
 });

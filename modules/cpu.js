@@ -518,6 +518,19 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
     menu.actor.add_style_class_name('material-panel-popup');
+    // Keep the dense Activity popup from expanding to the full width of a
+    // long process name; long rows are scrollable, not layout-breaking.
+    try {
+        const mon = Main.layoutManager.primaryMonitor;
+        const popupWidth = Math.min(440, Math.max(300, (mon?.width ?? 900) - 32));
+        const maxH = Math.floor((mon?.height ?? 800) * 0.78);
+        menu.box.style =
+            `max-height: ${maxH}px; width: ${popupWidth}px; min-width: ${popupWidth}px; ` +
+            `max-width: ${popupWidth}px; overflow: hidden; border-radius: 16px; padding: 8px;`;
+        try { menu.box.clip_to_allocation = true; } catch (e) {}
+        menu.box.width = popupWidth;
+        menu.actor.width = popupWidth + 8;
+    } catch (e) {}
     Main.uiGroup.add_child(menu.actor);
     menu.actor.hide();
     attachPopupDismiss(menu, button);
@@ -718,7 +731,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             }));
             return;
         }
-        const rows = filterAndSortProcesses(processSnapshot, procFilter, procSort, 12);
+        const rows = filterAndSortProcesses(processSnapshot, procFilter, procSort, 8);
         if (rows.length === 0) {
             procBox.add_child(new St.Label({
                 text: 'No matching processes',
@@ -733,12 +746,14 @@ export function buildCpu(_extensionPath, scale = 1.0) {
                 style_class: 'material-panel-cpu-proc-row',
             });
             row.add_child(new St.Label({
-                text: process.comm,
+                text: String(process.comm || '').slice(0, 18),
                 x_expand: true,
+                style: 'font-size: 11px;',
                 style_class: 'material-panel-cpu-popup-value',
             }));
             row.add_child(new St.Label({
                 text: `PID ${process.pid} · ${process.pcpu}% CPU · ${process.pmem}% MEM`,
+                style: 'font-size: 11px;',
                 style_class: 'material-panel-cpu-popup-value',
             }));
             procBox.add_child(row);
