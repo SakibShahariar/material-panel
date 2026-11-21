@@ -14,6 +14,13 @@ import {isNetworkSpeedAutoHideEnabled} from '../lib/networkSpeedVisibilityState.
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 import {setNetworkMetrics, clearNetworkMetrics} from '../lib/systemMetricsState.js';
 import {createPopupHeader} from '../lib/popupHeader.js';
+import {createSparkline} from '../lib/sparkline.js';
+import {
+    rateHistoryToPercent,
+    parseSsProcessBandwidth,
+    diffProcessBandwidth,
+} from '../lib/networkDesign.js';
+import {getProcessBandwidthSnapshot} from '../lib/networkDiagnostics.js';
 
 function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     const value = Math.max(0, Number(bytesPerSec) || 0);
@@ -29,24 +36,50 @@ function formatNetworkRate(bytesPerSec, unit = 'bytes') {
     return `${(value / (1024 * 1024)).toFixed(1)} MB/s`;
 }
 
+const HISTORY_LEN = 28;
+
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
+    const downHistory = [];
+    const upHistory = [];
     let sessionRx = 0, sessionTx = 0;
     let sessionIface = null;
 
-    // Symbolic icon — CSS color works (primary / on-primary on press)
+    // Stacked ↑/↓ readout in the bar (network-throughput plugin style).
     const icon = new St.Icon({
         style_class: 'material-panel-network-speed-icon',
         icon_name: 'network-transmit-receive-symbolic',
-        icon_size: Math.round(16 * (scale || 1.0)),
+        icon_size: Math.round(14 * (scale || 1.0)),
         y_align: Clutter.ActorAlign.CENTER,
     });
+    const chipUp = new St.Label({
+        text: '↑ —',
+        style_class: 'material-panel-net-speed-chip-up',
+    });
+    const chipDown = new St.Label({
+        text: '↓ —',
+        style_class: 'material-panel-net-speed-chip-down',
+    });
+    const chipRates = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-net-speed-chip-rates',
+        style: 'spacing: 1px;',
+    });
+    chipRates.add_child(chipUp);
+    chipRates.add_child(chipDown);
+    const chipBox = new St.BoxLayout({
+        style_class: 'material-panel-net-speed-chip-box',
+        style: 'spacing: 5px;',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    chipBox.add_child(icon);
+    chipBox.add_child(chipRates);
 
     const button = new St.Button({
         style_class: 'material-panel-network-speed material-panel-chip material-panel-network-speed-btn',
         reactive: true,
         track_hover: true,
-        child: icon,
+        child: chipBox,
     });
     const autoHideWhenIdle = isNetworkSpeedAutoHideEnabled();
     let idleSince = null;
@@ -76,10 +109,53 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     body.add_child(header);
     const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
     const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
-    const sessL = new St.Label({text: '', style_class: 'material-panel-net-speed-popup-iface'});
-    body.add_child(downL);
     body.add_child(upL);
+    body.add_child(downL);
+
+    const downSpark = createSparkline({count: HISTORY_LEN, height: 22});
+    const upSpark = createSparkline({count: HISTORY_LEN, height: 22});
+    const graphBox = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-net-speed-graphs',
+        x_expand: true,
+        style: 'spacing: 6px; padding-top: 6px;',
+    });
+    const graphRow = label => {
+        const row = new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            x_expand: true,
+            style: 'spacing: 8px;',
+        });
+        row.add_child(new St.Label({text: label, style: 'font-size: 10px; opacity: 0.6; width: 16px;'}));
+        return row;
+    };
+    const upRow = graphRow('↑');
+    upRow.add_child(upSpark.actor);
+    const downRow = graphRow('↓');
+    downRow.add_child(downSpark.actor);
+    graphBox.add_child(upRow);
+    graphBox.add_child(downRow);
+    body.add_child(graphBox);
+
+    const sessL = new St.Label({text: '', style_class: 'material-panel-net-speed-popup-iface'});
     body.add_child(sessL);
+
+    const procTitle = new St.Label({
+        text: 'Top processes',
+        style_class: 'material-panel-net-speed-proc-title',
+    });
+    procTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.7; padding-top: 8px;';
+    body.add_child(procTitle);
+    const procBox = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-net-speed-procs',
+        x_expand: true,
+        style: 'spacing: 2px;',
+    });
+    body.add_child(procBox);
+    let procSnapshot = null;
+    let procSnapshotAt = 0;
+    let procInFlight = false;
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     item.add_child(body);
     menu.addMenuItem(item);
@@ -96,6 +172,65 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
         };
         sessL.text = `Session  ↓ ${fmtTot(sessionRx)}  ↑ ${fmtTot(sessionTx)}`;
+        upSpark.update(rateHistoryToPercent(upHistory));
+        downSpark.update(rateHistoryToPercent(downHistory));
+        renderProcessRows();
+    };
+
+    const renderProcessRows = () => {
+        procBox.destroy_all_children();
+        if (!procSnapshot) {
+            procBox.add_child(new St.Label({text: 'Measuring…', style: 'font-size: 10px; opacity: 0.6;'}));
+            return;
+        }
+        const now = GLib.get_monotonic_time() / 1000000;
+        const rows = procSecondSnapshot
+            ? diffProcessBandwidth(procSnapshot, procSecondSnapshot, Math.max(0.2, now - procSecondAt))
+            : [];
+        if (rows.length === 0) {
+            procBox.add_child(new St.Label({text: 'No active TCP traffic', style: 'font-size: 10px; opacity: 0.6;'}));
+            return;
+        }
+        for (const row of rows) {
+            const line = new St.Label({
+                text: `${row.name}  ↓ ${formatNetworkRate(row.down, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(row.up, getNetworkSpeedUnit())}`,
+                style: 'font-size: 10px;',
+            });
+            line.clutter_text.ellipsize = 1; // Pango.EllipsizeMode.END
+            procBox.add_child(line);
+        }
+        // "Other traffic" = interface total minus attributed process rates.
+        const attributedDown = rows.reduce((n, r) => n + r.down, 0);
+        const attributedUp = rows.reduce((n, r) => n + r.up, 0);
+        const otherDown = Math.max(0, last.down - attributedDown);
+        const otherUp = Math.max(0, last.up - attributedUp);
+        if (otherDown > 0 || otherUp > 0) {
+            procBox.add_child(new St.Label({
+                text: `Other traffic  ↓ ${formatNetworkRate(otherDown, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(otherUp, getNetworkSpeedUnit())}`,
+                style: 'font-size: 10px; opacity: 0.65;',
+            }));
+        }
+    };
+    let procSecondSnapshot = null;
+    let procSecondAt = 0;
+
+    const sampleProcessBandwidth = async () => {
+        if (procInFlight || !menu.isOpen)
+            return;
+        procInFlight = true;
+        const text = await getProcessBandwidthSnapshot();
+        const parsed = parseSsProcessBandwidth(text);
+        const now = GLib.get_monotonic_time() / 1000000;
+        if (!procSnapshot) {
+            procSnapshot = parsed;
+        } else {
+            procSecondSnapshot = parsed;
+            procSecondAt = now;
+        }
+        procSnapshotAt = now;
+        procInFlight = false;
+        if (menu.isOpen)
+            renderProcessRows();
     };
 
     button.connect('clicked', () => {
@@ -103,8 +238,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             menuClose(menu);
         else {
             refreshPopup();
+            sampleProcessBandwidth();
             menuOpen(menu);
         }
+    });
+    const speedRefreshId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
+        if (menu.isOpen)
+            sampleProcessBandwidth();
+        return GLib.SOURCE_CONTINUE;
     });
 
     const stopMonitor = startNetSpeedMonitor(sample => {
@@ -127,6 +268,12 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
                 idleSince = now;
             button.visible = now - idleSince < IDLE_HIDE_AFTER_US;
         }
+        downHistory.push(down);
+        upHistory.push(up);
+        if (downHistory.length > HISTORY_LEN) downHistory.splice(0, downHistory.length - HISTORY_LEN);
+        if (upHistory.length > HISTORY_LEN) upHistory.splice(0, upHistory.length - HISTORY_LEN);
+        chipUp.text = `↑ ${formatNetworkRate(up, getNetworkSpeedUnit())}`;
+        chipDown.text = `↓ ${formatNetworkRate(down, getNetworkSpeedUnit())}`;
         const unit = getNetworkSpeedUnit();
         last = {
             down: sample.down,
@@ -158,6 +305,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     });
 
     button.connect('destroy', () => {
+        if (speedRefreshId)
+            GLib.source_remove(speedRefreshId);
         try { stopMonitor(); } catch (e) {}
         clearNetworkMetrics();
         menu.destroy();

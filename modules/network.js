@@ -15,6 +15,9 @@ import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
 import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus} from '../lib/wifiConnection.js';
+import {signalGlyph, sortAccessPoints, parseArpNeighbors, classifyCaptivePortal} from '../lib/networkDesign.js';
+import {loadHiddenNetworks, saveHiddenNetworks, toggleHiddenNetwork} from '../lib/hiddenNetworks.js';
+import {probeCaptivePortal, getNearbyDevices} from '../lib/networkDiagnostics.js';
 
 // Saved profiles are reactivated directly; unsaved access points are
 // activated through NetworkManager's session secret-agent flow below.
@@ -34,6 +37,12 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('network-offline'))),
     });
     box.add_child(icon);
+    const chipLabel = new St.Label({
+        text: '',
+        style_class: 'material-panel-network-chip-label',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    box.add_child(chipLabel);
     button.set_child(box);
     setChipA11y(button, 'Network status unavailable');
 
@@ -100,6 +109,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             if (!conn) {
                 connectionStatus.text = 'Offline';
                 setIcon('network-offline');
+                try { chipLabel.text = ''; } catch (e) {}
                 setChipA11y(button, client.wireless_enabled ? 'Offline' : 'Wi-Fi disabled');
                 return;
             }
@@ -108,12 +118,34 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 : type.includes('ethernet') ? 'Wired connection'
                     : 'Network connected';
             setIcon(networkIconForType(type, NM));
+            updateChipLabel();
             if (type.includes('wireless'))
                 setChipA11y(button, 'Wi-Fi enabled, connected');
             else if (type.includes('ethernet'))
                 setChipA11y(button, 'Wired connection active');
             else
                 setChipA11y(button, type ? type + ' connection active' : 'Network connected');
+        };
+        const activeWifiInfo = () => {
+            try {
+                const conn = client.get_primary_connection();
+                if (!conn || !String(conn.get_connection_type() ?? '').includes('wireless'))
+                    return null;
+                const ap = conn.get_access_points?.()?.[0] ?? null;
+                return ap ? getAccessPointInfo(ap) : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const updateChipLabel = () => {
+            try {
+                const info = activeWifiInfo();
+                chipLabel.text = info?.ssid
+                    ? `${info.ssid.slice(0, 16)} ${signalGlyph(info.strength)}`
+                    : '';
+            } catch (e) {
+                chipLabel.text = '';
+            }
         };
         updateStatusIcon();
         const networkTitle = new St.Label({text: 'Network', style_class: 'material-panel-cpu-popup-title'});
@@ -146,6 +178,41 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             updateStatusIcon();
         });
         menu.addMenuItem(wifiToggle);
+
+        // Adapter switcher appears only with 2+ Wi-Fi radios (elliot/penguine style).
+        const adapterSection = new PopupMenu.PopupMenuSection();
+        const adapterItems = [];
+        const adapterTitle = new PopupMenu.PopupMenuItem('Wi-Fi adapter', {reactive: false});
+        adapterTitle.label.style = 'font-size: 10px; opacity: 0.6;';
+        adapterSection.addMenuItem(adapterTitle);
+        menu.addMenuItem(adapterSection);
+        const adapterName = (device, index) => {
+            const iface = device?.get_interface?.() || `Wi-Fi ${index + 1}`;
+            const match = iface.match(/^wlp(\d+)s(\d+)(?:f(\d+)u(\d+))?/);
+            if (match)
+                return `Wi-Fi ${match[3] || match[1]}`;
+            return iface;
+        };
+        const updateAdapterSwitcher = () => {
+            adapterSection.removeAll();
+            adapterSection.addMenuItem(adapterTitle);
+            adapterItems.length = 0;
+            adapterSection.visible = wifiDevices.length > 1;
+            if (!adapterSection.visible)
+                return;
+            wifiDevices.forEach((device, index) => {
+                const item = new PopupMenu.PopupMenuItem(
+                    `${index === wifiDeviceIndex ? '● ' : '   '}${adapterName(device, index)}`, {reactive: true});
+                item.connect('activate', () => {
+                    wifiDeviceIndex = index;
+                    bindWifiDevice();
+                    rebuildNetworkList();
+                });
+                adapterItems.push(item);
+                adapterSection.addMenuItem(item);
+            });
+        };
+
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         const networksSection = new PopupMenu.PopupMenuSection();
@@ -155,6 +222,8 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         menu.addMenuItem(networksSection);
 
         let wifiDevice = null;
+        let wifiDevices = [];
+        let wifiDeviceIndex = 0;
         let wifiDeviceSignalIds = [];
         let scanStatus = '';
         let scanInFlight = false;
@@ -180,11 +249,27 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
             wifiDeviceSignalIds = [];
             try {
-                wifiDevice = client.get_devices().find(d =>
-                    d.get_device_type() === NM.DeviceType.WIFI) || null;
+                wifiDevices = client.get_devices().filter(d =>
+                    d.get_device_type() === NM.DeviceType.WIFI);
             } catch (e) {
-                wifiDevice = null;
+                wifiDevices = [];
             }
+            if (wifiDevices.length > 1) {
+                // Snap to the radio carrying the default route (elliot style).
+                try {
+                    const primary = client.get_primary_connection();
+                    const primaryAp = primary?.get_access_points?.()?.[0];
+                    const routeIndex = primaryAp
+                        ? wifiDevices.findIndex(d =>
+                            d.get_access_points?.().some(a => a?.get_path?.() === primaryAp?.get_path?.()))
+                        : -1;
+                    if (routeIndex >= 0)
+                        wifiDeviceIndex = routeIndex;
+                } catch (e) {}
+            }
+            wifiDeviceIndex = Math.max(0, Math.min(wifiDeviceIndex, wifiDevices.length - 1));
+            wifiDevice = wifiDevices[wifiDeviceIndex] || null;
+            updateAdapterSwitcher();
             if (!wifiDevice)
                 return;
             for (const signal of ['access-point-added', 'access-point-removed', 'notify::access-points']) {
@@ -338,6 +423,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             });
         };
 
+        let hiddenNetworks = loadHiddenNetworks();
+        let hiddenExpanded = false;
+
         const rebuildNetworkList = () => {
             networksSection.removeAll();
             const activeId = client.get_primary_connection()?.get_uuid();
@@ -365,43 +453,86 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     continue;
                 seen.add(raw);
                 const connection = savedBySsid.get(raw) || null;
-                visibleEntries.push({ap, info, connection});
+                visibleEntries.push({ap, info, connection, ssid: info.ssid});
             }
-            visibleEntries.sort((a, b) => b.info.strength - a.info.strength ||
-                a.info.ssid.localeCompare(b.info.ssid));
+            const sorted = sortAccessPoints(visibleEntries, {activeUuid: activeId, hidden: hiddenNetworks});
 
-            if (visibleEntries.length === 0 && savedConnections.length === 0) {
+            const stateLabel = text => {
+                const item = new PopupMenu.PopupMenuItem('', {reactive: false});
+                item.label.text = text;
+                item.label.style = 'font-size: 10px; opacity: 0.6;';
+                return item;
+            };
+
+            if (sorted.length === 0 && savedConnections.length === 0) {
                 networksSection.addMenuItem(new PopupMenu.PopupMenuItem(
                     'No Wi-Fi networks found', {reactive: false}));
             } else {
-                for (const entry of visibleEntries) {
+                let sectionTitle = '';
+                for (const entry of sorted) {
                     const {info, connection} = entry;
-                    const security = info.secure ? '🔒' : 'Open';
-                    const label = connection
-                        ? `${connection.get_id()} · ${info.strength}% · ${security}`
-                        : `${info.ssid} · ${info.strength}% · ${security} · Connect`;
+                    const active = connection && connection.get_uuid() === activeId;
+                    const group = active ? 'CONNECTED' : connection ? 'KNOWN NETWORKS' : 'OTHER NETWORKS';
+                    if (group !== sectionTitle) {
+                        sectionTitle = group;
+                        networksSection.addMenuItem(stateLabel(group));
+                    }
+                    const bars = signalGlyph(info.strength) || '·';
+                    const state = scanStatus.includes(info.ssid)
+                        ? (scanStatus.includes('Connecting') ? 'Connecting…' : 'Working…')
+                        : active ? 'Connected' : connection ? '' : 'Connect';
+                    const label = `${bars}  ${info.ssid}  ${info.strength}%${info.secure ? '  🔒' : ''}${state ? `  · ${state}` : ''}`;
                     const item = new PopupMenu.PopupMenuItem(label, {reactive: true});
-                    if (connection && connection.get_uuid() === activeId)
-                        item.setOrnament(PopupMenu.Ornament.DOT);
                     item.connect('activate', () => activate(connection, entry.ap, info.ssid));
+                    // Right-click hides a network from future scans.
+                    item.connect('button-press-event', (_actor, event) => {
+                        if (event.get_button() !== 3)
+                            return Clutter.EVENT_PROPAGATE;
+                        hiddenNetworks = toggleHiddenNetwork(hiddenNetworks, info.ssid);
+                        saveHiddenNetworks(hiddenNetworks);
+                        rebuildNetworkList();
+                        return Clutter.EVENT_STOP;
+                    });
                     networksSection.addMenuItem(item);
                 }
 
-                const inRange = new Set(visibleEntries.filter(e => e.connection)
+                const inRange = new Set(sorted.filter(e => e.connection)
                     .map(e => e.connection.get_uuid()));
-                for (const connection of savedConnections) {
-                    if (inRange.has(connection.get_uuid()))
-                        continue;
-                    const item = new PopupMenu.PopupMenuItem(
-                        `${connection.get_id()} · Saved · Not in range`,
-                        {reactive: false});
-                    if (connection.get_uuid() === activeId)
-                        item.setOrnament(PopupMenu.Ornament.DOT);
-                    networksSection.addMenuItem(item);
+                const outOfRange = savedConnections.filter(c => !inRange.has(c.get_uuid()));
+                if (outOfRange.length) {
+                    networksSection.addMenuItem(stateLabel('SAVED · NOT IN RANGE'));
+                    for (const connection of outOfRange) {
+                        const item = new PopupMenu.PopupMenuItem(
+                            `${connection.get_id()} · Saved`, {reactive: false});
+                        if (connection.get_uuid() === activeId)
+                            item.setOrnament(PopupMenu.Ornament.DOT);
+                        networksSection.addMenuItem(item);
+                    }
+                }
+            }
+
+            if (hiddenNetworks.length) {
+                const hiddenItem = new PopupMenu.PopupMenuItem(
+                    `HIDDEN (${hiddenNetworks.length})  ${hiddenExpanded ? '▾' : '▸'}`, {reactive: true});
+                hiddenItem.connect('activate', () => {
+                    hiddenExpanded = !hiddenExpanded;
+                    rebuildNetworkList();
+                });
+                networksSection.addMenuItem(hiddenItem);
+                if (hiddenExpanded) {
+                    for (const ssid of hiddenNetworks) {
+                        const item = new PopupMenu.PopupMenuItem(`${ssid}  · Show again`, {reactive: true});
+                        item.connect('activate', () => {
+                            hiddenNetworks = toggleHiddenNetwork(hiddenNetworks, ssid);
+                            saveHiddenNetworks(hiddenNetworks);
+                            rebuildNetworkList();
+                        });
+                        networksSection.addMenuItem(item);
+                    }
                 }
             }
             if (scanStatus)
-                networksSection.addMenuItem(new PopupMenu.PopupMenuItem(scanStatus, {reactive: false}));
+                networksSection.addMenuItem(stateLabel(scanStatus));
         };
 
         const requestWifiScan = () => {
@@ -439,10 +570,64 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 bindWifiDevice();
                 rebuildNetworkList();
                 requestWifiScan();
+                probePortal();
+                refreshNearby();
             }
         });
         rebuildNetworkList();
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        // Captive-portal banner (only shown when a sign-in wall is suspected).
+        const portalItem = new PopupMenu.PopupMenuItem('', {reactive: true});
+        portalItem.visible = false;
+        menu.addMenuItem(portalItem);
+        let portalProbeInFlight = false;
+        const probePortal = async () => {
+            if (portalProbeInFlight || destroyed)
+                return;
+            portalProbeInFlight = true;
+            const code = await probeCaptivePortal();
+            portalProbeInFlight = false;
+            if (destroyed)
+                return;
+            const state = classifyCaptivePortal(code);
+            portalItem.visible = state === 'portal';
+            if (state === 'portal') {
+                portalItem.label.text = '⚠ Connected, but internet may need a sign-in — open browser';
+                portalItem.label.style = 'color: #ffb4ab; font-size: 11px;';
+            }
+        };
+        portalItem.connect('activate', closeAfter(menu, () => {
+            try { GLib.spawn_command_line_async('xdg-open http://connectivitycheck.gstatic.com/generate_204'); } catch (e) {}
+        }));
+
+        // Nearby devices from the kernel ARP/NDP cache (read-only).
+        const nearbySection = new PopupMenu.PopupMenuSection();
+        const nearbyTitle = new PopupMenu.PopupMenuItem('Nearby devices', {reactive: false});
+        nearbyTitle.label.style = 'font-size: 11px; font-weight: 700; opacity: 0.7;';
+        nearbySection.addMenuItem(nearbyTitle);
+        const nearbyRefresh = new PopupMenu.PopupMenuItem('Refresh', {reactive: true});
+        nearbySection.addMenuItem(nearbyRefresh);
+        const nearbyRows = new PopupMenu.PopupMenuSection();
+        nearbySection.addMenuItem(nearbyRows);
+        menu.addMenuItem(nearbySection);
+        const refreshNearby = async () => {
+            if (destroyed)
+                return;
+            const text = await getNearbyDevices();
+            if (destroyed)
+                return;
+            nearbyRows.removeAll();
+            const devices = parseArpNeighbors(text);
+            if (!devices.length)
+                nearbyRows.addMenuItem(new PopupMenu.PopupMenuItem('No devices found', {reactive: false}));
+            for (const device of devices) {
+                nearbyRows.addMenuItem(new PopupMenu.PopupMenuItem(
+                    `${device.ip}  ·  ${device.mac}`, {reactive: false}));
+            }
+        };
+        nearbyRefresh.connect('activate', refreshNearby);
+
         const settingsItem = new PopupMenu.PopupMenuItem('Wi-Fi settings…');
         settingsItem.connect('activate', closeAfter(menu, () => {
             // Unknown networks / passwords need the system UI (secret agent)

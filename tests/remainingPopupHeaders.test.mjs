@@ -22,7 +22,7 @@ test('remaining major popup surfaces use the shared title/status/action header',
 
 test('Memory and Network Speed keep their existing metrics below the shared header', () => {
     assert.match(sources[0], /body\.add_child\(usedL\)[\s\S]*?body\.add_child\(swapL\)/);
-    assert.match(sources[1], /body\.add_child\(downL\)[\s\S]*?body\.add_child\(upL\)[\s\S]*?body\.add_child\(sessL\)/);
+    assert.match(sources[1], /body\.add_child\(upL\)[\s\S]*?body\.add_child\(downL\)[\s\S]*?body\.add_child\(sessL\)/);
 });
 
 test('Clipboard History keeps pause/resume and entry actions after its shared header', () => {
