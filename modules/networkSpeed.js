@@ -91,68 +91,79 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     menu.actor.hide();
     attachPopupDismiss(menu, button);
 
+    const ui = (text, style) => new St.Label({text: String(text ?? ''), style});
+    const eyebrow = t => ui(t, 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;');
+
     const body = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-net-speed-popup-body',
-    });
-    const title = new St.Label({
-        text: 'Network speed',
-        style_class: 'material-panel-net-speed-popup-title',
-    });
-    const ifaceL = new St.Label({text: '—', style_class: 'material-panel-net-speed-popup-iface'});
-    const {actor: header} = createPopupHeader({
-        titleActor: title,
-        statusActor: ifaceL,
-        styleClass: 'material-panel-net-speed-popup-header',
-        style: 'spacing: 8px; padding: 8px 4px;',
-    });
-    body.add_child(header);
-    const downL = new St.Label({text: '↓ —', style_class: 'material-panel-net-speed-popup-down'});
-    const upL = new St.Label({text: '↑ —', style_class: 'material-panel-net-speed-popup-up'});
-    body.add_child(upL);
-    body.add_child(downL);
-
-    const downSpark = createSparkline({count: HISTORY_LEN, height: 22});
-    const upSpark = createSparkline({count: HISTORY_LEN, height: 22});
-    const graphBox = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'material-panel-net-speed-graphs',
         x_expand: true,
-        style: 'spacing: 6px; padding-top: 6px;',
+        style: 'spacing: 10px; padding: 14px; width: 340px;',
     });
-    const graphRow = label => {
-        const row = new St.BoxLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
+    body.style = 'background-color: transparent; spacing: 10px; padding: 14px; width: 340px;';
+
+    // Header
+    const headerRow = new St.BoxLayout({x_expand: true, style: 'spacing: 8px;'});
+    headerRow.add_child(ui('NETWORK SPEED', 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; opacity: 0.8;'));
+    const ifaceL = ui('—', 'font-family: "Noto Sans", sans-serif; font-size: 9px; opacity: 0.5;');
+    ifaceL.x_expand = true;
+    ifaceL.x_align = Clutter.ActorAlign.END;
+    headerRow.add_child(ifaceL);
+    body.add_child(headerRow);
+
+    // Two big stat cards
+    const statCard = (title, colorClass) => {
+        const card = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            style_class: 'material-panel-net-stat-card ' + colorClass,
             x_expand: true,
-            style: 'spacing: 8px;',
+            style: 'spacing: 4px; padding: 12px; border-radius: 12px;',
         });
-        row.add_child(new St.Label({text: label, style: 'font-size: 10px; opacity: 0.6; width: 16px;'}));
-        return row;
+        card.add_child(eyebrow(title));
+        const value = ui('—', 'font-family: "Noto Sans", sans-serif; font-size: 20px; font-weight: 700;');
+        card.add_child(value);
+        return {card, value};
     };
-    const upRow = graphRow('↑');
-    upRow.add_child(upSpark.actor);
-    const downRow = graphRow('↓');
-    downRow.add_child(downSpark.actor);
-    graphBox.add_child(upRow);
-    graphBox.add_child(downRow);
-    body.add_child(graphBox);
+    const downStat = statCard('DOWNLOAD', 'down');
+    const upStat = statCard('UPLOAD', 'up');
+    const downSpark = createSparkline({count: HISTORY_LEN, height: 20, barWidth: 3});
+    const upSpark = createSparkline({count: HISTORY_LEN, height: 20, barWidth: 3});
+    downStat.card.add_child(downSpark.actor);
+    upStat.card.add_child(upSpark.actor);
+    const statRow = new St.BoxLayout({x_expand: true, style: 'spacing: 8px;'});
+    statRow.add_child(downStat.card);
+    statRow.add_child(upStat.card);
+    body.add_child(statRow);
 
-    const sessL = new St.Label({text: '', style_class: 'material-panel-net-speed-popup-iface'});
-    body.add_child(sessL);
-
-    const procTitle = new St.Label({
-        text: 'Top processes',
-        style_class: 'material-panel-net-speed-proc-title',
+    // Session card
+    const sessionCard = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-net-stat-card',
+        x_expand: true,
+        style: 'spacing: 6px; padding: 10px 12px; border-radius: 12px;',
     });
-    procTitle.style = 'font-size: 11px; font-weight: 700; opacity: 0.7; padding-top: 8px;';
-    body.add_child(procTitle);
+    sessionCard.add_child(eyebrow('SESSION'));
+    const sessL = ui('', 'font-family: "Noto Sans", sans-serif; font-size: 12px; font-weight: 600;');
+    sessionCard.add_child(sessL);
+    body.add_child(sessionCard);
+
+    // Processes card
+    const procCard = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-net-stat-card',
+        x_expand: true,
+        style: 'spacing: 6px; padding: 10px 12px; border-radius: 12px;',
+    });
+    procCard.add_child(eyebrow('TOP PROCESSES'));
     const procBox = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-net-speed-procs',
         x_expand: true,
-        style: 'spacing: 2px;',
+        style: 'spacing: 4px;',
     });
-    body.add_child(procBox);
+    procCard.add_child(procBox);
+    body.add_child(procCard);
+
     let procSnapshot = null;
     let procSnapshotAt = 0;
     let procInFlight = false;
@@ -161,9 +172,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     menu.addMenuItem(item);
 
     const refreshPopup = () => {
-        ifaceL.text = last.iface ? `Interface: ${last.iface}` : 'Interface: —';
-        downL.text = `↓ Download  ${last.downText}`;
-        upL.text = `↑ Upload  ${last.upText}`;
+        ifaceL.text = last.iface || '—';
+        downStat.value.text = last.downText;
+        upStat.value.text = last.upText;
         const fmtTot = n => {
             n = Math.max(0, Number(n) || 0);
             if (n < 1024) return `${Math.round(n)} B`;
@@ -171,7 +182,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
             return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
         };
-        sessL.text = `Session  ↓ ${fmtTot(sessionRx)}  ↑ ${fmtTot(sessionTx)}`;
+        sessL.text = `↓ ${fmtTot(sessionRx)}     ↑ ${fmtTot(sessionTx)}`;
         upSpark.update(rateHistoryToPercent(upHistory));
         downSpark.update(rateHistoryToPercent(downHistory));
         renderProcessRows();
@@ -180,7 +191,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     const renderProcessRows = () => {
         procBox.destroy_all_children();
         if (!procSnapshot) {
-            procBox.add_child(new St.Label({text: 'Measuring…', style: 'font-size: 10px; opacity: 0.6;'}));
+            procBox.add_child(ui('Measuring…', 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.6;'));
             return;
         }
         const now = GLib.get_monotonic_time() / 1000000;
@@ -188,15 +199,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             ? diffProcessBandwidth(procSnapshot, procSecondSnapshot, Math.max(0.2, now - procSecondAt))
             : [];
         if (rows.length === 0) {
-            procBox.add_child(new St.Label({text: 'No active TCP traffic', style: 'font-size: 10px; opacity: 0.6;'}));
+            procBox.add_child(ui('No active TCP traffic', 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.6;'));
             return;
         }
         for (const row of rows) {
-            const line = new St.Label({
-                text: `${row.name}  ↓ ${formatNetworkRate(row.down, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(row.up, getNetworkSpeedUnit())}`,
-                style: 'font-size: 10px;',
-            });
-            line.clutter_text.ellipsize = 1; // Pango.EllipsizeMode.END
+            const line = ui(
+                `${row.name}     ↓ ${formatNetworkRate(row.down, getNetworkSpeedUnit())}     ↑ ${formatNetworkRate(row.up, getNetworkSpeedUnit())}`,
+                'font-family: "Noto Sans", sans-serif; font-size: 10px;');
+            line.clutter_text.ellipsize = 1;
             procBox.add_child(line);
         }
         // "Other traffic" = interface total minus attributed process rates.
@@ -205,10 +215,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         const otherDown = Math.max(0, last.down - attributedDown);
         const otherUp = Math.max(0, last.up - attributedUp);
         if (otherDown > 0 || otherUp > 0) {
-            procBox.add_child(new St.Label({
-                text: `Other traffic  ↓ ${formatNetworkRate(otherDown, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(otherUp, getNetworkSpeedUnit())}`,
-                style: 'font-size: 10px; opacity: 0.65;',
-            }));
+            procBox.add_child(ui(
+                `Other traffic     ↓ ${formatNetworkRate(otherDown, getNetworkSpeedUnit())}     ↑ ${formatNetworkRate(otherUp, getNetworkSpeedUnit())}`,
+                'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;'));
         }
     };
     let procSecondSnapshot = null;

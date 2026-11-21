@@ -72,11 +72,12 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 setChipA11y(button, 'NetworkManager unavailable');
                 // An empty popup looks like there are simply no networks.
                 // Surface the actual failure so users can distinguish it.
-                menu.addMenuItem(new PopupMenu.PopupMenuItem(
-                    'NetworkManager unavailable',
-                    {reactive: false},
-                ));
+                const unavailableItem = new PopupMenu.PopupMenuItem(
+                    'NetworkManager unavailable', {reactive: false});
+                unavailableItem.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 11px;';
+                menu.addMenuItem(unavailableItem);
                 const settingsItem = new PopupMenu.PopupMenuItem('Network settings…');
+                settingsItem.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 11px;';
                 settingsItem.connect('activate', closeAfter(menu, () => {
                     try {
                         GLib.spawn_command_line_async('gnome-control-center network');
@@ -103,7 +104,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             text: 'Checking connection…',
             style_class: 'material-panel-network-popup-status',
         });
-        try { connectionStatus.style = 'font-size: 11px; opacity: 0.7;'; } catch (e) {}
+        try {
+            connectionStatus.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;';
+        } catch (e) {}
         const updateStatusIcon = () => {
             const conn = client.get_primary_connection();
             if (!conn) {
@@ -148,7 +151,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
         };
         updateStatusIcon();
-        const networkTitle = new St.Label({text: 'Network', style_class: 'material-panel-cpu-popup-title'});
+        const networkTitle = new St.Label({
+            text: 'NETWORK',
+            style_class: 'material-panel-cpu-popup-title',
+            style: 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; opacity: 0.85;',
+        });
         const {actor: networkHeader} = createPopupHeader({
             titleActor: networkTitle,
             statusActor: connectionStatus,
@@ -161,6 +168,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
 
         const wifiToggle = new PopupMenu.PopupSwitchMenuItem('Wi-Fi', !!client.wireless_enabled);
+        try {
+            wifiToggle.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 600;';
+        } catch (e) {}
         wifiToggle.connect('toggled', item => {
             const want = !!item.state;
             try {
@@ -202,12 +212,12 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 return;
             adapterSection.removeAll();
             adapterItems.length = 0;
-            const adapterTitle = new PopupMenu.PopupMenuItem('Wi-Fi adapter', {reactive: false});
-            adapterTitle.label.style = 'font-size: 10px; opacity: 0.6;';
+            const adapterTitle = styleMenuLabel(new PopupMenu.PopupMenuItem('Wi-Fi adapter', {reactive: false}));
+            adapterTitle.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.6;';
             adapterSection.addMenuItem(adapterTitle);
             wifiDevices.forEach((device, index) => {
-                const item = new PopupMenu.PopupMenuItem(
-                    `${index === wifiDeviceIndex ? '● ' : '   '}${adapterName(device, index)}`, {reactive: true});
+                const item = styleMenuLabel(new PopupMenu.PopupMenuItem(
+                    `${index === wifiDeviceIndex ? '● ' : '   '}${adapterName(device, index)}`, {reactive: true}));
                 item.connect('activate', () => {
                     wifiDeviceIndex = index;
                     bindWifiDevice();
@@ -220,10 +230,34 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
 
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        const networksSection = new PopupMenu.PopupMenuSection();
+        const styleMenuLabel = item => {
+            try {
+                item.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px;';
+            } catch (e) {}
+            return item;
+        };
+        const wifiUi = (text, style) => new St.Label({text: String(text ?? ''), style});
+        const wifiEyebrow = t => wifiUi(t, 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;');
+
+        const networkCards = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            x_expand: true,
+            style: 'spacing: 6px; padding: 4px 2px;',
+        });
+        const networkScroll = new St.ScrollView({
+            style_class: 'material-panel-wifi-scroll',
+            overlay_scrollbars: true,
+            x_expand: true,
+        });
         try {
-            networksSection.actor.style = 'max-height: 280px;';
+            networkScroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+            networkScroll.set_child(networkCards);
+            networkScroll.style = 'max-height: 320px;';
         } catch (e) {}
+        const networksSection = new PopupMenu.PopupMenuSection();
+        const networkBodyItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        networkBodyItem.add_child(networkScroll);
+        networksSection.addMenuItem(networkBodyItem);
         menu.addMenuItem(networksSection);
 
         let wifiDevice = null;
@@ -462,16 +496,14 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
             const sorted = sortAccessPoints(visibleEntries, {activeUuid: activeId, hidden: hiddenNetworks});
 
-            const stateLabel = text => {
-                const item = new PopupMenu.PopupMenuItem('', {reactive: false});
-                item.label.text = text;
-                item.label.style = 'font-size: 10px; opacity: 0.6;';
-                return item;
+            networkCards.destroy_all_children();
+            const groupTitle = text => {
+                networkCards.add_child(wifiEyebrow(text));
             };
 
             if (sorted.length === 0 && savedConnections.length === 0) {
-                networksSection.addMenuItem(new PopupMenu.PopupMenuItem(
-                    'No Wi-Fi networks found', {reactive: false}));
+                networkCards.add_child(wifiUi('No Wi-Fi networks found',
+                    'font-family: "Noto Sans", sans-serif; font-size: 11px; opacity: 0.6; padding: 10px;'));
             } else {
                 let sectionTitle = '';
                 for (const entry of sorted) {
@@ -480,17 +512,38 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     const group = active ? 'CONNECTED' : connection ? 'KNOWN NETWORKS' : 'OTHER NETWORKS';
                     if (group !== sectionTitle) {
                         sectionTitle = group;
-                        networksSection.addMenuItem(stateLabel(group));
+                        groupTitle(group);
                     }
                     const bars = signalGlyph(info.strength) || '·';
                     const state = scanStatus.includes(info.ssid)
                         ? (scanStatus.includes('Connecting') ? 'Connecting…' : 'Working…')
                         : active ? 'Connected' : connection ? '' : 'Connect';
-                    const label = `${bars}  ${info.ssid}  ${info.strength}%${info.secure ? '  🔒' : ''}${state ? `  · ${state}` : ''}`;
-                    const item = new PopupMenu.PopupMenuItem(label, {reactive: true});
-                    item.connect('activate', () => activate(connection, entry.ap, info.ssid));
-                    // Right-click hides a network from future scans.
-                    item.connect('button-press-event', (_actor, event) => {
+                    const row = new St.Button({
+                        style_class: 'material-panel-wifi-row' + (active ? ' active' : ''),
+                        reactive: true,
+                        can_focus: true,
+                        x_expand: true,
+                    });
+                    const rowBox = new St.BoxLayout({
+                        x_expand: true,
+                        style: 'spacing: 10px; padding: 9px 10px;',
+                    });
+                    const sig = wifiUi(bars, 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; width: 44px;');
+                    const name = wifiUi(info.ssid, 'font-family: "Noto Sans", sans-serif; font-size: 12px; font-weight: 600; x-expanded: true;');
+                    name.x_expand = true;
+                    const secure = info.secure ? '🔒' : '';
+                    const lock = wifiUi(secure, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.7;');
+                    const pct = wifiUi(`${info.strength}%`, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.7; width: 30px;');
+                    const status = wifiUi(state, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.75; width: 62px;');
+                    status.x_align = Clutter.ActorAlign.END;
+                    rowBox.add_child(sig);
+                    rowBox.add_child(name);
+                    rowBox.add_child(lock);
+                    rowBox.add_child(pct);
+                    rowBox.add_child(status);
+                    row.set_child(rowBox);
+                    row.connect('clicked', () => activate(connection, entry.ap, info.ssid));
+                    row.connect('button-press-event', (_actor, event) => {
                         if (event.get_button() !== 3)
                             return Clutter.EVENT_PROPAGATE;
                         hiddenNetworks = toggleHiddenNetwork(hiddenNetworks, info.ssid);
@@ -498,46 +551,55 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                         rebuildNetworkList();
                         return Clutter.EVENT_STOP;
                     });
-                    networksSection.addMenuItem(item);
+                    networkCards.add_child(row);
                 }
 
                 const inRange = new Set(sorted.filter(e => e.connection)
                     .map(e => e.connection.get_uuid()));
                 const outOfRange = savedConnections.filter(c => !inRange.has(c.get_uuid()));
                 if (outOfRange.length) {
-                    networksSection.addMenuItem(stateLabel('SAVED · NOT IN RANGE'));
+                    groupTitle('SAVED · NOT IN RANGE');
                     for (const connection of outOfRange) {
-                        const item = new PopupMenu.PopupMenuItem(
-                            `${connection.get_id()} · Saved`, {reactive: false});
-                        if (connection.get_uuid() === activeId)
-                            item.setOrnament(PopupMenu.Ornament.DOT);
-                        networksSection.addMenuItem(item);
+                        networkCards.add_child(wifiUi(connection.get_id(),
+                            'font-family: "Noto Sans", sans-serif; font-size: 11px; opacity: 0.7; padding: 6px 10px;'));
                     }
                 }
             }
 
             if (hiddenNetworks.length) {
-                const hiddenItem = new PopupMenu.PopupMenuItem(
-                    `HIDDEN (${hiddenNetworks.length})  ${hiddenExpanded ? '▾' : '▸'}`, {reactive: true});
-                hiddenItem.connect('activate', () => {
+                const hiddenBtn = new St.Button({
+                    label: `HIDDEN (${hiddenNetworks.length})  ${hiddenExpanded ? '▾' : '▸'}`,
+                    style_class: 'material-panel-wifi-hidden-btn',
+                    reactive: true,
+                    x_expand: true,
+                });
+                hiddenBtn.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; padding: 7px 10px; border-radius: 8px;';
+                hiddenBtn.connect('clicked', () => {
                     hiddenExpanded = !hiddenExpanded;
                     rebuildNetworkList();
                 });
-                networksSection.addMenuItem(hiddenItem);
+                networkCards.add_child(hiddenBtn);
                 if (hiddenExpanded) {
                     for (const ssid of hiddenNetworks) {
-                        const item = new PopupMenu.PopupMenuItem(`${ssid}  · Show again`, {reactive: true});
-                        item.connect('activate', () => {
+                        const restore = new St.Button({
+                            label: `${ssid}  · Show again`,
+                            style_class: 'material-panel-wifi-row',
+                            reactive: true,
+                            x_expand: true,
+                        });
+                        restore.style = 'font-family: "Noto Sans", sans-serif; font-size: 11px; padding: 7px 10px; border-radius: 8px;';
+                        restore.connect('clicked', () => {
                             hiddenNetworks = toggleHiddenNetwork(hiddenNetworks, ssid);
                             saveHiddenNetworks(hiddenNetworks);
                             rebuildNetworkList();
                         });
-                        networksSection.addMenuItem(item);
+                        networkCards.add_child(restore);
                     }
                 }
             }
             if (scanStatus)
-                networksSection.addMenuItem(stateLabel(scanStatus));
+                networkCards.add_child(wifiUi(scanStatus,
+                    'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.5; padding: 8px 10px 0 10px;'));
         };
 
         const requestWifiScan = () => {
@@ -599,7 +661,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             portalItem.visible = state === 'portal';
             if (state === 'portal') {
                 portalItem.label.text = '⚠ Connected, but internet may need a sign-in — open browser';
-                portalItem.label.style = 'color: #ffb4ab; font-size: 11px;';
+                portalItem.label.style = 'font-family: "Noto Sans", sans-serif; color: #ffb4ab; font-size: 11px;';
             }
         };
         portalItem.connect('activate', closeAfter(menu, () => {
@@ -608,10 +670,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
 
         // Nearby devices from the kernel ARP/NDP cache (read-only).
         const nearbySection = new PopupMenu.PopupMenuSection();
-        const nearbyTitle = new PopupMenu.PopupMenuItem('Nearby devices', {reactive: false});
-        nearbyTitle.label.style = 'font-size: 11px; font-weight: 700; opacity: 0.7;';
+        const nearbyTitle = new PopupMenu.PopupMenuItem('NEARBY DEVICES', {reactive: false});
+        nearbyTitle.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;';
         nearbySection.addMenuItem(nearbyTitle);
         const nearbyRefresh = new PopupMenu.PopupMenuItem('Refresh', {reactive: true});
+        nearbyRefresh.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.7;';
         nearbySection.addMenuItem(nearbyRefresh);
         const nearbyRows = new PopupMenu.PopupMenuSection();
         nearbySection.addMenuItem(nearbyRows);
@@ -625,15 +688,15 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             nearbyRows.removeAll();
             const devices = parseArpNeighbors(text);
             if (!devices.length)
-                nearbyRows.addMenuItem(new PopupMenu.PopupMenuItem('No devices found', {reactive: false}));
+                nearbyRows.addMenuItem(styleMenuLabel(new PopupMenu.PopupMenuItem('No devices found', {reactive: false})));
             for (const device of devices) {
-                nearbyRows.addMenuItem(new PopupMenu.PopupMenuItem(
-                    `${device.ip}  ·  ${device.mac}`, {reactive: false}));
+                nearbyRows.addMenuItem(styleMenuLabel(new PopupMenu.PopupMenuItem(
+                    `${device.ip}  ·  ${device.mac}`, {reactive: false})));
             }
         };
         nearbyRefresh.connect('activate', refreshNearby);
 
-        const settingsItem = new PopupMenu.PopupMenuItem('Wi-Fi settings…');
+        const settingsItem = styleMenuLabel(new PopupMenu.PopupMenuItem('Wi-Fi settings…'));
         settingsItem.connect('activate', closeAfter(menu, () => {
             // Unknown networks / passwords need the system UI (secret agent)
             const tryCmds = [

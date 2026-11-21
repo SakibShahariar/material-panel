@@ -15,7 +15,7 @@ test('unsaved Wi-Fi access points are connected through the shared NetworkManage
     assert.match(source, /import \{addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus\} from '..\/lib\/wifiConnection\.js'/);
     assert.match(source, /addAndActivateWifiConnection\(client, wifiDevice, accessPoint/);
     assert.match(source, /onStarted: activeConnection => \{\s+activationCancellables\.delete\(cancellable\);\s+watchActivation\(activeConnection, ssid, finishActivation\);/);
-    assert.match(source, /item\.connect\('activate', \(\) => activate\(connection, entry\.ap, info\.ssid\)\)/);
+    assert.match(source, /row\.connect\('clicked', \(\) => activate\(connection, entry\.ap, info\.ssid\)\)/);
 });
 
 test('new Wi-Fi connection state and authentication failures are reported', () => {

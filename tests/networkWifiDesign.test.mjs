@@ -34,7 +34,7 @@ test('adapter switcher never reuses destroyed menu items', () => {
     assert.doesNotMatch(network, /const adapterTitle = new PopupMenu\.PopupMenuItem\([^)]*\);\s*adapterSection\.addMenuItem\(adapterTitle\);/);
     const update = network.slice(network.indexOf('const updateAdapterSwitcher'));
     assert.ok(update.indexOf('adapterSection.removeAll()') > 0);
-    assert.ok(update.indexOf('adapterSection.removeAll()') < update.indexOf('const adapterTitle = new PopupMenu.PopupMenuItem'));
+    assert.ok(update.indexOf('adapterSection.removeAll()') < update.indexOf('adapterTitle = styleMenuLabel'));
     assert.match(update.slice(0, update.indexOf('adapterSection.removeAll()')), /if \(!adapterSection\.visible\)\s*return;/);
 });
 
