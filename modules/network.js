@@ -181,12 +181,10 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
 
         // Adapter switcher appears only with 2+ Wi-Fi radios (elliot/penguine style).
         const adapterSection = new PopupMenu.PopupMenuSection();
-        const adapterItems = [];
-        const adapterTitle = new PopupMenu.PopupMenuItem('Wi-Fi adapter', {reactive: false});
-        adapterTitle.label.style = 'font-size: 10px; opacity: 0.6;';
-        adapterSection.addMenuItem(adapterTitle);
         menu.addMenuItem(adapterSection);
         const adapterName = (device, index) => {
+            if (destroyed)
+                return 'Wi-Fi';
             const iface = device?.get_interface?.() || `Wi-Fi ${index + 1}`;
             const match = iface.match(/^wlp(\d+)s(\d+)(?:f(\d+)u(\d+))?/);
             if (match)
@@ -194,12 +192,19 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             return iface;
         };
         const updateAdapterSwitcher = () => {
-            adapterSection.removeAll();
-            adapterSection.addMenuItem(adapterTitle);
-            adapterItems.length = 0;
+            if (destroyed)
+                return;
             adapterSection.visible = wifiDevices.length > 1;
+            // Rebuild only when the switcher is actually shown. Every
+            // addMenuItem reuses destroyed Clutter actors if we recreate
+            // items blindly, which crashes the Shell with use-after-free.
             if (!adapterSection.visible)
                 return;
+            adapterSection.removeAll();
+            adapterItems.length = 0;
+            const adapterTitle = new PopupMenu.PopupMenuItem('Wi-Fi adapter', {reactive: false});
+            adapterTitle.label.style = 'font-size: 10px; opacity: 0.6;';
+            adapterSection.addMenuItem(adapterTitle);
             wifiDevices.forEach((device, index) => {
                 const item = new PopupMenu.PopupMenuItem(
                     `${index === wifiDeviceIndex ? '● ' : '   '}${adapterName(device, index)}`, {reactive: true});

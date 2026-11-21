@@ -30,6 +30,14 @@ test('hidden networks persist to a private config file', () => {
     assert.match(hidden, /export function toggleHiddenNetwork/);
 });
 
+test('adapter switcher never reuses destroyed menu items', () => {
+    assert.doesNotMatch(network, /const adapterTitle = new PopupMenu\.PopupMenuItem\([^)]*\);\s*adapterSection\.addMenuItem\(adapterTitle\);/);
+    const update = network.slice(network.indexOf('const updateAdapterSwitcher'));
+    assert.ok(update.indexOf('adapterSection.removeAll()') > 0);
+    assert.ok(update.indexOf('adapterSection.removeAll()') < update.indexOf('const adapterTitle = new PopupMenu.PopupMenuItem'));
+    assert.match(update.slice(0, update.indexOf('adapterSection.removeAll()')), /if \(!adapterSection\.visible\)\s*return;/);
+});
+
 test('multi-adapter switcher snaps to the radio carrying the route', () => {
     assert.match(network, /client\.get_devices\(\)\.filter\(d =>\s*d\.get_device_type\(\) === NM\.DeviceType\.WIFI\)/);
     assert.match(network, /routeIndex >= 0/);
