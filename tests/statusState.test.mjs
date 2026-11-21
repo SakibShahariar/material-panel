@@ -23,10 +23,9 @@ test('shared status state builds an icon, wrapped message, and hide/show API', (
     assert.match(helper, /return \{actor, setMessage\}/);
 });
 
-test('CPU, media, Bluetooth, and weather use the shared status state helper', () => {
+test('media, Bluetooth, and weather use the shared status state helper', () => {
     for (const [name, source] of [
         ['Bluetooth', bluetooth],
-        ['CPU', cpu],
         ['Media', media],
         ['Weather', weather],
     ]) {
@@ -39,8 +38,7 @@ test('major unavailable states provide explanations and return to normal on reco
     assert.match(bluetooth, /No Bluetooth adapter was detected/);
     assert.match(bluetooth, /BlueZ\) is not responding/);
     assert.match(bluetooth, /showAdapterState\(''\)/);
-    assert.match(cpu, /No readable CPU thermal sensor was found/);
-    assert.match(cpu, /tempUnavailableState\.setMessage\(temp === null/);
+    assert.match(cpu, /temp: latestMetricSample\?\.temp \?\? null/);
     assert.match(media, /No media player is active/);
     assert.match(media, /noMediaState\.setMessage\(''\)/);
     assert.match(weather, /No location configured\. Set one in GNOME Weather or Preferences/);

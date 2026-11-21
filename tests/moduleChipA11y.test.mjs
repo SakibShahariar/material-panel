@@ -35,7 +35,9 @@ test('connected headset chip announces the active device and battery level', () 
 
 const cpu = await readFile(new URL('../modules/cpu.js', import.meta.url), 'utf8');
 
-test('notification and CPU popup search fields have accessible names', () => {
+test('notification and CPU popup search fields have accessible names', async () => {
+    const popup = await readFile(new URL('../lib/activityPopup.js', import.meta.url), 'utf8');
     assert.ok(notifications.includes("setChipA11y(searchEntry, 'Search notifications')"));
-    assert.ok(cpu.includes("setChipA11y(procSearch, 'Filter processes')"));
+    assert.match(cpu, /setChipA11y\(button, 'System statistics: '/);
+    assert.match(popup, /hint_text: 'Filter processes…'/);
 });

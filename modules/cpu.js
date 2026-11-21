@@ -2,10 +2,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {attachPopupDismiss} from '../lib/popupDismiss.js';
-import {menuToggle, isSessionLocked} from '../lib/shellCompat.js';
+import {isSessionLocked} from '../lib/shellCompat.js';
 
 import {iconPath, iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -13,11 +10,10 @@ import {setChipA11y} from '../lib/a11y.js';
 import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 import {createAdaptivePollSchedule} from '../lib/adaptivePolling.js';
 import {getGpuMetrics, getNetworkMetrics} from '../lib/systemMetricsState.js';
-import {createStatusState} from '../lib/statusState.js';
 import {ConfigStore} from '../lib/configStore.js';
-import {filterAndSortProcesses, parseProcessSnapshot} from '../lib/processSnapshot.js';
+import {parseProcessSnapshot} from '../lib/processSnapshot.js';
 import {readMemInfo} from '../lib/memInfo.js';
-import {createPopupHeader} from '../lib/popupHeader.js';
+import {createActivityPopup} from '../lib/activityPopup.js';
 
 function findTempFile() {
     const candidates = [];
@@ -439,326 +435,32 @@ export function buildCpu(_extensionPath, scale = 1.0) {
 
     readAll();
 
-    let refreshPopup = (_data) => {}; // assigned after popup widgets exist
     let latestMetricSample = null;
+    let latestMem = null;
 
-    let updateLabels = () => {
-        // Avoid repeated /proc and sysfs reads when neither chip nor popup is visible.
-        if (isSessionLocked() || (!button.mapped && !menu.isOpen))
-            return GLib.SOURCE_CONTINUE;
-        try {
-            getCoreClasses();
-        } catch (e) {}
-        // Single sample per tick — calling readAll twice ate the delta (popup stuck ~0%)
-        const data = readAll();
-        const totalPct = data.totalPct;
-        let temp = readTemp(tempPath);
-        if (temp === null) temp = readTempHwmon();
-        latestMetricSample = {...data, temp};
-        const metrics = activityMetrics;
-        const mode = activityMode;
-        const memSnap = metrics.includes('memory') ? readMemInfo() : null;
-        const gpu = getGpuMetrics();
-        const freshGpu = gpu && GLib.get_monotonic_time() - gpu.updatedAt < 10000000;
-        const network = getNetworkMetrics();
-        const now = GLib.get_monotonic_time();
-        const values = [];
-        if (metrics.includes('cpu'))
-            values.push({id: 'cpu', text: 'CPU ' + (totalPct !== null ? totalPct + '%' : '—')});
-        if (metrics.includes('memory'))
-            values.push({id: 'memory', text: 'RAM ' + (memSnap ? memSnap.usedPct + '%' : '—')});
-        if (metrics.includes('temperature'))
-            values.push({id: 'temperature', text: 'TEMP ' + (temp !== null ? temp + '°' : '—')});
-        if (metrics.includes('gpu')) {
-            values.push({id: 'gpu', text: 'GPU ' + (freshGpu && gpu.util != null ? gpu.util + '%' : '—')});
+    // Bounded history for the popup's mini graphs. Samples are collected only
+    // while the chip or popup is visible — the helper never starts a sampler.
+    const HISTORY_LEN = 28;
+    const history = {cpu: [], temp: [], mem: []};
+    const pushHistory = (cpuPct, tempC, memPct) => {
+        if (Number.isFinite(cpuPct))
+            history.cpu.push(Math.max(0, Math.min(100, cpuPct)));
+        if (Number.isFinite(tempC))
+            history.temp.push(Math.max(0, Math.min(100, tempC)));
+        if (Number.isFinite(memPct))
+            history.mem.push(Math.max(0, Math.min(100, memPct)));
+        for (const key of Object.keys(history)) {
+            if (history[key].length > HISTORY_LEN)
+                history[key].splice(0, history[key].length - HISTORY_LEN);
         }
-        if (metrics.includes('network')) {
-            const freshNetwork = network && now - network.updatedAt < 5000000;
-            const compactRate = value => {
-                const n = Math.max(0, Number(value) || 0);
-                const bits = getNetworkSpeedUnit() === 'bits';
-                const amount = bits ? n * 8 : n;
-                if (amount < 1000) return Math.round(amount) + (bits ? 'b' : 'B');
-                if (amount < 1000000) return Math.round(amount / 1000) + 'K';
-                return (amount / 1000000).toFixed(1) + 'M';
-            };
-            values.push({
-                id: 'network',
-                text: freshNetwork ? 'NET ' + compactRate(network.down) + '/' + compactRate(network.up) : 'NET —',
-            });
-        }
-        if (values.length === 0)
-            values.push({id: 'cpu', text: 'CPU ' + (totalPct !== null ? totalPct + '%' : '—')});
-        const displayed = mode === 'cycle' ? [values[activityCycleIndex++ % values.length]] : values;
-        cpuLabel.text = displayed.map(value => value.text).join(' · ');
-        tempLabel.text = '';
-        try { tempIcon.visible = false; } catch (e) {}
-        try {
-            const hot = (metrics.includes('cpu') && totalPct != null && totalPct >= 90) ||
-                (metrics.includes('memory') && memSnap && memSnap.usedPct >= 90) ||
-                (metrics.includes('gpu') && freshGpu && gpu.util >= 90);
-            if (hot)
-                button.add_style_class_name('material-panel-chip-warn');
-            else
-                button.remove_style_class_name('material-panel-chip-warn');
-        } catch (e) {}
-        try {
-            const summary = values.map(value => value.text).join('  ');
-            button.set_tooltip_text(summary);
-            setChipA11y(button, 'System statistics: ' + summary);
-        } catch (e) {}
-        try {
-            if (menu && menu.isOpen)
-                refreshPopup(latestMetricSample);
-        } catch (e) {}
-        return GLib.SOURCE_CONTINUE;
     };
 
-    // menu created below; timer uses updateLabels which calls refreshPopup when open
-
-    let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
-    menu.actor.add_style_class_name('material-panel-popup');
-    // Keep the dense Activity popup from expanding to the full width of a
-    // long process name; long rows are scrollable, not layout-breaking.
-    try {
-        const mon = Main.layoutManager.primaryMonitor;
-        const popupWidth = Math.min(440, Math.max(300, (mon?.width ?? 900) - 32));
-        const maxH = Math.floor((mon?.height ?? 800) * 0.78);
-        menu.box.style =
-            `max-height: ${maxH}px; width: ${popupWidth}px; min-width: ${popupWidth}px; ` +
-            `max-width: ${popupWidth}px; overflow: hidden; border-radius: 16px; padding: 8px;`;
-        try { menu.box.clip_to_allocation = true; } catch (e) {}
-        menu.box.width = popupWidth;
-        menu.actor.width = popupWidth + 8;
-    } catch (e) {}
-    Main.uiGroup.add_child(menu.actor);
-    menu.actor.hide();
-    attachPopupDismiss(menu, button);
-
-    // —— Activity popup (section-based — reliable with PopupMenu.open) ——
-    const usageValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const tempValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const loadValue = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-value'});
-    const coresGrid = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-cores'});
-    const coreLabels = [];
-
-    const header = new PopupMenu.PopupMenuSection();
-    const headerTitle = new St.Label({text: 'Activity', style_class: 'material-panel-cpu-popup-title'});
-    const summary = new St.BoxLayout({
-        orientation: Clutter.Orientation.HORIZONTAL,
-        style_class: 'material-panel-cpu-popup-summary',
-        x_expand: true,
-        style: 'spacing: 12px;',
-    });
-    for (const [title, widget] of [['Usage', usageValue], ['Temp', tempValue], ['Load', loadValue]]) {
-        const col = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-stat', x_expand: true});
-        col.add_child(new St.Label({text: title, style_class: 'material-panel-cpu-popup-label'}));
-        col.add_child(widget);
-        summary.add_child(col);
-    }
-    const headerStatus = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
-        x_expand: true,
-        style: 'spacing: 6px;',
-    });
-    headerStatus.add_child(summary);
-    const tempUnavailableState = createStatusState({
-        styleClass: 'material-panel-cpu-popup-thermal-row',
-        labelStyleClass: 'material-panel-cpu-popup-thermal-row',
-        iconSize: 14,
-        style: 'spacing: 8px; padding: 4px 2px;',
-    });
-    headerStatus.add_child(tempUnavailableState.actor);
-    const {actor: headerBox} = createPopupHeader({
-        titleActor: headerTitle,
-        statusActor: headerStatus,
-        styleClass: 'material-panel-cpu-popup-header',
-        style: 'spacing: 8px; padding: 4px 2px; min-width: 260px;',
-    });
-    header.actor.add_child(headerBox);
-    menu.addMenuItem(header);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    const coresSection = new PopupMenu.PopupMenuSection();
-    const coresTitle = new St.Label({text: 'Per core', style_class: 'material-panel-cpu-popup-section-title'});
-    try {
-        const cc = getCoreClasses();
-        if (cc && cc.some(x => x === 'P' || x === 'E'))
-            coresTitle.text = 'Per core  (P = performance, E = efficiency)';
-        coreClassesForPopup = cc;
-    } catch (e) {}
-    coresSection.actor.add_child(coresTitle);
-    coresSection.actor.add_child(coresGrid);
-    menu.addMenuItem(coresSection);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    // Memory
-    const memUsedLbl = new St.Label({text: 'Used  —', style_class: 'material-panel-cpu-popup-value'});
-    const memAvailLbl = new St.Label({text: 'Available  —', style_class: 'material-panel-cpu-popup-value'});
-    const memCacheLbl = new St.Label({text: 'Cache  —', style_class: 'material-panel-cpu-popup-value'});
-    const memSwapLbl = new St.Label({text: 'Swap  —', style_class: 'material-panel-cpu-popup-value'});
-    const memSection = new PopupMenu.PopupMenuSection();
-    memSection.actor.add_child(new St.Label({
-        text: 'Memory',
-        style_class: 'material-panel-cpu-popup-section-title',
-    }));
-    const memBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'material-panel-cpu-popup-thermal', style: 'spacing: 2px;'});
-    memBox.add_child(memUsedLbl);
-    memBox.add_child(memAvailLbl);
-    memBox.add_child(memCacheLbl);
-    memBox.add_child(memSwapLbl);
-    memSection.actor.add_child(memBox);
-    menu.addMenuItem(memSection);
-    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-    // Expand
-    let expanded = false;
-    const expandBtn = new PopupMenu.PopupMenuItem('Show more ▸');
-    menu.addMenuItem(expandBtn);
-
-    const extraSection = new PopupMenu.PopupMenuSection();
-    extraSection.actor.visible = false;
-    const diskLbl = new St.Label({text: 'Disk  —', style_class: 'material-panel-cpu-popup-value'});
-    const netLbl = new St.Label({text: 'Network  —', style_class: 'material-panel-cpu-popup-value'});
-    const gpuLbl = new St.Label({text: 'GPU  —', style_class: 'material-panel-cpu-popup-value'});
-    const ioBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style: 'spacing: 3px; padding: 2px 0;'});
-    ioBox.add_child(new St.Label({text: 'System', style_class: 'material-panel-cpu-popup-section-title'}));
-    ioBox.add_child(diskLbl);
-    ioBox.add_child(netLbl);
-    ioBox.add_child(gpuLbl);
-    extraSection.actor.add_child(ioBox);
-
-    let procSort = 'cpu';
-    const procTitleRow = new St.BoxLayout({orientation: Clutter.Orientation.HORIZONTAL, style: 'spacing: 8px;'});
-    const procTitle = new St.Label({
-        text: 'Top processes',
-        style_class: 'material-panel-cpu-popup-section-title',
-        x_expand: true,
-    });
-    const sortCpuBtn = new St.Button({label: 'CPU', style_class: 'material-panel-headphones-disconnect'});
-    const sortMemBtn = new St.Button({label: 'MEM', style_class: 'material-panel-headphones-disconnect'});
-    sortCpuBtn.connect('clicked', () => { procSort = 'cpu'; renderProcesses(); });
-    sortMemBtn.connect('clicked', () => { procSort = 'mem'; renderProcesses(); });
-    procTitleRow.add_child(procTitle);
-    procTitleRow.add_child(sortCpuBtn);
-    procTitleRow.add_child(sortMemBtn);
-
-    let procFilter = '';
     let processSnapshot = null;
     let processError = false;
     let processRefreshInFlight = false;
     let processCancellable = null;
     let processLastRefresh = 0;
     let processDestroyed = false;
-    let processSearchDebounceId = 0;
-    const procSearch = new St.Entry({
-        style_class: 'material-panel-activity-proc-search',
-        hint_text: 'Filter processes…',
-        can_focus: true,
-        x_expand: true,
-    });
-    setChipA11y(procSearch, 'Filter processes');
-    try {
-        procSearch.clutter_text.connect('text-changed', () => {
-            try {
-                procFilter = String(procSearch.get_text() || '').trim().toLowerCase();
-            } catch (e) {
-                procFilter = '';
-            }
-            if (processSearchDebounceId) {
-                GLib.source_remove(processSearchDebounceId);
-                processSearchDebounceId = 0;
-            }
-            processSearchDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-                processSearchDebounceId = 0;
-                if (!processDestroyed)
-                    renderProcesses();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-    } catch (e) {}
-
-    const procBox = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'material-panel-cpu-popup-procs',
-        style: 'spacing: 2px;',
-    });
-    const procScroll = new St.ScrollView({
-        style_class: 'material-panel-cpu-proc-scroll',
-        overlay_scrollbars: true,
-        x_expand: true,
-    });
-    try {
-        procScroll.hscrollbar_policy = St.PolicyType.NEVER;
-        procScroll.vscrollbar_policy = St.PolicyType.AUTOMATIC;
-    } catch (e) {}
-    try { procScroll.style = 'max-height: 240px;'; } catch (e) {}
-    try {
-        if (procScroll.set_child)
-            procScroll.set_child(procBox);
-        else
-            procScroll.add_child(procBox);
-    } catch (e) {
-        try { procScroll.add_actor?.(procBox); } catch (e2) {}
-    }
-
-    const sysMonBtn = new St.Button({
-        label: 'System Monitor',
-        style_class: 'material-panel-headphones-disconnect',
-        x_expand: true,
-    });
-    sysMonBtn.connect('clicked', () => {
-        for (const c of ['gnome-system-monitor', 'missioncenter', 'plasma-systemmonitor']) {
-            try { GLib.spawn_command_line_async(c); break; } catch (e) {}
-        }
-        try { if (menu.isOpen) menuToggle(menu); } catch (e) {}
-    });
-
-    extraSection.actor.add_child(procTitleRow);
-    extraSection.actor.add_child(procSearch);
-    extraSection.actor.add_child(procScroll);
-    extraSection.actor.add_child(sysMonBtn);
-    menu.addMenuItem(extraSection);
-
-    const renderProcesses = () => {
-        if (processDestroyed)
-            return;
-        procBox.destroy_all_children();
-        if (processSnapshot === null) {
-            procBox.add_child(new St.Label({
-                text: processError ? 'Process list unavailable' : 'Loading processes…',
-                style_class: 'material-panel-cpu-popup-value',
-            }));
-            return;
-        }
-        const rows = filterAndSortProcesses(processSnapshot, procFilter, procSort, 8);
-        if (rows.length === 0) {
-            procBox.add_child(new St.Label({
-                text: 'No matching processes',
-                style_class: 'material-panel-cpu-popup-value',
-            }));
-            return;
-        }
-        for (const process of rows) {
-            const row = new St.BoxLayout({
-                orientation: Clutter.Orientation.HORIZONTAL,
-                x_expand: true,
-                style_class: 'material-panel-cpu-proc-row',
-            });
-            row.add_child(new St.Label({
-                text: String(process.comm || '').slice(0, 18),
-                x_expand: true,
-                style: 'font-size: 11px;',
-                style_class: 'material-panel-cpu-popup-value',
-            }));
-            row.add_child(new St.Label({
-                text: `PID ${process.pid} · ${process.pcpu}% CPU · ${process.pmem}% MEM`,
-                style: 'font-size: 11px;',
-                style_class: 'material-panel-cpu-popup-value',
-            }));
-            procBox.add_child(row);
-        }
-    };
 
     const requestProcessSnapshot = () => {
         if (processRefreshInFlight || processDestroyed)
@@ -787,7 +489,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
                     processRefreshInFlight = false;
                     processCancellable = null;
                     if (!processDestroyed)
-                        renderProcesses();
+                        popup.update();
                 }
             });
         } catch (e) {
@@ -795,133 +497,139 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             processCancellable = null;
             processError = true;
             processSnapshot = null;
-            if (!processDestroyed)
-                renderProcesses();
             logError(e, 'material-panel: unable to start process snapshot');
         }
     };
 
-    const refreshExtra = () => {
+    const refreshProcesses = () => {
         const now = GLib.get_monotonic_time();
         if (!processRefreshInFlight &&
             (processLastRefresh === 0 || now - processLastRefresh >= 5 * 1000 * 1000))
             requestProcessSnapshot();
     };
 
-    expandBtn.connect('activate', () => {
-        expanded = !expanded;
-        extraSection.actor.visible = expanded;
-        try {
-            if (expandBtn.label && expandBtn.label.set_text)
-                expandBtn.label.set_text(expanded ? 'Show less ▾' : 'Show more ▸');
-            else if (expandBtn.label)
-                expandBtn.label.text = expanded ? 'Show less ▾' : 'Show more ▸';
-        } catch (e) {}
-        if (expanded) {
-            renderProcesses();
-            refreshExtra();
+    const openMonitor = () => {
+        for (const command of ['gnome-system-monitor', 'missioncenter', 'plasma-systemmonitor']) {
+            try { GLib.spawn_command_line_async(command); break; } catch (e) {}
         }
-    });
-
-    const ensureCoreRows = (n) => {
-        while (coreLabels.length < n) {
-            const i = coreLabels.length;
-            const row = new St.BoxLayout({style_class: 'material-panel-cpu-popup-core-row', x_expand: true, style: 'spacing: 6px;'});
-            const coreClasses = coreClassesForPopup;
-            const tag = coreClasses && coreClasses[i] ? coreClasses[i] : '';
-            const nameText = tag ? `${i} ${tag}` : `${i}`;
-            row.add_child(new St.Label({text: nameText, style_class: 'material-panel-cpu-popup-core-name'}));
-            const barBg = new St.Widget({
-                style_class: 'material-panel-cpu-popup-bar-bg',
-                x_expand: true,
-                height: 8,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            const barFill = new St.Widget({
-                style_class: 'material-panel-cpu-popup-bar-fill',
-                height: 8,
-            });
-            barBg.add_child(barFill);
-            const val = new St.Label({text: '—', style_class: 'material-panel-cpu-popup-core-value'});
-            row.add_child(barBg);
-            row.add_child(val);
-            coresGrid.add_child(row);
-            coreLabels.push({val, barFill, barBg});
-        }
-        try {
-            coresTitle.visible = n > 0;
-            coresGrid.visible = n > 0;
-        } catch (e) {}
     };
 
+    let popup = null;
+    popup = createActivityPopup({
+        button,
+        openMonitor,
+        refreshProcesses,
+        getData: () => {
+            let coreClasses = null;
+            try { coreClasses = getCoreClasses(); } catch (e) {}
+            return {
+                totalPct: latestMetricSample?.totalPct ?? null,
+                cores: latestMetricSample?.cores ?? [],
+                temp: latestMetricSample?.temp ?? null,
+                history,
+                coreClasses,
+                mem: {
+                    usedPct: latestMem?.usedPct ?? null,
+                    used: formatBytesFromKb(latestMem?.usedKb),
+                    total: formatBytesFromKb(latestMem?.totalKb),
+                    available: formatBytesFromKb(latestMem?.availableKb),
+                    cache: formatBytesFromKb(latestMem?.cachedKb),
+                    swap: latestMem?.swapTotalKb > 0
+                        ? `${formatBytesFromKb(latestMem.swapUsedKb)} / ${formatBytesFromKb(latestMem.swapTotalKb)} (${latestMem.swapPct}%)`
+                        : 'none',
+                },
+            };
+        },
+        getProcesses: () => ({
+            rows: processSnapshot,
+            loading: processRefreshInFlight || processSnapshot === null,
+            error: processError,
+        }),
+    });
 
-
-    refreshPopup = (data = null) => {
-        // Prefer data from the same tick; only sample if opened mid-cycle
-        let totalPct, cores, temp;
-        if (data && data.totalPct !== undefined) {
-            totalPct = data.totalPct;
-            cores = data.cores;
-            temp = data.temp;
-        } else {
-            ({totalPct, cores} = readAll());
-            temp = readTemp(tempPath);
-            if (temp === null) temp = readTempHwmon();
-        }
-        const load = readLoadAvg();
-
-        usageValue.text = totalPct !== null ? `${totalPct}%` : '…';
-        tempValue.text = temp !== null ? `${temp}°C` : 'Unavailable';
-        tempUnavailableState.setMessage(temp === null ? 'No readable CPU thermal sensor was found.' : '');
+    let updateLabels = (force = false) => {
+        if (!force && (isSessionLocked() || (!button.mapped && !popup.isOpen)))
+            return GLib.SOURCE_CONTINUE;
         try {
-            tempValue.set_tooltip_text(temp !== null
-                ? 'CPU temperature from available thermal sensors'
-                : 'CPU temperature unavailable: no readable CPU thermal sensor was found');
+            getCoreClasses();
         } catch (e) {}
-
-        const list = Array.isArray(cores) ? cores : [];
-        ensureCoreRows(list.length);
-        for (let i = 0; i < coreLabels.length; i++) {
-            const c = list[i];
-            const pct = c && typeof c === 'object' ? c.pct : c;
-            const {val, barFill, barBg} = coreLabels[i];
-            if (pct != null) {
-                val.text = `${pct}%`;
-                const w = Math.max(0, Math.min(100, pct));
-                try {
-                    const bw = barBg.width > 1 ? barBg.width : 80;
-                    barFill.width = Math.round((bw * w) / 100);
-                } catch (e) {
-                    barFill.width = Math.round(w * 0.8);
-                }
-            } else {
-                val.text = '…';
-                barFill.width = 0;
-            }
+        // Single sample per tick — calling readAll twice ate the delta.
+        const data = readAll();
+        const totalPct = data.totalPct;
+        let temp = readTemp(tempPath);
+        if (temp === null) temp = readTempHwmon();
+        latestMetricSample = {...data, temp};
+        const metrics = activityMetrics;
+        const mode = activityMode;
+        const memSnap = (metrics.includes('memory') || popup.isOpen) ? readMemInfo() : null;
+        if (memSnap)
+            latestMem = memSnap;
+        pushHistory(totalPct, temp, memSnap?.usedPct ?? null);
+        const gpu = getGpuMetrics();
+        const freshGpu = gpu && GLib.get_monotonic_time() - gpu.updatedAt < 10000000;
+        const network = getNetworkMetrics();
+        const now = GLib.get_monotonic_time();
+        const values = [];
+        if (metrics.includes('cpu')) {
+            const text = totalPct !== null ? totalPct + '%' : '—';
+            values.push({id: 'cpu', text, label: 'CPU ' + text});
         }
-
-        // Load averages in the Load column (1 / 5 / 15 min)
-        loadValue.text = load
-            ? `${load.load1} / ${load.load5} / ${load.load15}`
-            : '—';
-
-        const mem = readMemInfo();
-        if (mem) {
-            memUsedLbl.text = `Used  ${formatBytesFromKb(mem.usedKb)} / ${formatBytesFromKb(mem.totalKb)}  (${mem.usedPct}%)`;
-            memAvailLbl.text = `Available  ${formatBytesFromKb(mem.availableKb)}`;
-            memCacheLbl.text = `Cache  ${formatBytesFromKb(mem.cachedKb)}`;
-            memSwapLbl.text = mem.swapTotalKb > 0
-                ? `Swap  ${formatBytesFromKb(mem.swapUsedKb)} / ${formatBytesFromKb(mem.swapTotalKb)}  (${mem.swapPct}%)`
-                : 'Swap  none';
-        } else {
-            memUsedLbl.text = 'Used  —';
-            memAvailLbl.text = 'Available  —';
-            memCacheLbl.text = 'Cache  —';
-            memSwapLbl.text = 'Swap  —';
+        if (metrics.includes('memory')) {
+            const text = memSnap ? memSnap.usedPct + '%' : '—';
+            values.push({id: 'memory', text: 'RAM ' + text, label: 'RAM ' + text});
         }
-
-        if (expanded)
-            refreshExtra();
+        if (metrics.includes('temperature')) {
+            const text = temp !== null ? temp + '°' : '—';
+            values.push({id: 'temperature', text, label: 'TEMP ' + text});
+        }
+        if (metrics.includes('gpu')) {
+            values.push({id: 'gpu', text: 'GPU ' + (freshGpu && gpu.util != null ? gpu.util + '%' : '—')});
+        }
+        if (metrics.includes('network')) {
+            const freshNetwork = network && now - network.updatedAt < 5000000;
+            const compactRate = value => {
+                const n = Math.max(0, Number(value) || 0);
+                const bits = getNetworkSpeedUnit() === 'bits';
+                const amount = bits ? n * 8 : n;
+                if (amount < 1000) return Math.round(amount) + (bits ? 'b' : 'B');
+                if (amount < 1000000) return Math.round(amount / 1000) + 'K';
+                return (amount / 1000000).toFixed(1) + 'M';
+            };
+            values.push({
+                id: 'network',
+                text: freshNetwork ? 'NET ' + compactRate(network.down) + '/' + compactRate(network.up) : 'NET —',
+            });
+        }
+        if (values.length === 0) {
+            const text = totalPct !== null ? totalPct + '%' : '—';
+            values.push({id: 'cpu', text, label: 'CPU ' + text});
+        }
+        const displayed = mode === 'cycle' ? [values[activityCycleIndex++ % values.length]] : values;
+        const displayedIds = new Set(displayed.map(value => value.id));
+        try { cpuIcon.visible = displayedIds.has('cpu'); } catch (e) {}
+        try { tempIcon.visible = displayedIds.has('temperature'); } catch (e) {}
+        cpuLabel.text = displayed.filter(value => value.id !== 'temperature')
+            .map(value => value.text).join(' · ');
+        tempLabel.text = displayed.filter(value => value.id === 'temperature')
+            .map(value => value.text).join(' ');
+        try {
+            const hot = (metrics.includes('cpu') && totalPct != null && totalPct >= 90) ||
+                (metrics.includes('memory') && memSnap && memSnap.usedPct >= 90) ||
+                (metrics.includes('gpu') && freshGpu && gpu.util >= 90);
+            if (hot)
+                button.add_style_class_name('material-panel-chip-warn');
+            else
+                button.remove_style_class_name('material-panel-chip-warn');
+        } catch (e) {}
+        try {
+            const summary = values.map(value => value.label ?? value.text).join('  ');
+            button.set_tooltip_text(summary);
+            setChipA11y(button, 'System statistics: ' + summary);
+        } catch (e) {}
+        if (popup.isOpen) {
+            try { popup.update(); } catch (e) {}
+        }
+        return GLib.SOURCE_CONTINUE;
     };
 
     const _cfgStore = new ConfigStore();
@@ -932,11 +640,11 @@ export function buildCpu(_extensionPath, scale = 1.0) {
             const c = await _cfgStore.loadAsync();
             if (processDestroyed || generation !== activityConfigGeneration)
                 return;
-            // ConfigStore migrates legacy activityChip values into activityChipMetrics.
             activityMetrics = Array.isArray(c.activityChipMetrics)
                 ? [...c.activityChipMetrics]
                 : ['cpu', 'temperature'];
             activityMode = c.activityChipMode === 'cycle' ? 'cycle' : 'combined';
+            try { popup.setOpacity(c.panelSize?.popupOpacity); } catch (e) {}
             try { updateLabels(); } catch (e) {}
         } catch (e) {
             if (!processDestroyed && generation === activityConfigGeneration) {
@@ -955,6 +663,19 @@ export function buildCpu(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     updateLabels();
+    // The chip may not report as mapped while the panel is still being built;
+    // populate the labels once unconditionally and again as soon as it maps.
+    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+        try { updateLabels(true); } catch (e) {}
+        return GLib.SOURCE_REMOVE;
+    });
+    try {
+        button.connect('notify::mapped', () => {
+            if (button.mapped) {
+                try { updateLabels(true); } catch (e) {}
+            }
+        });
+    } catch (e) {}
     let previousCpuPct = Number.isFinite(latestMetricSample?.totalPct)
         ? latestMetricSample.totalPct
         : null;
@@ -971,10 +692,7 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         const delayMs = cpuSchedule.nextDelay(active);
         timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
             timerId = 0;
-            // Avoid CPU, temperature, and memory reads while the chip and popup
-            // are hidden. Reset the CPU baseline so the next visible sample does
-            // not average activity across the entire hidden interval.
-            if (isSessionLocked() || (!button.mapped && !menu.isOpen)) {
+            if (isSessionLocked() || (!button.mapped && !popup.isOpen)) {
                 primed = false;
                 prevCores = [];
                 previousCpuPct = null;
@@ -996,39 +714,15 @@ export function buildCpu(_extensionPath, scale = 1.0) {
         });
     };
     scheduleCpuSample();
-    let fastTimerId = 0;
-    menu.connect('open-state-changed', (_m, open) => {
-        if (open) {
-            refreshPopup(latestMetricSample);
-            if (fastTimerId)
-                return;
-            fastTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-                if (!menu.isOpen) {
-                    fastTimerId = 0;
-                    return GLib.SOURCE_REMOVE;
-                }
-                refreshPopup(latestMetricSample);
-                return GLib.SOURCE_CONTINUE;
-            });
-        } else if (fastTimerId) {
-            try { GLib.source_remove(fastTimerId); } catch (e) {}
-            fastTimerId = 0;
-        }
-    });
 
-    button.connect('clicked', () => menuToggle(menu));
+    button.connect('clicked', () => popup.toggle());
     button.connect('destroy', () => {
         processDestroyed = true;
         activityConfigGeneration++;
-        if (processSearchDebounceId) {
-            try { GLib.source_remove(processSearchDebounceId); } catch (e) {}
-            processSearchDebounceId = 0;
-        }
         try { processCancellable?.cancel(); } catch (e) {}
         try { GLib.source_remove(timerId); } catch (e) {}
-        try { if (fastTimerId) GLib.source_remove(fastTimerId); } catch (e) {}
         try { _cfgStore.unwatch(); } catch (e) {}
-        menu.destroy();
+        try { popup.destroy(); } catch (e) {}
     });
 
     try { setChipA11y(button, 'Activity'); } catch (e) {}

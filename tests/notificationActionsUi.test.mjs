@@ -36,7 +36,7 @@ test('notification center uses the shared popup title and action header layout',
     const source = await readFile(new URL('../modules/notifications.js', import.meta.url), 'utf8');
     assert.match(source, /createPopupHeader\(/);
     assert.match(source, /titleActor: headerTitle/);
-    assert.match(source, /actions: \[clearBtn\]/);
+    assert.match(source, /actions: \[dndBtn, clearBtn\]/);
     assert.match(source, /styleClass: 'material-panel-nc-header'/);
 });
 

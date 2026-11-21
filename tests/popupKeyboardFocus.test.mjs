@@ -65,12 +65,22 @@ test('popup arrow navigation cycles focusable controls without hijacking sliders
 test('shared popup keyboard handling is attached to the major module popups', async () => {
     const modules = [
         'powermenu', 'memory', 'networkSpeed', 'disk', 'gpu', 'battery',
-        'network', 'clock', 'btConnected', 'cpu', 'weather', 'bluetooth',
+        'network', 'clock', 'btConnected', 'weather', 'bluetooth',
         'mediaPlayer', 'notifications', 'quicksettingsEnd4', 'quicksettings',
     ];
     const sources = await Promise.all(modules.map(name =>
         readFile(new URL('../modules/' + name + '.js', import.meta.url), 'utf8')));
     assert.ok(sources.every(moduleSource => moduleSource.includes('attachPopupDismiss')));
+});
+
+test('CPU Activity popup uses shared dismissal plus its own extra shortcuts', async () => {
+    const source = await readFile(new URL('../lib/activityPopup.js', import.meta.url), 'utf8');
+    assert.match(source, /attachPopupDismiss\(menu, button\)/);
+    assert.match(source, /menu\.actor\.connect\('key-press-event'/);
+    assert.match(source, /key === Clutter\.KEY_slash/);
+    assert.match(source, /key === Clutter\.KEY_j \|\| key === Clutter\.KEY_k/);
+    assert.match(source, /key === Clutter\.KEY_r/);
+    assert.doesNotMatch(source, /key === Clutter\.KEY_Escape/);
 });
 
 test('focus traversal excludes unmapped and zero-allocation actors while preserving visual child order', () => {

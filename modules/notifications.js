@@ -270,9 +270,37 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     } catch (e) {}
     wireChipPress(clearBtn, {stickyUntilLeave: true});
 
+    // Do Not Disturb toggle — the same setting the DND chip and Quick Settings
+    // use, exposed here so the panel is self-contained.
+    const dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+    const dndBtn = new St.Button({
+        style_class: 'material-panel-nc-dnd',
+        label: '🔔',
+        reactive: true,
+        track_hover: true,
+        can_focus: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    try { dndBtn.style = 'font-size: 14px; padding: 4px 8px; border-radius: 999px;'; } catch (e) {}
+    wireChipPress(dndBtn, {stickyUntilLeave: true});
+    const syncDnd = () => {
+        const on = !dndSettings.get_boolean('show-banners');
+        dndBtn.label = on ? '🔕' : '🔔';
+        if (on)
+            dndBtn.add_style_class_name('active');
+        else
+            dndBtn.remove_style_class_name('active');
+        setChipA11y(dndBtn, on ? 'Do Not Disturb on; click to turn off' : 'Do Not Disturb off; click to turn on');
+    };
+    syncDnd();
+    dndBtn.connect('clicked', () => {
+        dndSettings.set_boolean('show-banners', !dndSettings.get_boolean('show-banners'));
+    });
+    const dndChangedId = dndSettings.connect('changed::show-banners', syncDnd);
+
     const {actor: header} = createPopupHeader({
         titleActor: headerTitle,
-        actions: [clearBtn],
+        actions: [dndBtn, clearBtn],
         styleClass: 'material-panel-nc-header',
         style: 'spacing: 8px; padding: 12px 14px 8px 14px;',
     });
@@ -518,17 +546,26 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         });
         try {
             card.style =
-                'spacing: 10px; padding: 10px 12px; border-radius: 14px;';
+                'spacing: 12px; padding: 10px 12px; border-radius: 12px;';
         } catch (e) {}
+        if (item.unread)
+            card.add_style_class_name('unread');
         const accessibleTitle = (item.title || item.appName || 'Notification').slice(0, 64);
         const accessibleApp = (item.appName || 'App').slice(0, 48);
         setChipA11y(card, `Notification from ${accessibleApp}: ${accessibleTitle}`);
 
-        // App / notif icon
+        // Rounded icon plate, matching the notification-center card language.
+        const avatarPlate = new St.BoxLayout({
+            style_class: 'material-panel-nc-avatar-plate',
+            x_align: Clutter.ActorAlign.START,
+            y_align: Clutter.ActorAlign.START,
+        });
+        try { avatarPlate.style = 'width: 38px; height: 38px; border-radius: 11px; padding: 5px;'; } catch (e) {}
         const avatar = new St.Icon({
             style_class: 'material-panel-nc-avatar',
-            icon_size: 28,
-            y_align: Clutter.ActorAlign.START,
+            icon_size: 26,
+            y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.CENTER,
         });
         try {
             if (item.gicon)
@@ -538,7 +575,8 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         } catch (e) {
             avatar.icon_name = 'dialog-information-symbolic';
         }
-        card.add_child(avatar);
+        avatarPlate.add_child(avatar);
+        card.add_child(avatarPlate);
 
         // Text column
         const mid = new St.BoxLayout({
@@ -554,6 +592,16 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             x_expand: true,
         });
         try { topRow.style = 'spacing: 6px;'; } catch (e) {}
+
+        if (item.unread) {
+            const unreadDot = new St.Widget({
+                style_class: 'material-panel-nc-unread-dot',
+                width: 6,
+                height: 6,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            topRow.add_child(unreadDot);
+        }
 
         const title = new St.Label({
             text: (item.title || item.appName || 'Notification').slice(0, 64),
@@ -585,7 +633,9 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 style_class: 'material-panel-nc-card-app',
             });
             try {
-                app.style = 'font-size: 11px; opacity: 0.7;';
+                app.style = item.unread
+                    ? 'font-size: 10px; font-weight: 700; opacity: 0.85;'
+                    : 'font-size: 10px; opacity: 0.6;';
             } catch (e) {}
             mid.add_child(app);
         }
@@ -963,6 +1013,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         for (const id of trayIds) {
             try { Main.messageTray?.disconnect?.(id); } catch (e) {}
         }
+        try { dndSettings.disconnect(dndChangedId); } catch (e) {}
         try { menu.destroy(); } catch (e) {}
     });
 

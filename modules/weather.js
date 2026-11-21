@@ -475,7 +475,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     const heroIcon = new St.Icon({
-        icon_size: 48,
+        icon_size: 64,
         style_class: 'material-panel-weather-popup-hero-icon',
         gicon,
         y_align: Clutter.ActorAlign.CENTER,
@@ -490,20 +490,14 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         text: '—°',
         style_class: 'material-panel-weather-popup-temp',
     });
-    try { tempLbl.style = 'font-size: 34px; font-weight: 700;'; } catch (e) {}
+    try { tempLbl.style = 'font-size: 52px; font-weight: 700;'; } catch (e) {}
     const condLbl = new St.Label({
         text: '',
         style_class: 'material-panel-weather-popup-cond',
     });
     try { condLbl.style = 'font-size: 13px; font-weight: 600;'; } catch (e) {}
-    const feelsLbl = new St.Label({
-        text: '',
-        style_class: 'material-panel-weather-popup-feels',
-    });
-    try { feelsLbl.style = 'font-size: 11px; opacity: 0.7; padding-top: 2px;'; } catch (e) {}
     heroText.add_child(tempLbl);
     heroText.add_child(condLbl);
-    heroText.add_child(feelsLbl);
     hero.add_child(heroIcon);
     hero.add_child(heroText);
 
@@ -529,17 +523,22 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         try {
             card.style = 'padding: 10px 8px; border-radius: 14px; spacing: 4px;';
         } catch (e) {}
-        const t = new St.Label({text: title, style_class: 'material-panel-weather-stat-label'});
-        try { t.style = 'font-size: 10px; opacity: 0.65;'; } catch (e) {}
+        const t = new St.Label({
+            text: String(title).toUpperCase(),
+            style_class: 'material-panel-weather-stat-label',
+        });
+        try { t.style = 'font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;'; } catch (e) {}
         const v = new St.Label({text: '—', style_class: 'material-panel-weather-stat-value'});
-        try { v.style = 'font-size: 13px; font-weight: 700;'; } catch (e) {}
+        try { v.style = 'font-size: 15px; font-weight: 700;'; } catch (e) {}
         card.add_child(t);
         card.add_child(v);
         return {card, value: v};
     };
+    const feelsStat = mkStat('Feels like');
     const humidityStat = mkStat('Humidity');
     const windStat = mkStat('Wind');
-    const rainStat = mkStat('Rain today');
+    const rainStat = mkStat('Rain');
+    stats.add_child(feelsStat.card);
     stats.add_child(humidityStat.card);
     stats.add_child(windStat.card);
     stats.add_child(rainStat.card);
@@ -604,6 +603,12 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     body.add_child(hero);
     body.add_child(weatherState.actor);
     body.add_child(stats);
+    const divider = new St.Widget({
+        style_class: 'material-panel-weather-popup-divider',
+        x_expand: true,
+        height: 1,
+    });
+    body.add_child(divider);
     body.add_child(hourlyTitle);
     body.add_child(hourlyScroll);
     body.add_child(dailyTitle);
@@ -613,15 +618,21 @@ export function buildWeather(_extensionPath, scale = 1.0) {
     item.add_child(body);
     menu.addMenuItem(item);
 
-    const changeLocationItem = new PopupMenu.PopupMenuItem('Change location…');
-    changeLocationItem.connect('activate', () => {
+    const openLocationPrefs = () => {
         menu.close();
         try {
             Main.extensionManager.openExtensionPrefs('material-panel@SakibShahariar', '', {});
         } catch (e) {
             logError(e, 'material-panel: open weather location preferences');
         }
+    };
+    placeLbl.reactive = true;
+    placeLbl.connect('button-release-event', () => {
+        openLocationPrefs();
+        return Clutter.EVENT_STOP;
     });
+    const changeLocationItem = new PopupMenu.PopupMenuItem('Change location…');
+    changeLocationItem.connect('activate', openLocationPrefs);
     menu.addMenuItem(changeLocationItem);
 
     const savedLocations = getWeatherLocations();
@@ -742,19 +753,19 @@ export function buildWeather(_extensionPath, scale = 1.0) {
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        try { row.style = 'spacing: 8px; padding: 6px 8px; border-radius: 12px;'; } catch (e) {}
+        try { row.style = 'spacing: 10px; padding: 5px 8px; border-radius: 10px;'; } catch (e) {}
+        const iconActor = new St.Icon({icon_size: 20, y_align: Clutter.ActorAlign.CENTER});
         const name = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
-        try { name.style = 'font-size: 12px; font-weight: 600; width: 52px; min-width: 52px;'; } catch (e) {}
-        const iconActor = new St.Icon({icon_size: 18, y_align: Clutter.ActorAlign.CENTER});
+        try { name.style = 'font-size: 10px; font-weight: 700; opacity: 0.6; letter-spacing: 1px; width: 58px; min-width: 58px;'; } catch (e) {}
         const spacer = new St.Widget({x_expand: true});
         const high = new St.Label({text: '—', y_align: Clutter.ActorAlign.CENTER});
-        try { high.style = 'font-size: 12px; font-weight: 700; width: 36px; text-align: right;'; } catch (e) {}
+        try { high.style = 'font-size: 12px; font-weight: 700; width: 34px; text-align: right;'; } catch (e) {}
         const low = new St.Label({text: '—', y_align: Clutter.ActorAlign.CENTER});
-        try { low.style = 'font-size: 12px; opacity: 0.6; width: 36px;'; } catch (e) {}
+        try { low.style = 'font-size: 12px; opacity: 0.5; width: 34px;'; } catch (e) {}
         const precipitation = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
-        try { precipitation.style = 'font-size: 11px; opacity: 0.65; width: 40px;'; } catch (e) {}
-        row.add_child(name);
+        try { precipitation.style = 'font-size: 10px; opacity: 0.6; width: 38px;'; } catch (e) {}
         row.add_child(iconActor);
+        row.add_child(name);
         row.add_child(spacer);
         row.add_child(high);
         row.add_child(low);
@@ -765,7 +776,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
 
     const updateDailyRow = (row, day) => {
         const actors = row._mpWeatherActors;
-        actors.name.text = day.label || day.date || '';
+        actors.name.text = String(day.label || day.date || '').toUpperCase();
         actors.iconActor.gicon = iconForKey(day.iconKey);
         actors.high.text = day.max != null ? `${Math.round(day.max)}°` : '—';
         actors.low.text = day.min != null ? `${Math.round(day.min)}°` : '—';
@@ -787,9 +798,7 @@ export function buildWeather(_extensionPath, scale = 1.0) {
         condLbl.text = unavailable ? '' : (d.condition || '');
         weatherState.setMessage(unavailable ? (d.condition || 'Weather data is unavailable.') : '',
             unavailable ? 'dialog-warning-symbolic' : 'dialog-information-symbolic');
-        feelsLbl.text = d.feelsLike != null
-            ? `Feels like ${Math.round(d.feelsLike)}°`
-            : '';
+        feelsStat.value.text = d.feelsLike != null ? `${Math.round(d.feelsLike)}°` : '—';
         try { heroIcon.gicon = iconForKey(d.iconKey || 'weather'); } catch (e) {}
 
         humidityStat.value.text = d.humidity != null ? `${Math.round(d.humidity)}%` : '—';

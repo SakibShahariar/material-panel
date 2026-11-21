@@ -440,30 +440,247 @@
 }
 
 /* CPU popup */
-.material-panel-cpu-popup-header { spacing: 8px; padding: 6px 10px 4px 10px; min-width: 220px; }
-.material-panel-cpu-popup-title { font-size: 14px; font-weight: 700; }
-.material-panel-cpu-popup-summary { spacing: 12px; }
-.material-panel-cpu-popup-stat { spacing: 2px; }
-.material-panel-cpu-popup-label { font-size: 10px; opacity: 0.7; }
-.material-panel-cpu-popup-value { font-size: 18px; font-weight: 600; }
-.material-panel-cpu-popup-section-title { font-size: 11px; font-weight: 600; padding: 4px 10px; opacity: 0.75; }
-.material-panel-cpu-popup-cores { spacing: 4px; padding: 0 10px 6px 10px; }
-.material-panel-cpu-popup-core-row { spacing: 8px; }
-.material-panel-cpu-popup-core-name { font-size: 11px; min-width: 16px; opacity: 0.7; }
-.material-panel-cpu-popup-core-value { font-size: 11px; font-weight: 600; min-width: 36px; }
+/* The Activity dashboard paints its own themed surface; suppress the
+   PopupMenu frame's background so there is only one visible layer. */
+.material-panel-popup.material-panel-activity-frame .popup-menu-content {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+/* Standalone Activity dashboard (no PopupMenu) */
+.material-panel-activity-popup {
+    /* Surface is painted at runtime from the live matugen palette. */
+    background-color: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.22);
+    border-radius: 16px;
+    padding: 12px;
+    spacing: 10px;
+    width: 420px;
+    min-width: 360px;
+}
+.material-panel-activity-page { spacing: 10px; }
+.material-panel-activity-tabs { spacing: 6px; padding: 0 2px 2px 2px; }
+.material-panel-activity-tab {
+    border-radius: 999px;
+    padding: 6px 18px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.material-panel-activity-tab.active { background-color: rgba(128, 128, 128, 0.22); }
+.material-panel-activity-eyebrow { font-size: 9px; font-weight: 700; opacity: 0.55; }
+.material-panel-activity-hero {
+    border-radius: 14px;
+    padding: 12px 14px;
+    spacing: 12px;
+    background-color: rgba(128, 128, 128, 0.08);
+}
+.material-panel-activity-hero-value { font-size: 32px; font-weight: 700; }
+.material-panel-activity-hero-bar {
+    height: 5px;
+    border-radius: 3px;
+    margin: 0 14px 4px 14px;
+    background-color: rgba(128, 128, 128, 0.16);
+}
+.material-panel-activity-hero-fill {
+    height: 5px;
+    border-radius: 3px;
+    background-color: rgba(128, 128, 128, 0.75);
+}
+.material-panel-activity-temp-badge {
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    background-color: rgba(128, 128, 128, 0.12);
+}
+.material-panel-activity-temp-badge.warn { color: #ff9900; }
+.material-panel-activity-temp-badge.critical { color: #ff5555; }
+.material-panel-activity-stats { spacing: 8px; }
+.material-panel-activity-stat {
+    border-radius: 12px;
+    padding: 9px 10px;
+    spacing: 3px;
+    background-color: rgba(128, 128, 128, 0.07);
+}
+.material-panel-activity-stat-value { font-size: 15px; font-weight: 600; }
+.material-panel-activity-card {
+    border-radius: 14px;
+    padding: 10px 12px;
+    spacing: 8px;
+    background-color: rgba(128, 128, 128, 0.06);
+}
+.material-panel-activity-card-title { font-size: 10px; font-weight: 700; opacity: 0.6; }
+.material-panel-activity-core-group { font-size: 9px; font-weight: 700; opacity: 0.6; padding: 2px 0; }
+.material-panel-activity-core-tile {
+    border-radius: 9px;
+    padding: 7px 8px;
+    spacing: 4px;
+    background-color: rgba(128, 128, 128, 0.08);
+}
+.material-panel-activity-core-tile.p { background-color: rgba(128, 128, 128, 0.14); }
+.material-panel-activity-core-name { font-size: 10px; font-weight: 600; opacity: 0.8; }
+.material-panel-activity-core-bar {
+    height: 5px;
+    border-radius: 3px;
+    background-color: rgba(128, 128, 128, 0.16);
+}
+.material-panel-activity-core-fill {
+    height: 5px;
+    border-radius: 3px;
+    background-color: rgba(128, 128, 128, 0.75);
+}
+.material-panel-activity-core-value { font-size: 10px; font-weight: 600; }
+.material-panel-activity-mem-key { font-size: 10px; opacity: 0.65; }
+.material-panel-activity-mem-value { font-size: 11px; font-weight: 600; }
+.material-panel-activity-search {
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 11px;
+    background-color: rgba(128, 128, 128, 0.1);
+}
+.material-panel-activity-proc-header { spacing: 8px; padding: 2px 8px 4px 8px; }
+.material-panel-activity-proc-col { font-size: 9px; font-weight: 700; opacity: 0.55; }
+.material-panel-activity-sort { border-radius: 6px; padding: 2px 4px; font-size: 9px; font-weight: 700; opacity: 0.7; }
+.material-panel-activity-scroll { min-height: 180px; max-height: 320px; }
+.material-panel-activity-proc-row { border-radius: 8px; }
+.material-panel-activity-proc-row.selected { background-color: rgba(128, 128, 128, 0.16); }
+.material-panel-activity-proc-name { font-size: 11px; }
+.material-panel-activity-proc-num { font-size: 10px; opacity: 0.8; }
+.material-panel-activity-empty { font-size: 11px; opacity: 0.7; padding: 12px; }
+.material-panel-activity-action {
+    border-radius: 10px;
+    padding: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+/* Modern Activity popup: pill tabs, layered cards, quiet typography */
+.material-panel-activity-tabs {
+    spacing: 6px;
+    padding: 2px 10px 8px 10px;
+}
+.material-panel-activity-tab {
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.material-panel-activity-tab.active {
+    background-color: rgba(128, 128, 128, 0.22);
+}
+.material-panel-activity-card {
+    background-color: rgba(128, 128, 128, 0.07);
+    border-radius: 14px;
+    padding: 10px 12px;
+    spacing: 8px;
+}
+.material-panel-activity-core-tile {
+    border-radius: 10px;
+    padding: 7px 8px;
+    spacing: 4px;
+    background-color: rgba(128, 128, 128, 0.09);
+}
+.material-panel-activity-core-tile.p {
+    background-color: rgba(128, 128, 128, 0.14);
+}
+.material-panel-activity-core-name {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.75;
+}
+.material-panel-activity-proc-header {
+    padding: 2px 8px 6px 8px;
+    spacing: 10px;
+}
+.material-panel-activity-proc-col {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.6;
+}
+
+/* History strips in popup headers (Omarchy-style mini graphs) */
+.material-panel-sparkline {
+    height: 26px;
+}
+.material-panel-sparkline-bar {
+    width: 4px;
+    height: 2px;
+    border-radius: 2px;
+    background-color: rgba(128, 128, 128, 0.5);
+}
+.material-panel-sparkline-bar.temp-warn {
+    background-color: #ff9900;
+}
+.material-panel-sparkline-bar.temp-critical {
+    background-color: #ff5555;
+}
+.material-panel-cpu-popup-value.temp-warn {
+    color: #ff9900;
+}
+.material-panel-cpu-popup-value.temp-critical {
+    color: #ff5555;
+}
+.material-panel-cpu-popup-core-group {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.7;
+    padding: 4px 10px 0 10px;
+}
+.material-panel-cpu-popup-proc-row.selected {
+    background-color: rgba(128, 128, 128, 0.16);
+    border-radius: 6px;
+}
+
+/* Popup typography & layered surfaces */
+.material-panel-cpu-popup-header { spacing: 8px; padding: 10px 12px 6px 12px; min-width: 260px; }
+.material-panel-cpu-popup-title { font-size: 15px; font-weight: 700; }
+.material-panel-cpu-popup-summary { spacing: 8px; }
+.material-panel-cpu-popup-stat {
+    spacing: 4px;
+    padding: 8px;
+    border-radius: 12px;
+    background-color: rgba(128, 128, 128, 0.07);
+}
+.material-panel-cpu-popup-label { font-size: 10px; font-weight: 600; opacity: 0.6; }
+.material-panel-cpu-popup-value { font-size: 14px; font-weight: 600; }
+.material-panel-cpu-popup-section-title { font-size: 11px; font-weight: 700; padding: 0 2px 2px 2px; opacity: 0.75; }
+.material-panel-cpu-popup-cores { spacing: 6px; padding: 0; }
+.material-panel-cpu-popup-core-value { font-size: 11px; font-weight: 600; min-width: 32px; }
 .material-panel-cpu-popup-bar-bg {
     height: 6px;
     border-radius: 3px;
-    background-color: rgba(128, 128, 128, 0.12);
+    background-color: rgba(128, 128, 128, 0.14);
 }
 .material-panel-cpu-popup-bar-fill {
     height: 6px;
     border-radius: 3px;
-    background-color: rgba(128, 128, 128, 0.55);
+    background-color: rgba(128, 128, 128, 0.75);
 }
-.material-panel-cpu-popup-thermal { spacing: 2px; padding: 0 10px 8px 10px; }
-.material-panel-cpu-popup-thermal-row { font-size: 12px; }
+.material-panel-cpu-popup-thermal { spacing: 4px; padding: 0; }
+.material-panel-cpu-popup-thermal-row { font-size: 11px; }
+.material-panel-cpu-popup-procs { spacing: 2px; }
+.material-panel-cpu-proc-row { padding: 6px 8px; border-radius: 8px; spacing: 10px; }
 
+.material-panel-clock-hero-date {
+    border-radius: 14px;
+}
+.material-panel-clock-hero-day {
+    font-size: 40px;
+    font-weight: 700;
+}
+.material-panel-clock-year-bar {
+    height: 4px;
+    border-radius: 2px;
+    background-color: rgba(128, 128, 128, 0.16);
+}
+.material-panel-clock-year-fill {
+    height: 4px;
+    border-radius: 2px;
+    background-color: rgba(128, 128, 128, 0.75);
+}
 .material-panel-clock-cal-grid { width: 240px; }
 .material-panel-clock-cal-day { font-size: 12px; border-radius: 16px; width: 32px; height: 32px; }
 .material-panel-qs-profile-prefs { padding: 6px; border-radius: 999px; }
@@ -494,9 +711,13 @@
 .material-panel-clock-popup-time,
 .material-panel-battery-popup-value,
 .material-panel-weather-popup-temp {
-    font-size: 32px;
+    font-size: 52px;
     font-weight: 700;
     text-align: center;
+}
+.material-panel-weather-popup-divider {
+    height: 1px;
+    background-color: rgba(128, 128, 128, 0.14);
 }
 .material-panel-clock-popup-date,
 .material-panel-battery-popup-state,

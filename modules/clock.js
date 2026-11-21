@@ -311,6 +311,73 @@ export function buildClock(_extensionPath, scale = 1.0) {
     worldClockSection.add_child(worldClockScroll);
     body.add_child(worldClockSection);
 
+    // Hero date — click to jump the calendar back to today.
+    const heroDate = new St.Button({
+        style_class: 'material-panel-clock-hero-date',
+        reactive: true,
+        track_hover: true,
+        can_focus: true,
+        x_expand: true,
+    });
+    try { heroDate.style = 'spacing: 4px; padding: 4px 2px 8px 2px;'; } catch (e) {}
+    const heroDay = new St.Label({
+        text: '—',
+        style_class: 'material-panel-clock-hero-day',
+    });
+    try { heroDay.style = 'font-size: 40px; font-weight: 700; line-height: 1;'; } catch (e) {}
+    const heroRest = new St.Label({
+        text: '',
+        style_class: 'material-panel-clock-hero-rest',
+    });
+    try { heroRest.style = 'font-size: 12px; font-weight: 600; opacity: 0.7;'; } catch (e) {}
+    const heroCol = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        x_expand: true,
+        style: 'spacing: 0px;',
+    });
+    heroCol.add_child(heroDay);
+    heroCol.add_child(heroRest);
+    heroDate.set_child(heroCol);
+    setChipA11y(heroDate, 'Jump to today');
+    heroDate.connect('clicked', () => {
+        try {
+            const now = GLib.DateTime.new_now_local();
+            viewYear = now.get_year();
+            viewMonth = now.get_month();
+            selectedKey = dateKeyToday();
+            rebuildCal();
+            fillAgenda();
+            updateHeroDate();
+        } catch (e) {}
+    });
+    body.add_child(heroDate);
+
+    // Year progress rail ("2026 · 64%") — Omarchy calendar-clock style.
+    const yearRail = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'material-panel-clock-year-rail',
+        x_expand: true,
+    });
+    try { yearRail.style = 'spacing: 4px; padding: 2px 2px 4px 2px;'; } catch (e) {}
+    const yearLabel = new St.Label({
+        text: '',
+        style_class: 'material-panel-clock-year-label',
+    });
+    try { yearLabel.style = 'font-size: 10px; font-weight: 600; opacity: 0.6;'; } catch (e) {}
+    const yearBarBg = new St.Widget({
+        style_class: 'material-panel-clock-year-bar',
+        x_expand: true,
+        height: 4,
+    });
+    const yearBarFill = new St.Widget({
+        style_class: 'material-panel-clock-year-fill',
+        height: 4,
+    });
+    yearBarBg.add_child(yearBarFill);
+    yearRail.add_child(yearLabel);
+    yearRail.add_child(yearBarBg);
+    body.add_child(yearRail);
+
     // Next event banner
     const nextBanner = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
@@ -598,6 +665,22 @@ export function buildClock(_extensionPath, scale = 1.0) {
         }
     };
 
+    const updateHeroDate = () => {
+        try {
+            const now = GLib.DateTime.new_now_local();
+            heroDay.text = now.format('%d') ?? '—';
+            heroRest.text = now.format('%A, %B %Y') ?? '';
+            const year = now.get_year();
+            const start = GLib.DateTime.new_local(year, 1, 1, 0, 0, 0);
+            const end = GLib.DateTime.new_local(year + 1, 1, 1, 0, 0, 0);
+            const elapsed = now.to_unix() - start.to_unix();
+            const total = end.to_unix() - start.to_unix();
+            const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((elapsed / total) * 100))) : 0;
+            yearLabel.text = `${year} · ${pct}%`;
+            try { yearBarFill.width = Math.round((pct / 100) * (yearBarBg.width || 240)); } catch (e) {}
+        } catch (e) {}
+    };
+
     const openRefresh = () => {
         refreshWorldClockRows();
         const now = GLib.DateTime.new_now_local();
@@ -608,13 +691,14 @@ export function buildClock(_extensionPath, scale = 1.0) {
         fillNext();
         rebuildCal();
         fillAgenda();
+        updateHeroDate();
     };
 
     let worldClockTickId = 0;
     const stopWorldClockTick = () => {
         if (!worldClockTickId)
             return;
-        stopWorldClockTick();
+        try { GLib.source_remove(worldClockTickId); } catch (e) {}
         worldClockTickId = 0;
     };
     const startWorldClockTick = () => {

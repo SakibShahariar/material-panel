@@ -20,6 +20,13 @@ test('system metric polling skips hidden chips with closed popups', () => {
             );
             continue;
         }
+        if (name === 'cpu') {
+            assert.ok(
+                source.includes('if (isSessionLocked() || (!button.mapped && !popup.isOpen))'),
+                'cpu periodic polling should pause while its chip is hidden'
+            );
+            continue;
+        }
         assert.ok(
             source.includes('if (isSessionLocked() || (!button.mapped && !menu.isOpen))'),
             `${name} periodic polling should pause while its chip is hidden`
@@ -35,7 +42,7 @@ test('CPU periodic sampling adapts to activity and pauses while hidden', async (
     assert.match(cpu, /const currentCpuPct = latestMetricSample\?\.totalPct/);
     assert.match(cpu, /currentCpuPct >= 20/);
     assert.match(cpu, /Math\.abs\(currentCpuPct - previousCpuPct\) >= 5/);
-    assert.match(cpu, /if \(isSessionLocked\(\) \|\| \(!button\.mapped && !menu\.isOpen\)\) \{[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?cpuSchedule\.reset\(\)/);
+    assert.match(cpu, /if \(isSessionLocked\(\) \|\| \(!button\.mapped && !popup\.isOpen\)\) \{[\s\S]*?primed = false;[\s\S]*?prevCores = \[\];[\s\S]*?cpuSchedule\.reset\(\)/);
     assert.match(cpu, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, delayMs/);
 });
 test('memory sampling adapts to stable usage while preserving hidden and lock pauses', async () => {
@@ -77,6 +84,13 @@ test('system metric polling also pauses while GNOME is locked', () => {
     for (const [name, source] of modules) {
         if (name === 'networkSpeed') {
             assert.match(source, /if \(isSessionLocked\(\) \|\| \(!autoHideWhenIdle && !button\.mapped && !menu\.isOpen\)\)/);
+            continue;
+        }
+        if (name === 'cpu') {
+            assert.ok(
+                source.includes('isSessionLocked() || (!button.mapped && !popup.isOpen)'),
+                'cpu periodic polling should pause during the lock screen'
+            );
             continue;
         }
         assert.ok(
