@@ -29,6 +29,6 @@ test('network speed unit preference updates live without rebuilding the panel', 
 test('network speed popup and tooltip format raw rates using the selected unit', () => {
     assert.match(network, /function formatNetworkRate\(bytesPerSec, unit = 'bytes'\)/);
     assert.match(network, /bits \/ 1_000_000/);
-    assert.match(network, /formatNetworkRate\(sample\.down, unit\)/);
-    assert.match(network, /formatNetworkRate\(sample\.up, unit\)/);
+    assert.match(network, /formatNetworkRate\(down, unit\)/);
+    assert.match(network, /formatNetworkRate\(up, unit\)/);
 });

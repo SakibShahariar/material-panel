@@ -47,18 +47,28 @@ test('multi-adapter switcher snaps to the radio carrying the route', () => {
 test('captive portal and nearby devices are wired into the popup', () => {
     assert.match(network, /probeCaptivePortal\(\)/);
     assert.match(network, /classifyCaptivePortal\(code\)/);
-    assert.match(network, /portalItem\.visible = state === 'portal'/);
+    assert.match(network, /portalItem\.visible = classifyCaptivePortal\(code\) === 'portal'/);
     assert.match(network, /getNearbyDevices\(\)/);
     assert.match(network, /parseArpNeighbors\(text\)/);
 });
 
-test('network speed chip stacks up/down rates and popup has graphs and per-process rows', () => {
+test('Wi-Fi popup has connection details and quick actions', () => {
+    assert.match(network, /material-panel-wifi-detail-card/);
+    assert.match(network, /detailRows\.ip\.text/);
+    assert.match(network, /detailRows\.gateway\.text/);
+    assert.match(network, /addAction\('↻ Scan'/);
+    assert.match(network, /addAction\('Band'/);
+    assert.match(network, /addAction\('DNS'/);
+    assert.match(network, /updateDetails\(\)/);
+});
+
+test('network speed chip has a single-line readout and popup with graphs and processes', () => {
     assert.match(speed, /material-panel-net-speed-chip-rates/);
     assert.doesNotMatch(speed, /network-transmit-receive-symbolic/);
     assert.match(speed, /if \(firstPauseCheck\)/);
     assert.match(speed, /button\.connect\('notify::mapped'/);
-    assert.match(speed, /chipUp\.text = `↑ \$\{formatNetworkRate\(up/);
-    assert.match(speed, /chipDown\.text = `↓ \$\{formatNetworkRate\(down/);
+    assert.doesNotMatch(speed, /chipUp|chipDown|orientation: Clutter\.Orientation\.VERTICAL,\s*style_class: 'material-panel-net-speed-chip-rates'/);
+    assert.match(speed, /chipRates\.text = `↑\$\{compactRate\(upText\)\}  ↓\$\{compactRate\(downText\)\}`/);
     assert.match(speed, /createSparkline\(\{count: HISTORY_LEN/);
     assert.match(speed, /rateHistoryToPercent\(upHistory\)/);
     assert.match(speed, /diffProcessBandwidth\(procSnapshot, procSecondSnapshot/);

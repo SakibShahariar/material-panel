@@ -44,23 +44,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     const upHistory = [];
     let sessionRx = 0, sessionTx = 0;
     let sessionIface = null;
+    let peakDown = 0, peakUp = 0;
+    let sampleCount = 0, sumDown = 0, sumUp = 0;
 
-    // Stacked ↑/↓ readout in the bar (network-throughput plugin style).
-    const chipUp = new St.Label({
-        text: '↑ —',
-        style_class: 'material-panel-net-speed-chip-up',
-    });
-    const chipDown = new St.Label({
-        text: '↓ —',
-        style_class: 'material-panel-net-speed-chip-down',
-    });
-    const chipRates = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
+    // Single-line ↑/↓ readout in the bar.
+    const chipRates = new St.Label({
+        text: '↑ —  ↓ —',
         style_class: 'material-panel-net-speed-chip-rates',
-        style: 'spacing: 1px;',
     });
-    chipRates.add_child(chipUp);
-    chipRates.add_child(chipDown);
     const chipBox = new St.BoxLayout({
         style_class: 'material-panel-net-speed-chip-box',
         style: 'spacing: 5px;',
@@ -138,6 +129,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     sessionCard.add_child(eyebrow('SESSION'));
     const sessL = ui('', 'font-family: "Noto Sans", sans-serif; font-size: 12px; font-weight: 600;');
     sessionCard.add_child(sessL);
+    const peakL = ui('', 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.6;');
+    sessionCard.add_child(peakL);
     body.add_child(sessionCard);
 
     // Processes card
@@ -176,6 +169,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
         };
         sessL.text = `↓ ${fmtTot(sessionRx)}     ↑ ${fmtTot(sessionTx)}`;
+        peakL.text = sampleCount
+            ? `peak ↓ ${formatNetworkRate(peakDown, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(peakUp, getNetworkSpeedUnit())}   ·   avg ↓ ${formatNetworkRate(sumDown / sampleCount, getNetworkSpeedUnit())}  ↑ ${formatNetworkRate(sumUp / sampleCount, getNetworkSpeedUnit())}`
+            : 'Collecting samples…';
         upSpark.update(rateHistoryToPercent(upHistory));
         downSpark.update(rateHistoryToPercent(downHistory));
         renderProcessRows();
@@ -256,6 +252,11 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             sessionIface = sample.iface;
             sessionRx = 0;
             sessionTx = 0;
+            peakDown = 0;
+            peakUp = 0;
+            sampleCount = 0;
+            sumDown = 0;
+            sumUp = 0;
         } else {
             sessionRx += Math.max(0, Number(sample.rxDelta) || 0);
             sessionTx += Math.max(0, Number(sample.txDelta) || 0);
@@ -271,18 +272,27 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
                 idleSince = now;
             button.visible = now - idleSince < IDLE_HIDE_AFTER_US;
         }
+        if (down > 0 || up > 0) {
+            peakDown = Math.max(peakDown, down);
+            peakUp = Math.max(peakUp, up);
+            sumDown += down;
+            sumUp += up;
+            sampleCount++;
+        }
         downHistory.push(down);
         upHistory.push(up);
         if (downHistory.length > HISTORY_LEN) downHistory.splice(0, downHistory.length - HISTORY_LEN);
         if (upHistory.length > HISTORY_LEN) upHistory.splice(0, upHistory.length - HISTORY_LEN);
-        chipUp.text = `↑ ${formatNetworkRate(up, getNetworkSpeedUnit())}`;
-        chipDown.text = `↓ ${formatNetworkRate(down, getNetworkSpeedUnit())}`;
         const unit = getNetworkSpeedUnit();
+        const downText = formatNetworkRate(down, unit);
+        const upText = formatNetworkRate(up, unit);
+        const compactRate = text => String(text).replace(/\s?([KMG]?)(?:B|bit)\/s$/, '$1');
+        chipRates.text = `↑${compactRate(upText)}  ↓${compactRate(downText)}`;
         last = {
-            down: sample.down,
-            up: sample.up,
-            downText: formatNetworkRate(sample.down, unit),
-            upText: formatNetworkRate(sample.up, unit),
+            down,
+            up,
+            downText,
+            upText,
             iface: sample.iface,
         };
         try {
