@@ -4,6 +4,11 @@ import {readFile} from 'node:fs/promises';
 
 const source = await readFile(new URL('../modules/network.js', import.meta.url), 'utf8');
 
+test('the network chip label follows the live theme palette', () => {
+    assert.match(source, /import \{getThemeColor\} from '..\/lib\/themeColorState\.js'/);
+    assert.match(source, /chipLabel\.style = [\s\S]*?getThemeColor\('primary'/);
+});
+
 test('rebuilding the Wi-Fi list never detaches the shared popup surface', () => {
     const rebuildStart = source.indexOf('const rebuildNetworkList = () => {');
     const rebuildEnd = source.indexOf('const requestWifiScan = () => {', rebuildStart);

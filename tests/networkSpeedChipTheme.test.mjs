@@ -21,6 +21,11 @@ test('the chip label follows the theme primary color', () => {
     assert.match(css, /\.material-panel-net-speed-chip-rates \{[\s\S]*?color:/);
 });
 
+test('the chip label paints its accent from the live theme palette', () => {
+    assert.match(speed, /import \{getThemeColor\} from '..\/lib\/themeColorState\.js'/);
+    assert.match(speed, /chipRates\.style = [\s\S]*?getThemeColor\('primary'/);
+});
+
 test('the chip stays a single-line readout', () => {
     assert.match(speed, /chipRates\.text = `↑\$\{compactRate\(upText\)\}  ↓\$\{compactRate\(downText\)\}`/);
     assert.doesNotMatch(speed, /chipUp|chipDown/);
