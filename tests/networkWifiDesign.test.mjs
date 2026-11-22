@@ -54,6 +54,9 @@ test('captive portal and nearby devices are wired into the popup', () => {
 
 test('network speed chip stacks up/down rates and popup has graphs and per-process rows', () => {
     assert.match(speed, /material-panel-net-speed-chip-rates/);
+    assert.doesNotMatch(speed, /network-transmit-receive-symbolic/);
+    assert.match(speed, /if \(firstPauseCheck\)/);
+    assert.match(speed, /button\.connect\('notify::mapped'/);
     assert.match(speed, /chipUp\.text = `↑ \$\{formatNetworkRate\(up/);
     assert.match(speed, /chipDown\.text = `↓ \$\{formatNetworkRate\(down/);
     assert.match(speed, /createSparkline\(\{count: HISTORY_LEN/);

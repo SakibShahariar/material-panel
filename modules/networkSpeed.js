@@ -46,12 +46,6 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let sessionIface = null;
 
     // Stacked ↑/↓ readout in the bar (network-throughput plugin style).
-    const icon = new St.Icon({
-        style_class: 'material-panel-network-speed-icon',
-        icon_name: 'network-transmit-receive-symbolic',
-        icon_size: Math.round(14 * (scale || 1.0)),
-        y_align: Clutter.ActorAlign.CENTER,
-    });
     const chipUp = new St.Label({
         text: '↑ —',
         style_class: 'material-panel-net-speed-chip-up',
@@ -72,7 +66,6 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         style: 'spacing: 5px;',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    chipBox.add_child(icon);
     chipBox.add_child(chipRates);
 
     const button = new St.Button({
@@ -257,6 +250,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         return GLib.SOURCE_CONTINUE;
     });
 
+    let firstPauseCheck = true;
     const stopMonitor = startNetSpeedMonitor(sample => {
         if (sample.iface !== sessionIface) {
             sessionIface = sample.iface;
@@ -306,12 +300,27 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         if (menu.isOpen)
             refreshPopup();
     }, 1, () => {
+        // Always let the first sample run so the chip shows values even if the
+        // actor has not reported as mapped yet during panel construction.
+        if (firstPauseCheck) {
+            firstPauseCheck = false;
+            return false;
+        }
         // Avoid /proc route and interface reads while the chip and popup are hidden.
         if (isSessionLocked() || (!autoHideWhenIdle && !button.mapped && !menu.isOpen))
             return true;
         try { return Boolean(Main.layoutManager.primaryMonitor?.inFullscreen); }
         catch (e) { return false; }
     });
+    // Repopulate as soon as the chip actually lands in the panel.
+    try {
+        button.connect('notify::mapped', () => {
+            if (button.mapped) {
+                firstPauseCheck = true;
+                refreshPopup();
+            }
+        });
+    } catch (e) {}
 
     button.connect('destroy', () => {
         if (speedRefreshId)
