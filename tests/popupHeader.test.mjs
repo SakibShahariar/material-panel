@@ -19,7 +19,7 @@ test('every inventoried major module popup uses the shared header helper', async
         'battery.js', 'bluetooth.js', 'btConnected.js', 'clipboardHistory.js',
         'clock.js', 'controlCenter.js', 'disk.js', 'dnd.js',
         'gpu.js', 'mediaPlayer.js', 'memory.js', 'network.js',
-        'notifications.js', 'powermenu.js',
+        'powermenu.js',
         'quicksettings.js', 'quicksettingsEnd4.js', 'weather.js',
     ];
     const sources = await Promise.all(modules.map(name =>

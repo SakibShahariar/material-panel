@@ -9,39 +9,33 @@ test('notification view data reads native action objects defensively', () => {
     assert.ok(source.includes('actions: getNotificationActions(n)'));
 });
 
-test('notification cards render only extracted native action labels as focusable buttons', () => {
+test('detail view renders extracted native action labels as buttons', () => {
     assert.ok(source.includes('if (item.actions?.length)'));
-    assert.ok(source.includes('for (const actionEntry of item.actions)'));
-    assert.ok(source.includes('label: actionEntry.label'));
-    assert.ok(source.includes("style_class: 'material-panel-nc-action'"));
-    assert.ok(source.includes('can_focus: true'));
-    assert.ok(source.includes('setChipA11y(actionButton, actionEntry.label)'));
+    assert.ok(source.includes('for (const entry of item.actions)'));
+    assert.ok(source.includes("label: entry.label"));
+    assert.ok(source.includes("style_class: 'material-panel-nc-detail-action'"));
 });
 
-test('native action clicks are isolated from the parent card and checked against current tray state', () => {
-    assert.ok(source.includes("actionButton.connect('button-press-event', () => Clutter.EVENT_STOP)"));
+test('native action clicks are checked against current tray state', () => {
+    assert.ok(source.includes('c => c.notification === n'));
     assert.ok(source.includes('activateNotificationAction('));
-    assert.ok(source.includes('current => current.notification === notification'));
-    assert.ok(source.includes('scheduleRebuild(activated ? 40 : 0)'));
+    assert.ok(source.includes('closeDetail();'));
 });
 
-test('notification cards retain their existing primary activation and dismissal paths', () => {
-    assert.ok(source.includes('item.notification?.activate?.()'));
+test('notification cards retain activation, dismissal and keyboard paths', () => {
+    assert.ok(source.includes('detailItem.notification?.activate?.()'));
     assert.ok(source.includes('destroyNotification(item.notification)'));
     assert.ok(source.includes('key === Clutter.KEY_Delete || key === Clutter.KEY_BackSpace'));
+    assert.ok(source.includes("card.connect('key-press-event'"));
 });
 
-
-test('notification center uses the shared popup title and action header layout', async () => {
-    const source = await readFile(new URL('../modules/notifications.js', import.meta.url), 'utf8');
-    assert.match(source, /createPopupHeader\(/);
-    assert.match(source, /titleActor: headerTitle/);
-    assert.match(source, /actions: \[dndBtn, clearBtn\]/);
-    assert.match(source, /styleClass: 'material-panel-nc-header'/);
+test('notification popup has a custom header with DND and Clear actions', () => {
+    assert.match(source, /material-panel-nc-surface/);
+    assert.match(source, /headerTitle/);
+    assert.match(source, /dndBtn/);
+    assert.match(source, /clearBtn/);
 });
 
-
-test('focused notification action buttons do not bubble into card default activation', () => {
-    assert.match(source, /card\.connect\('key-press-event',[\s\S]*?if \(!card\.has_key_focus\(\)\)[\s\S]*?return Clutter\.EVENT_PROPAGATE;[\s\S]*?item\.notification\?\.activate\?\.\(\)/);
-    assert.match(source, /actionButton\.connect\('clicked',[\s\S]*?activateNotificationAction\(/);
+test('focused card keyboard events do not bubble and open the detail view', () => {
+    assert.match(source, /card\.connect\('key-press-event',[\s\S]*?if \(!card\.has_key_focus\(\)\)[\s\S]*?return Clutter\.EVENT_PROPAGATE;[\s\S]*?showDetail\(item\)/);
 });

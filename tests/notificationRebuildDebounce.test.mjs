@@ -15,11 +15,12 @@ test('dismiss and clear rebuild timers are tracked and cancelled at teardown', (
     assert.match(build, /const rebuildTimerIds = new Set\(\)/);
     assert.match(build, /const scheduleRebuild = \(delay = 40\)/);
     assert.match(build, /cancelRebuildTimers\(\)/);
-    assert.match(build, /button\.connect\('destroy', \(\) => \{\s*destroyed = true;\s*cancelRebuildTimers\(\)/);
+    assert.match(build, /button\.connect\('destroy', \(\) => \{\s*destroyedFlag = true;/);
+    assert.match(build, /cancelRebuildTimers\(\)/);
     assert.doesNotMatch(build, /GLib\.timeout_add\(GLib\.PRIORITY_DEFAULT, (40|60), \(\) => \{\s*rebuild\(\)/);
 });
 
 test('notification rebuild and count callbacks become no-ops after destruction', () => {
-    assert.match(build, /const rebuild = \(\) => \{\s*if \(destroyed\)\s*return;/);
-    assert.match(build, /if \(destroyed\)\s*return GLib\.SOURCE_REMOVE;/);
+    assert.match(build, /const rebuild = \(\) => \{\s*if \(destroyedFlag\) return;/);
+    assert.match(build, /if \(destroyedFlag\) return GLib\.SOURCE_REMOVE;/);
 });

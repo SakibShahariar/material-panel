@@ -183,9 +183,15 @@ function openSystemNotificationCenter() {
 }
 
 /**
- * Panel chip + Omarchy-style notification center popup.
+ * Notification chip + notification-center popup.
+ * The surface is a custom card-based actor hosted by the standard PopupMenu
+ * frame, so outside clicks, Escape, focus and teardown work like every other
+ * popup while the layout stays under our control.
  */
 export function buildNotifications(_extensionPath, scale = 1.0) {
+    let destroyed = false;
+
+    // ---- chip ----------------------------------------------------------
     const icon = new St.Icon({
         style_class: 'material-panel-notifications-icon',
         icon_size: Math.round(16 * (scale || 1.0)),
@@ -194,28 +200,22 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
     const countLabel = new St.Label({
         style_class: 'material-panel-notifications-count',
-        text: '',
-        y_align: Clutter.ActorAlign.CENTER,
-        visible: false,
+        text: '', y_align: Clutter.ActorAlign.CENTER, visible: false,
     });
-    const box = new St.BoxLayout({
+    const chipBox = new St.BoxLayout({
         style_class: 'material-panel-notifications',
         y_align: Clutter.ActorAlign.CENTER,
+        style: 'spacing: 4px;',
     });
-    try { box.style = 'spacing: 4px;'; } catch (e) {}
-    box.add_child(icon);
-    box.add_child(countLabel);
-
+    chipBox.add_child(icon);
+    chipBox.add_child(countLabel);
     const button = new St.Button({
         style_class: 'material-panel-notifications-btn material-panel-chip',
-        reactive: true,
-        track_hover: true,
-        can_focus: true,
-        child: box,
+        reactive: true, track_hover: true, can_focus: true, child: chipBox,
     });
+    setChipA11y(button, 'Notifications');
     try {
-        setChipA11y(button, 'Notifications');
-    wireChipPress(button, {
+        wireChipPress(button, {
             stickyUntilLeave: true,
             getIcons: () => [{icon, key: 'notifications'}],
         });
@@ -231,65 +231,47 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         }
     };
 
+    // ---- popup frame ----------------------------------------------------
     const menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
-    menu.actor.add_style_class_name(
-        'material-panel-popup material-panel-notifications-popup material-panel-nc-omarchy');
+    menu.actor.add_style_class_name('material-panel-popup material-panel-notifications-popup');
     attachPopupDismiss(menu, button);
+    try { menu.box.style = 'width: 420px; min-width: 360px; max-width: 440px; border-radius: 18px;'; }
+    catch (e) {}
 
-    const section = new PopupMenu.PopupMenuSection();
-    const root = new St.BoxLayout({
+    const ui = (text, style) => new St.Label({text: String(text ?? ''), style});
+    const FONT = 'font-family: "Noto Sans", sans-serif;';
+    const eyebrow = t => ui(t, `${FONT} font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;`);
+
+    const surface = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'material-panel-nc-body',
+        style_class: 'material-panel-nc-surface',
         x_expand: true,
+        style: 'spacing: 10px; padding: 14px; width: 400px;',
     });
-    try {
-        root.style = `min-width: ${PANEL_MIN_W}px; spacing: 0; padding: 0;`;
-    } catch (e) {}
 
-    // ── Header ──
-    const headerTitle = new St.Label({
-        text: 'Notifications',
-        style_class: 'material-panel-nc-title',
+    // ---- list page ------------------------------------------------------
+    const listPage = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        style: 'spacing: 10px;',
     });
-    try {
-        headerTitle.style = 'font-weight: 700; font-size: 15px;';
-    } catch (e) {}
+    surface.add_child(listPage);
 
-    const clearBtn = new St.Button({
-        style_class: 'material-panel-nc-clear',
-        label: 'Clear',
-        reactive: true,
-        track_hover: true,
-        can_focus: true,
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    try {
-        clearBtn.style = 'font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px;';
-    } catch (e) {}
-    wireChipPress(clearBtn, {stickyUntilLeave: true});
-
-    // Do Not Disturb toggle — the same setting the DND chip and Quick Settings
-    // use, exposed here so the panel is self-contained.
     const dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+
+    const headerTitle = ui('NOTIFICATIONS', `${FONT} font-size: 11px; font-weight: 700; opacity: 0.8;`);
+    headerTitle.x_expand = true;
+    const countPill = ui('0', `${FONT} font-size: 10px; font-weight: 700; opacity: 0.7; padding: 2px 8px; border-radius: 999px;`);
     const dndBtn = new St.Button({
         style_class: 'material-panel-nc-dnd',
-        label: '🔔',
-        reactive: true,
-        track_hover: true,
-        can_focus: true,
-        y_align: Clutter.ActorAlign.CENTER,
+        reactive: true, track_hover: true, can_focus: true,
     });
-    try { dndBtn.style = 'font-size: 14px; padding: 4px 8px; border-radius: 999px;'; } catch (e) {}
-    wireChipPress(dndBtn, {stickyUntilLeave: true});
+    try { dndBtn.style = `${FONT} font-size: 13px; padding: 4px 8px; border-radius: 999px;`; } catch (e) {}
     const syncDnd = () => {
         const on = !dndSettings.get_boolean('show-banners');
-        dndBtn.label = on ? '🔕' : '🔔';
-        if (on)
-            dndBtn.add_style_class_name('active');
-        else
-            dndBtn.remove_style_class_name('active');
+        dndBtn.set_child(ui(on ? '🔕' : '🔔', `${FONT} font-size: 13px;`));
+        if (on) dndBtn.add_style_class_name('active');
+        else dndBtn.remove_style_class_name('active');
         setChipA11y(dndBtn, on ? 'Do Not Disturb on; click to turn off' : 'Do Not Disturb off; click to turn on');
     };
     syncDnd();
@@ -298,62 +280,51 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     });
     const dndChangedId = dndSettings.connect('changed::show-banners', syncDnd);
 
-    const {actor: header} = createPopupHeader({
-        titleActor: headerTitle,
-        actions: [dndBtn, clearBtn],
-        styleClass: 'material-panel-nc-header',
-        style: 'spacing: 8px; padding: 12px 14px 8px 14px;',
+    const clearBtn = new St.Button({
+        label: 'Clear', style_class: 'material-panel-nc-clear',
+        reactive: true, track_hover: true, can_focus: true,
     });
-    root.add_child(header);
+    try { clearBtn.style = `${FONT} font-size: 10px; font-weight: 600; padding: 5px 10px; border-radius: 999px;`; } catch (e) {}
+    try { clearBtn.set_child(ui('Clear', `${FONT} font-size: 10px; font-weight: 600;`)); } catch (e) {}
 
-    // ── Search ──
-    const searchWrap = new St.BoxLayout({
-        style_class: 'material-panel-nc-search-wrap',
-        x_expand: true,
-    });
-    try {
-        searchWrap.style = 'padding: 0 14px 10px 14px;';
-    } catch (e) {}
+    const header = new St.BoxLayout({x_expand: true, style: 'spacing: 8px;'});
+    header.add_child(headerTitle);
+    header.add_child(countPill);
+    header.add_child(dndBtn);
+    header.add_child(clearBtn);
+    listPage.add_child(header);
+
+    // Search
     const searchEntry = new St.Entry({
+        hint_text: 'Search notifications  /',
+        can_focus: true, x_expand: true,
         style_class: 'material-panel-nc-search',
-        hint_text: 'Search notifications',
-        can_focus: true,
-        x_expand: true,
     });
     setChipA11y(searchEntry, 'Search notifications');
-    try {
-        searchEntry.style =
-            'border-radius: 12px; padding: 8px 12px; font-size: 12px;';
-    } catch (e) {}
-    searchWrap.add_child(searchEntry);
-    root.add_child(searchWrap);
+    try { searchEntry.style = `${FONT} font-size: 11px; border-radius: 10px; padding: 7px 10px;`; } catch (e) {}
+    listPage.add_child(searchEntry);
 
+    // Filters
     let filterText = '';
     let selectedApp = null;
     let unreadOnly = false;
     let filterAppsSignature = '';
     let unreadStateAvailable = false;
     const filterButtons = new Map();
-    const filterScroll = new St.ScrollView({
-        style_class: 'material-panel-nc-filter-scroll',
-        x_expand: true,
-        overlay_scrollbars: true,
-    });
     const filterBar = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
-        style_class: 'material-panel-nc-filter-bar',
-        x_expand: true,
+        style_class: 'material-panel-nc-filter-bar', x_expand: true,
+        style: 'spacing: 6px;',
+    });
+    const filterScroll = new St.ScrollView({
+        style_class: 'material-panel-nc-filter-scroll',
+        x_expand: true, overlay_scrollbars: true,
     });
     try {
-        filterScroll.hscrollbar_policy = St.PolicyType.AUTOMATIC;
-        filterScroll.vscrollbar_policy = St.PolicyType.NEVER;
         filterScroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
-        filterBar.style = 'spacing: 6px; padding: 0 14px 8px 14px;';
+        filterScroll.set_child(filterBar);
     } catch (e) {}
-    try { filterScroll.add_child(filterBar); } catch (e) {
-        try { filterScroll.add_actor(filterBar); } catch (e2) {}
-    }
-    root.add_child(filterScroll);
+    listPage.add_child(filterScroll);
 
     const updateFilterControls = items => {
         const apps = notificationAppNames(items);
@@ -361,22 +332,18 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         const supportsUnread = hasUnreadNotificationState(items);
         if (selectedApp && !apps.includes(selectedApp))
             selectedApp = null;
-
         if (signature !== filterAppsSignature || supportsUnread !== unreadStateAvailable) {
             filterBar.destroy_all_children();
             filterButtons.clear();
-            const addFilterButton = (key, label, onClick) => {
-                const button = new St.Button({
-                    style_class: 'material-panel-nc-filter-chip',
-                    label,
-                    reactive: true,
-                    track_hover: true,
-                    can_focus: true,
+            const addFilterButton = (key, text, onClick) => {
+                const b = new St.Button({
+                    label: text, style_class: 'material-panel-nc-filter-chip',
+                    reactive: true, track_hover: true, can_focus: true,
                 });
-                try { button.style = 'font-size: 11px; padding: 5px 10px; border-radius: 999px;'; } catch (e) {}
-                button.connect('clicked', onClick);
-                filterBar.add_child(button);
-                filterButtons.set(key, button);
+                try { b.style = `${FONT} font-size: 10px; padding: 4px 9px; border-radius: 999px;`; } catch (e) {}
+                b.connect('clicked', onClick);
+                filterBar.add_child(b);
+                filterButtons.set(key, b);
             };
             addFilterButton('all', 'All apps', () => {
                 selectedApp = null;
@@ -392,9 +359,9 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             } else {
                 unreadOnly = false;
             }
-            for (const appName of apps) {
-                addFilterButton(`app:${appName}`, appName, () => {
-                    selectedApp = selectedApp === appName ? null : appName;
+            for (const name of apps) {
+                addFilterButton(`app:${name}`, name, () => {
+                    selectedApp = selectedApp === name ? null : name;
                     updateFilterControls(listNotifications());
                     scheduleSearchRebuild();
                 });
@@ -402,99 +369,149 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             filterAppsSignature = signature;
             unreadStateAvailable = supportsUnread;
         }
-
-        for (const [key, button] of filterButtons) {
-            const active = key === 'all'
-                ? selectedApp === null
-                : key === 'unread'
-                    ? unreadOnly
+        for (const [key, b] of filterButtons) {
+            const active = key === 'all' ? selectedApp === null
+                : key === 'unread' ? unreadOnly
                     : selectedApp === key.slice(4);
-            try {
-                button.set_style_class_name(
-                    `material-panel-nc-filter-chip${active ? ' active' : ''}`);
-                setChipA11y(button, key === 'unread'
-                    ? `Show unread notifications, ${unreadOnly ? 'selected' : 'not selected'}`
-                    : key === 'all'
-                        ? 'Show notifications from all apps'
-                        : `Filter notifications from ${key.slice(4)}`);
-            } catch (e) {}
+            try { b.set_style_class_name(`material-panel-nc-filter-chip${active ? ' active' : ''}`); }
+            catch (e) {}
         }
         filterScroll.visible = apps.length > 0 || supportsUnread;
-        clearBtn.label = selectedApp ? 'Clear app' : 'Clear';
-        setChipA11y(clearBtn, selectedApp
-            ? `Clear notifications from ${selectedApp}`
-            : 'Clear all notifications');
+        const clearText = selectedApp ? 'Clear app' : 'Clear';
+        try { clearBtn.set_child(ui(clearText, `${FONT} font-size: 10px; font-weight: 600;`)); }
+        catch (e) { clearBtn.label = clearText; }
     };
 
-    // ── Scroll list ──
+    // Scrollable list
     const scroll = new St.ScrollView({
         style_class: 'material-panel-nc-scroll',
-        overlay_scrollbars: true,
-        x_expand: true,
-        y_expand: true,
+        x_expand: true, y_expand: true, overlay_scrollbars: true,
     });
     try {
-        scroll.overlay_scrollbars = true;
-        if (St.PolicyType) {
-            scroll.vscrollbar_policy = St.PolicyType.AUTOMATIC;
-            scroll.hscrollbar_policy = St.PolicyType.NEVER;
-        }
-        if (scroll.set_policy)
-            scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        scroll.style = 'max-height: 460px;';
     } catch (e) {}
-
     const listBox = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'material-panel-nc-list',
-        x_expand: true,
+        style_class: 'material-panel-nc-list', x_expand: true,
+        style: 'spacing: 6px;',
     });
-    try {
-        listBox.style = 'spacing: 6px; padding: 0 10px 10px 10px;';
-    } catch (e) {}
-    try {
-        scroll.add_child(listBox);
-    } catch (e) {
-        try { scroll.add_actor(listBox); } catch (e2) {}
-    }
-    root.add_child(scroll);
+    try { scroll.set_child(listBox); } catch (e) { scroll.add_child(listBox); }
+    listPage.add_child(scroll);
 
-    // ── Footer ──
+    // Footer with key hints
     const footer = new St.Button({
         style_class: 'material-panel-nc-footer',
-        label: 'Open system calendar / notifications…',
-        reactive: true,
-        track_hover: true,
-        x_expand: true,
+        reactive: true, track_hover: true, x_expand: true,
     });
     try {
-        footer.style = 'font-size: 11px; padding: 10px; opacity: 0.75;';
+        footer.set_child(ui('↑↓ navigate   Enter details   x dismiss   / search   d DND',
+            `${FONT} font-size: 9px; opacity: 0.55;`));
     } catch (e) {}
-    wireChipPress(footer, {stickyUntilLeave: true});
     footer.connect('clicked', () => {
         menuClose(menu);
         openSystemNotificationCenter();
     });
-    root.add_child(footer);
+    listPage.add_child(footer);
 
-    section.actor.add_child(root);
-    menu.addMenuItem(section);
+    // ---- detail page ----------------------------------------------------
+    const detailPage = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        x_expand: true, visible: false,
+        style: 'spacing: 10px;',
+    });
+    surface.add_child(detailPage);
+    const backBtn = new St.Button({label: '← Back', reactive: true, style_class: 'material-panel-nc-back'});
+    try { backBtn.style = `${FONT} font-size: 10px; padding: 5px 10px; border-radius: 999px;`; } catch (e) {}
+    detailPage.add_child(backBtn);
+    const detailIcon = new St.Icon({icon_size: 40, style_class: 'material-panel-nc-avatar'});
+    const detailApp = ui('', `${FONT} font-size: 10px; font-weight: 700; opacity: 0.6;`);
+    const detailTime = ui('', `${FONT} font-size: 9px; opacity: 0.5;`);
+    const detailMeta = new St.BoxLayout({x_expand: true, style: 'spacing: 10px;'});
+    detailMeta.add_child(detailIcon);
+    const detailMetaText = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style: 'spacing: 2px;'});
+    detailMetaText.add_child(detailApp);
+    detailMetaText.add_child(detailTime);
+    detailMeta.add_child(detailMetaText);
+    detailPage.add_child(detailMeta);
+    const detailTitle = ui('', `${FONT} font-size: 16px; font-weight: 700;`);
+    detailTitle.clutter_text.line_wrap = true;
+    detailPage.add_child(detailTitle);
+    const detailBody = ui('', `${FONT} font-size: 11px; opacity: 0.8;`);
+    detailBody.clutter_text.line_wrap = true;
+    detailPage.add_child(detailBody);
+    const detailActions = new St.BoxLayout({
+        orientation: Clutter.Orientation.HORIZONTAL,
+        style: 'spacing: 8px; padding-top: 6px;',
+    });
+    detailPage.add_child(detailActions);
+    const openBtn = new St.Button({label: 'Open app', style_class: 'material-panel-nc-detail-action'});
+    const dismissDetailBtn = new St.Button({label: 'Dismiss', style_class: 'material-panel-nc-detail-action'});
+    try {
+        for (const b of [openBtn, dismissDetailBtn])
+            b.style = `${FONT} font-size: 10px; padding: 6px 12px; border-radius: 999px;`;
+    } catch (e) {}
+    detailActions.add_child(openBtn);
+    detailActions.add_child(dismissDetailBtn);
 
-    const applyMaxHeight = () => {
-        try {
-            const mon = Main.layoutManager.primaryMonitor;
-            const maxH = mon ? Math.floor(mon.height * PANEL_MAX_H_RATIO) : 520;
-            scroll.style = `max-height: ${maxH - 120}px;`;
-            menu.box.style =
-                `min-width: ${PANEL_MIN_W}px; max-width: 420px; border-radius: 18px;`;
-        } catch (e) {}
+    let detailItem = null;
+    const showDetail = item => {
+        detailItem = item;
+        detailPage.visible = true;
+        listPage.visible = false;
+        detailApp.text = item.appName || 'Application';
+        detailTime.text = relativeTime(item.unix);
+        detailTitle.text = item.title || item.appName || 'Notification';
+        detailBody.text = item.body || 'No message body';
+        try { detailIcon.gicon = item.gicon || null; }
+        catch (e) { detailIcon.icon_name = 'dialog-information-symbolic'; }
+        detailActions.destroy_all_children();
+        if (item.actions?.length) {
+            for (const entry of item.actions) {
+                const b = new St.Button({label: entry.label, style_class: 'material-panel-nc-detail-action'});
+                try { b.style = `${FONT} font-size: 10px; padding: 6px 12px; border-radius: 999px;`; } catch (e) {}
+                b.connect('clicked', () => {
+                    activateNotificationAction(item.notification, entry.action,
+                        n => listNotifications().some(c => c.notification === n),
+                        error => logError(error, 'material-panel: notification action'));
+                    closeDetail();
+                    scheduleRebuild(40);
+                });
+                detailActions.add_child(b);
+            }
+        }
+        detailActions.add_child(openBtn);
+        detailActions.add_child(dismissDetailBtn);
     };
+    const closeDetail = () => {
+        detailItem = null;
+        detailPage.visible = false;
+        listPage.visible = true;
+    };
+    backBtn.connect('clicked', closeDetail);
+    openBtn.connect('clicked', () => {
+        if (!detailItem) return;
+        try { detailItem.notification?.activate?.(); } catch (e) {}
+        closeDetail();
+        menuClose(menu);
+    });
+    dismissDetailBtn.connect('clicked', () => {
+        if (!detailItem) return;
+        destroyNotification(detailItem.notification);
+        closeDetail();
+        scheduleRebuild(40);
+    });
 
-    let destroyed = false;
+    const hostItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+    hostItem.add_child(surface);
+    menu.addMenuItem(hostItem);
+
+    // ---- rebuild / debounce ---------------------------------------------
+    let destroyedFlag = false;
     const rebuildTimerIds = new Set();
     let searchDebounceId = 0;
     const cancelSearchRebuild = () => {
-        if (!searchDebounceId)
-            return;
+        if (!searchDebounceId) return;
         try { GLib.source_remove(searchDebounceId); } catch (e) {}
         rebuildTimerIds.delete(searchDebounceId);
         searchDebounceId = 0;
@@ -507,11 +524,10 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         searchDebounceId = 0;
     };
     const scheduleRebuild = (delay = 40) => {
-        if (destroyed)
-            return;
+        if (destroyedFlag) return;
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
             rebuildTimerIds.delete(id);
-            if (!destroyed) {
+            if (!destroyedFlag) {
                 try { rebuild(); } catch (e) {}
             }
             return GLib.SOURCE_REMOVE;
@@ -520,13 +536,11 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     };
     const scheduleSearchRebuild = () => {
         cancelSearchRebuild();
-        if (destroyed)
-            return;
+        if (destroyedFlag) return;
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
             rebuildTimerIds.delete(id);
-            if (searchDebounceId === id)
-                searchDebounceId = 0;
-            if (!destroyed) {
+            if (searchDebounceId === id) searchDebounceId = 0;
+            if (!destroyedFlag) {
                 try { rebuild(); } catch (e) {}
             }
             return GLib.SOURCE_REMOVE;
@@ -535,242 +549,85 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         rebuildTimerIds.add(id);
     };
 
+    let selection = -1;
+    let visibleCards = [];
+
     const makeCard = item => {
-        const card = new St.BoxLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
-            style_class: 'material-panel-nc-card',
-            x_expand: true,
-            reactive: true,
-            track_hover: true,
-            can_focus: true,
+        const card = new St.Button({
+            style_class: 'material-panel-nc-card' + (item.unread ? ' unread' : ''),
+            reactive: true, track_hover: true, can_focus: true, x_expand: true,
         });
-        try {
-            card.style =
-                'spacing: 12px; padding: 10px 12px; border-radius: 12px;';
-        } catch (e) {}
-        if (item.unread)
-            card.add_style_class_name('unread');
-        const accessibleTitle = (item.title || item.appName || 'Notification').slice(0, 64);
-        const accessibleApp = (item.appName || 'App').slice(0, 48);
-        setChipA11y(card, `Notification from ${accessibleApp}: ${accessibleTitle}`);
-
-        // Rounded icon plate, matching the notification-center card language.
-        const avatarPlate = new St.BoxLayout({
+        const row = new St.BoxLayout({x_expand: true, style: 'spacing: 10px; padding: 9px 10px;'});
+        const plate = new St.BoxLayout({
             style_class: 'material-panel-nc-avatar-plate',
-            x_align: Clutter.ActorAlign.START,
-            y_align: Clutter.ActorAlign.START,
+            style: 'width: 34px; height: 34px; border-radius: 10px; padding: 4px;',
         });
-        try { avatarPlate.style = 'width: 38px; height: 38px; border-radius: 11px; padding: 5px;'; } catch (e) {}
-        const avatar = new St.Icon({
-            style_class: 'material-panel-nc-avatar',
-            icon_size: 26,
-            y_align: Clutter.ActorAlign.CENTER,
-            x_align: Clutter.ActorAlign.CENTER,
-        });
-        try {
-            if (item.gicon)
-                avatar.gicon = item.gicon;
-            else
-                avatar.icon_name = 'dialog-information-symbolic';
-        } catch (e) {
-            avatar.icon_name = 'dialog-information-symbolic';
-        }
-        avatarPlate.add_child(avatar);
-        card.add_child(avatarPlate);
-
-        // Text column
+        const avatar = new St.Icon({icon_size: 22, style_class: 'material-panel-nc-avatar'});
+        try { avatar.gicon = item.gicon || null; }
+        catch (e) { avatar.icon_name = 'dialog-information-symbolic'; }
+        plate.add_child(avatar);
+        row.add_child(plate);
         const mid = new St.BoxLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER,
-            style_class: 'material-panel-nc-mid',
+            orientation: Clutter.Orientation.VERTICAL, x_expand: true, style: 'spacing: 2px;',
         });
-        try { mid.style = 'spacing: 2px;'; } catch (e) {}
-
-        const topRow = new St.BoxLayout({
-            orientation: Clutter.Orientation.HORIZONTAL,
-            x_expand: true,
-        });
-        try { topRow.style = 'spacing: 6px;'; } catch (e) {}
-
+        const top = new St.BoxLayout({x_expand: true, style: 'spacing: 6px;'});
         if (item.unread) {
-            const unreadDot = new St.Widget({
-                style_class: 'material-panel-nc-unread-dot',
-                width: 6,
-                height: 6,
+            const dot = new St.Widget({
+                style_class: 'material-panel-nc-unread-dot', width: 6, height: 6,
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            topRow.add_child(unreadDot);
+            top.add_child(dot);
         }
-
-        const title = new St.Label({
-            text: (item.title || item.appName || 'Notification').slice(0, 64),
-            style_class: 'material-panel-nc-card-title',
-            x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        try {
-            title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            title.style = 'font-weight: 700; font-size: 12px;';
-        } catch (e) {}
-
-        const timeLbl = new St.Label({
-            text: relativeTime(item.unix),
-            style_class: 'material-panel-nc-card-time',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        try {
-            timeLbl.style = 'font-size: 11px; opacity: 0.65;';
-        } catch (e) {}
-
-        topRow.add_child(title);
-        topRow.add_child(timeLbl);
-        mid.add_child(topRow);
-
-        if (item.appName && item.appName !== item.title) {
-            const app = new St.Label({
-                text: item.appName,
-                style_class: 'material-panel-nc-card-app',
-            });
-            try {
-                app.style = item.unread
-                    ? 'font-size: 10px; font-weight: 700; opacity: 0.85;'
-                    : 'font-size: 10px; opacity: 0.6;';
-            } catch (e) {}
-            mid.add_child(app);
-        }
-
+        const app = ui(item.appName || 'App', `${FONT} font-size: 9px; font-weight: ${item.unread ? '700' : '600'}; opacity: 0.6;`);
+        app.x_expand = true;
+        const time = ui(relativeTime(item.unix), `${FONT} font-size: 9px; opacity: 0.5;`);
+        top.add_child(app);
+        top.add_child(time);
+        mid.add_child(top);
+        const title = ui(item.title || item.appName || 'Notification', `${FONT} font-size: 11px; font-weight: 700;`);
+        title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        mid.add_child(title);
         if (item.body) {
-            const body = new St.Label({
-                text: item.body.slice(0, 160),
-                style_class: 'material-panel-nc-card-body',
-                x_expand: true,
-            });
-            try {
-                body.clutter_text.line_wrap = true;
-                body.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-                body.style = 'font-size: 11px; opacity: 0.85;';
-            } catch (e) {}
+            const body = ui(item.body.slice(0, 120), `${FONT} font-size: 10px; opacity: 0.7;`);
+            body.clutter_text.line_wrap = true;
+            body.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             mid.add_child(body);
-            if (item.body.length > 160) {
-                let expanded = false;
-                const expandButton = new St.Button({
-                    label: 'More',
-                    style_class: 'material-panel-nc-expand',
-                    reactive: true,
-                    track_hover: true,
-                    can_focus: true,
-                });
-                setChipA11y(expandButton, 'Expand notification body');
-                expandButton.connect('button-press-event', () => Clutter.EVENT_STOP);
-                expandButton.connect('clicked', () => {
-                    expanded = !expanded;
-                    body.text = expanded ? item.body : item.body.slice(0, 160);
-                    try {
-                        body.clutter_text.ellipsize = expanded
-                            ? Pango.EllipsizeMode.NONE
-                            : Pango.EllipsizeMode.END;
-                    } catch (e) {}
-                    expandButton.label = expanded ? 'Less' : 'More';
-                    setChipA11y(expandButton, expanded
-                        ? 'Collapse notification body'
-                        : 'Expand notification body');
-                    return Clutter.EVENT_STOP;
-                });
-                mid.add_child(expandButton);
-            }
         }
-        if (item.actions?.length) {
-            const actionsRow = new St.BoxLayout({
-                orientation: Clutter.Orientation.HORIZONTAL,
-                x_expand: true,
-                style_class: 'material-panel-nc-actions',
-            });
-            try { actionsRow.style = 'spacing: 6px; padding-top: 6px;'; } catch (e) {}
-            for (const actionEntry of item.actions) {
-                const actionButton = new St.Button({
-                    label: actionEntry.label,
-                    style_class: 'material-panel-nc-action',
-                    reactive: true,
-                    track_hover: true,
-                    can_focus: true,
-                });
-                try {
-                    actionButton.style =
-                        'font-size: 11px; padding: 5px 10px; border-radius: 999px; max-width: 140px;';
-                    const label = actionButton.get_child?.();
-                    if (label?.clutter_text)
-                        label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-                } catch (e) {}
-                setChipA11y(actionButton, actionEntry.label);
-                actionButton.connect('button-press-event', () => Clutter.EVENT_STOP);
-                actionButton.connect('clicked', () => {
-                    const activated = activateNotificationAction(
-                        item.notification,
-                        actionEntry.action,
-                        notification => listNotifications().some(
-                            current => current.notification === notification),
-                        error => logError(error, 'material-panel: notification action'));
-                    scheduleRebuild(activated ? 40 : 0);
-                    return Clutter.EVENT_STOP;
-                });
-                actionsRow.add_child(actionButton);
-            }
-            mid.add_child(actionsRow);
-        }
-        card.add_child(mid);
-
-        // Dismiss ×
+        row.add_child(mid);
         const dismiss = new St.Button({
             style_class: 'material-panel-nc-dismiss',
-            reactive: true,
-            track_hover: true,
-            can_focus: true,
+            reactive: true, track_hover: true, can_focus: true,
             y_align: Clutter.ActorAlign.START,
         });
-        dismiss.set_child(new St.Icon({
-            icon_name: 'window-close-symbolic',
-            icon_size: 14,
-        }));
+        try { dismiss.set_child(ui('×', `${FONT} font-size: 13px; opacity: 0.6;`)); } catch (e) {}
         setChipA11y(dismiss, `Dismiss notification from ${item.appName || item.title || 'application'}`);
-        try {
-            dismiss.style = 'padding: 4px; border-radius: 999px;';
-        } catch (e) {}
-        wireChipPress(dismiss, {stickyUntilLeave: true});
+        dismiss.connect('button-press-event', () => Clutter.EVENT_STOP);
         dismiss.connect('clicked', () => {
             destroyNotification(item.notification);
             scheduleRebuild(40);
             return Clutter.EVENT_STOP;
         });
-        card.add_child(dismiss);
-
-        // Click card → activate
+        row.add_child(dismiss);
+        if (item.actions?.length) {
+            const badge = ui(String(item.actions.length), `${FONT} font-size: 9px; opacity: 0.6; padding: 2px 6px; border-radius: 999px;`);
+            row.add_child(badge);
+        }
+        card.set_child(row);
+        setChipA11y(card, `Notification from ${item.appName || 'App'}: ${item.title || 'Notification'}`);
+        card.connect('clicked', () => showDetail(item));
         card.connect('button-press-event', (_a, event) => {
-            try {
-                if (event.get_button() === 1) {
-                    item.notification?.activate?.();
-                    menuClose(menu);
-                    return Clutter.EVENT_STOP;
-                }
-                if (event.get_button() === 3) {
-                    destroyNotification(item.notification);
-                    scheduleRebuild(40);
-                    return Clutter.EVENT_STOP;
-                }
-            } catch (e) {}
+            if (event.get_button() === 3) {
+                destroyNotification(item.notification);
+                scheduleRebuild(40);
+                return Clutter.EVENT_STOP;
+            }
             return Clutter.EVENT_PROPAGATE;
         });
         card.connect('key-press-event', (_actor, event) => {
-            // Child action/dismiss buttons own their keyboard activation.
-            // Do not also activate the notification when their key event bubbles.
-            if (!card.has_key_focus())
-                return Clutter.EVENT_PROPAGATE;
+            if (!card.has_key_focus()) return Clutter.EVENT_PROPAGATE;
             const key = event.get_key_symbol();
             if (key === Clutter.KEY_Return || key === Clutter.KEY_KP_Enter || key === Clutter.KEY_space) {
-                try {
-                    item.notification?.activate?.();
-                    menuClose(menu);
-                } catch (e) {}
+                showDetail(item);
                 return Clutter.EVENT_STOP;
             }
             if (key === Clutter.KEY_Delete || key === Clutter.KEY_BackSpace) {
@@ -780,86 +637,70 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             }
             return Clutter.EVENT_PROPAGATE;
         });
-
         return card;
     };
 
     const rebuild = () => {
-        if (destroyed)
-            return;
+        if (destroyedFlag) return;
         listBox.destroy_all_children();
+        visibleCards = [];
+        selection = -1;
         let items = listNotifications();
         setCount(items.length);
-        applyMaxHeight();
+        countPill.text = String(items.length);
         updateFilterControls(items);
         items = filterNotifications(items, {query: filterText, appName: selectedApp, unreadOnly});
-
         const shown = items.slice(0, MAX_SHOWN);
-
         if (shown.length === 0) {
-            const empty = new St.Label({
-                text: filterText || selectedApp || unreadOnly ? 'No matching notifications' : 'No notifications',
-                style_class: 'material-panel-nc-empty',
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            try {
-                empty.style = 'padding: 24px 12px; opacity: 0.55; font-size: 12px;';
-            } catch (e) {}
-            listBox.add_child(empty);
+            listBox.add_child(ui(filterText || selectedApp || unreadOnly
+                ? 'No matching notifications' : 'No notifications',
+                `${FONT} font-size: 11px; opacity: 0.55; padding: 24px 12px; text-align: center;`));
             return;
         }
-
-        for (const group of groupNotificationsByApp(shown)) {
-            const groupHeader = new St.BoxLayout({
-                orientation: Clutter.Orientation.HORIZONTAL,
-                x_expand: true,
-            });
-            try { groupHeader.style = 'spacing: 8px; padding: 8px 4px 4px 4px;'; } catch (e) {}
-            const appLabel = new St.Label({
-                text: group.appName + ' · ' + group.items.length,
-                style_class: 'material-panel-nc-day',
-                x_expand: true,
-            });
-            try { appLabel.style = 'font-size: 11px; font-weight: 700; opacity: 0.7;'; } catch (e) {}
-            groupHeader.add_child(appLabel);
-            const clearAppButton = new St.Button({
-                label: 'Clear',
-                style_class: 'material-panel-nc-clear',
-                reactive: true,
-                track_hover: true,
-                can_focus: true,
-            });
-            setChipA11y(clearAppButton, 'Clear notifications from ' + group.appName);
-            clearAppButton.connect('button-press-event', () => Clutter.EVENT_STOP);
-            clearAppButton.connect('clicked', () => {
-                for (const item of listNotifications().filter(entry => entry.appName === group.appName))
-                    destroyNotification(item.notification);
-                scheduleRebuild(40);
-                return Clutter.EVENT_STOP;
-            });
-            groupHeader.add_child(clearAppButton);
-            listBox.add_child(groupHeader);
-            for (const item of group.items)
-                listBox.add_child(makeCard(item));
+        for (const group of groupByDay(shown)) {
+            listBox.add_child(eyebrow(group.label.toUpperCase()));
+            for (const item of group.items) {
+                const card = makeCard(item);
+                visibleCards.push(card);
+                listBox.add_child(card);
+            }
         }
-
-        if (items.length > MAX_SHOWN) {
-            const more = new St.Label({
-                text: `+${items.length - MAX_SHOWN} more`,
-                style_class: 'material-panel-nc-more',
-            });
-            try {
-                more.style = 'font-size: 11px; opacity: 0.6; padding: 6px;';
-            } catch (e) {}
-            listBox.add_child(more);
-        }
+        if (items.length > MAX_SHOWN)
+            listBox.add_child(ui(`+${items.length - MAX_SHOWN} more`,
+                `${FONT} font-size: 10px; opacity: 0.5; padding: 6px;`));
     };
 
-    clearBtn.connect('clicked', () => {
+    // ---- interactions ---------------------------------------------------
+    const selectCard = delta => {
+        if (!visibleCards.length) return;
+        if (selection >= 0 && visibleCards[selection])
+            visibleCards[selection].remove_style_class_name('selected');
+        selection = (selection + delta + visibleCards.length) % visibleCards.length;
+        const card = visibleCards[selection];
+        card.add_style_class_name('selected');
+        card.grab_key_focus();
+    };
+    let clearArmed = false;
+    const clearAll = () => {
         const items = listNotifications().filter(item => !selectedApp || item.appName === selectedApp);
-        for (const item of items)
-            destroyNotification(item.notification);
+        for (const item of items) destroyNotification(item.notification);
         scheduleRebuild(60);
+    };
+    clearBtn.connect('clicked', () => {
+        if (!clearArmed) {
+            clearArmed = true;
+            try { clearBtn.set_child(ui('Confirm?', `${FONT} font-size: 10px; font-weight: 700;`)); } catch (e) {}
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
+                if (!destroyedFlag && clearArmed) {
+                    clearArmed = false;
+                    try { clearBtn.set_child(ui(selectedApp ? 'Clear app' : 'Clear', `${FONT} font-size: 10px; font-weight: 600;`)); } catch (e) {}
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+            return;
+        }
+        clearArmed = false;
+        clearAll();
     });
 
     try {
@@ -869,6 +710,40 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         });
     } catch (e) {}
 
+    surface.connect('key-press-event', (_actor, event) => {
+        const key = event.get_key_symbol();
+        if (key === Clutter.KEY_slash) {
+            try { searchEntry.grab_key_focus(); } catch (e) {}
+            return Clutter.EVENT_STOP;
+        }
+        if (key === Clutter.KEY_d) {
+            dndSettings.set_boolean('show-banners', !dndSettings.get_boolean('show-banners'));
+            return Clutter.EVENT_STOP;
+        }
+        if (key === Clutter.KEY_j || key === Clutter.KEY_Down) {
+            selectCard(1);
+            return Clutter.EVENT_STOP;
+        }
+        if (key === Clutter.KEY_k || key === Clutter.KEY_Up) {
+            selectCard(-1);
+            return Clutter.EVENT_STOP;
+        }
+        if (key === Clutter.KEY_Return && selection >= 0 && visibleCards[selection]) {
+            showDetail(listNotifications()[selection]);
+            return Clutter.EVENT_STOP;
+        }
+        if (key === Clutter.KEY_x && selection >= 0) {
+            const items = listNotifications();
+            const item = items[selection];
+            if (item) {
+                destroyNotification(item.notification);
+                scheduleRebuild(40);
+            }
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    });
+
     menu.connect('open-state-changed', (_m, open) => {
         if (open) {
             filterText = '';
@@ -876,140 +751,88 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             unreadOnly = false;
             try { searchEntry.set_text(''); } catch (e) {}
             cancelSearchRebuild();
+            closeDetail();
             rebuild();
         }
     });
-
     button.connect('clicked', () => {
-        if (menu.isOpen)
-            menuClose(menu);
-        else {
-            rebuild();
-            menuOpen(menu);
-        }
+        if (menu.isOpen) menuClose(menu);
+        else { rebuild(); menuOpen(menu); }
     });
 
     rebuild();
 
-    // MessageTray signals — no 3s full rebuild while user is reading
+    // ---- MessageTray signals -------------------------------------------
     const trayIds = [];
-    const sourceIds = new Map(); // source → [signal ids]
+    const sourceIds = new Map();
+    const notificationIds = new Map();
     let countDebounce = 0;
     const scheduleCount = () => {
-        if (destroyed || countDebounce)
-            return;
+        if (destroyedFlag || countDebounce) return;
         countDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
             countDebounce = 0;
-            if (destroyed)
-                return GLib.SOURCE_REMOVE;
-            try {
-                setCount(listNotifications().length);
-            } catch (e) {}
-            // Only refresh list if popup is open — preserve scroll by not doing it every 3s
-            try {
-                if (menu.isOpen)
-                    rebuild();
-            } catch (e) {}
+            if (destroyedFlag) return GLib.SOURCE_REMOVE;
+            try { setCount(listNotifications().length); } catch (e) {}
+            if (menu.isOpen) { try { rebuild(); } catch (e) {} }
             return GLib.SOURCE_REMOVE;
         });
     };
-    const notificationIds = new Map();
     const unhookNotification = notification => {
         const ids = notificationIds.get(notification);
-        if (!ids)
-            return;
+        if (!ids) return;
         for (const id of ids) {
             try { notification.disconnect(id); } catch (e) {}
         }
         notificationIds.delete(notification);
     };
     const hookNotification = notification => {
-        if (!notification || notificationIds.has(notification))
-            return;
+        if (!notification || notificationIds.has(notification)) return;
         const ids = [];
         try { ids.push(notification.connect('notify::acknowledged', scheduleCount)); } catch (e) {}
         try { ids.push(notification.connect('action-added', scheduleCount)); } catch (e) {}
         try { ids.push(notification.connect('action-removed', scheduleCount)); } catch (e) {}
         try { ids.push(notification.connect('destroy', () => unhookNotification(notification))); } catch (e) {}
-        if (ids.length)
-            notificationIds.set(notification, ids);
+        if (ids.length) notificationIds.set(notification, ids);
     };
     const unhookSource = source => {
         const ids = sourceIds.get(source);
         if (ids) {
-            for (const id of ids) {
-                try { source.disconnect(id); } catch (e) {}
-            }
+            for (const id of ids) { try { source.disconnect(id); } catch (e) {} }
             sourceIds.delete(source);
         }
         const notifications = source?.notifications ?? source?._notifications ?? [];
-        for (const notification of notifications)
-            unhookNotification(notification);
+        for (const n of notifications) unhookNotification(n);
     };
     const hookSource = source => {
-        if (!source || sourceIds.has(source))
-            return;
+        if (!source || sourceIds.has(source)) return;
         const ids = [];
-        for (const notification of source.notifications ?? source._notifications ?? [])
-            hookNotification(notification);
-        try {
-            ids.push(source.connect('notification-added', (_source, notification) => {
-                hookNotification(notification);
-                scheduleCount();
-            }));
-        } catch (e) {}
-        try {
-            ids.push(source.connect('notification-removed', (_source, notification) => {
-                unhookNotification(notification);
-                scheduleCount();
-            }));
-        } catch (e) {}
-        try {
-            ids.push(source.connect('destroy', () => {
-                unhookSource(source);
-                scheduleCount();
-            }));
-        } catch (e) {}
-        if (ids.length)
-            sourceIds.set(source, ids);
+        for (const n of source.notifications ?? source._notifications ?? []) hookNotification(n);
+        try { ids.push(source.connect('notification-added', (_s, n) => { hookNotification(n); scheduleCount(); })); } catch (e) {}
+        try { ids.push(source.connect('notification-removed', (_s, n) => { unhookNotification(n); scheduleCount(); })); } catch (e) {}
+        try { ids.push(source.connect('destroy', () => { unhookSource(source); scheduleCount(); })); } catch (e) {}
+        if (ids.length) sourceIds.set(source, ids);
     };
     try {
         const tray = Main.messageTray;
         if (tray) {
-            try {
-                trayIds.push(tray.connect('source-added', (_t, source) => {
-                    hookSource(source);
-                    scheduleCount();
-                }));
-            } catch (e) {}
-            try {
-                trayIds.push(tray.connect('source-removed', (_t, source) => {
-                    unhookSource(source);
-                    scheduleCount();
-                }));
-            } catch (e) {}
-            const sources = typeof tray.getSources === 'function'
-                ? tray.getSources()
-                : (tray._sources ? [...tray._sources] : []);
-            for (const s of sources)
-                hookSource(s);
+            try { trayIds.push(tray.connect('source-added', (_t, s) => { hookSource(s); scheduleCount(); })); } catch (e) {}
+            try { trayIds.push(tray.connect('source-removed', (_t, s) => { unhookSource(s); scheduleCount(); })); } catch (e) {}
+            const sources = typeof tray.getSources === 'function' ? tray.getSources() : (tray._sources ? [...tray._sources] : []);
+            for (const s of sources) hookSource(s);
         }
-    } catch (e) {
-        logError(e, 'material-panel: notification tray signals');
-    }
+    } catch (e) { logError(e, 'material-panel: notification tray signals'); }
     scheduleCount();
 
     button.connect('destroy', () => {
+        destroyedFlag = true;
         destroyed = true;
         cancelRebuildTimers();
         if (countDebounce) {
             try { GLib.source_remove(countDebounce); } catch (e) {}
             countDebounce = 0;
         }
-        for (const source of [...sourceIds.keys()])
-            unhookSource(source);
-        for (const notification of [...notificationIds.keys()])
-            unhookNotification(notification);
+        for (const source of [...sourceIds.keys()]) unhookSource(source);
+        for (const notification of [...notificationIds.keys()]) unhookNotification(notification);
         for (const id of trayIds) {
             try { Main.messageTray?.disconnect?.(id); } catch (e) {}
         }

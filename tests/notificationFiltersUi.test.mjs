@@ -17,9 +17,10 @@ test('notification app, unread, and search filters are applied together', () => 
     assert.ok(source.includes("unread: typeof n.acknowledged === 'boolean' ? !n.acknowledged : null"));
 });
 
-test('per-app clear only destroys notifications from the selected source app', () => {
+test('clear scopes to the selected app and asks for confirmation', () => {
     assert.ok(source.includes('listNotifications().filter(item => !selectedApp || item.appName === selectedApp)'));
-    assert.ok(source.includes("clearBtn.label = selectedApp ? 'Clear app' : 'Clear'"));
+    assert.ok(source.includes("const clearText = selectedApp ? 'Clear app' : 'Clear'"));
+    assert.ok(source.includes('clearArmed'));
 });
 
 test('notification acknowledgement changes refresh filter results and listeners are cleaned up', () => {
@@ -28,10 +29,8 @@ test('notification acknowledgement changes refresh filter results and listeners 
     assert.ok(source.includes('for (const notification of [...notificationIds.keys()])'));
 });
 
-test('notification cards can expand long bodies and app groups can be cleared independently', () => {
-    assert.ok(source.includes('groupNotificationsByApp(shown)'));
-    assert.ok(source.includes("Clear notifications from ' + group.appName"));
-    assert.ok(source.includes('item.body.length > 160'));
-    assert.ok(source.includes("expandButton.label = expanded ? 'Less' : 'More'"));
-    assert.ok(source.includes("Pango.EllipsizeMode.NONE"));
+test('notifications are grouped by day with a detail view for long bodies', () => {
+    assert.ok(source.includes('groupByDay(shown)'));
+    assert.ok(source.includes('const showDetail = item =>'));
+    assert.ok(source.includes('detailBody.text = item.body'));
 });
