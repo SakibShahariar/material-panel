@@ -15,7 +15,7 @@ import {getNetworkSpeedUnit} from '../lib/networkSpeedUnit.js';
 import {setNetworkMetrics, clearNetworkMetrics} from '../lib/systemMetricsState.js';
 import {createPopupHeader} from '../lib/popupHeader.js';
 import {createSparkline} from '../lib/sparkline.js';
-import {getThemeColor} from '../lib/themeColorState.js';
+import {getThemeColor, subscribeThemeColors} from '../lib/themeColorState.js';
 import {
     rateHistoryToPercent,
     parseSsProcessBandwidth,
@@ -57,12 +57,15 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     // do not ellipsize, so this only guards against theme-level clipping.
     try { chipRates.clutter_text.ellipsize = 0; } catch (e) {}
     // Paint the accent inline: generated CSS colour rules can be overwritten
-    // by a later stylesheet load, while getThemeColor comes from the palette
-    // the rest of the shell actually uses.
-    try {
-        chipRates.style = `font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; ` +
-            `color: ${getThemeColor('primary', '#89b4fa')}; white-space: nowrap;`;
-    } catch (e) {}
+    // by a later stylesheet load. Chips are built before the first theme
+    // apply, so subscribe to palette updates and repaint once colours land.
+    const applyChipColor = () => {
+        try {
+            chipRates.style = `font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; ` +
+                `color: ${getThemeColor('primary', '#89b4fa')}; white-space: nowrap;`;
+        } catch (e) {}
+    };
+    const unsubscribeChipColor = subscribeThemeColors(applyChipColor);
     const chipBox = new St.BoxLayout({
         style_class: 'material-panel-net-speed-chip-box',
         style: 'spacing: 5px;',
@@ -346,6 +349,7 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     } catch (e) {}
 
     button.connect('destroy', () => {
+        unsubscribeChipColor();
         if (speedRefreshId)
             GLib.source_remove(speedRefreshId);
         try { stopMonitor(); } catch (e) {}

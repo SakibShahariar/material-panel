@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     setThemeColors, getThemeColor, clearThemeColors, resolveThemeColors,
+    subscribeThemeColors,
 } from '../lib/themeColorState.js';
 
 test('theme color state preserves caller fallbacks and resets without global properties', () => {
@@ -13,6 +14,32 @@ test('theme color state preserves caller fallbacks and resets without global pro
     clearThemeColors();
     assert.equal(getThemeColor('primary', '#fallback'), '#fallback');
     assert.equal(Object.hasOwn(globalThis, '_materialPanelPrimary'), false);
+});
+
+test('theme colour subscribers are notified immediately and on later palette applies', () => {
+    clearThemeColors();
+    const seen = [];
+    const unsubscribe = subscribeThemeColors(colors => seen.push(colors.primary));
+    assert.deepEqual(seen, [undefined]);
+    setThemeColors({primary: '#ffb2be'});
+    assert.deepEqual(seen, [undefined, '#ffb2be']);
+    setThemeColors({primary: '#89b4fa'});
+    assert.deepEqual(seen, [undefined, '#ffb2be', '#89b4fa']);
+    unsubscribe();
+    setThemeColors({primary: '#123456'});
+    assert.equal(seen.length, 3);
+    clearThemeColors();
+});
+
+test('a throwing theme colour listener cannot break a palette apply', () => {
+    const unsubscribe = subscribeThemeColors(() => { throw new Error('paint failed'); });
+    let called = false;
+    const other = subscribeThemeColors(() => { called = true; });
+    assert.doesNotThrow(() => setThemeColors({primary: '#abcdef'}));
+    assert.equal(called, true);
+    unsubscribe();
+    other();
+    clearThemeColors();
 });
 
 test('palette resolver preserves Matugen roles and computes translucent surfaces', () => {

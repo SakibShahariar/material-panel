@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
 import {menuToggle, menuClose} from '../lib/shellCompat.js';
 import {getNetworkMetrics} from '../lib/systemMetricsState.js';
-import {getThemeColor} from '../lib/themeColorState.js';
+import {getThemeColor, subscribeThemeColors} from '../lib/themeColorState.js';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -45,10 +45,14 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         y_align: Clutter.ActorAlign.CENTER,
     });
     // Inline accent colour keeps the chip in sync with the active palette
-    // even when generated CSS is reloaded after the extension stylesheet.
-    try {
-        chipLabel.style = `font-size: 10px; font-weight: 600; color: ${getThemeColor('primary', '#89b4fa')};`;
-    } catch (e) {}
+    // even when generated CSS is reloaded. Repaint when the theme is applied,
+    // since chips are constructed before the first palette update.
+    const applyChipColor = () => {
+        try {
+            chipLabel.style = `font-size: 10px; font-weight: 600; color: ${getThemeColor('primary', '#89b4fa')};`;
+        } catch (e) {}
+    };
+    const unsubscribeChipColor = subscribeThemeColors(applyChipColor);
     box.add_child(chipLabel);
     button.set_child(box);
     setChipA11y(button, 'Network status unavailable');
@@ -61,6 +65,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     button.connect('clicked', () => menuToggle(menu));
     button.connect('destroy', () => {
         destroyed = true;
+        unsubscribeChipColor();
         for (const cancellable of activationCancellables) {
             try { cancellable.cancel(); } catch (error) {}
         }

@@ -5,8 +5,10 @@ import {readFile} from 'node:fs/promises';
 const source = await readFile(new URL('../modules/network.js', import.meta.url), 'utf8');
 
 test('the network chip label follows the live theme palette', () => {
-    assert.match(source, /import \{getThemeColor\} from '..\/lib\/themeColorState\.js'/);
-    assert.match(source, /chipLabel\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(source, /import \{getThemeColor, subscribeThemeColors\} from '..\/lib\/themeColorState\.js'/);
+    assert.match(source, /const applyChipColor = \(\) => \{[\s\S]*?chipLabel\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(source, /const unsubscribeChipColor = subscribeThemeColors\(applyChipColor\)/);
+    assert.match(source, /unsubscribeChipColor\(\);/);
 });
 
 test('rebuilding the Wi-Fi list never detaches the shared popup surface', () => {

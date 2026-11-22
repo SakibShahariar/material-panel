@@ -22,8 +22,10 @@ test('the chip label follows the theme primary color', () => {
 });
 
 test('the chip label paints its accent from the live theme palette', () => {
-    assert.match(speed, /import \{getThemeColor\} from '..\/lib\/themeColorState\.js'/);
-    assert.match(speed, /chipRates\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(speed, /import \{getThemeColor, subscribeThemeColors\} from '..\/lib\/themeColorState\.js'/);
+    assert.match(speed, /const applyChipColor = \(\) => \{[\s\S]*?chipRates\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(speed, /const unsubscribeChipColor = subscribeThemeColors\(applyChipColor\)/);
+    assert.match(speed, /button\.connect\('destroy', \(\) => \{\s*unsubscribeChipColor\(\)/);
 });
 
 test('the chip stays a single-line readout', () => {
