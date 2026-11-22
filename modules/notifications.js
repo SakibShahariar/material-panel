@@ -246,7 +246,9 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'material-panel-nc-surface',
         x_expand: true,
-        style: 'spacing: 10px; padding: 14px; width: 400px;',
+        // The PopupMenu frame already paints the popup surface. Keep this
+        // inner box transparent so only one rounded layer is visible.
+        style: 'spacing: 10px; padding: 14px; width: 400px; background-color: transparent; border: none;',
     });
 
     // ---- list page ------------------------------------------------------

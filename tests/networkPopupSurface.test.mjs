@@ -11,6 +11,15 @@ test('the network chip label follows the live theme palette', () => {
     assert.match(source, /unsubscribeChipColor\(\);/);
 });
 
+test('the Wi-Fi chip shows an explicit on/off state', () => {
+    assert.match(source, /chipLabel\.text = 'Wi-Fi off'/);
+    assert.match(source, /chipLabel\.text = 'Wi-Fi on'/);
+    assert.match(source, /setIcon\(client\.wireless_enabled \? 'network-wifi' : 'network-offline'\)/);
+    const status = source.slice(source.indexOf('const updateStatusIcon = () => {'),
+        source.indexOf("connectionStatus.text = 'Wi-Fi connected'"));
+    assert.match(status, /updateChipLabel\(\)/);
+});
+
 test('rebuilding the Wi-Fi list never detaches the shared popup surface', () => {
     const rebuildStart = source.indexOf('const rebuildNetworkList = () => {');
     const rebuildEnd = source.indexOf('const requestWifiScan = () => {', rebuildStart);

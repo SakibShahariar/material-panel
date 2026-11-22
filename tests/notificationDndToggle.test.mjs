@@ -25,6 +25,12 @@ test('DND toggle uses theme error color for its active state', () => {
     assert.match(renderer, /material-panel-nc-dnd\.active[\s\S]*?error/);
 });
 
+test('the notification popup paints a single surface layer', () => {
+    const surface = source.slice(source.indexOf("style_class: 'material-panel-nc-surface'"));
+    assert.match(surface.slice(0, 700), /background-color: transparent/);
+    assert.match(surface.slice(0, 700), /border: none/);
+});
+
 test('notification cards use the shared center card design language', () => {
     assert.match(source, /'material-panel-nc-card' \+ \(item\.unread \? ' unread' : ''\)/);
     assert.match(source, /material-panel-nc-avatar-plate/);

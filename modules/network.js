@@ -162,9 +162,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 connectionStatus.text = 'Offline';
                 heroTitle.text = client.wireless_enabled ? 'Wi-Fi' : 'Not connected';
                 heroSub.text = client.wireless_enabled ? 'No active connection' : 'Wi-Fi is off';
-                setIcon('network-offline');
-                try { chipLabel.text = ''; } catch (e) {}
-                setChipA11y(button, client.wireless_enabled ? 'Offline' : 'Wi-Fi disabled');
+                setIcon(client.wireless_enabled ? 'network-wifi' : 'network-offline');
+                updateChipLabel();
+                setChipA11y(button, client.wireless_enabled ? 'Wi-Fi on, not connected' : 'Wi-Fi off');
                 return;
             }
             const type = String(conn.get_connection_type() ?? '');
@@ -196,12 +196,22 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         };
         const updateChipLabel = () => {
             try {
-                const info = activeWifiInfo();
-                chipLabel.text = info?.ssid
-                    ? `${info.ssid.slice(0, 16)} ${signalGlyph(info.strength)}`
-                    : '';
+                if (!client.wireless_enabled) {
+                    chipLabel.text = 'Wi-Fi off';
+                    return;
+                }
+                const type = String(client.get_primary_connection()?.get_connection_type?.() ?? '');
+                if (type.includes('wireless')) {
+                    const info = activeWifiInfo();
+                    chipLabel.text = info?.ssid
+                        ? `${info.ssid.slice(0, 16)} ${signalGlyph(info.strength)}`
+                        : 'Wi-Fi on';
+                    return;
+                }
+                chipLabel.text = type.includes('ethernet') ? 'Wired'
+                    : type ? 'Connected' : 'Wi-Fi on';
             } catch (e) {
-                chipLabel.text = '';
+                chipLabel.text = 'Wi-Fi on';
             }
         };
         updateStatusIcon();

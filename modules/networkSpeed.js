@@ -4,6 +4,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -61,6 +62,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     try {
         chipRates.set_width(Math.round(CHIP_RATES_WIDTH * (scale || 1.0)));
         chipRates.x_align = Clutter.ActorAlign.CENTER;
+        // Centre the glyphs inside the reserved width, not just the actor.
+        chipRates.clutter_text.line_alignment = Pango.Alignment.CENTER;
         chipRates.clutter_text.ellipsize = 0;
     } catch (e) {}
     // Paint the accent inline: generated CSS colour rules can be overwritten
