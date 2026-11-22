@@ -4,7 +4,6 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import Pango from 'gi://Pango';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -57,15 +56,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         text: '↑ —  ↓ —',
         style_class: 'material-panel-net-speed-chip-rates',
     });
-    // Fixed width keeps the top bar stable as rates change. This is a floor
-    // sized for the full readout, not the old 40px cap that truncated it.
-    try {
-        chipRates.set_width(Math.round(CHIP_RATES_WIDTH * (scale || 1.0)));
-        chipRates.x_align = Clutter.ActorAlign.CENTER;
-        // Centre the glyphs inside the reserved width, not just the actor.
-        chipRates.clutter_text.line_alignment = Pango.Alignment.CENTER;
-        chipRates.clutter_text.ellipsize = 0;
-    } catch (e) {}
+    // Single line, no ellipsis: the reserved box below is wide enough for
+    // the full readout.
+    try { chipRates.clutter_text.ellipsize = 0; } catch (e) {}
     // Paint the accent inline: generated CSS colour rules can be overwritten
     // by a later stylesheet load. Chips are built before the first theme
     // apply, so subscribe to palette updates and repaint once colours land.
@@ -76,16 +69,22 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
                 ? getThemeColor('onPrimary', '#1e1e2e')
                 : getThemeColor('primary', '#89b4fa');
             chipRates.style = `font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; ` +
-                `color: ${foreground}; white-space: nowrap; text-align: center;`;
+                `color: ${foreground}; white-space: nowrap;`;
         } catch (e) {}
     };
     const unsubscribeChipColor = subscribeThemeColors(applyChipColor);
+    // Fixed width keeps the panel stable as rates change. Equal expanding
+    // spacers centre the value regardless of how St parses text-align.
+    const chipWidth = Math.round(CHIP_RATES_WIDTH * (scale || 1.0));
     const chipBox = new St.BoxLayout({
         style_class: 'material-panel-net-speed-chip-box',
-        style: 'spacing: 5px;',
+        style: 'spacing: 0px;',
+        width: chipWidth,
         y_align: Clutter.ActorAlign.CENTER,
     });
+    chipBox.add_child(new St.Widget({x_expand: true}));
     chipBox.add_child(chipRates);
+    chipBox.add_child(new St.Widget({x_expand: true}));
 
     const button = new St.Button({
         style_class: 'material-panel-network-speed material-panel-chip material-panel-network-speed-btn',

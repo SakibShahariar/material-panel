@@ -34,9 +34,12 @@ test('the chip stays a single-line readout', () => {
     assert.match(speed, /chipRates\.clutter_text\.ellipsize = 0/);
 });
 
-test('the fixed-width chip centres its value', () => {
-    assert.match(speed, /chipRates\.style = [\s\S]*?text-align: center/);
-    assert.match(speed, /chipRates\.clutter_text\.line_alignment = Pango\.Alignment\.CENTER/);
+test('the fixed-width chip centres its value with equal expanding spacers', () => {
+    const box = speed.slice(speed.indexOf('const chipBox = new St.BoxLayout'),
+        speed.indexOf('const button = new St.Button'));
+    assert.equal((box.match(/new St\.Widget\(\{x_expand: true\}\)/g) || []).length, 2);
+    assert.match(box, /chipBox\.add_child\(new St\.Widget\(\{x_expand: true\}\)\);\s*chipBox\.add_child\(chipRates\);\s*chipBox\.add_child\(new St\.Widget\(\{x_expand: true\}\)\)/);
+    assert.doesNotMatch(speed, /text-align: center|line_alignment/);
 });
 
 test('the throughput chip foreground switches to on-primary while pressed', () => {
@@ -47,8 +50,9 @@ test('the throughput chip foreground switches to on-primary while pressed', () =
 
 test('the chip has a fixed, scale-aware width so the panel does not shuffle', () => {
     assert.match(speed, /const CHIP_RATES_WIDTH = \d+/);
-    assert.match(speed, /chipRates\.set_width\(Math\.round\(CHIP_RATES_WIDTH \* \(scale \|\| 1\.0\)\)\)/);
-    assert.doesNotMatch(speed, /max-width/);
+    assert.match(speed, /const chipWidth = Math\.round\(CHIP_RATES_WIDTH \* \(scale \|\| 1\.0\)\)/);
+    assert.match(speed, /width: chipWidth/);
+    assert.doesNotMatch(speed, /max-width|chipRates\.set_width/);
 });
 
 test('throughput popup exports session totals for the network details card', () => {
