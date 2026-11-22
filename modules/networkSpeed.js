@@ -52,6 +52,9 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         text: '↑ —  ↓ —',
         style_class: 'material-panel-net-speed-chip-rates',
     });
+    // Keep the compact readout on one line with no hard width cap; St Labels
+    // do not ellipsize, so this only guards against theme-level clipping.
+    try { chipRates.clutter_text.ellipsize = 0; } catch (e) {}
     const chipBox = new St.BoxLayout({
         style_class: 'material-panel-net-speed-chip-box',
         style: 'spacing: 5px;',
@@ -299,6 +302,8 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
             setNetworkMetrics({
                 down: sample.down,
                 up: sample.up,
+                sessionRx,
+                sessionTx,
                 updatedAt: GLib.get_monotonic_time(),
             });
         } catch (e) {}

@@ -12,8 +12,15 @@ test('notification view data reads native action objects defensively', () => {
 test('detail view renders extracted native action labels as buttons', () => {
     assert.ok(source.includes('if (item.actions?.length)'));
     assert.ok(source.includes('for (const entry of item.actions)'));
-    assert.ok(source.includes("label: entry.label"));
+    assert.ok(source.includes("makeDetailButton(entry.label"));
     assert.ok(source.includes("style_class: 'material-panel-nc-detail-action'"));
+});
+
+test('detail actions are recreated instead of re-adding destroyed actors', () => {
+    assert.ok(source.includes('const makeDetailButton = (label, onClick) =>'));
+    assert.doesNotMatch(source, /detailActions\.add_child\(openBtn\)/);
+    assert.ok(source.includes("detailActions.add_child(makeDetailButton('Open app'"));
+    assert.ok(source.includes("detailActions.add_child(makeDetailButton('Dismiss'"));
 });
 
 test('native action clicks are checked against current tray state', () => {

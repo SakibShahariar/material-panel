@@ -261,15 +261,18 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
 
     const headerTitle = ui('NOTIFICATIONS', `${FONT} font-size: 11px; font-weight: 700; opacity: 0.8;`);
     headerTitle.x_expand = true;
-    const countPill = ui('0', `${FONT} font-size: 10px; font-weight: 700; opacity: 0.7; padding: 2px 8px; border-radius: 999px;`);
+    const countPill = ui('0', `${FONT} font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;`);
+    countPill.style_class = 'material-panel-nc-count-pill';
     const dndBtn = new St.Button({
         style_class: 'material-panel-nc-dnd',
         reactive: true, track_hover: true, can_focus: true,
     });
-    try { dndBtn.style = `${FONT} font-size: 13px; padding: 4px 8px; border-radius: 999px;`; } catch (e) {}
+    try { dndBtn.style = `${FONT} font-size: 9px; font-weight: 700; padding: 5px 9px; border-radius: 999px;`; } catch (e) {}
     const syncDnd = () => {
         const on = !dndSettings.get_boolean('show-banners');
-        dndBtn.set_child(ui(on ? '🔕' : '🔔', `${FONT} font-size: 13px;`));
+        // Text label instead of an emoji: coloured emoji glyphs ignore the
+        // shell theme and looked out of place in the header.
+        dndBtn.set_child(ui(on ? 'DND on' : 'DND', `${FONT} font-size: 9px; font-weight: 700;`));
         if (on) dndBtn.add_style_class_name('active');
         else dndBtn.remove_style_class_name('active');
         setChipA11y(dndBtn, on ? 'Do Not Disturb on; click to turn off' : 'Do Not Disturb off; click to turn on');
@@ -311,20 +314,14 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
     let filterAppsSignature = '';
     let unreadStateAvailable = false;
     const filterButtons = new Map();
+    // A plain row of pills: the old horizontal ScrollView rendered its track
+    // as one grey slab behind the chips and looked like a broken control.
     const filterBar = new St.BoxLayout({
         orientation: Clutter.Orientation.HORIZONTAL,
         style_class: 'material-panel-nc-filter-bar', x_expand: true,
         style: 'spacing: 6px;',
     });
-    const filterScroll = new St.ScrollView({
-        style_class: 'material-panel-nc-filter-scroll',
-        x_expand: true, overlay_scrollbars: true,
-    });
-    try {
-        filterScroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
-        filterScroll.set_child(filterBar);
-    } catch (e) {}
-    listPage.add_child(filterScroll);
+    listPage.add_child(filterBar);
 
     const updateFilterControls = items => {
         const apps = notificationAppNames(items);
@@ -339,6 +336,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
                 const b = new St.Button({
                     label: text, style_class: 'material-panel-nc-filter-chip',
                     reactive: true, track_hover: true, can_focus: true,
+                    x_expand: false,
                 });
                 try { b.style = `${FONT} font-size: 10px; padding: 4px 9px; border-radius: 999px;`; } catch (e) {}
                 b.connect('clicked', onClick);
@@ -359,12 +357,20 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             } else {
                 unreadOnly = false;
             }
-            for (const name of apps) {
+            // Keep the pill row inside the popup width; app names are also
+            // reachable through search, so the remainder is not lost.
+            const shownApps = apps.slice(0, 4);
+            for (const name of shownApps) {
                 addFilterButton(`app:${name}`, name, () => {
                     selectedApp = selectedApp === name ? null : name;
                     updateFilterControls(listNotifications());
                     scheduleSearchRebuild();
                 });
+            }
+            if (apps.length > shownApps.length) {
+                const more = ui(`+${apps.length - shownApps.length}`,
+                    `${FONT} font-size: 9px; opacity: 0.5; padding: 4px 2px;`);
+                filterBar.add_child(more);
             }
             filterAppsSignature = signature;
             unreadStateAvailable = supportsUnread;
@@ -376,7 +382,7 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
             try { b.set_style_class_name(`material-panel-nc-filter-chip${active ? ' active' : ''}`); }
             catch (e) {}
         }
-        filterScroll.visible = apps.length > 0 || supportsUnread;
+        filterBar.visible = apps.length > 0 || supportsUnread;
         const clearText = selectedApp ? 'Clear app' : 'Clear';
         try { clearBtn.set_child(ui(clearText, `${FONT} font-size: 10px; font-weight: 600;`)); }
         catch (e) { clearBtn.label = clearText; }
@@ -445,14 +451,12 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         style: 'spacing: 8px; padding-top: 6px;',
     });
     detailPage.add_child(detailActions);
-    const openBtn = new St.Button({label: 'Open app', style_class: 'material-panel-nc-detail-action'});
-    const dismissDetailBtn = new St.Button({label: 'Dismiss', style_class: 'material-panel-nc-detail-action'});
-    try {
-        for (const b of [openBtn, dismissDetailBtn])
-            b.style = `${FONT} font-size: 10px; padding: 6px 12px; border-radius: 999px;`;
-    } catch (e) {}
-    detailActions.add_child(openBtn);
-    detailActions.add_child(dismissDetailBtn);
+    const makeDetailButton = (label, onClick) => {
+        const b = new St.Button({label, style_class: 'material-panel-nc-detail-action'});
+        try { b.style = `${FONT} font-size: 10px; padding: 6px 12px; border-radius: 999px;`; } catch (e) {}
+        b.connect('clicked', onClick);
+        return b;
+    };
 
     let detailItem = null;
     const showDetail = item => {
@@ -465,23 +469,33 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         detailBody.text = item.body || 'No message body';
         try { detailIcon.gicon = item.gicon || null; }
         catch (e) { detailIcon.icon_name = 'dialog-information-symbolic'; }
+        // Buttons are created fresh for each detail view. Re-adding the actors
+        // destroyed by destroy_all_children() triggers a Clutter parent failure
+        // and leaves the detail page broken after the second card click.
         detailActions.destroy_all_children();
         if (item.actions?.length) {
             for (const entry of item.actions) {
-                const b = new St.Button({label: entry.label, style_class: 'material-panel-nc-detail-action'});
-                try { b.style = `${FONT} font-size: 10px; padding: 6px 12px; border-radius: 999px;`; } catch (e) {}
-                b.connect('clicked', () => {
+                detailActions.add_child(makeDetailButton(entry.label, () => {
                     activateNotificationAction(item.notification, entry.action,
                         n => listNotifications().some(c => c.notification === n),
                         error => logError(error, 'material-panel: notification action'));
                     closeDetail();
                     scheduleRebuild(40);
-                });
-                detailActions.add_child(b);
+                }));
             }
         }
-        detailActions.add_child(openBtn);
-        detailActions.add_child(dismissDetailBtn);
+        detailActions.add_child(makeDetailButton('Open app', () => {
+            if (!detailItem) return;
+            try { detailItem.notification?.activate?.(); } catch (e) {}
+            closeDetail();
+            menuClose(menu);
+        }));
+        detailActions.add_child(makeDetailButton('Dismiss', () => {
+            if (!detailItem) return;
+            destroyNotification(detailItem.notification);
+            closeDetail();
+            scheduleRebuild(40);
+        }));
     };
     const closeDetail = () => {
         detailItem = null;
@@ -489,18 +503,6 @@ export function buildNotifications(_extensionPath, scale = 1.0) {
         listPage.visible = true;
     };
     backBtn.connect('clicked', closeDetail);
-    openBtn.connect('clicked', () => {
-        if (!detailItem) return;
-        try { detailItem.notification?.activate?.(); } catch (e) {}
-        closeDetail();
-        menuClose(menu);
-    });
-    dismissDetailBtn.connect('clicked', () => {
-        if (!detailItem) return;
-        destroyNotification(detailItem.notification);
-        closeDetail();
-        scheduleRebuild(40);
-    });
 
     const hostItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
     hostItem.add_child(surface);

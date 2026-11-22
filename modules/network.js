@@ -7,7 +7,8 @@ import NM from 'gi://NM';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {attachPopupDismiss, closeAfter} from '../lib/popupDismiss.js';
-import {menuToggle} from '../lib/shellCompat.js';
+import {menuToggle, menuClose} from '../lib/shellCompat.js';
+import {getNetworkMetrics} from '../lib/systemMetricsState.js';
 
 import {iconPathPrimary} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
@@ -95,10 +96,17 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             return;
 
         let currentIconKey = 'network-offline';
+        let heroIcon = null;
         const setIcon = key => {
             currentIconKey = key;
-            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
+            const gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
+            icon.gicon = gicon;
+            if (heroIcon)
+                heroIcon.gicon = gicon;
         };
+
+        const wifiUi = (text, style) => new St.Label({text: String(text ?? ''), style});
+        const wifiEyebrow = t => wifiUi(t, 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;');
 
         const connectionStatus = new St.Label({
             text: 'Checking connection…',
@@ -107,10 +115,42 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         try {
             connectionStatus.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;';
         } catch (e) {}
+
+        // Hero card: large status icon, SSID + state, and optional actions from
+        // the reference network panels (QR sharing / speed test when installed).
+        const heroCard = new St.BoxLayout({
+            style_class: 'material-panel-wifi-hero',
+            x_expand: true,
+            style: 'spacing: 12px; padding: 12px; border-radius: 14px;',
+        });
+        heroIcon = new St.Icon({
+            style_class: 'material-panel-wifi-hero-icon',
+            icon_size: Math.round(34 * scale),
+            gicon: Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('network-offline'))),
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        heroCard.add_child(heroIcon);
+        const heroText = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            x_expand: true,
+            style: 'spacing: 3px;',
+        });
+        const heroTitle = wifiUi('Wi-Fi', 'font-family: "Noto Sans", sans-serif; font-size: 15px; font-weight: 700;');
+        heroTitle.clutter_text.ellipsize = 1;
+        const heroSub = wifiUi('Checking connection…',
+            'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;');
+        heroSub.clutter_text.ellipsize = 1;
+        heroText.add_child(heroTitle);
+        heroText.add_child(heroSub);
+        heroCard.add_child(heroText);
+        const heroActions = new St.BoxLayout({style: 'spacing: 6px;'});
+        heroCard.add_child(heroActions);
         const updateStatusIcon = () => {
             const conn = client.get_primary_connection();
             if (!conn) {
                 connectionStatus.text = 'Offline';
+                heroTitle.text = client.wireless_enabled ? 'Wi-Fi' : 'Not connected';
+                heroSub.text = client.wireless_enabled ? 'No active connection' : 'Wi-Fi is off';
                 setIcon('network-offline');
                 try { chipLabel.text = ''; } catch (e) {}
                 setChipA11y(button, client.wireless_enabled ? 'Offline' : 'Wi-Fi disabled');
@@ -120,6 +160,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             connectionStatus.text = type.includes('wireless') ? 'Wi-Fi connected'
                 : type.includes('ethernet') ? 'Wired connection'
                     : 'Network connected';
+            const info = activeWifiInfo();
+            heroTitle.text = info?.ssid || conn.get_id?.() || 'Connected';
+            heroSub.text = connectionStatus.text;
             setIcon(networkIconForType(type, NM));
             updateChipLabel();
             if (type.includes('wireless'))
@@ -148,24 +191,6 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     : '';
             } catch (e) {
                 chipLabel.text = '';
-            }
-        };
-        const updateDetails = () => {
-            try {
-                const conn = client.get_primary_connection();
-                const info = activeWifiInfo();
-                const ip4 = conn?.get_ip4_config?.();
-                const addresses = ip4?.get_addresses?.() || [];
-                const address = addresses[0];
-                const ip = address?.get_address?.() || '';
-                const gateway = ip4?.get_gateway?.() || '';
-                detailRows.network.text = info?.ssid || (conn?.get_id?.() ?? '—');
-                detailRows.ip.text = ip || '—';
-                detailRows.gateway.text = gateway || '—';
-                detailRows.interface.text = wifiDevice?.get_interface?.() || '—';
-            } catch (e) {
-                for (const key of Object.keys(detailRows))
-                    detailRows[key].text = '—';
             }
         };
         updateStatusIcon();
@@ -254,37 +279,126 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             } catch (e) {}
             return item;
         };
-        const wifiUi = (text, style) => new St.Label({text: String(text ?? ''), style});
-        const wifiEyebrow = t => wifiUi(t, 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;');
-
         const wifiSurface = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
-            style: 'spacing: 10px; padding: 4px 2px; width: 400px;',
+            style: 'spacing: 8px; padding: 2px; width: 400px;',
         });
+        wifiSurface.add_child(heroCard);
 
-        // Connection details card (IP / gateway / signal / interface).
+        // Hero actions are advertised only when their helper tools exist, so
+        // the popup never offers a button that silently does nothing.
+        const addHeroAction = (label, callback) => {
+            const b = new St.Button({
+                label, style_class: 'material-panel-wifi-action',
+                reactive: true, can_focus: true,
+            });
+            try { b.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; padding: 4px 8px; border-radius: 999px;'; } catch (e) {}
+            b.connect('clicked', callback);
+            heroActions.add_child(b);
+        };
+        try {
+            if (GLib.find_program_in_path('omarchy.wifiqr')) {
+                addHeroAction('QR', closeAfter(menu, () => {
+                    try { GLib.spawn_command_line_async('omarchy.wifiqr'); } catch (e) {}
+                }));
+            }
+            if (GLib.find_program_in_path('omarchy.speedtest')) {
+                addHeroAction('Speed', closeAfter(menu, () => {
+                    try { GLib.spawn_command_line_async('omarchy.speedtest'); } catch (e) {}
+                }));
+            }
+        } catch (e) {}
+
+        // Connection details grid, modelled on the reference network panels.
+        const formatRateValue = n => {
+            n = Math.max(0, Number(n) || 0);
+            if (n < 1024) return `${Math.round(n)} B/s`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB/s`;
+            return `${(n / (1024 * 1024)).toFixed(1)} MB/s`;
+        };
+        const formatBytesValue = n => {
+            n = Math.max(0, Number(n) || 0);
+            if (n < 1024) return `${Math.round(n)} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+            if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+        };
+        const bandForAccessPoint = ap => {
+            try {
+                const frequency = Number(ap?.get_frequency?.()) || 0;
+                if (frequency >= 5900) return '6 GHz';
+                if (frequency >= 4900) return '5 GHz';
+                if (frequency > 0) return '2.4 GHz';
+            } catch (e) {}
+            return '—';
+        };
+        const dnsForConnection = conn => {
+            try {
+                const servers = conn?.get_ip4_config?.()?.get_dns?.() || [];
+                if (!servers.length) return 'DHCP';
+                const joined = servers.join(' ');
+                if (joined.includes('1.1.1.1')) return 'Cloudflare';
+                if (joined.includes('8.8.8.8')) return 'Google';
+                return String(servers[0]);
+            } catch (e) { return '—'; }
+        };
         const detailsCard = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'material-panel-wifi-detail-card',
             x_expand: true,
             style: 'spacing: 6px; padding: 10px 12px; border-radius: 12px;',
         });
-        detailsCard.add_child(wifiEyebrow('CONNECTION'));
+        detailsCard.add_child(wifiEyebrow('CONNECTION DETAILS'));
         const detailRows = {};
-        for (const key of ['network', 'ip', 'gateway', 'interface']) {
+        const addDetailRow = fields => {
             const row = new St.BoxLayout({x_expand: true, style: 'spacing: 8px;'});
-            const k = wifiUi(key.toUpperCase(), 'font-family: "Noto Sans", sans-serif; font-size: 9px; opacity: 0.5; width: 66px;');
-            const v = wifiUi('—', 'font-family: "Noto Sans", sans-serif; font-size: 10px; font-weight: 600;');
-            v.x_expand = true;
-            row.add_child(k);
-            row.add_child(v);
-            detailRows[key] = v;
+            for (const {key, label} of fields) {
+                const cell = new St.BoxLayout({x_expand: true, style: 'spacing: 6px;'});
+                cell.add_child(wifiUi(label,
+                    'font-family: "Noto Sans", sans-serif; font-size: 9px; opacity: 0.5; width: 60px;'));
+                const value = wifiUi('—',
+                    'font-family: "Noto Sans", sans-serif; font-size: 10px; font-weight: 600;');
+                value.x_expand = true;
+                detailRows[key] = value;
+                cell.add_child(value);
+                row.add_child(cell);
+            }
             detailsCard.add_child(row);
-        }
+        };
+        addDetailRow([{key: 'ping', label: 'PING'}, {key: 'loss', label: 'PACKET LOSS'}]);
+        addDetailRow([{key: 'receiving', label: 'RECEIVING'}, {key: 'sending', label: 'SENDING'}]);
+        addDetailRow([{key: 'downloaded', label: 'DOWNLOADED'}, {key: 'uploaded', label: 'UPLOADED'}]);
+        addDetailRow([{key: 'ip', label: 'IP ADDRESS'}, {key: 'gateway', label: 'GATEWAY'}]);
+        addDetailRow([{key: 'band', label: 'BAND'}, {key: 'dns', label: 'DNS'}]);
         wifiSurface.add_child(detailsCard);
 
-        // Quick actions row.
+        const updateDetails = () => {
+            try {
+                const conn = client.get_primary_connection();
+                const ip4 = conn?.get_ip4_config?.();
+                const addresses = ip4?.get_addresses?.() || [];
+                const metrics = getNetworkMetrics() || {};
+                const rate = value => Number.isFinite(Number(value)) && Number(value) > 0
+                    ? formatRateValue(value) : '—';
+                const total = value => Number(value) > 0 ? formatBytesValue(value) : '—';
+                detailRows.ping.text = '—';
+                detailRows.loss.text = '—';
+                detailRows.receiving.text = rate(metrics.down);
+                detailRows.sending.text = rate(metrics.up);
+                detailRows.downloaded.text = total(metrics.sessionRx);
+                detailRows.uploaded.text = total(metrics.sessionTx);
+                detailRows.ip.text = addresses[0]?.get_address?.() || '—';
+                detailRows.gateway.text = ip4?.get_gateway?.() || '—';
+                detailRows.band.text = bandForAccessPoint(conn?.get_access_points?.()?.[0]);
+                detailRows.dns.text = dnsForConnection(conn);
+            } catch (e) {
+                for (const key of Object.keys(detailRows))
+                    detailRows[key].text = '—';
+            }
+        };
+
+        // Quick actions.
         const actionsRow = new St.BoxLayout({
             orientation: Clutter.Orientation.HORIZONTAL,
             x_expand: true,
@@ -300,12 +414,12 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             actionsRow.add_child(b);
             return b;
         };
-        const scanBtn = addAction('↻ Scan', () => requestWifiScan());
-        const bandBtn = addAction('Band', () => {
+        addAction('↻ Scan', () => requestWifiScan());
+        addAction('Band', () => {
             menuClose(menu);
             try { GLib.spawn_command_line_async('gnome-control-center wifi'); } catch (e) {}
         });
-        const dnsBtn = addAction('DNS', () => {
+        addAction('DNS', () => {
             menuClose(menu);
             try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e) {}
         });
@@ -316,21 +430,23 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             x_expand: true,
             style: 'spacing: 6px;',
         });
-        const networkScroll = new St.ScrollView({
+        wifiSurface.add_child(networkCards);
+
+        // One scroll view for the whole surface; nested scrollers made the
+        // network list detach and left an apparently empty popup.
+        const networksSection = new PopupMenu.PopupMenuSection();
+        const networkBodyItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const wifiScroll = new St.ScrollView({
             style_class: 'material-panel-wifi-scroll',
             overlay_scrollbars: true,
             x_expand: true,
         });
         try {
-            networkScroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-            networkScroll.set_child(networkCards);
-            networkScroll.style = 'max-height: 300px;';
+            wifiScroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+            wifiScroll.set_child(wifiSurface);
+            wifiScroll.style = 'max-height: 520px;';
         } catch (e) {}
-        wifiSurface.add_child(networkScroll);
-
-        const networksSection = new PopupMenu.PopupMenuSection();
-        const networkBodyItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-        networkBodyItem.add_child(wifiSurface);
+        networkBodyItem.add_child(wifiScroll);
         networksSection.addMenuItem(networkBodyItem);
         menu.addMenuItem(networksSection);
 
@@ -540,7 +656,8 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         let hiddenExpanded = false;
 
         const rebuildNetworkList = () => {
-            networksSection.removeAll();
+            // Only rebuild the card list. Removing everything from the menu
+            // section would also detach the shared Wi-Fi surface.
             const activeId = client.get_primary_connection()?.get_uuid();
             const accessPoints = wifiDevice?.get_access_points?.() || [];
             const savedConnections = client.get_connections()
@@ -780,8 +897,13 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         };
         nearbyRefresh.connect('clicked', refreshNearby);
 
-        const settingsItem = styleMenuLabel(new PopupMenu.PopupMenuItem('Wi-Fi settings…'));
-        settingsItem.connect('activate', closeAfter(menu, () => {
+        const settingsBtn = new St.Button({
+            label: 'Wi-Fi settings…',
+            style_class: 'material-panel-wifi-action',
+            reactive: true, can_focus: true, x_expand: true,
+        });
+        try { settingsBtn.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; padding: 8px; border-radius: 10px;'; } catch (e) {}
+        settingsBtn.connect('clicked', closeAfter(menu, () => {
             // Unknown networks / passwords need the system UI (secret agent)
             const tryCmds = [
                 'gnome-control-center wifi',
@@ -794,7 +916,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 } catch (e) {}
             }
         }));
-        menu.addMenuItem(settingsItem);
+        wifiSurface.add_child(settingsBtn);
 
         const connsChangedId = client.connect('connection-added', rebuildNetworkList);
         const connsRemovedId = client.connect('connection-removed', rebuildNetworkList);

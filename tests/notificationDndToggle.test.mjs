@@ -11,7 +11,7 @@ test('notification panel header has a Do Not Disturb toggle', () => {
     assert.match(source, /new Gio\.Settings\(\{schema_id: 'org\.gnome\.desktop\.notifications'\}\)/);
     assert.match(source, /material-panel-nc-dnd/);
     assert.match(source, /const on = !dndSettings\.get_boolean\('show-banners'\)/);
-    assert.match(source, /ui\(on \? '🔕' : '🔔'/);
+    assert.match(source, /ui\(on \? 'DND on' : 'DND'/);
     assert.match(source, /set_boolean\('show-banners', !dndSettings\.get_boolean\('show-banners'\)\)/);
     assert.match(source, /changed::show-banners', syncDnd/);
     assert.match(source, /header\.add_child\(dndBtn\)/);

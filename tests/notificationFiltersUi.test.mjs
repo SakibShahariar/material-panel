@@ -9,7 +9,9 @@ test('notification center exposes app filters and conditionally exposes unread f
     assert.ok(source.includes('hasUnreadNotificationState(items)'));
     assert.ok(source.includes("addFilterButton('all', 'All apps'"));
     assert.ok(source.includes("addFilterButton('unread', 'Unread'"));
-    assert.ok(source.includes('filterScroll.visible = apps.length > 0 || supportsUnread'));
+    assert.ok(source.includes('filterBar.visible = apps.length > 0 || supportsUnread'));
+    assert.doesNotMatch(source, /material-panel-nc-filter-scroll/);
+    assert.ok(source.includes('const shownApps = apps.slice(0, 4)'));
 });
 
 test('notification app, unread, and search filters are applied together', () => {
