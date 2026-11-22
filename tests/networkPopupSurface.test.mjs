@@ -6,18 +6,32 @@ const source = await readFile(new URL('../modules/network.js', import.meta.url),
 
 test('the network chip label follows the live theme palette', () => {
     assert.match(source, /import \{getThemeColor, subscribeThemeColors\} from '..\/lib\/themeColorState\.js'/);
-    assert.match(source, /const applyChipColor = \(\) => \{[\s\S]*?chipLabel\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(source, /const applyChipColor = \(\) => \{[\s\S]*?getThemeColor\('primary'[\s\S]*?chipLabel\.style =/);
     assert.match(source, /const unsubscribeChipColor = subscribeThemeColors\(applyChipColor\)/);
     assert.match(source, /unsubscribeChipColor\(\);/);
 });
 
-test('the Wi-Fi chip shows an explicit on/off state', () => {
-    assert.match(source, /chipLabel\.text = 'Wi-Fi off'/);
-    assert.match(source, /chipLabel\.text = 'Wi-Fi on'/);
+test('the Wi-Fi chip uses distinct icons for on/off state, not text', () => {
     assert.match(source, /setIcon\(client\.wireless_enabled \? 'network-wifi' : 'network-offline'\)/);
+    assert.match(source, /setChipA11y\(button, client\.wireless_enabled \? 'Wi-Fi on, not connected' : 'Wi-Fi off'\)/);
+    assert.doesNotMatch(source, /chipLabel\.text = 'Wi-Fi (on|off)'/);
     const status = source.slice(source.indexOf('const updateStatusIcon = () => {'),
         source.indexOf("connectionStatus.text = 'Wi-Fi connected'"));
     assert.match(status, /updateChipLabel\(\)/);
+});
+
+test('the Wi-Fi popup and its lock icon follow the live theme palette', () => {
+    assert.match(source, /const themedLabels = new Map\(\)/);
+    assert.match(source, /label\.style = `color: \$\{getThemeColor\('onSurface'/);
+    assert.match(source, /iconPathPrimary\('lock'\)/);
+    assert.match(source, /unsubscribePopupColors\(\)/);
+    assert.match(source, /if \(info\.secure\)\s*rowBox\.add_child\(wifiLockIcon\(\)\)/);
+});
+
+test('chip foreground switches to on-primary while pressed', () => {
+    assert.match(source, /const foreground = chipPressed\s*\?\s*getThemeColor\('onPrimary'/);
+    assert.match(source, /setChipPressed\(true\)/);
+    assert.match(source, /button\.connect\('button-release-event'/);
 });
 
 test('rebuilding the Wi-Fi list never detaches the shared popup surface', () => {

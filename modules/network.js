@@ -11,7 +11,7 @@ import {menuToggle, menuClose} from '../lib/shellCompat.js';
 import {getNetworkMetrics} from '../lib/systemMetricsState.js';
 import {getThemeColor, subscribeThemeColors} from '../lib/themeColorState.js';
 
-import {iconPathPrimary} from '../lib/iconTheme.js';
+import {iconPathPrimary, iconPathOnAccent} from '../lib/iconTheme.js';
 import {wireFileIconPress} from '../lib/pressFx.js';
 import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
@@ -27,6 +27,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     let destroyed = false;
     const activationCancellables = new Set();
     const activationGate = createWifiActivationGate();
+    let refreshChipIcon = null;
     const button = new St.Button({
         style_class: 'material-panel-network material-panel-chip',
         reactive: true,
@@ -47,12 +48,23 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
     // Inline accent colour keeps the chip in sync with the active palette
     // even when generated CSS is reloaded. Repaint when the theme is applied,
     // since chips are constructed before the first palette update.
+    let chipPressed = false;
     const applyChipColor = () => {
         try {
-            chipLabel.style = `font-size: 10px; font-weight: 600; color: ${getThemeColor('primary', '#89b4fa')};`;
+            const foreground = chipPressed
+                ? getThemeColor('onPrimary', '#1e1e2e')
+                : getThemeColor('primary', '#89b4fa');
+            chipLabel.style = `font-size: 10px; font-weight: 600; color: ${foreground};`;
         } catch (e) {}
     };
     const unsubscribeChipColor = subscribeThemeColors(applyChipColor);
+    const setChipPressed = pressed => {
+        if (chipPressed === pressed)
+            return;
+        chipPressed = pressed;
+        applyChipColor();
+        try { refreshChipIcon?.(); } catch (e) {}
+    };
     box.add_child(chipLabel);
     button.set_child(box);
     setChipA11y(button, 'Network status unavailable');
@@ -110,22 +122,56 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         let heroIcon = null;
         const setIcon = key => {
             currentIconKey = key;
-            const gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
-            icon.gicon = gicon;
+            const path = chipPressed ? iconPathOnAccent(key) : iconPathPrimary(key);
+            icon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(path));
             if (heroIcon)
-                heroIcon.gicon = gicon;
+                heroIcon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary(key)));
         };
+        refreshChipIcon = () => setIcon(currentIconKey);
 
-        const wifiUi = (text, style) => new St.Label({text: String(text ?? ''), style});
+        // Popup actors are built before the first theme apply, so paint them
+        // from the live palette and repaint when the palette changes.
+        const themedLabels = new Map();
+        const themedIcons = new Map();
+        const wifiUi = (text, style = '') => {
+            const label = new St.Label({text: String(text ?? '')});
+            const applyStyle = () => {
+                try {
+                    label.style = `color: ${getThemeColor('onSurface', '#cdd6f4')}; ${style}`;
+                } catch (e) {}
+            };
+            themedLabels.set(label, applyStyle);
+            label.connect('destroy', () => themedLabels.delete(label));
+            applyStyle();
+            return label;
+        };
+        const wifiLockIcon = () => {
+            const lockIcon = new St.Icon({icon_size: Math.round(12 * scale)});
+            const applyIcon = () => {
+                try {
+                    lockIcon.gicon = Gio.FileIcon.new(Gio.File.new_for_path(iconPathPrimary('lock')));
+                } catch (e) {}
+            };
+            themedIcons.set(lockIcon, applyIcon);
+            lockIcon.connect('destroy', () => themedIcons.delete(lockIcon));
+            applyIcon();
+            return lockIcon;
+        };
+        const repaintPopupTheme = () => {
+            for (const applyStyle of themedLabels.values()) {
+                try { applyStyle(); } catch (e) {}
+            }
+            for (const applyIcon of themedIcons.values()) {
+                try { applyIcon(); } catch (e) {}
+            }
+            try { setIcon(currentIconKey); } catch (e) {}
+        };
+        const unsubscribePopupColors = subscribeThemeColors(repaintPopupTheme);
         const wifiEyebrow = t => wifiUi(t, 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700; opacity: 0.55; letter-spacing: 1px;');
 
-        const connectionStatus = new St.Label({
-            text: 'Checking connection…',
-            style_class: 'material-panel-network-popup-status',
-        });
-        try {
-            connectionStatus.style = 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;';
-        } catch (e) {}
+        const connectionStatus = wifiUi('Checking connection…',
+            'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.65;');
+        connectionStatus.style_class = 'material-panel-network-popup-status';
 
         // Hero card: large status icon, SSID + state, and optional actions from
         // the reference network panels (QR sharing / speed test when installed).
@@ -194,24 +240,21 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 return null;
             }
         };
+        // The icon carries the on/off/connection state; the label only shows
+        // the connected network name so the chip stays compact.
         const updateChipLabel = () => {
             try {
-                if (!client.wireless_enabled) {
-                    chipLabel.text = 'Wi-Fi off';
-                    return;
-                }
                 const type = String(client.get_primary_connection()?.get_connection_type?.() ?? '');
-                if (type.includes('wireless')) {
-                    const info = activeWifiInfo();
-                    chipLabel.text = info?.ssid
-                        ? `${info.ssid.slice(0, 16)} ${signalGlyph(info.strength)}`
-                        : 'Wi-Fi on';
+                if (!type.includes('wireless')) {
+                    chipLabel.text = '';
                     return;
                 }
-                chipLabel.text = type.includes('ethernet') ? 'Wired'
-                    : type ? 'Connected' : 'Wi-Fi on';
+                const info = activeWifiInfo();
+                chipLabel.text = info?.ssid
+                    ? `${info.ssid.slice(0, 16)} ${signalGlyph(info.strength)}`
+                    : '';
             } catch (e) {
-                chipLabel.text = 'Wi-Fi on';
+                chipLabel.text = '';
             }
         };
         updateStatusIcon();
@@ -743,14 +786,13 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     const sig = wifiUi(bars, 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; width: 44px;');
                     const name = wifiUi(info.ssid, 'font-family: "Noto Sans", sans-serif; font-size: 12px; font-weight: 600; x-expanded: true;');
                     name.x_expand = true;
-                    const secure = info.secure ? '🔒' : '';
-                    const lock = wifiUi(secure, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.7;');
                     const pct = wifiUi(`${info.strength}%`, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.7; width: 30px;');
                     const status = wifiUi(state, 'font-family: "Noto Sans", sans-serif; font-size: 10px; opacity: 0.75; width: 62px;');
                     status.x_align = Clutter.ActorAlign.END;
                     rowBox.add_child(sig);
                     rowBox.add_child(name);
-                    rowBox.add_child(lock);
+                    if (info.secure)
+                        rowBox.add_child(wifiLockIcon());
                     rowBox.add_child(pct);
                     rowBox.add_child(status);
                     row.set_child(rowBox);
@@ -862,7 +904,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         });
         try {
             portalItem.set_child(wifiUi('⚠ Connected, but internet may need a sign-in — open browser',
-                'font-family: "Noto Sans", sans-serif; color: #ffb4ab; font-size: 10px; padding: 8px;'));
+                `font-family: "Noto Sans", sans-serif; color: ${getThemeColor('error', '#ffb4ab')}; font-size: 10px; padding: 8px;`));
         } catch (e) {}
         wifiSurface.add_child(portalItem);
         let portalProbeInFlight = false;
@@ -954,6 +996,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         ];
 
         button.connect('destroy', () => {
+            unsubscribePopupColors();
             client.disconnect(primaryConnId);
             client.disconnect(wirelessEnabledId);
             client.disconnect(connsChangedId);
@@ -974,6 +1017,18 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         });
     });
 
+    button.connect('button-press-event', () => {
+        setChipPressed(true);
+        return Clutter.EVENT_PROPAGATE;
+    });
+    button.connect('button-release-event', () => {
+        setChipPressed(false);
+        return Clutter.EVENT_PROPAGATE;
+    });
+    button.connect('leave-event', () => {
+        setChipPressed(false);
+        return Clutter.EVENT_PROPAGATE;
+    });
     try { wireFileIconPress(button, () => [{icon, key: currentIconKey}]); } catch (e) {}
     return button;
 }

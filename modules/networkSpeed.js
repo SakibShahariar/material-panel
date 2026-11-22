@@ -69,10 +69,14 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     // Paint the accent inline: generated CSS colour rules can be overwritten
     // by a later stylesheet load. Chips are built before the first theme
     // apply, so subscribe to palette updates and repaint once colours land.
+    let chipPressed = false;
     const applyChipColor = () => {
         try {
+            const foreground = chipPressed
+                ? getThemeColor('onPrimary', '#1e1e2e')
+                : getThemeColor('primary', '#89b4fa');
             chipRates.style = `font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 700; ` +
-                `color: ${getThemeColor('primary', '#89b4fa')}; white-space: nowrap;`;
+                `color: ${foreground}; white-space: nowrap; text-align: center;`;
         } catch (e) {}
     };
     const unsubscribeChipColor = subscribeThemeColors(applyChipColor);
@@ -365,6 +369,25 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         try { stopMonitor(); } catch (e) {}
         clearNetworkMetrics();
         menu.destroy();
+    });
+
+    // Inline label colour beats the stylesheet, so mirror the pressed
+    // background with an on-primary foreground here as well.
+    const setChipPressed = pressed => {
+        if (chipPressed === pressed)
+            return;
+        chipPressed = pressed;
+        applyChipColor();
+    };
+    button.connect('button-press-event', () => {
+        setChipPressed(true);
+        return Clutter.EVENT_PROPAGATE;
+    });
+    // wireChipPress is sticky-until-leave for this chip, so keep the
+    // on-primary foreground for exactly as long as the pressed background.
+    button.connect('leave-event', () => {
+        setChipPressed(false);
+        return Clutter.EVENT_PROPAGATE;
     });
 
     try { wireChipPress(button, {stickyUntilLeave: true}); } catch (e) {}

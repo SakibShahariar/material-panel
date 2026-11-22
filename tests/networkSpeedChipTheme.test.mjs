@@ -23,7 +23,7 @@ test('the chip label follows the theme primary color', () => {
 
 test('the chip label paints its accent from the live theme palette', () => {
     assert.match(speed, /import \{getThemeColor, subscribeThemeColors\} from '..\/lib\/themeColorState\.js'/);
-    assert.match(speed, /const applyChipColor = \(\) => \{[\s\S]*?chipRates\.style = [\s\S]*?getThemeColor\('primary'/);
+    assert.match(speed, /const applyChipColor = \(\) => \{[\s\S]*?getThemeColor\('primary'[\s\S]*?chipRates\.style =/);
     assert.match(speed, /const unsubscribeChipColor = subscribeThemeColors\(applyChipColor\)/);
     assert.match(speed, /button\.connect\('destroy', \(\) => \{\s*unsubscribeChipColor\(\)/);
 });
@@ -35,8 +35,14 @@ test('the chip stays a single-line readout', () => {
 });
 
 test('the fixed-width chip centres its value', () => {
-    assert.match(speed, /import Pango from 'gi:\/\/Pango'/);
+    assert.match(speed, /chipRates\.style = [\s\S]*?text-align: center/);
     assert.match(speed, /chipRates\.clutter_text\.line_alignment = Pango\.Alignment\.CENTER/);
+});
+
+test('the throughput chip foreground switches to on-primary while pressed', () => {
+    assert.match(speed, /const foreground = chipPressed\s*\?\s*getThemeColor\('onPrimary'/);
+    assert.match(speed, /button\.connect\('button-press-event'/);
+    assert.match(speed, /button\.connect\('leave-event'/);
 });
 
 test('the chip has a fixed, scale-aware width so the panel does not shuffle', () => {
