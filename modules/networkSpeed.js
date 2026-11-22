@@ -38,6 +38,9 @@ function formatNetworkRate(bytesPerSec, unit = 'bytes') {
 }
 
 const HISTORY_LEN = 28;
+// Wide enough for the longest normal readout (e.g. ↑999.9M  ↓999.9M) while
+// keeping the chip a constant width so neighbouring panel chips never shift.
+const CHIP_RATES_WIDTH = 112;
 
 export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
     let last = {down: 0, up: 0, downText: '—', upText: '—', iface: null};
@@ -53,9 +56,13 @@ export function buildNetworkSpeed(_extensionPath, scale = 1.0) {
         text: '↑ —  ↓ —',
         style_class: 'material-panel-net-speed-chip-rates',
     });
-    // Keep the compact readout on one line with no hard width cap; St Labels
-    // do not ellipsize, so this only guards against theme-level clipping.
-    try { chipRates.clutter_text.ellipsize = 0; } catch (e) {}
+    // Fixed width keeps the top bar stable as rates change. This is a floor
+    // sized for the full readout, not the old 40px cap that truncated it.
+    try {
+        chipRates.set_width(Math.round(CHIP_RATES_WIDTH * (scale || 1.0)));
+        chipRates.x_align = Clutter.ActorAlign.CENTER;
+        chipRates.clutter_text.ellipsize = 0;
+    } catch (e) {}
     // Paint the accent inline: generated CSS colour rules can be overwritten
     // by a later stylesheet load. Chips are built before the first theme
     // apply, so subscribe to palette updates and repaint once colours land.

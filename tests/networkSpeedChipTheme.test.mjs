@@ -34,6 +34,12 @@ test('the chip stays a single-line readout', () => {
     assert.match(speed, /chipRates\.clutter_text\.ellipsize = 0/);
 });
 
+test('the chip has a fixed, scale-aware width so the panel does not shuffle', () => {
+    assert.match(speed, /const CHIP_RATES_WIDTH = \d+/);
+    assert.match(speed, /chipRates\.set_width\(Math\.round\(CHIP_RATES_WIDTH \* \(scale \|\| 1\.0\)\)\)/);
+    assert.doesNotMatch(speed, /max-width/);
+});
+
 test('throughput popup exports session totals for the network details card', () => {
     assert.match(speed, /sessionRx,\s*sessionTx,\s*updatedAt:/);
 });
