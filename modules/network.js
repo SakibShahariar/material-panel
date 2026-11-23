@@ -17,9 +17,10 @@ import {networkIconForType} from '../lib/networkIcon.js';
 import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
 import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus} from '../lib/wifiConnection.js';
-import {signalGlyph, sortAccessPoints, parseArpNeighbors, classifyCaptivePortal} from '../lib/networkDesign.js';
+import {signalGlyph, sortAccessPoints, parseArpNeighbors, classifyCaptivePortal,
+    parsePingResult, wifiChannel} from '../lib/networkDesign.js';
 import {loadHiddenNetworks, saveHiddenNetworks, toggleHiddenNetwork} from '../lib/hiddenNetworks.js';
-import {probeCaptivePortal, getNearbyDevices} from '../lib/networkDiagnostics.js';
+import {probeCaptivePortal, getNearbyDevices, probePing} from '../lib/networkDiagnostics.js';
 
 // Saved profiles are reactivated directly; unsaved access points are
 // activated through NetworkManager's session secret-agent flow below.
@@ -414,8 +415,15 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             style: 'spacing: 6px; padding: 10px 12px; border-radius: 12px;',
         });
         detailsCard.add_child(wifiEyebrow('CONNECTION DETAILS'));
+        const deviceCard = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            style_class: 'material-panel-wifi-detail-card',
+            x_expand: true,
+            style: 'spacing: 6px; padding: 10px 12px; border-radius: 12px;',
+        });
+        deviceCard.add_child(wifiEyebrow('DEVICE & LINK'));
         const detailRows = {};
-        const addDetailRow = fields => {
+        const addDetailRow = (card, fields) => {
             const row = new St.BoxLayout({x_expand: true, style: 'spacing: 8px;'});
             for (const {key, label} of fields) {
                 const cell = new St.BoxLayout({x_expand: true, style: 'spacing: 6px;'});
@@ -428,34 +436,91 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 cell.add_child(value);
                 row.add_child(cell);
             }
-            detailsCard.add_child(row);
+            card.add_child(row);
         };
-        addDetailRow([{key: 'ping', label: 'PING'}, {key: 'loss', label: 'PACKET LOSS'}]);
-        addDetailRow([{key: 'receiving', label: 'RECEIVING'}, {key: 'sending', label: 'SENDING'}]);
-        addDetailRow([{key: 'downloaded', label: 'DOWNLOADED'}, {key: 'uploaded', label: 'UPLOADED'}]);
-        addDetailRow([{key: 'ip', label: 'IP ADDRESS'}, {key: 'gateway', label: 'GATEWAY'}]);
-        addDetailRow([{key: 'band', label: 'BAND'}, {key: 'dns', label: 'DNS'}]);
+        addDetailRow(detailsCard, [{key: 'ping', label: 'PING'}, {key: 'loss', label: 'PACKET LOSS'}]);
+        addDetailRow(detailsCard, [
+            {key: 'receiving', label: 'RECEIVING'}, {key: 'sending', label: 'SENDING'},
+        ]);
+        addDetailRow(detailsCard, [
+            {key: 'downloaded', label: 'DOWNLOADED'}, {key: 'uploaded', label: 'UPLOADED'},
+        ]);
+        addDetailRow(detailsCard, [{key: 'ip', label: 'IP ADDRESS'}, {key: 'gateway', label: 'GATEWAY'}]);
+        addDetailRow(detailsCard, [{key: 'band', label: 'BAND'}, {key: 'dns', label: 'DNS'}]);
+        addDetailRow(deviceCard, [
+            {key: 'interface', label: 'INTERFACE'}, {key: 'mac', label: 'MAC ADDRESS'},
+        ]);
+        addDetailRow(deviceCard, [{key: 'subnet', label: 'SUBNET'}, {key: 'ipv6', label: 'IPv6'}]);
+        addDetailRow(deviceCard, [
+            {key: 'link', label: 'LINK SPEED'}, {key: 'channel', label: 'CHANNEL'},
+        ]);
         wifiSurface.add_child(detailsCard);
+        wifiSurface.add_child(deviceCard);
+
+        // Ping results arrive asynchronously; keep them across list rebuilds
+        // and ignore replies from a probe started for an older connection.
+        let pingStats = {gateway: null, internet: null};
+        let pingGeneration = 0;
+        const measurePing = async () => {
+            const generation = ++pingGeneration;
+            const conn = client.get_primary_connection();
+            const gateway = conn?.get_ip4_config?.()?.get_gateway?.() || null;
+            const [gatewayResult, internetResult] = await Promise.all([
+                probePing(gateway),
+                probePing('1.1.1.1'),
+            ]);
+            if (destroyed || generation !== pingGeneration)
+                return;
+            pingStats = {gateway: gatewayResult, internet: internetResult};
+            if (menu.isOpen)
+                updateDetails();
+        };
 
         const updateDetails = () => {
             try {
                 const conn = client.get_primary_connection();
                 const ip4 = conn?.get_ip4_config?.();
                 const addresses = ip4?.get_addresses?.() || [];
+                const ap = conn?.get_access_points?.()?.[0];
+                const device = conn?.get_devices?.()?.[0] || wifiDevice;
                 const metrics = getNetworkMetrics() || {};
                 const rate = value => Number.isFinite(Number(value)) && Number(value) > 0
                     ? formatRateValue(value) : '—';
                 const total = value => Number(value) > 0 ? formatBytesValue(value) : '—';
-                detailRows.ping.text = '—';
-                detailRows.loss.text = '—';
+                const internet = pingStats.internet;
+                detailRows.ping.text = internet?.latencyMs != null
+                    ? `${internet.latencyMs.toFixed(1)} ms` : '—';
+                detailRows.loss.text = internet?.lossPercent != null
+                    ? `${internet.lossPercent}%` : '—';
                 detailRows.receiving.text = rate(metrics.down);
                 detailRows.sending.text = rate(metrics.up);
                 detailRows.downloaded.text = total(metrics.sessionRx);
                 detailRows.uploaded.text = total(metrics.sessionTx);
                 detailRows.ip.text = addresses[0]?.get_address?.() || '—';
                 detailRows.gateway.text = ip4?.get_gateway?.() || '—';
-                detailRows.band.text = bandForAccessPoint(conn?.get_access_points?.()?.[0]);
+                detailRows.band.text = bandForAccessPoint(ap);
                 detailRows.dns.text = dnsForConnection(conn);
+                detailRows.interface.text = device?.get_interface?.() || '—';
+                try { detailRows.mac.text = device?.get_hardware_address?.() || '—'; }
+                catch (e) { detailRows.mac.text = '—'; }
+                try {
+                    const prefix = addresses[0]?.get_prefix?.();
+                    detailRows.subnet.text = Number.isFinite(prefix) ? `/${prefix}` : '—';
+                } catch (e) { detailRows.subnet.text = '—'; }
+                try {
+                    const ipv6 = conn?.get_ip6_config?.()?.get_addresses?.()?.[0]?.get_address?.();
+                    detailRows.ipv6.text = ipv6 || '—';
+                } catch (e) { detailRows.ipv6.text = '—'; }
+                try {
+                    let speed = device?.get_speed?.();
+                    if (!speed)
+                        speed = (Number(device?.get_bitrate?.()) || 0) / 1000;
+                    detailRows.link.text = Number(speed) > 0 ? `${Math.round(speed)} Mb/s` : '—';
+                } catch (e) { detailRows.link.text = '—'; }
+                try {
+                    const channel = wifiChannel(ap?.get_frequency?.());
+                    detailRows.channel.text = channel ? `CH ${channel}` : '—';
+                } catch (e) { detailRows.channel.text = '—'; }
             } catch (e) {
                 for (const key of Object.keys(detailRows))
                     detailRows[key].text = '—';
@@ -891,6 +956,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 bindWifiDevice();
                 rebuildNetworkList();
                 updateDetails();
+                measurePing();
                 requestWifiScan();
                 probePortal();
                 refreshNearby();

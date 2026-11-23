@@ -57,14 +57,28 @@ test('Wi-Fi popup closes its settings actions through the shared helper', () => 
 test('Wi-Fi popup follows the reference hero and details-grid design', () => {
     assert.match(source, /material-panel-wifi-hero/);
     assert.match(source, /heroTitle\.text = info\?\.ssid \|\| conn\.get_id\?\.\(\)/);
-    assert.match(source, /addDetailRow\(\[{key: 'ping', label: 'PING'\}, \{key: 'loss', label: 'PACKET LOSS'}\]\)/);
-    assert.match(source, /addDetailRow\(\[{key: 'receiving', label: 'RECEIVING'\}, \{key: 'sending', label: 'SENDING'}\]\)/);
-    assert.match(source, /addDetailRow\(\[{key: 'ip'/);
-    assert.match(source, /addDetailRow\(\[{key: 'band'/);
+    assert.match(source, /addDetailRow\(detailsCard, \[\{key: 'ping', label: 'PING'\}, \{key: 'loss', label: 'PACKET LOSS'}\]\)/);
+    assert.match(source, /addDetailRow\(detailsCard, \[\s*\{key: 'receiving'/);
+    assert.match(source, /addDetailRow\(detailsCard, \[\{key: 'ip'/);
+    assert.match(source, /addDetailRow\(detailsCard, \[\{key: 'band'/);
     assert.match(source, /bandForAccessPoint\(/);
     assert.match(source, /dnsForConnection\(/);
     assert.match(source, /find_program_in_path\('omarchy\.wifiqr'\)/);
     assert.match(source, /find_program_in_path\('omarchy\.speedtest'\)/);
+});
+
+test('the Wi-Fi popup measures ping and shows device/link details', () => {
+    assert.match(source, /import \{probeCaptivePortal, getNearbyDevices, probePing\}/);
+    assert.match(source, /const measurePing = async \(\) => \{/);
+    assert.match(source, /probePing\(gateway\)/);
+    assert.match(source, /probePing\('1\.1\.1\.1'\)/);
+    assert.match(source, /measurePing\(\);/);
+    assert.match(source, /detailRows\.ping\.text = internet\?\.latencyMs/);
+    assert.match(source, /detailRows\.loss\.text = internet\?\.lossPercent/);
+    assert.match(source, /addDetailRow\(deviceCard, \[\s*\{key: 'interface'/);
+    assert.match(source, /addDetailRow\(deviceCard, \[\{key: 'subnet'/);
+    assert.match(source, /addDetailRow\(deviceCard, \[\s*\{key: 'link'/);
+    assert.match(source, /wifiChannel\(ap\?\.get_frequency\?\.\(\)\)/);
 });
 
 test('Wi-Fi details read live throughput and session totals', () => {

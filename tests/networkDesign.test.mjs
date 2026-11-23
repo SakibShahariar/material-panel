@@ -9,6 +9,8 @@ import {
     parseSsProcessBandwidth,
     diffProcessBandwidth,
     classifyCaptivePortal,
+    parsePingResult,
+    wifiChannel,
 } from '../lib/networkDesign.js';
 
 test('signal strength maps to 0..4 bars', () => {
@@ -62,6 +64,22 @@ test('ss snapshots diff into per-process rates', () => {
     assert.equal(rows.length, 1);
     assert.equal(rows[0].up, 100);
     assert.equal(rows[0].down, 200);
+});
+
+test('ping output yields latency and packet loss', () => {
+    const result = parsePingResult(
+        '64 bytes from 1.1.1.1: icmp_seq=1 ttl=58 time=1.76 ms\n' +
+        '1 packets transmitted, 1 received, 0% packet loss, time 0ms');
+    assert.equal(result.latencyMs, 1.76);
+    assert.equal(result.lossPercent, 0);
+    assert.deepEqual(parsePingResult(''), {latencyMs: null, lossPercent: null});
+});
+
+test('access point frequency maps to a Wi-Fi channel', () => {
+    assert.equal(wifiChannel(2437), 6);
+    assert.equal(wifiChannel(5180), 36);
+    assert.equal(wifiChannel(5955), 1);
+    assert.equal(wifiChannel(0), null);
 });
 
 test('captive portal status classifies 204, redirects and failures', () => {
