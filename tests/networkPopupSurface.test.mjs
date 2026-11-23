@@ -100,7 +100,9 @@ test('band and DNS pills apply real NetworkManager profile changes', () => {
     assert.match(source, /\['8\.8\.8\.8', '8\.8\.4\.4'\]/);
     assert.match(source, /label => applyConnectionSetting\('band', label\)/);
     assert.match(source, /label => applyConnectionSetting\('dns', label\)/);
-    assert.match(source, /if \(!result\.success && kind === 'band'\)/);
+    assert.match(source, /if \(!result\.success\) \{\s*for \(const argv of \[\['nmcli', 'con', 'down'/);
+    assert.match(source, /button\.connect\('button-press-event', \(\) => Clutter\.EVENT_STOP\)/);
+    assert.match(source, /Main\.notify\('Network', message\)/);
 });
 
 test('Wi-Fi details read live throughput and session totals', () => {

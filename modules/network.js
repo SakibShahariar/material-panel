@@ -498,6 +498,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     label: item, style_class: 'material-panel-wifi-pill',
                     reactive: true, can_focus: true, x_expand: true,
                 });
+                button.connect('button-press-event', () => Clutter.EVENT_STOP);
                 button.connect('clicked', () => onPick(item));
                 row.add_child(button);
                 buttons.set(item, button);
@@ -513,6 +514,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         const applyConnectionSetting = async (kind, label) => {
             if (destroyed)
                 return;
+            log(`material-panel: applying ${kind} = ${label}`);
             const conn = client.get_primary_connection();
             const uuid = conn?.get_uuid?.();
             const iface = wifiDevice?.get_interface?.();
@@ -542,12 +544,14 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 }
             }
             if (!failure && iface) {
-                // Reapply the modified profile without dropping the link.
+                // Reapply first; NM refuses to reapply several settings
+                // (notably 802-11-wireless.band), so fall back to reconnect.
                 const result = await runNetworkCommand(['nmcli', 'device', 'reapply', iface]);
-                if (!result.success && kind === 'band') {
-                    // A band switch may need a full reconnect to take effect.
+                log(`material-panel: ${kind} reapply ${result.success ? 'ok' : result.error}`);
+                if (!result.success) {
                     for (const argv of [['nmcli', 'con', 'down', uuid], ['nmcli', 'con', 'up', uuid]]) {
                         const reconnect = await runNetworkCommand(argv);
+                        log(`material-panel: ${argv[2]} ${reconnect.success ? 'ok' : reconnect.error}`);
                         if (!reconnect.success) {
                             failure = reconnect.error;
                             break;
@@ -558,10 +562,15 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             if (destroyed)
                 return;
             if (failure) {
-                updateActivationStatus(`Couldn't change ${kind}: ${failure.split('\n')[0]}`);
+                const message = `Couldn't change ${kind}: ${failure.split('\n')[0]}`;
+                updateActivationStatus(message);
+                logError(new Error(failure), 'material-panel: network setting failed');
+                try { Main.notify('Network', message); } catch (e) {}
                 return;
             }
-            updateActivationStatus(`${kind === 'band' ? 'Band' : 'DNS'} set to ${label}`);
+            const message = `${kind === 'band' ? 'Band' : 'DNS'} set to ${label}`;
+            updateActivationStatus(message);
+            try { Main.notify('Network', message); } catch (e) {}
             updateDetails();
         };
         const bandPills = pillRow('BAND', ['Auto', '2.4 GHz', '5 GHz', '6 GHz'],
