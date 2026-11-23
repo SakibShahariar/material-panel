@@ -68,7 +68,7 @@ test('Wi-Fi popup follows the reference hero and details-grid design', () => {
 });
 
 test('the Wi-Fi popup measures ping and shows device/link details', () => {
-    assert.match(source, /import \{probeCaptivePortal, getNearbyDevices, probePing\}/);
+    assert.match(source, /import \{probeCaptivePortal, getNearbyDevices, probePing, runNetworkCommand\}/);
     assert.match(source, /const measurePing = async \(\) => \{/);
     assert.match(source, /probePing\(gateway\)/);
     assert.match(source, /probePing\('1\.1\.1\.1'\)/);
@@ -89,6 +89,18 @@ test('the popup has reference-style band and DNS pill rows and no visible scroll
     assert.match(source, /applyPillState\(bandPills/);
     assert.match(source, /applyPillState\(dnsPills/);
     assert.match(source, /wifiBand\(frequency\)/);
+});
+
+test('band and DNS pills apply real NetworkManager profile changes', () => {
+    assert.match(source, /const applyConnectionSetting = async \(kind, label\)/);
+    assert.match(source, /\['nmcli', 'con', 'mod', uuid, 'wifi\.band', band\]/);
+    assert.match(source, /\['nmcli', 'device', 'reapply', iface\]/);
+    assert.match(source, /\['nmcli', 'con', 'down', uuid\], \['nmcli', 'con', 'up', uuid\]/);
+    assert.match(source, /\['1\.1\.1\.1', '1\.0\.0\.1'\]/);
+    assert.match(source, /\['8\.8\.8\.8', '8\.8\.4\.4'\]/);
+    assert.match(source, /label => applyConnectionSetting\('band', label\)/);
+    assert.match(source, /label => applyConnectionSetting\('dns', label\)/);
+    assert.match(source, /if \(!result\.success && kind === 'band'\)/);
 });
 
 test('Wi-Fi details read live throughput and session totals', () => {

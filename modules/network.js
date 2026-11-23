@@ -20,7 +20,7 @@ import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActiva
 import {signalGlyph, sortAccessPoints, parseArpNeighbors, classifyCaptivePortal,
     parsePingResult, wifiChannel, wifiBand} from '../lib/networkDesign.js';
 import {loadHiddenNetworks, saveHiddenNetworks, toggleHiddenNetwork} from '../lib/hiddenNetworks.js';
-import {probeCaptivePortal, getNearbyDevices, probePing} from '../lib/networkDiagnostics.js';
+import {probeCaptivePortal, getNearbyDevices, probePing, runNetworkCommand} from '../lib/networkDiagnostics.js';
 
 // Saved profiles are reactivated directly; unsaved access points are
 // activated through NetworkManager's session secret-agent flow below.
@@ -508,20 +508,66 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             pillGroups.push(group);
             return group;
         };
-        const bandPills = pillRow('BAND', ['Auto', '2.4 GHz', '5 GHz', '6 GHz'], label => {
-            menuClose(menu);
-            if (GLib.find_program_in_path('omarchy-network-band')) {
-                try {
-                    GLib.spawn_command_line_async(`omarchy-network-band set ${label === 'Auto' ? 'auto' : label.split(' ')[0]}`);
-                } catch (e) {}
-            } else {
-                try { GLib.spawn_command_line_async('gnome-control-center wifi'); } catch (e) {}
+        // Apply band/DNS changes through NetworkManager's own profile API
+        // (nmcli); resolvectl is a best-effort immediate refresh.
+        const applyConnectionSetting = async (kind, label) => {
+            if (destroyed)
+                return;
+            const conn = client.get_primary_connection();
+            const uuid = conn?.get_uuid?.();
+            const iface = wifiDevice?.get_interface?.();
+            if (!uuid) {
+                updateActivationStatus('No active connection to change');
+                return;
             }
-        });
-        const dnsPills = pillRow('DNS PROVIDER', ['DHCP', 'Cloudflare', 'Google'], () => {
-            menuClose(menu);
-            try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e) {}
-        });
+            const commands = [];
+            if (kind === 'band') {
+                const band = label === 'Auto' ? '' : label === '6 GHz' ? '6GHz'
+                    : label.startsWith('2.4') ? 'bg' : 'a';
+                commands.push(['nmcli', 'con', 'mod', uuid, 'wifi.band', band]);
+                updateActivationStatus(`Switching band to ${label}…`);
+            } else {
+                const servers = label === 'Cloudflare' ? ['1.1.1.1', '1.0.0.1']
+                    : label === 'Google' ? ['8.8.8.8', '8.8.4.4'] : [];
+                commands.push(['nmcli', 'con', 'mod', uuid, 'ipv4.dns', servers.join(' '),
+                    'ipv4.ignore-auto-dns', servers.length ? 'yes' : 'no']);
+                updateActivationStatus(`Setting DNS to ${label}…`);
+            }
+            let failure = null;
+            for (const argv of commands) {
+                const result = await runNetworkCommand(argv);
+                if (!result.success) {
+                    failure = result.error;
+                    break;
+                }
+            }
+            if (!failure && iface) {
+                // Reapply the modified profile without dropping the link.
+                const result = await runNetworkCommand(['nmcli', 'device', 'reapply', iface]);
+                if (!result.success && kind === 'band') {
+                    // A band switch may need a full reconnect to take effect.
+                    for (const argv of [['nmcli', 'con', 'down', uuid], ['nmcli', 'con', 'up', uuid]]) {
+                        const reconnect = await runNetworkCommand(argv);
+                        if (!reconnect.success) {
+                            failure = reconnect.error;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (destroyed)
+                return;
+            if (failure) {
+                updateActivationStatus(`Couldn't change ${kind}: ${failure.split('\n')[0]}`);
+                return;
+            }
+            updateActivationStatus(`${kind === 'band' ? 'Band' : 'DNS'} set to ${label}`);
+            updateDetails();
+        };
+        const bandPills = pillRow('BAND', ['Auto', '2.4 GHz', '5 GHz', '6 GHz'],
+            label => applyConnectionSetting('band', label));
+        const dnsPills = pillRow('DNS PROVIDER', ['DHCP', 'Cloudflare', 'Google'],
+            label => applyConnectionSetting('dns', label));
 
         // Ping results arrive asynchronously; keep them across list rebuilds
         // and ignore replies from a probe started for an older connection.
