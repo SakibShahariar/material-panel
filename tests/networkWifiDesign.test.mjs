@@ -57,8 +57,7 @@ test('Wi-Fi popup has connection details and quick actions', () => {
     assert.match(network, /detailRows\.ip\.text/);
     assert.match(network, /detailRows\.gateway\.text/);
     assert.match(network, /addAction\('↻ Scan'/);
-    assert.match(network, /addAction\('Band'/);
-    assert.match(network, /addAction\('DNS'/);
+    assert.match(network, /addAction\('Settings…'/);
     assert.match(network, /updateDetails\(\)/);
 });
 

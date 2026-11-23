@@ -78,7 +78,17 @@ test('the Wi-Fi popup measures ping and shows device/link details', () => {
     assert.match(source, /addDetailRow\(deviceCard, \[\s*\{key: 'interface'/);
     assert.match(source, /addDetailRow\(deviceCard, \[\{key: 'subnet'/);
     assert.match(source, /addDetailRow\(deviceCard, \[\s*\{key: 'link'/);
-    assert.match(source, /wifiChannel\(ap\?\.get_frequency\?\.\(\)\)/);
+    assert.match(source, /const frequency = Number\(ap\?\.get_frequency\?\.\(\) \|\| device\?\.get_frequency\?\.\(\)\)/);
+    assert.match(source, /wifiChannel\(frequency\)/);
+});
+
+test('the popup has reference-style band and DNS pill rows and no visible scrollbar', () => {
+    assert.match(source, /const pillRow = \(title, items, onPick\) => \{/);
+    assert.match(source, /const bandPills = pillRow\('BAND'/);
+    assert.match(source, /const dnsPills = pillRow\('DNS PROVIDER'/);
+    assert.match(source, /applyPillState\(bandPills/);
+    assert.match(source, /applyPillState\(dnsPills/);
+    assert.match(source, /wifiBand\(frequency\)/);
 });
 
 test('Wi-Fi details read live throughput and session totals', () => {

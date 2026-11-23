@@ -10,5 +10,4 @@ test('network popup places live connection status in the shared header before Wi
     assert.match(source, /connectionStatus\.text = 'Offline'/);
     assert.match(source, /connectionStatus\.text = type\.includes\('wireless'\) \? 'Wi-Fi connected'/);
     assert.match(source, /menu\.addMenuItem\(networkHeaderItem\);\s*const primaryConnId/);
-    assert.match(source, /menu\.addMenuItem\(wifiToggle\)/);
 });

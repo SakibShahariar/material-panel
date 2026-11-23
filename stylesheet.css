@@ -35,6 +35,15 @@
 .material-panel-wifi-hero-icon {
     color: #89b4fa;
 }
+.material-panel-wifi-scroll StScrollBar {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+}
+.material-panel-wifi-pill,
+.material-panel-wifi-toggle {
+    border-radius: 999px;
+}
 .material-panel-wifi-action {
     background-color: rgba(128, 128, 128, 0.08);
 }

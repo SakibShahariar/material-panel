@@ -18,7 +18,7 @@ import {setChipA11y} from '../lib/a11y.js';
 import {findBestAccessPoint, getAccessPointInfo, ssidKey} from '../lib/wifiAccessPoints.js';
 import {addAndActivateWifiConnection, createWifiActivationGate, reportWifiActivationStatus} from '../lib/wifiConnection.js';
 import {signalGlyph, sortAccessPoints, parseArpNeighbors, classifyCaptivePortal,
-    parsePingResult, wifiChannel} from '../lib/networkDesign.js';
+    parsePingResult, wifiChannel, wifiBand} from '../lib/networkDesign.js';
 import {loadHiddenNetworks, saveHiddenNetworks, toggleHiddenNetwork} from '../lib/hiddenNetworks.js';
 import {probeCaptivePortal, getNearbyDevices, probePing} from '../lib/networkDiagnostics.js';
 
@@ -134,6 +134,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         // from the live palette and repaint when the palette changes.
         const themedLabels = new Map();
         const themedIcons = new Map();
+        const pillGroups = [];
         const wifiUi = (text, style = '') => {
             const label = new St.Label({text: String(text ?? '')});
             const applyStyle = () => {
@@ -164,6 +165,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             }
             for (const applyIcon of themedIcons.values()) {
                 try { applyIcon(); } catch (e) {}
+            }
+            for (const group of pillGroups) {
+                try { applyPillState(group, group.active); } catch (e) {}
             }
             try { setIcon(currentIconKey); } catch (e) {}
         };
@@ -275,27 +279,38 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         menu.addMenuItem(networkHeaderItem);
         const primaryConnId = client.connect('notify::primary-connection', updateStatusIcon);
 
-        const wifiToggle = new PopupMenu.PopupSwitchMenuItem('Wi-Fi', !!client.wireless_enabled);
-        try {
-            wifiToggle.label.style = 'font-family: "Noto Sans", sans-serif; font-size: 11px; font-weight: 600;';
-        } catch (e) {}
-        wifiToggle.connect('toggled', item => {
-            const want = !!item.state;
+        // The radio toggle lives in the hero card, matching the reference
+        // panels where every control sits on the same surface as the stats.
+        const wifiToggle = new St.Button({
+            style_class: 'material-panel-wifi-toggle',
+            reactive: true, can_focus: true,
+        });
+        const wifiToggleLabel = wifiUi('', 'font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 700;');
+        wifiToggle.set_child(wifiToggleLabel);
+        const syncWifiToggle = () => {
+            const on = !!client.wireless_enabled;
+            wifiToggleLabel.text = on ? 'ON' : 'OFF';
             try {
-                // NetworkManager owns the radio state; avoid a redundant nmcli
-                // subprocess and let notify::wireless-enabled synchronize UI.
-                client.wireless_enabled = want;
+                const bg = on ? getThemeColor('primary', '#89b4fa') : getThemeColor('qsSurface', 'rgba(49, 50, 68, 0.55)');
+                const fg = on ? getThemeColor('onPrimary', '#1e1e2e') : getThemeColor('onSurface', '#cdd6f4');
+                wifiToggle.style = `background-color: ${bg}; color: ${fg}; padding: 5px 12px; border-radius: 999px;`;
+            } catch (e) {}
+            setChipA11y(wifiToggle, on ? 'Wi-Fi on; click to turn off' : 'Wi-Fi off; click to turn on');
+        };
+        wifiToggle.connect('clicked', () => {
+            try {
+                // NetworkManager owns the radio state; no nmcli subprocess.
+                client.wireless_enabled = !client.wireless_enabled;
             } catch (e) {
                 logError(e, 'material-panel: NM wireless_enabled set failed');
             }
         });
         const wirelessEnabledId = client.connect('notify::wireless-enabled', () => {
-            try {
-                wifiToggle.setToggleState(!!client.wireless_enabled);
-            } catch (e) {}
+            syncWifiToggle();
             updateStatusIcon();
         });
-        menu.addMenuItem(wifiToggle);
+        heroActions.add_child(wifiToggle);
+        syncWifiToggle();
 
         // Adapter switcher appears only with 2+ Wi-Fi radios (elliot/penguine style).
         const adapterSection = new PopupMenu.PopupMenuSection();
@@ -428,7 +443,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             for (const {key, label} of fields) {
                 const cell = new St.BoxLayout({x_expand: true, style: 'spacing: 6px;'});
                 cell.add_child(wifiUi(label,
-                    'font-family: "Noto Sans", sans-serif; font-size: 9px; opacity: 0.5; width: 60px;'));
+                    'font-family: "Noto Sans", sans-serif; font-size: 8px; opacity: 0.5; width: 58px;'));
                 const value = wifiUi('—',
                     'font-family: "Noto Sans", sans-serif; font-size: 10px; font-weight: 600;');
                 value.x_expand = true;
@@ -457,6 +472,57 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
         wifiSurface.add_child(detailsCard);
         wifiSurface.add_child(deviceCard);
 
+        const applyPillState = (group, active) => {
+            group.active = active;
+            for (const [label, button] of group.buttons) {
+                const on = label === active;
+                try {
+                    const bg = on ? getThemeColor('primary', '#89b4fa')
+                        : getThemeColor('qsSurface', 'rgba(49, 50, 68, 0.55)');
+                    const fg = on ? getThemeColor('onPrimary', '#1e1e2e')
+                        : getThemeColor('onSurface', '#cdd6f4');
+                    button.style = `font-family: "Noto Sans", sans-serif; font-size: 9px; font-weight: 600; ` +
+                        `padding: 6px 4px; border-radius: 999px; background-color: ${bg}; color: ${fg};`;
+                } catch (e) {}
+            }
+        };
+        const pillRow = (title, items, onPick) => {
+            const box = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL, x_expand: true, style: 'spacing: 6px;',
+            });
+            box.add_child(wifiEyebrow(title));
+            const row = new St.BoxLayout({x_expand: true, style: 'spacing: 6px;'});
+            const buttons = new Map();
+            for (const item of items) {
+                const button = new St.Button({
+                    label: item, style_class: 'material-panel-wifi-pill',
+                    reactive: true, can_focus: true, x_expand: true,
+                });
+                button.connect('clicked', () => onPick(item));
+                row.add_child(button);
+                buttons.set(item, button);
+            }
+            box.add_child(row);
+            wifiSurface.add_child(box);
+            const group = {buttons, active: null};
+            pillGroups.push(group);
+            return group;
+        };
+        const bandPills = pillRow('BAND', ['Auto', '2.4 GHz', '5 GHz', '6 GHz'], label => {
+            menuClose(menu);
+            if (GLib.find_program_in_path('omarchy-network-band')) {
+                try {
+                    GLib.spawn_command_line_async(`omarchy-network-band set ${label === 'Auto' ? 'auto' : label.split(' ')[0]}`);
+                } catch (e) {}
+            } else {
+                try { GLib.spawn_command_line_async('gnome-control-center wifi'); } catch (e) {}
+            }
+        });
+        const dnsPills = pillRow('DNS PROVIDER', ['DHCP', 'Cloudflare', 'Google'], () => {
+            menuClose(menu);
+            try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e) {}
+        });
+
         // Ping results arrive asynchronously; keep them across list rebuilds
         // and ignore replies from a probe started for an older connection.
         let pingStats = {gateway: null, internet: null};
@@ -481,8 +547,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 const conn = client.get_primary_connection();
                 const ip4 = conn?.get_ip4_config?.();
                 const addresses = ip4?.get_addresses?.() || [];
-                const ap = conn?.get_access_points?.()?.[0];
+                const ap = conn?.get_access_points?.()?.[0] || null;
                 const device = conn?.get_devices?.()?.[0] || wifiDevice;
+                const frequency = Number(ap?.get_frequency?.() || device?.get_frequency?.()) || 0;
                 const metrics = getNetworkMetrics() || {};
                 const rate = value => Number.isFinite(Number(value)) && Number(value) > 0
                     ? formatRateValue(value) : '—';
@@ -498,7 +565,7 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                 detailRows.uploaded.text = total(metrics.sessionTx);
                 detailRows.ip.text = addresses[0]?.get_address?.() || '—';
                 detailRows.gateway.text = ip4?.get_gateway?.() || '—';
-                detailRows.band.text = bandForAccessPoint(ap);
+                detailRows.band.text = wifiBand(frequency) || bandForAccessPoint(ap);
                 detailRows.dns.text = dnsForConnection(conn);
                 detailRows.interface.text = device?.get_interface?.() || '—';
                 try { detailRows.mac.text = device?.get_hardware_address?.() || '—'; }
@@ -518,9 +585,11 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
                     detailRows.link.text = Number(speed) > 0 ? `${Math.round(speed)} Mb/s` : '—';
                 } catch (e) { detailRows.link.text = '—'; }
                 try {
-                    const channel = wifiChannel(ap?.get_frequency?.());
+                    const channel = wifiChannel(frequency);
                     detailRows.channel.text = channel ? `CH ${channel}` : '—';
                 } catch (e) { detailRows.channel.text = '—'; }
+                applyPillState(bandPills, wifiBand(frequency) || 'Auto');
+                applyPillState(dnsPills, dnsForConnection(conn));
             } catch (e) {
                 for (const key of Object.keys(detailRows))
                     detailRows[key].text = '—';
@@ -544,13 +613,9 @@ export function buildNetwork(_extensionPath, scale = 1.0) {
             return b;
         };
         addAction('↻ Scan', () => requestWifiScan());
-        addAction('Band', () => {
+        addAction('Settings…', () => {
             menuClose(menu);
             try { GLib.spawn_command_line_async('gnome-control-center wifi'); } catch (e) {}
-        });
-        addAction('DNS', () => {
-            menuClose(menu);
-            try { GLib.spawn_command_line_async('gnome-control-center network'); } catch (e) {}
         });
         wifiSurface.add_child(actionsRow);
 
